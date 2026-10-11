@@ -48,6 +48,36 @@ test('private vault persistence preserves a held content reference across sequen
   await lockPrivateVault();
 });
 
+test('vault saves keep the item the player is holding so a later watch is not dropped', async () => {
+  const state = makeDefaultState();
+  await setupPrivateVault(state, '246810');
+  const content = privateVaultContent();
+  content.items.push(
+    { id: 'video-a', type: 'video', name: 'a.mp4', assetRef: 'mine-media://a.mp4', position: 0, watchHistory: [{ id: 's1', startedAt: 1_000, endedAt: 9_000, watchedSeconds: 8, startPosition: 0, endPosition: 8, completion: 0.2 }] },
+    { id: 'video-b', type: 'video', name: 'b.mp4', assetRef: 'mine-media://b.mp4', position: 0, watchHistory: [] }
+  );
+  const heldA = content.items[0];
+  const heldB = content.items[1];
+  await persistPrivateVault(state);
+  assert.strictEqual(privateVaultContent().items.find(item => item.id === 'video-a'), heldA);
+  assert.strictEqual(privateVaultContent().items.find(item => item.id === 'video-b'), heldB);
+  heldB.watchHistory = [{ id: 's2', startedAt: 3_000, endedAt: 9_000, watchedSeconds: 6, startPosition: 1, endPosition: 7, completion: 0.4 }];
+  heldA.position = 12;
+  const first = persistPrivateVault(state);
+  heldB.watchHistory = [...heldB.watchHistory, { id: 's3', startedAt: 10_000, endedAt: 16_000, watchedSeconds: 5, startPosition: 7, endPosition: 12, completion: 0.6 }];
+  const second = persistPrivateVault(state);
+  await first;
+  await second;
+  await lockPrivateVault();
+  await unlockPrivateVault(state, '246810');
+  const savedA = privateVaultContent().items.find(item => item.id === 'video-a');
+  const savedB = privateVaultContent().items.find(item => item.id === 'video-b');
+  assert.equal(savedA.position, 12);
+  assert.equal(savedA.watchHistory[0].id, 's1');
+  assert.deepEqual(savedB.watchHistory.map(session => session.id), ['s2', 's3']);
+  await lockPrivateVault();
+});
+
 test('private vault can unlock from its wrapped data key without changing encrypted content', async () => {
   const state = makeDefaultState();
   await setupPrivateVault(state, '246810');
@@ -322,12 +352,15 @@ test('private playback caches decrypted legacy sources, preloads neighbors and s
   assert.match(view, /autoAdvance: false/);
   assert.match(view, /onNavigate: \(next, direction\) => openVaultVideo/);
   assert.match(view, /onProgress: \(\{ position, duration \}\)/);
-  assert.match(view, /sourceType: item\.sourceType/);
+  assert.match(view, /sourceType: current\.sourceType/);
   assert.match(view, /currentVaultVideoScopeLabel/);
   assert.match(view, /episodeTitle: currentVaultVideoScopeLabel\(\)/);
   assert.match(view, /date: entry\.date/);
-  assert.match(view, /watchHistory: item\.watchHistory \|\| \[\]/);
+  assert.match(view, /watchHistory: current\.watchHistory \|\| \[\]/);
   assert.match(view, /onWatchSession: session/);
+  assert.match(view, /record\.watchHistory = \[\.\.\.\(record\.watchHistory \|\| \[\]\), session\]/);
+  assert.match(view, /const closing = Promise\.resolve\(callHelper\('closeVideoPlayer'\)\)/);
+  assert.match(view, /closing\.finally\(\(\) => \{[\s\S]*?lockPrivateVault\(\)/);
   assert.match(view, /onDeleteCurrent: \(\) => deleteVaultVideoFromFeed/);
   assert.match(view, /async function deleteVaultVideoFromFeed/);
   assert.match(vaultCore, /watchHistory: Array\.isArray/);

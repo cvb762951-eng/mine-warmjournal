@@ -3,11 +3,11 @@ import { Capacitor } from '@capacitor/core';
 import { Camera, CameraDirection, EncodingType } from '@capacitor/camera';
 import { FilePicker } from '@capawesome/capacitor-file-picker';
 import { $, $$, esc, uid, state, save, render, modal, closeModal, show, confirmDelete, imgSrc, emptyState, go, registerView, registerBinder, registerSubmitHandler, registerHelper, callHelper, PHOTO_IMPORT_BATCH_LIMIT } from '../core.js';
-import { makeSnippet, makeTodo, snippetEntries, dateKey, WEEK_DAYS, activeStreak } from '../model.js';
+import { makeSnippet, makeTodo, snippetEntries, dateKey, WEEK_DAYS, activeStreak, formatShanghaiStamp } from '../model.js';
 import { photoViewer, micButtonHtml, bindVoiceInput } from './common.js';
 import { compressSnippetPhoto, captureVideoFrame, importPhotoBatch, isSupportedJournalPhoto } from '../photo-utils.js';
 import { mediaSource, saveMediaFile, saveNativeMediaSource } from '../media-store.js';
-import { attachVideoSource, formatVideoDuration, isHlsAddress, normalizeHlsAddress } from '../video-player.js';
+import { attachVideoSource, formatVideoDuration, isHlsAddress, normalizeHlsAddress, presentWatchSession, summarizeWatchSession } from '../video-player.js';
 import { showVideoFramePicker } from '../video-frame-picker.js';
 import { applyVideoCrop, croppedFrame } from '../video-crop.js';
 import { aiSuggestStructure, applySuggestion } from '../ai.js';
@@ -485,7 +485,9 @@ function stopActiveVideoPlayer({ persist = true } = {}) {
   activeVideoFullscreenCleanup = null;
   callHelper('setVideoGestureExclusion', false);
   if (shouldSave) save().catch(error => console.warn('视频进度保存失败', error));
-  if (persist) Promise.resolve(sessionOptions?.onClose?.()).catch(error => console.warn('播放器会话保存失败', error));
+  if (!persist) return Promise.resolve();
+  // 调用方（切后台锁定、离开私密空间）要等这条写完再清密钥，否则观看记录会写到一半被丢掉。
+  return Promise.resolve(sessionOptions?.onClose?.()).catch(error => console.warn('播放器会话保存失败', error));
 }
 
 function showFeedHandoff(poster = '') {
@@ -508,7 +510,8 @@ function clearFeedHandoff() {
 
 function playSnippetVideo(video, entry = null, index = 0, options = {}) {
   if (!video?.video) return;
-  stopActiveVideoPlayer({ persist: false });
+  // 换一条视频时把上一条的观看记录先落下来。navigate 里已经停过的话，这里是空操作。
+  stopActiveVideoPlayer();
   // 进入新的沉浸式视频流时恢复为「有声」默认值；
   // 用户若已在播放器里手动静音，则尊重该选择，不强制改回有声。
   if (options.immersiveFeed && options.resetFeedAudio) immersiveFeedSoundEnabled = true;
@@ -644,7 +647,7 @@ function playSnippetVideo(video, entry = null, index = 0, options = {}) {
       if (message) { message.hidden = false; message.textContent = error; message.classList.add('error'); }
     }
   });
-  const watchTracker = createWatchSessionTracker(player, options.onWatchSession);
+  const watchTracker = createWatchSessionTracker(player, options.onWatchSession, trimRange);
   const feedBoundsObserver = options.immersiveFeed && typeof ResizeObserver === 'function' ? new ResizeObserver(() => {
     const frame = shownFrame(player.videoWidth, player.videoHeight);
     updateFeedVideoBounds($('#warm-video-player'), viewport, frame.width, frame.height);
@@ -714,7 +717,18 @@ function playSnippetVideo(video, entry = null, index = 0, options = {}) {
     $('#vault-feed-library')?.addEventListener('click', () => options.onOpenLibrary?.());
     $('#vault-feed-episodes')?.addEventListener('click', () => { chromeUnlocked = true; if (episodePanel) episodePanel.hidden = !episodePanel.hidden; if (folderPanel) folderPanel.hidden = true; if (historyPanel) historyPanel.hidden = true; revealFeedChrome(!episodePanel?.hidden); });
     $('#vault-feed-folders')?.addEventListener('click', () => { chromeUnlocked = true; if (folderPanel) folderPanel.hidden = !folderPanel.hidden; if (episodePanel) episodePanel.hidden = true; if (historyPanel) historyPanel.hidden = true; revealFeedChrome(!folderPanel?.hidden); });
-     $('#vault-feed-history')?.addEventListener('click', () => { chromeUnlocked = true; if (historyPanel) historyPanel.hidden = !historyPanel.hidden; if (episodePanel) episodePanel.hidden = true; if (folderPanel) folderPanel.hidden = true; revealFeedChrome(!historyPanel?.hidden); });
+     $('#vault-feed-history')?.addEventListener('click', () => {
+       chromeUnlocked = true;
+       if (historyPanel?.hidden) {
+         const live = watchTracker?.peek?.();
+         const history = Array.isArray(options.watchHistory) ? options.watchHistory : [];
+         paintFeedWatchHistory(live ? [...history, live] : history, trimRange);
+       }
+       if (historyPanel) historyPanel.hidden = !historyPanel.hidden;
+       if (episodePanel) episodePanel.hidden = true;
+       if (folderPanel) folderPanel.hidden = true;
+       revealFeedChrome(!historyPanel?.hidden);
+     });
      $('#vault-feed-delete')?.addEventListener('click', async event => {
        event.stopPropagation();
        const deleteCurrent = options.onDeleteCurrent;
@@ -939,10 +953,33 @@ function updateFeedProgressStyle(progress, position, duration) {
   progress.style.setProperty('--vault-feed-progress', `${percent.toFixed(3)}%`);
 }
 
-function feedWatchHistoryPanelHtml(history) {
-  const sessions = [...history].sort((a, b) => Number(b.startedAt) - Number(a.startedAt));
+function orderedWatchSessions(history, trim) {
+  return [...(history || [])].map(session => presentWatchSession(session, trim)).sort((a, b) => Number(b.startedAt) - Number(a.startedAt));
+}
+
+function watchSessionArticle(session) {
+  return `<article><time>${formatWatchDate(session.startedAt)}</time><strong>观看 ${formatWatchDuration(session.watchedSeconds)}</strong><small>${clockText(session.startPosition)} → ${clockText(session.endPosition)} · ${Math.round((Number(session.completion) || 0) * 100)}%</small></article>`;
+}
+
+function watchHistoryEmptyCopy() {
+  return '播放满 3 秒后，会在这里留下这一次观看。点开或很快划走不会记。';
+}
+
+function feedWatchHistoryPanelHtml(history, trim = null) {
+  const sessions = orderedWatchSessions(history, trim);
   const total = sessions.reduce((sum, session) => sum + (Number(session.watchedSeconds) || 0), 0);
-  return `<section class="vault-feed-history-panel" id="vault-feed-history-panel" hidden><header><span><strong>观看记录</strong><small>${sessions.length} 次 · 累计 ${formatWatchDuration(total)}</small></span><button id="vault-feed-close-history" aria-label="关闭观看记录"><span class="material-symbols-outlined">close</span></button></header><div>${sessions.length ? sessions.map(session => `<article><time>${formatWatchDate(session.startedAt)}</time><strong>观看 ${formatWatchDuration(session.watchedSeconds)}</strong><small>${clockText(session.startPosition)} → ${clockText(session.endPosition)} · ${Math.round((Number(session.completion) || 0) * 100)}%</small></article>`).join('') : '<p>完整播放 3 秒后，会在这里留下观看时间。</p>'}</div></section>`;
+  return `<section class="vault-feed-history-panel" id="vault-feed-history-panel" hidden><header><span><strong>观看记录</strong><small>${sessions.length} 次 · 累计 ${formatWatchDuration(total)}</small></span><button id="vault-feed-close-history" aria-label="关闭观看记录"><span class="material-symbols-outlined">close</span></button></header><div>${sessions.length ? sessions.map(watchSessionArticle).join('') : `<p>${watchHistoryEmptyCopy()}</p>`}</div></section>`;
+}
+
+function paintFeedWatchHistory(history, trim = null) {
+  const panel = $('#vault-feed-history-panel');
+  if (!panel) return;
+  const sessions = orderedWatchSessions(history, trim);
+  const total = sessions.reduce((sum, session) => sum + (Number(session.watchedSeconds) || 0), 0);
+  const summary = panel.querySelector('header small');
+  if (summary) summary.textContent = `${sessions.length} 次 · 累计 ${formatWatchDuration(total)}`;
+  const list = panel.querySelector('header + div');
+  if (list) list.innerHTML = sessions.length ? sessions.map(watchSessionArticle).join('') : `<p>${watchHistoryEmptyCopy()}</p>`;
 }
 
 function feedFolderPanelHtml(folders) {
@@ -953,37 +990,82 @@ function feedPlaybackControlsHtml() {
   return `<output class="vault-feed-gesture-status" id="vault-feed-gesture-status" hidden><span class="material-symbols-outlined" id="vault-feed-gesture-icon">speed</span><strong id="vault-feed-gesture-copy"></strong></output><button type="button" class="vault-feed-play" id="vault-feed-toggle-play" aria-label="暂停或继续播放"><span class="material-symbols-outlined" id="vault-feed-play-icon">pause</span></button>`;
 }
 
-function createWatchSessionTracker(player, enabled) {
+function createWatchSessionTracker(player, enabled, trim = null) {
   if (!enabled) return null;
   let startedAt = 0;
   let startPosition = 0;
   let watchedMilliseconds = 0;
+  let furthest = 0;
   let sliceStartedAt = 0;
+  let sliceRate = 1;
+  const mediaRate = rate => Math.min(4, Math.max(0.25, Number(rate) || 1));
+  const pendingMs = () => {
+    if (!sliceStartedAt) return watchedMilliseconds;
+    return watchedMilliseconds + Math.max(0, performance.now() - sliceStartedAt) * mediaRate(sliceRate);
+  };
   const flush = () => {
     if (!sliceStartedAt) return;
-    watchedMilliseconds += Math.max(0, performance.now() - sliceStartedAt);
+    watchedMilliseconds = pendingMs();
     sliceStartedAt = 0;
   };
+  const mark = () => {
+    const time = Math.max(0, Number(player.currentTime) || 0);
+    if (time > furthest) furthest = time;
+  };
+  const arm = () => {
+    if (!player.paused && document.visibilityState !== 'hidden' && !sliceStartedAt) {
+      sliceStartedAt = performance.now();
+      sliceRate = Number(player.playbackRate) || 1;
+    }
+  };
   const begin = () => {
-    if (!startedAt) { startedAt = Date.now(); startPosition = Number(player.currentTime) || 0; }
-    if (!player.paused && document.visibilityState !== 'hidden' && !sliceStartedAt) sliceStartedAt = performance.now();
+    const time = Math.max(0, Number(player.currentTime) || 0);
+    if (!startedAt) { startedAt = Date.now(); startPosition = time; furthest = time; }
+    mark();
+    arm();
   };
   const pause = () => flush();
   const visibility = () => document.visibilityState === 'hidden' ? flush() : begin();
-  player.addEventListener('play', begin);
-  player.addEventListener('pause', pause);
-  document.addEventListener('visibilitychange', visibility);
-  return { finish() {
-    flush();
+  // 倍速变化时先按旧速度结清这一段，再按新速度接着计。ratechange 触发时 playbackRate 已经是新值。
+  const onRate = () => { flush(); arm(); };
+  const detach = () => {
     player.removeEventListener('play', begin);
     player.removeEventListener('pause', pause);
+    player.removeEventListener('timeupdate', mark);
+    player.removeEventListener('seeked', mark);
+    player.removeEventListener('ended', mark, true);
+    player.removeEventListener('ratechange', onRate);
     document.removeEventListener('visibilitychange', visibility);
-    const watchedSeconds = Math.floor(watchedMilliseconds / 1000);
-    if (!startedAt || watchedSeconds < 3) return null;
-    const endPosition = Math.max(0, Number(player.currentTime) || 0);
-    const duration = Math.max(0, Number(player.duration) || 0);
-    return { id: crypto.randomUUID?.() || `${Date.now()}-${Math.random()}`, startedAt, endedAt: Date.now(), watchedSeconds, startPosition: Math.floor(startPosition), endPosition: Math.floor(endPosition), completion: duration ? Math.min(1, endPosition / duration) : 0 };
-  } };
+  };
+  const snapshot = endedAt => summarizeWatchSession({
+    startedAt,
+    endedAt,
+    watchedMilliseconds: pendingMs(),
+    startPosition,
+    endPosition: Number(player.currentTime) || 0,
+    furthest,
+    duration: Number(player.duration) || 0,
+    trim
+  });
+  player.addEventListener('play', begin);
+  player.addEventListener('pause', pause);
+  player.addEventListener('timeupdate', mark);
+  player.addEventListener('seeked', mark);
+  // 捕获阶段赶在播放器把进度拉回片头之前，记下「已经放到结尾」。
+  player.addEventListener('ended', mark, true);
+  player.addEventListener('ratechange', onRate);
+  document.addEventListener('visibilitychange', visibility);
+  return {
+    peek() { mark(); return snapshot(Date.now()); },
+    finish() {
+      flush();
+      mark();
+      detach();
+      const watchedSeconds = Math.floor(watchedMilliseconds / 1000);
+      if (!startedAt || watchedSeconds < 3) return null;
+      return snapshot(Date.now());
+    }
+  };
 }
 
 function formatWatchDuration(seconds) {
@@ -994,9 +1076,8 @@ function formatWatchDuration(seconds) {
 }
 
 function formatWatchDate(timestamp) {
-  const date = new Date(Number(timestamp) || 0);
-  if (!Number.isFinite(date.getTime())) return '未知时间';
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+  // 固定北京时间，不跟 WebView 本地时区走。手机在中国时和原来的本地显示一致。
+  return formatShanghaiStamp(timestamp) || '未知时间';
 }
 
 function feedTransitionPreviewHtml(items, activeIndex) {

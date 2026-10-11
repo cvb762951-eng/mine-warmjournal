@@ -17,6 +17,53 @@ export function isHlsAddress(value) {
   return Boolean(normalizeHlsAddress(value));
 }
 
+/**
+ * 一次播放收成一条观看记录。
+ * watchedMilliseconds 按「实际放过的画面」计（墙钟 × 倍速），暂停和拖动跳跃不算进去。
+ * furthest 是播放头到过的最远位置：视频循环回到片头后，完成度不能被打回 0。
+ * 有剪辑区间时，完成度按可播放的那一段算，而不是整份文件的时长。
+ * 不足 3 秒不记，避免点开、划走被算成看过。
+ */
+export function summarizeWatchSession({
+  startedAt = 0,
+  endedAt = 0,
+  watchedMilliseconds = 0,
+  startPosition = 0,
+  endPosition = 0,
+  furthest = 0,
+  duration = 0,
+  trim = null,
+  id = ''
+} = {}) {
+  const watchedSeconds = Math.floor(Math.max(0, Number(watchedMilliseconds) || 0) / 1000);
+  if (!(Number(startedAt) > 0) || watchedSeconds < 3) return null;
+  const origin = Math.max(0, Number(trim?.start) || 0);
+  const trimEnd = Math.max(0, Number(trim?.end) || 0);
+  const trimmed = trimEnd > origin + 0.05;
+  const span = trimmed ? trimEnd - origin : Math.max(0, Number(duration) || 0);
+  const reached = Math.max(Number(endPosition) || 0, Number(furthest) || 0, Number(startPosition) || 0);
+  const completion = span > 0 ? Math.min(1, Math.max(0, reached - (trimmed ? origin : 0)) / span) : 0;
+  return {
+    id: String(id || (globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`)),
+    startedAt: Number(startedAt),
+    endedAt: Number(endedAt) > 0 ? Number(endedAt) : Date.now(),
+    watchedSeconds,
+    startPosition: Math.floor(Math.max(0, Number(startPosition) || 0)),
+    endPosition: Math.floor(Math.max(0, reached)),
+    completion
+  };
+}
+
+/** 面板上的起止时间按用户看到的时间轴（剪辑区间从 0 起算），库存仍是文件内的秒数。 */
+export function presentWatchSession(session, trim = null) {
+  if (!session) return session;
+  const origin = Math.max(0, Number(trim?.start) || 0);
+  const trimEnd = Math.max(0, Number(trim?.end) || 0);
+  if (!(trimEnd > origin + 0.05)) return session;
+  const shift = value => Math.max(0, Math.floor(Number(value) || 0) - Math.floor(origin));
+  return { ...session, startPosition: shift(session.startPosition), endPosition: shift(session.endPosition) };
+}
+
 export function formatVideoDuration(seconds, fallback = '') {
   const safe = Math.max(0, Math.floor(Number(seconds) || 0));
   if (!safe) return fallback;

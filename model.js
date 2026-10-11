@@ -138,6 +138,13 @@ export function formatShanghaiDateTime(timestamp) {
   return clock ? `${clock.year}年${clock.month}月${clock.day}日 · ${clock.hour}:${clock.minute}` : '';
 }
 
+export function formatShanghaiStamp(timestamp) {
+  const clock = shanghaiWallClock(timestamp);
+  if (!clock) return '';
+  const pad = number => String(number).padStart(2, '0');
+  return `${clock.year}-${pad(clock.month)}-${pad(clock.day)} ${clock.hour}:${clock.minute}`;
+}
+
 export const DEFAULT_NAV_ROUTES = ['today', 'calendar', 'focus', 'ledger', 'ai'];
 export const MORE_NAV_ROUTES = ['statistics', 'documents', 'mine'];
 

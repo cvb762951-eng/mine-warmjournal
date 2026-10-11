@@ -931,7 +931,10 @@ async function openVaultVideo(item, providedItems = null, providedIndex = -1, fe
   const source = await vaultVideoSource(item);
   if (!privateVaultUnlocked() || state.route !== 'private-vault') return closeModal();
   let progressDirty = false;
-  callHelper('playSnippetVideo', { video: source, poster: thumbnailUrls.get(item.id) || '', label: cleanVaultVideoTitle(item.name, item.date), sourceType: item.sourceType || '', position: item.position || 0, duration: item.duration || 0, trim: item.trim || null, crop: item.crop || null }, null, index, {
+  // 保存会把条目规范化。播放器必须写回当前仍在列表里的那一条，不能写到切集前拿到的旧对象上。
+  const live = () => privateVaultContent()?.items?.find(entry => entry.id === item.id) || item;
+  const current = live();
+  callHelper('playSnippetVideo', { video: source, poster: thumbnailUrls.get(item.id) || '', label: cleanVaultVideoTitle(current.name, current.date), sourceType: current.sourceType || '', position: current.position || 0, duration: current.duration || 0, trim: current.trim || null, crop: current.crop || null }, null, index, {
     count: items.length,
     immersiveFeed: true,
     loopNavigation: true,
@@ -940,26 +943,29 @@ async function openVaultVideo(item, providedItems = null, providedIndex = -1, fe
     folders: vaultFeedFolders(),
     episodeTitle: currentVaultVideoScopeLabel(),
     episodes: items.map(entry => ({ name: cleanVaultVideoTitle(entry.name || '私密视频', entry.date), label: cleanVaultVideoTitle(entry.name || '私密视频', entry.date), poster: thumbnailUrls.get(entry.id) || '', duration: entry.duration || 0, date: entry.date || '' })),
-    description: item.note || '',
-    date: item.date || '',
-    sourceLabel: item.sourceType === 'hls' ? '私密在线视频' : 'App私有视频',
-    watchHistory: item.watchHistory || [],
+    description: current.note || '',
+    date: current.date || '',
+    sourceLabel: current.sourceType === 'hls' ? '私密在线视频' : 'App私有视频',
+    watchHistory: current.watchHistory || [],
     autoAdvance: false,
     onReady: ({ duration, width, height }) => {
+      const record = live();
       const seconds = Math.max(0, Math.floor(Number(duration) || 0));
-      if (seconds && item.duration !== seconds) { item.duration = seconds; progressDirty = true; }
-      if (width && height) { item.width = width; item.height = height; }
+      if (seconds && record.duration !== seconds) { record.duration = seconds; progressDirty = true; }
+      if (width && height) { record.width = width; record.height = height; }
       const stamp = $(`[data-vault-duration="${item.id}"]`);
-      if (stamp && seconds) stamp.textContent = formatVideoDuration(vaultPlayableDuration(item));
+      if (stamp && seconds) stamp.textContent = formatVideoDuration(vaultPlayableDuration(record));
     },
     onProgress: ({ position, duration }) => {
-      if (item.position !== position) { item.position = position; progressDirty = true; }
+      const record = live();
+      if (record.position !== position) { record.position = position; progressDirty = true; }
       const seconds = Math.max(0, Math.floor(Number(duration) || 0));
-      if (seconds && item.duration !== seconds) { item.duration = seconds; progressDirty = true; }
+      if (seconds && record.duration !== seconds) { record.duration = seconds; progressDirty = true; }
     },
-    onEnded: () => { item.position = 0; progressDirty = true; },
+    onEnded: () => { live().position = 0; progressDirty = true; },
     onWatchSession: session => {
-      item.watchHistory = [...(item.watchHistory || []), session].slice(-100);
+      const record = live();
+      record.watchHistory = [...(record.watchHistory || []), session].slice(-100);
       progressDirty = true;
     },
     onClose: async () => { if (progressDirty && privateVaultUnlocked()) { await persistPrivateVault(state); await save(); } },
@@ -1281,15 +1287,18 @@ function scheduleVisibilityLock() {
     thumbnailUrls.clear();
     decryptedVideoUrls.clear();
     decryptingVideoUrls.clear();
-    callHelper('closeVideoPlayer');
-    closeModal();
-    resetVaultFingerprintAttempt();
-    lockPrivateVault().finally(() => { if (state.route === 'private-vault') render(); });
+    const closing = Promise.resolve(callHelper('closeVideoPlayer'));
+    closing.finally(() => {
+      closeModal();
+      if (document.visibilityState !== 'hidden' || externalUiDepth > 0 || vaultFullscreenActive || !privateVaultUnlocked()) return;
+      resetVaultFingerprintAttempt();
+      lockPrivateVault().finally(() => { if (state.route === 'private-vault') render(); });
+    });
   }, 300);
 }
 
 async function lockAndLeave() {
-  callHelper('closeVideoPlayer');
+  await Promise.resolve(callHelper('closeVideoPlayer'));
   closeModal();
   thumbnailUrls.clear();
   if (!passwordlessForThisRun) { decryptedVideoUrls.clear(); decryptingVideoUrls.clear(); await lockPrivateVault(); }
@@ -1386,7 +1395,21 @@ function bindPrivateVault() {
     });
   }
   $('#vault-back')?.addEventListener('click', lockAndLeave);
-  $('#vault-lock')?.addEventListener('click', async () => { passwordlessForThisRun = false; resetVaultFingerprintAttempt(); thumbnailUrls.clear(); decryptedVideoUrls.clear(); decryptingVideoUrls.clear(); activeFolderId = ''; vaultBrowseMode = 'folders'; vaultSelectionMode = false; vaultSelectedIds.clear(); await lockPrivateVault(); closeModal(); render(); });
+  $('#vault-lock')?.addEventListener('click', async () => {
+    passwordlessForThisRun = false;
+    resetVaultFingerprintAttempt();
+    thumbnailUrls.clear();
+    decryptedVideoUrls.clear();
+    decryptingVideoUrls.clear();
+    activeFolderId = '';
+    vaultBrowseMode = 'folders';
+    vaultSelectionMode = false;
+    vaultSelectedIds.clear();
+    await Promise.resolve(callHelper('closeVideoPlayer'));
+    closeModal();
+    await lockPrivateVault();
+    render();
+  });
   $('#vault-fingerprint-settings')?.addEventListener('click', vaultFingerprintSettings);
   $('#vault-passwordless')?.addEventListener('click', () => {
     passwordlessForThisRun = !passwordlessForThisRun;
@@ -1553,10 +1576,18 @@ registerOnRender(() => {
     externalUiDepth = 0;
     vaultFullscreenActive = false;
     thumbnailUrls.clear();
-    callHelper('closeVideoPlayer');
+    const closing = Promise.resolve(callHelper('closeVideoPlayer'));
     closeModal();
     activeFolderId = ''; vaultBrowseMode = 'folders'; vaultSelectionMode = false; vaultSelectedIds.clear();
-    if (!passwordlessForThisRun) { resetVaultFingerprintAttempt(); decryptedVideoUrls.clear(); decryptingVideoUrls.clear(); lockPrivateVault(); }
+    if (!passwordlessForThisRun) {
+      closing.finally(() => {
+        if (!privateVaultUnlocked()) return;
+        resetVaultFingerprintAttempt();
+        decryptedVideoUrls.clear();
+        decryptingVideoUrls.clear();
+        lockPrivateVault();
+      });
+    }
   }
   vaultRouteWasActive = routeActive;
 });
