@@ -45,3 +45,6 @@ Mine-*.apk.0*
 *.log
 .DS_Store
 Thumbs.db
+
+# 签名凭据（本机，绝不提交）
+android/keystore.properties
