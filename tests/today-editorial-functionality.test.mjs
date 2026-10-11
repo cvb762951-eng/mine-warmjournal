@@ -69,24 +69,27 @@ test('Today photo story keeps the kraft frame and shows each photo complete, lik
   assert.match(source, /function photoStoryImage/);
   assert.match(source, /class="polaroid-blur" src="\$\{url\}"/);
   assert.match(source, /class="polaroid-img" src="\$\{url\}"/);
+  assert.match(photoCss, /aspect-ratio:16\/9/);
+  assert.doesNotMatch(photoCss, /@media[^{]*orientation/);
+  assert.doesNotMatch(photoCss, /portrait|landscape/);
   assert.match(css, /height:clamp\(280px,64vw,350px\)/);
   assert.match(css, /today-photo-kraft-frame\.png/);
   assert.match(source, /cyclePhotoStack\(\)/);
   assert.doesNotMatch(source, /openPhotoLightbox/);
 });
 
-test('Today photo annotation sits in a compact readable strip', () => {
+test('Today photo caption sits on the paper under the picture, like Moments', () => {
   const photoCss = css.slice(css.lastIndexOf('/* Today 今日画页'));
   assert.match(source, /function handwrittenCaptionHtml\(text\)/);
-  assert.match(source, /--scribble-rotate:\$\{rotations/);
   assert.match(source, /handwrittenCaptionHtml\(entry\.text \|\| '随手拍'\)/);
+  assert.match(source, /<\/span><span class="polaroid-meta"><span class="polaroid-time">/);
+  assert.match(photoCss, /\.today-view \.stack-card \.polaroid-meta\{[\s\S]*?background:transparent/);
   assert.match(photoCss, /\.today-view \.stack-card \.polaroid-caption\{[\s\S]*?writing-mode:horizontal-tb/);
   assert.match(photoCss, /-webkit-line-clamp:2/);
-  assert.match(photoCss, /text-shadow:/);
-  assert.match(photoCss, /font-weight:650/);
+  assert.match(photoCss, /font-family:'LXGW WenKai Screen R','Noto Serif SC',serif/);
   assert.doesNotMatch(photoCss, /writing-mode:vertical-rl/);
   assert.doesNotMatch(photoCss, /translateX\(-22px\)/);
-  assert.match(photoCss, /\.today-view \.stack-card \.polaroid-caption i\{[\s\S]*?rotate\(var\(--scribble-rotate,0\)\)/);
+  assert.doesNotMatch(photoCss, /rgba\(255,247,232,\.94\)/);
 });
 
 test('Today photo switching has directional motion and visible position feedback', () => {

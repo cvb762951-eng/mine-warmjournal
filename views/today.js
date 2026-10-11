@@ -126,23 +126,20 @@ function photoStackHtml(entries) {
     const photo = entry.photos?.length ? entry.photos[0] : entry.photo;
     const time = entry.createdAt ? new Date(entry.createdAt) : null;
     const timeText = time ? `${time.getMonth() + 1}/${time.getDate()} ${pad(time.getHours())}:${pad(time.getMinutes())}` : '';
-    return `<button type="button" class="stack-card card-pos-${i}" id="card-${i}" data-photo-stack-entry="${esc(entry.id)}"><span class="polaroid-frame">${photoStoryImage(photo, entry.text || '随手拍')}<span class="polaroid-meta"><span class="polaroid-caption">${handwrittenCaptionHtml(entry.text || '随手拍')}</span><span class="polaroid-time">${timeText}</span></span></span></button>`;
+    return `<button type="button" class="stack-card card-pos-${i}" id="card-${i}" data-photo-stack-entry="${esc(entry.id)}"><span class="polaroid-frame">${photoStoryImage(photo, entry.text || '随手拍')}</span><span class="polaroid-meta"><span class="polaroid-time">${timeText}</span><span class="polaroid-caption">${handwrittenCaptionHtml(entry.text || '随手拍')}</span></span></button>`;
   }).join('')}</div><div class="stack-dots">${Array.from({ length: count }, (_, i) => `<span class="stack-dot ${i === photoStackIndex % count ? 'active' : ''}" data-stack-dot="${i}"></span>`).join('')}</div></div>`;
 }
 
 /* 与随手拍照片格同一套（见 snippets.js 的 snippetPhotoImage）：
-   底层同一张图放大虚化铺满相框，上层 contain 完整居中，不拉伸、不裁切主体。
-   两层同地址，浏览器只下载一次。相框高度仍由今日画页卡片固定。 */
+   不论横竖，都进同一个相框。底层同一张图放大虚化铺满，上层 contain 完整居中。
+   两层同地址，浏览器只下载一次。不再按横图、竖图分两套留白。 */
 function photoStoryImage(source, alt = '') {
   const url = imgSrc(source);
   return `<img class="polaroid-blur" src="${url}" alt="" aria-hidden="true"><img class="polaroid-img" src="${url}" alt="${esc(alt)}">`;
 }
 
 function handwrittenCaptionHtml(text) {
-  // 只留很轻的笔锋。大幅旋转会把说明拆散，叠在照片上就读不清。
-  const rotations = [-0.6, 0.4, -0.2, 0.5, -0.3, 0.2];
-  const shifts = [0, 0.15, -0.1, 0.2, -0.15, 0.1];
-  return [...String(text)].map((character, index) => `<i style="--scribble-rotate:${rotations[index % rotations.length]}deg;--scribble-shift:${shifts[index % shifts.length]}px">${esc(character)}</i>`).join('');
+  return esc(String(text || ''));
 }
 
 function switchPhotoStack(nextIndex, preferredDirection = '') {
