@@ -69,6 +69,18 @@ test('Journal inputs are integrated into paper instead of nested modern cards', 
   assert.doesNotMatch(journalCss, /journal-(?:source|reference|fixture)\.(?:png|jpg|webp)/);
 });
 
+test('Journal mood and weather chips show a pressed state in both themes', async () => {
+  const plain = await readFile(new URL('../themes-plain-light.css', import.meta.url), 'utf8');
+  assert.match(main, /aria-pressed="\$\{journalDraftMood === key \? 'true' : 'false'\}"/);
+  assert.match(main, /aria-pressed="\$\{journalDraftWeather === key \? 'true' : 'false'\}"/);
+  assert.match(source, /function syncJournalPick\(kind\)/);
+  assert.match(source, /button\.setAttribute\('aria-pressed', on \? 'true' : 'false'\)/);
+  assert.match(css, /\.journal-view \.mood-pick-item\.active,\s*\.journal-view \.weather-pick-item\.active\{[^}]*scale:1\.08/);
+  assert.match(css, /\.journal-view \.mood-pick-item\.active::after/);
+  assert.match(plain, /二十二 · 日记页心情 \/ 天气/);
+  assert.match(plain, /\.journal-view :is\(\.mood-pick-item, \.weather-pick-item\)\.active \{[^}]*background: var\(--pl-blue\) !important/);
+});
+
 test('Journal typography icons paper sections and active Dock match the reference system', () => {
   assert.match(css, /Journal 1:1 画报复刻/);
   assert.match(css, /journal-view \.picker-section-label[^}]*background-color:#a93f28/);

@@ -1071,3 +1071,30 @@ button.danger) {
   background-image: none !important;
   border-color: rgba(178, 88, 88, 0.20) !important;
 }
+
+/* ---------------------------------------------------------------------------
+   二十二 · 日记页心情 / 天气：选中必须一眼能认出来
+   生成器把 .mood-pick-item 和 .mood-pick-item.active 收进同一条「补白底」，
+   纸纹撤掉之后两态都是白胶囊，点了跟没点一样。
+   这里用实心蓝 + 白字 + 勾，压过那条 !important。暖色纸主题走 styles.css，不在这里。
+   --------------------------------------------------------------------------- */
+:root[data-theme="plain"] .journal-view :is(.mood-pick-item, .weather-pick-item).active {
+  background: var(--pl-blue) !important;
+  background-color: var(--pl-blue) !important;
+  background-image: none !important;
+  color: #fff !important;
+  box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--pl-blue-deep) !important;
+  scale: 1.08;
+  filter: none !important;
+}
+:root[data-theme="plain"] .journal-view :is(.mood-pick-item, .weather-pick-item).active::before {
+  content: none !important;
+}
+:root[data-theme="plain"] .journal-view :is(.mood-pick-item, .weather-pick-item).active::after {
+  background-color: #fff !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.3 6.2 4.8 8.7 9.8 3.3' fill='none' stroke='%233D5F9E' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") !important;
+  box-shadow: 0 0 0 1.5px var(--pl-blue-deep) !important;
+}
+:root[data-theme="plain"] .journal-view :is(.mood-pick-item, .weather-pick-item).active :is(small, .material-symbols-outlined) {
+  color: #fff !important;
+}
