@@ -3,7 +3,7 @@
  * 场景：模拟「早期版本把 103 误写到了更新当天」的老用户：
  *   state 里只有 103（日期错、标题旧）和 105（日期对）两条，水位 105。
  * 启动后应：补齐登记表全部条目并各落在真实发布日；103 的日期和标题被纠正；105 原样保留；
- * 今天的 Life Stream 只出现「今天发布」的版本（106/107）；带演示图的 105 弹层结构完整。
+ * 今天的 Life Stream 只出现刚升级到的当前版本；点开这张卡片，弹层结构完整。
  * 前置：http.server 8772 + 无头 Chrome 9223（见 capture-release-demo.mjs 头注）。
  * 运行：node tests/verify-release-modal.mjs
  */
@@ -76,7 +76,7 @@ const backfill = await evaluate(`(() => {
 })()`);
 console.log('backfill:', backfill.slice(0, 220) + '…');
 
-// 校验 2：今天的 Life Stream 只有「今天发布」的版本（106/107）
+// 校验 2：今天的 Life Stream 只有刚升级到的当前版本，不再铺历史发布日
 const stream = await evaluate(`(() => {
   const d = ${FW}[0].contentWindow.document;
   const cards = [...d.querySelectorAll('.life-stream-release-card')];
@@ -84,10 +84,10 @@ const stream = await evaluate(`(() => {
 })()`);
 console.log('stream:', stream);
 
-// 校验 3：点开今天发布的 1.1.6 卡片，弹层结构完整（1.1.4 落在 10-10，不在今天的流里）
+// 校验 3：点开当天仅有的那张更新卡片，弹层结构完整
 const clicked = await evaluate(`(() => {
   const d = ${FW}[0].contentWindow.document;
-  const card = [...d.querySelectorAll('.life-stream-release-card')].find(c => c.dataset.releaseCode === '107');
+  const card = d.querySelector('.life-stream-release-card');
   if (!card) return 'no-card';
   card.scrollIntoView({ block: 'center' });
   card.click();
@@ -134,8 +134,12 @@ const expect = (name, actual, want) => {
 
 // 登记表在 Node 侧直接导入，期望值从它推导（不写死）
 const { RELEASE_NOTES } = await import(new URL('../release-notes.js', import.meta.url));
+const { releaseInstant } = await import(new URL('../release-activity.js', import.meta.url));
+const { formatShanghaiDateTime } = await import(new URL('../model.js', import.meta.url));
 const registryCodes = Object.keys(RELEASE_NOTES).map(Number).sort((a, b) => a - b);
-const localToday = (() => { const d = new Date(), p = n => String(n).padStart(2, '0'); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`; })();
+const gradle = await readFile(new URL('../android/app/build.gradle', import.meta.url), 'utf8');
+const current = Number(gradle.match(/versionCode\s+(\d+)/)?.[1]);
+const currentNotes = RELEASE_NOTES[current];
 
 const parsed = JSON.parse(backfill);
 expect('补齐登记表全部条目', parsed.count, registryCodes.length);
@@ -145,16 +149,15 @@ expect('105 保持在 10-10', parsed.byCode['105'], '2026-10-10');
 expect('106 在 10-11', parsed.byCode['106'], '2026-10-11');
 expect('107 在 10-11', parsed.byCode['107'], '2026-10-11');
 
-const expectedToday = registryCodes.filter(code => RELEASE_NOTES[code].date === localToday);
 const parsedStream = JSON.parse(stream);
-expect('今天的活动只出现今天发布的版本', parsedStream.codes, expectedToday.map(String));
+expect('今天的活动只出现刚升级到的版本', parsedStream.codes, [String(current)]);
 
 const parsedModal = JSON.parse(modal || '{}');
 expect('弹层徽标', parsedModal.badge, true);
-expect('药丸版本号', parsedModal.pill, 'v1.1.6');
-expect('弹层标题', parsedModal.title, '更新动态各归各位');
-expect('版本行', parsedModal.meta, '更新到 1.1.6 · ' + localToday);
-expect('清单 3 条', parsedModal.bullets, 3);
+expect('药丸版本号', parsedModal.pill, `v${currentNotes.name}`);
+expect('弹层标题', parsedModal.title, currentNotes.title);
+expect('版本行', parsedModal.meta, `更新到 ${currentNotes.name} · ${formatShanghaiDateTime(releaseInstant(currentNotes))}`);
+expect('清单条数', parsedModal.bullets, currentNotes.bullets.length);
 expect('关闭按钮走 data-close', parsedModal.closeBtn, true);
 console.log(failed ? `FAILED: ${failed} 项` : 'ALL PASS');
 socket.close();

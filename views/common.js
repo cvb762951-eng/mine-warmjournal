@@ -1,6 +1,6 @@
 import { $, $$, pad, esc, imgSrc, state, cursor, formatMinutes, category, modal, confirmDelete, save, render, show, callHelper } from '../core.js';
 import { clampStillTransform, measureLongStill } from '../photo-utils.js';
-import { MOODS, WEATHERS, WEEK_DAYS, dateKey, habitProgressForDate, habitGoalMet } from '../model.js';
+import { MOODS, WEATHERS, WEEK_DAYS, dateKey, habitProgressForDate, habitGoalMet, formatShanghaiDateTime } from '../model.js';
 import { mediaFocusSummary } from '../analytics.js';
 import { rebuildActivityLog } from '../activity-log.js';
 
@@ -71,6 +71,15 @@ export function repeatLabel(days) {
 
 export function todoCard(todo) {
   return `<article class="todo-row ${todo.completed ? 'done' : ''}"><button class="todo-check material-symbols-outlined" data-toggle-todo="${todo.id}" aria-label="${todo.completed ? '取消完成' : '完成待办'}">${todo.completed ? 'check_circle' : 'radio_button_unchecked'}</button><button class="todo-copy" data-edit-todo="${todo.id}"><strong>${esc(todo.title)}</strong><small>${todo.completed ? '已完成' : '今天'}</small></button><button class="todo-more material-symbols-outlined" data-edit-todo="${todo.id}" aria-label="编辑待办">more_horiz</button></article>`;
+}
+
+export function openReleaseNotes(code) {
+  const release = (state.releases || []).find(entry => Number(entry.code) === Number(code));
+  if (!release) return;
+  const bullets = (release.bullets || []).map(entry => `<li>${esc(entry)}</li>`).join('');
+  const shots = (release.screenshots || []).map(entry => `<img class="release-notes-shot" src="${imgSrc(entry)}" alt="${esc(release.title)} 演示图" loading="lazy">`).join('');
+  const when = formatShanghaiDateTime(release.createdAt) || release.date || '';
+  modal(`<div class="release-notes-modal"><div class="release-notes-head"><span class="release-notes-badge"><span class="material-symbols-outlined" aria-hidden="true">new_releases</span></span><div class="release-notes-head-copy"><span class="eyebrow">RELEASE NOTES</span><h2>${esc(release.title)}</h2><p>更新到 ${esc(release.versionName)} · ${esc(when)}</p></div><span class="release-notes-pill">v${esc(release.versionName)}</span></div><p class="release-notes-summary">${esc(release.summary)}</p>${bullets ? `<ul class="release-notes-bullets">${bullets}</ul>` : ''}${shots ? `<div class="release-notes-shots">${shots}</div>` : ''}<div class="modal-actions"><button type="button" class="save" data-close>知道了</button></div></div>`, 'release-notes-modal-dialog');
 }
 
 export function recentActivity() {

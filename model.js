@@ -865,6 +865,10 @@ export function migrateState(rawState, defaults = makeDefaultState()) {
     : [];
   // 升级说明的去重水位：0 = 还没记录过（首次由 ensureReleaseActivities 按基线处理）。
   state.settings.lastSeenReleaseCode = Math.max(0, Math.floor(Number(state.settings.lastSeenReleaseCode)) || 0);
+  // 生活流只钉这一版。历史 releases 仍完整保留；缺字段或脏日期时清空钉选，不回放全部历史。
+  state.settings.timelineReleaseCode = Math.max(0, Math.floor(Number(state.settings.timelineReleaseCode)) || 0);
+  state.settings.timelineReleaseDate = /^\d{4}-\d{2}-\d{2}$/.test(String(state.settings.timelineReleaseDate || '')) ? String(state.settings.timelineReleaseDate) : '';
+  state.settings.timelineReleaseAt = Math.max(0, Math.floor(Number(state.settings.timelineReleaseAt) || 0));
   state.documentFolders = Array.isArray(raw.documentFolders)
     ? raw.documentFolders.map(makeDocumentFolder).filter(folder => folder.name)
     : [];

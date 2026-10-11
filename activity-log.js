@@ -25,8 +25,17 @@ export function rebuildActivityLog(state) {
   for(const snippet of state.snippets||[]) events.push(event({id:`snippet:${snippet.id}`,kind:snippet.type==='photo'?'photo':'note',date:snippet.date,timestamp:snippet.createdAt,title:snippet.type==='photo'?'随手拍':'随手记',summary:snippet.text||(snippet.photos?.length>1?`保存了 ${snippet.photos.length} 张照片`:'保存了一张照片'),sourceId:snippet.id,media:(snippet.photos?.[0])||snippet.photo||''}));
   for(const taste of state.tasteEntries||[]) events.push(event({id:`taste:${taste.id}`,kind:'taste',date:taste.date,timestamp:taste.createdAt,title:taste.name,summary:[TASTE_VERDICTS[taste.verdict]?.label,taste.placeName||taste.brand].filter(Boolean).join(' · '),sourceId:taste.id,media:taste.photos?.[0]||''}));
   for(const [date,journal] of Object.entries(state.journals||{})) events.push(event({id:`journal:${date}`,kind:'journal',date,timestamp:journal.updatedAt,title:'生活日记',summary:String(journal.content||'').slice(0,80)||'记录了心情与生活',sourceId:date}));
-  // 版本更新动态：升级当天自动写入的版本说明（见 release-activity.js）。
-  for(const release of state.releases||[]) events.push(event({id:`release:${release.code}`,kind:'release',date:release.date,timestamp:release.createdAt,title:release.title||`更新到 ${release.versionName}`,summary:release.summary,sourceId:String(release.code)}));
+  // 版本更新只显示刚升级到的那一版（settings.timelineRelease*）。
+  // state.releases 里的历史说明保留给「更新记录」，不回放进生活流。
+  const timelineCode = Math.floor(Number(state.settings?.timelineReleaseCode) || 0);
+  const timelineDate = String(state.settings?.timelineReleaseDate || '');
+  if (timelineCode > 0 && /^\d{4}-\d{2}-\d{2}$/.test(timelineDate)) {
+    const release = (state.releases || []).find(item => Number(item.code) === timelineCode);
+    if (release) {
+      const timestamp = Number(state.settings?.timelineReleaseAt) || release.createdAt;
+      events.push(event({ id:`release:${release.code}`, kind:'release', date:timelineDate, timestamp, title:release.title || `更新到 ${release.versionName}`, summary:release.summary, sourceId:String(release.code) }));
+    }
+  }
   for(const item of state.media||[]) if(item.status==='completed') events.push(event({id:`media:${item.id}`,kind:item.type,date:item.completedDate||dayOf(item.updatedAt),timestamp:item.updatedAt,title:item.title,summary:item.rating?`${item.rating} 星`:'已完成',sourceId:item.id,media:item.poster||''}));
   for (const transaction of state.transactions || []) {
     const timestamp = timestampOf(transaction.createdAt || transaction.date);
