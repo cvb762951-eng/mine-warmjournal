@@ -995,7 +995,9 @@ async function deleteVaultVideoFromFeed(item, items, index) {
 }
 
 function showVaultPreparing(item, hint, kind = 'video') {
-  modal(`<div class="vault-decrypting"><span class="material-symbols-outlined">${kind === 'image' ? 'image' : 'play_circle'}</span>${thumbnailUrls.get(item.id) ? `<img src="${esc(thumbnailUrls.get(item.id))}" alt="">` : ''}<strong>正在准备「${esc(item.name)}」</strong><small>${esc(hint)}</small></div>`, 'vault-decrypting-modal');
+  // 视频准备态铺满深色：浅色纸卡会从点击处被容器变形"长"出来，看起来就是点下去先冒一块白。
+  const preparingVideo = kind !== 'image';
+  modal(`<div class="vault-decrypting"><span class="material-symbols-outlined">${preparingVideo ? 'play_circle' : 'image'}</span>${thumbnailUrls.get(item.id) ? `<img src="${esc(thumbnailUrls.get(item.id))}" alt="">` : ''}<strong>正在准备「${esc(item.name)}」</strong><small>${esc(hint)}</small></div>`, preparingVideo ? 'vault-decrypting-modal vault-video-preparing' : 'vault-decrypting-modal');
 }
 
 function editVaultVideoForm(item) {
@@ -1418,10 +1420,14 @@ function bindPrivateVault() {
   $('#vault-bulk-delete')?.addEventListener('click', deleteSelectedVaultItems);
   $('#vault-folder-menu')?.addEventListener('click', () => folderForm(privateVaultContent().folders.find(folder => folder.id === activeFolderId)));
   $$('[data-open-vault-item]').forEach(button => button.onclick = () => {
-    // 共享元素转场：缩略图"长大"成查看器里的那张图（交给浏览器原生 View Transitions）
     const item = privateVaultContent().items.find(entry => entry.id === button.dataset.openVaultItem);
+    const open = () => openItem(item).catch(error => show(error.message));
+    // 视频没有 #vault-photo-image 这个落点。若仍给封面挂 view-transition-name，
+    // Android WebView 会把封面从页面快照里抠走：抠空处是点击位置的白块，
+    // 整页交叉淡化再透出 WebView 的白底，闪一整屏白。照片才走共享元素。
+    if (item?.type === 'video') { open(); return; }
     const source = button.querySelector('.vault-media-box img') || button.querySelector('.vault-media-box');
-    withSharedTransition(source, () => openItem(item).catch(error => show(error.message)), {
+    withSharedTransition(source, open, {
       targetSelector: '#vault-photo-image',
       fallbackTargetSelector: '#vault-photo-image'
     });

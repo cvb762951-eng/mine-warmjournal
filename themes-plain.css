@@ -3,7 +3,7 @@
    —— 本文件由 scripts/gen-plain-theme.mjs 自动生成，请勿手工编辑。
       改了 styles.css / performance.css 之后重新运行该脚本即可。
 
-   扫描 7030 条规则，命中素材规则 491 条。
+   扫描 7036 条规则，命中素材规则 491 条。
    只影响 [data-theme="plain"]，米白与暖阳两个主题完全不受影响。
    ========================================================================== */
 
@@ -2432,6 +2432,32 @@ button.danger) {
   border-color: rgba(178, 88, 88, 0.20) !important;
 }
 
+/* ---------------------------------------------------------------------------
+   二十一 · 私密视频打开时不许被刷成白底
+   生成器按「浅色纸」把 .modal.snippet-video-modal、.warm-video-stage、顶栏
+   刷成了 background-color:#fff !important。沉浸播放器同时带着这些类，
+   权重 (0,4,0) 压过源码里的深色底 —— 点开视频会先闪一整屏白。
+   这里用更具体的选择器把播放器和视频准备层拉回深色，普通随手拍播放器不动。
+   --------------------------------------------------------------------------- */
+:root[data-theme="plain"] .modal.snippet-video-modal.vault-feed-modal,
+:root[data-theme="plain"] .modal.vault-decrypting-modal.vault-video-preparing,
+:root[data-theme="plain"] .vault-feed-modal .warm-video-stage,
+:root[data-theme="plain"] .vault-feed-modal .warm-video-viewport,
+:root[data-theme="plain"] .vault-feed-modal .warm-video-canvas {
+  background: #050807 !important;
+  background-color: #050807 !important;
+  background-image: none !important;
+}
+:root[data-theme="plain"] .vault-feed-modal .warm-video-player > header,
+:root[data-theme="plain"] .vault-feed-modal .warm-video-player > header.vault-feed-topbar {
+  background-color: transparent !important;
+  background-image: linear-gradient(to bottom, rgba(3, 7, 5, .28), transparent) !important;
+}
+:root[data-theme="plain"] .vault-feed-modal .warm-video-player > header > button {
+  background-color: rgba(7, 14, 10, .42) !important;
+  background-image: none !important;
+}
+
 /* 私密空间项目菜单的按钮：原来的象牙纸底被撤掉后变成全透明，看着像悬空的文字。
    补一层浅底 + 描边，恢复到"这是一排按钮"的观感。 */
 :root[data-theme="plain"] .vault-item-menu-actions > button {
@@ -2444,3 +2470,5 @@ button.danger) {
 :root[data-theme="plain"] .vault-item-menu-actions > button.danger {
   background-color: var(--pl-danger-soft) !important;
   background-image: none !important;
+  border-color: rgba(178, 88, 88, 0.20) !important;
+}
