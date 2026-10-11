@@ -17,33 +17,37 @@ const mediaStore = await read('media-store.js');
  *
  *   core.js  save() 的三步：externalizeStateMedia → persistState → removeUnusedMedia
  *
- *   1) storage.js 的 persistState 在「AI 密钥加密失败」时静默 return ——
- *      整份 state 都没写进数据库（这是刻意的安全设计：宁可这次不存，
- *      也不让明文密钥落库）。
- *   2) 但 core.js 的 save() 不检查结果，继续执行 removeUnusedMedia，
- *      而它清理的依据是「内存里的 state」。
- *   3) 于是磁盘上刚写入的新媒体，在数据库里还没有任何记录 ——
- *      用户重启后数据库里没有它（第一次"消失"），
- *      再之后任何一次保存都会把它当"没人引用"删掉（彻底丢失）。
+ *   1) storage.js 的 persistState 在「AI 密钥加密失败」时曾经整份跳过。
+ *      明文不能落库，但日记/账本/速记也不该被一起丢掉。
+ *      现在密钥失败只跳过密钥（返回 key-skipped），内容照常落库；
+ *      false 只表示这次什么都没写上。
+ *   2) core.js 的 save() 只在完全没落库时跳过媒体清理。
+ *      密钥单独跳过时内容已在库里，清理是安全的，保存也不能判失败。
  *
  * 修复分三层，本文件逐条锁住：
- *   a. persistState 明确返回落库结果
- *   b. save() 在未落库成功时跳过媒体清理
+ *   a. persistState 明确返回落库结果；密钥失败与整份失败分开
+ *   b. save() 在未落库成功时跳过媒体清理，密钥跳过仍算保存成功
  *   c. 清理改为「移入回收站」，给任何误判留出人工找回的窗口
  */
 
 test('persistState 必须明确报告落库结果', () => {
   const fn = storage.match(/export async function persistState\([\s\S]*?\n\}/)?.[0] || '';
   assert.ok(fn, '应能提取 persistState');
-  // 失败路径：加密失败 → 返回 false（不是静默 undefined）
+  // 整份没写上时返回 false（不是静默 undefined）。密钥加密失败不再走这条路。
   assert.match(fn, /if \(!sections\) return false;/,
-    '加密失败必须返回 false，调用方才有可能察觉');
+    '分区无法准备时必须返回 false，调用方才不会清理媒体');
+  assert.match(fn, /prepared\.keySkipped \? PERSIST_KEY_SKIPPED : true/,
+    '密钥加密失败应返回 key-skipped，内容仍然落库');
+  assert.match(storage, /function settingsSkippingPlainKey/,
+    '密钥失败时要去掉明文并保留已有密文，而不是放弃整份 state');
+  assert.doesNotMatch(storage, /return null;/,
+    '密钥加密失败不得再让全部分区变成空结果');
   // 成功路径：无变化说明数据库本已与内存一致，属于「已落库」
-  assert.match(fn, /if \(!changes\.length\) return true;/,
-    '无变化应返回 true 而不是 false（否则会永久跳过媒体清理）');
-  // 浏览器预览路径与原生事务提交后都应落到 return true
-  assert.match(fn, /localStorage\.setItem[\s\S]*?return true;/, '浏览器预览落库后应返回 true');
-  assert.match(fn, /return true;\s*\}$/, '函数成功出口应返回 true');
+  assert.match(fn, /if \(!changes\.length\) return outcome;/,
+    '无变化应返回 outcome 而不是 false（否则会永久跳过媒体清理）');
+  // 浏览器预览路径与原生事务提交后都应落到 return outcome（true 或 key-skipped）
+  assert.match(fn, /localStorage\.setItem[\s\S]*?return outcome;/, '浏览器预览落库后应返回结果');
+  assert.match(fn, /return outcome;\s*\}$/, '函数成功出口应返回落库结果');
   assert.doesNotMatch(fn, /^\s*return;\s*$/m, '不得再出现裸 return（调用方无法区分成败）');
 });
 
@@ -56,6 +60,12 @@ test('save() 在未落库成功时必须跳过媒体清理（数据丢失防护�
   // 关键：跳过清理的分支必须在 removeUnusedMedia 之前
   assert.match(saveBlock, /if \(persisted === false\) throw new Error\([\s\S]*?removeUnusedMedia/,
     '落库未成功时必须报错，绝不能继续清理媒体');
+  assert.match(saveBlock, /if \(persisted === 'key-skipped'\) notifyPersistedKeySeal\(persisted\)/,
+    '密钥单独跳过时要提示重试，但不能把整次保存判失败');
+  assert.ok(saveBlock.indexOf('removeUnusedMedia') < saveBlock.lastIndexOf('notifyPersistedKeySeal'),
+    '密钥提示必须在内容落库之后');
+  assert.match(core, /setTimeout\(\(\) => show\(KEY_SEAL_SKIPPED_NOTICE\), 0\)/,
+    '密钥提示要晚于调用方的成功 toast');
   // 三步顺序不能被调换（清理必须在落库之后）
   const order = ['externalizeStateMedia', 'persistState', 'removeUnusedMedia'].map(name => saveBlock.indexOf(name));
   assert.ok(order.every(i => i >= 0), '保存三步都应存在');
