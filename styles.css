@@ -8855,3 +8855,139 @@ html body * {
 .snippet-photo-cell,.snippet-photo-thumb,.journal-photo-editor>div,.journal-polaroid-frame,.journal-reader-gallery button,.vault-media-box{position:relative}
 .photo-viewer-chrome header .live-photo-mark{position:static;margin-left:8px;vertical-align:middle}
 .photo-viewer-stage video.is-live-photo,.vault-photo-stage video.is-live-photo{background:#05070b}
+
+/* Today 今日画页｜与随手拍同一套，横竖共用一个相框。
+   照片窗口固定 16:9（和随手拍单张、视频封面一样）：虚化垫底 + contain。
+   说明不贴在画面上，放在照片下面的纸面上，排法对齐随手拍的时间行和正文。 */
+.today-view .photo-stack-container,
+.today-view .photo-stack-empty{
+  height:clamp(272px,calc(50vw + 110px),400px);
+  max-height:none;
+}
+.today-view .stack-stagger{height:calc(100% - 14px);max-height:none}
+.today-view .stack-card{
+  display:flex;
+  flex-direction:column;
+  align-items:stretch;
+  justify-content:flex-start;
+  gap:8px;
+  padding:12px 12px 10px;
+}
+.today-view .polaroid-frame{
+  position:relative;
+  z-index:1;
+  inset:auto;
+  flex:0 0 auto;
+  width:100%;
+  height:auto;
+  max-height:calc(100% - 68px);
+  aspect-ratio:16/9;
+  overflow:hidden;
+  border:3px solid rgba(255,247,231,.9);
+  background:#1b2f27;
+  box-shadow:0 2px 5px rgba(62,43,25,.12);
+}
+.today-view .polaroid-frame > img.polaroid-blur,
+.today-view .polaroid-frame > img.polaroid-img{
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  max-width:none;
+  max-height:none;
+  margin:0;
+  display:block;
+  border:0;
+  border-radius:0;
+  box-shadow:none;
+  object-position:center center;
+  background:transparent;
+}
+.today-view .polaroid-frame > img.polaroid-blur{
+  position:absolute;
+  inset:0;
+  z-index:0;
+  object-fit:cover;
+  filter:blur(18px) saturate(1.12);
+  opacity:.82;
+  transform:scale(1.25);
+  pointer-events:none;
+}
+.today-view .polaroid-frame > img.polaroid-img{
+  position:absolute;
+  inset:0;
+  z-index:1;
+  object-fit:contain;
+  transform:none;
+  background:transparent;
+  pointer-events:none;
+}
+.today-view .stack-card .polaroid-meta{
+  position:relative;
+  z-index:1;
+  inset:auto;
+  flex:1 1 auto;
+  width:auto;
+  min-height:0;
+  max-height:none;
+  margin:0;
+  padding:0 2px;
+  display:flex;
+  flex-direction:column;
+  align-items:flex-start;
+  justify-content:flex-start;
+  gap:2px;
+  place-items:unset;
+  overflow:hidden;
+  background:transparent;
+  color:#20251f;
+  box-shadow:none;
+  pointer-events:none;
+}
+.today-view .stack-card .polaroid-time{
+  flex:none;
+  align-self:flex-start;
+  justify-self:auto;
+  margin:0;
+  transform:none;
+  color:#71675b;
+  font-family:'LXGW WenKai Screen R','Noto Serif SC',serif;
+  font-size:10px;
+  font-weight:500;
+  line-height:1.2;
+  letter-spacing:.01em;
+  white-space:nowrap;
+  text-shadow:none;
+}
+.today-view .stack-card .polaroid-caption{
+  flex:0 1 auto;
+  width:auto;
+  min-width:0;
+  max-width:100%;
+  height:auto;
+  max-height:2.8em;
+  margin:0;
+  display:-webkit-box;
+  overflow:hidden;
+  writing-mode:horizontal-tb;
+  text-orientation:mixed;
+  place-self:auto;
+  transform:none;
+  color:#20251f;
+  font-family:'LXGW WenKai Screen R','Noto Serif SC',serif;
+  font-size:15px;
+  font-weight:500;
+  line-height:1.4;
+  letter-spacing:.015em;
+  text-align:left;
+  text-shadow:0 1px 0 rgba(255,248,232,.75);
+  white-space:normal;
+  word-break:break-word;
+  overflow-wrap:anywhere;
+  -webkit-box-orient:vertical;
+  -webkit-line-clamp:2;
+}
+:root[data-theme="plain"] .today-view .polaroid-frame{background:#e7edf6;border-color:rgba(255,255,255,.92)}
+:root[data-theme="plain"] .today-view .stack-card .polaroid-meta{background:transparent;color:#2e343b;box-shadow:none}
+:root[data-theme="plain"] .today-view .stack-card .polaroid-caption{color:#2e343b;text-shadow:none}
+:root[data-theme="plain"] .today-view .stack-card .polaroid-time{color:rgba(46,52,59,.72);text-shadow:none}

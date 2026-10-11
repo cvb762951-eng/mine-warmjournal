@@ -52,32 +52,44 @@ test('current route exclusively controls the Dock selected paper', () => {
   assert.match(source, /registerView\('today', todayView\)/);
 });
 
-test('Today photo story uses a taller frame and vertically scrollable three-column copy', () => {
-  const photoCss = css.slice(css.indexOf('/* Today 随手拍｜保留画报横幅结构'));
-  const finalCss = css.slice(css.indexOf('/* Browser comments final lock'));
-  assert.match(photoCss, /width:calc\(100% - 20px\)/);
-  assert.match(photoCss, /object-fit:cover/);
-  assert.match(finalCss, /height:clamp\(280px,64vw,350px\)/);
-  assert.match(finalCss, /\.today-view \.polaroid-meta\{[\s\S]*?width:112px/);
-  assert.match(finalCss, /\.today-view \.polaroid-caption\{[\s\S]*?writing-mode:vertical-rl/);
-  assert.match(finalCss, /width:59px/);
-  assert.match(finalCss, /overflow-x:auto/);
-  assert.match(finalCss, /word-break:break-all/);
-  assert.match(finalCss, /font-family:'LXGW WenKai Screen','Noto Serif SC',serif/);
-  assert.match(photoCss, /height:clamp\(190px,52vw,230px\)/);
-  assert.match(photoCss, /today-photo-kraft-frame\.png/);
+test('Today photo story keeps the kraft frame and shows each photo complete, like Moments', () => {
+  const photoCss = css.slice(css.lastIndexOf('/* Today 今日画页'));
+  const blurBlocks = [...photoCss.matchAll(/\.today-view \.polaroid-frame > img\.polaroid-blur\{([^}]*)\}/g)];
+  const mainBlocks = [...photoCss.matchAll(/\.today-view \.polaroid-frame > img\.polaroid-img\{([^}]*)\}/g)];
+  const blur = blurBlocks.at(-1)?.[1] || '';
+  const main = mainBlocks.at(-1)?.[1] || '';
+  assert.ok(blur, '今日画页应有虚化垫底层');
+  assert.match(blur, /object-fit:cover/);
+  assert.match(blur, /filter:blur\(18px\)/);
+  assert.match(blur, /position:absolute/);
+  assert.ok(main, '今日画页应有完整显示的主图');
+  assert.match(main, /object-fit:contain/);
+  assert.match(main, /background:transparent/);
+  assert.doesNotMatch(photoCss, /object-fit:\s*fill/);
+  assert.match(source, /function photoStoryImage/);
+  assert.match(source, /class="polaroid-blur" src="\$\{url\}"/);
+  assert.match(source, /class="polaroid-img" src="\$\{url\}"/);
+  assert.match(photoCss, /aspect-ratio:16\/9/);
+  assert.doesNotMatch(photoCss, /@media[^{]*orientation/);
+  assert.doesNotMatch(photoCss, /portrait|landscape/);
+  assert.match(css, /height:clamp\(280px,64vw,350px\)/);
+  assert.match(css, /today-photo-kraft-frame\.png/);
   assert.match(source, /cyclePhotoStack\(\)/);
   assert.doesNotMatch(source, /openPhotoLightbox/);
 });
 
-test('Today photo annotation uses deterministic character-level handwriting in the paper center', () => {
-  const finalCss = css.slice(css.indexOf('/* Today 随手拍批注'));
+test('Today photo caption sits on the paper under the picture, like Moments', () => {
+  const photoCss = css.slice(css.lastIndexOf('/* Today 今日画页'));
   assert.match(source, /function handwrittenCaptionHtml\(text\)/);
-  assert.match(source, /--scribble-rotate:\$\{rotations/);
   assert.match(source, /handwrittenCaptionHtml\(entry\.text \|\| '随手拍'\)/);
-  assert.match(finalCss, /font-family:'Zhi Mang Xing','Caveat','LXGW WenKai Screen R'/);
-  assert.match(finalCss, /transform:translateX\(-22px\) rotate\(-1\.2deg\)/);
-  assert.match(finalCss, /\.today-view \.polaroid-caption i\{[\s\S]*?rotate\(var\(--scribble-rotate\)\)/);
+  assert.match(source, /<\/span><span class="polaroid-meta"><span class="polaroid-time">/);
+  assert.match(photoCss, /\.today-view \.stack-card \.polaroid-meta\{[\s\S]*?background:transparent/);
+  assert.match(photoCss, /\.today-view \.stack-card \.polaroid-caption\{[\s\S]*?writing-mode:horizontal-tb/);
+  assert.match(photoCss, /-webkit-line-clamp:2/);
+  assert.match(photoCss, /font-family:'LXGW WenKai Screen R','Noto Serif SC',serif/);
+  assert.doesNotMatch(photoCss, /writing-mode:vertical-rl/);
+  assert.doesNotMatch(photoCss, /translateX\(-22px\)/);
+  assert.doesNotMatch(photoCss, /rgba\(255,247,232,\.94\)/);
 });
 
 test('Today photo switching has directional motion and visible position feedback', () => {
@@ -96,11 +108,12 @@ test('Today live date content stays above the unified paper without covering it'
   assert.match(finalCss, /\.today-editorial-cover::before\{z-index:6\}/);
 });
 
-test('Today vertical photo copy scrolls without a visible system scrollbar', () => {
-  const finalCss = css.slice(css.indexOf('/* 纸面滚动区域'));
-  assert.match(finalCss, /\.today-view \.polaroid-caption\{[\s\S]*?scrollbar-width:none/);
-  assert.match(finalCss, /\.today-view \.polaroid-caption::-webkit-scrollbar\{display:none/);
-  assert.match(finalCss, /touch-action:pan-x/);
+test('Today photo caption stays compact instead of scrolling sideways', () => {
+  const photoCss = css.slice(css.lastIndexOf('/* Today 今日画页'));
+  assert.match(photoCss, /-webkit-line-clamp:2/);
+  assert.match(photoCss, /\.today-view \.stack-card \.polaroid-caption\{[\s\S]*?overflow:hidden/);
+  assert.doesNotMatch(photoCss, /touch-action:pan-x/);
+  assert.doesNotMatch(photoCss, /writing-mode:vertical-rl/);
 });
 
 test('Today shows every activity for the current day and removes unexplained habit dots', () => {
