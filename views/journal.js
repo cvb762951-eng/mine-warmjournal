@@ -344,11 +344,11 @@ function pickJournalPhotos() {
 export function journalHistory(search = '') {
   const entries = journalEntries(state, search);
   modal(`<div class="modal-head"><div><span class="eyebrow">JOURNAL ARCHIVE</span><h2>日记历史</h2><p>按日期、正文、心情或天气寻找一篇生活志。</p></div><button type="button" class="icon-button" data-close aria-label="关闭日记历史"><span class="material-symbols-outlined">close</span></button></div><form id="journal-search" class="search-row"><input name="search" value="${esc(search)}" placeholder="搜索日记"><button class="icon-button" aria-label="搜索"><span class="material-symbols-outlined">search</span></button></form><div class="journal-deck-host" id="journal-history-deck"></div><div class="journal-history rich-history">${entries.map(entry => `<button type="button" data-open-journal="${entry.date}"><div><strong>${entry.date}</strong><span class="journal-meta">${journalMeta(entry)}</span></div>${entry.photos?.[0] ? `<img src="${imgSrc(entry.photos[0])}" alt="${entry.date} 日记照片">` : '<span class="journal-history-no-photo material-symbols-outlined">history_edu</span>'}<p>${esc(entry.content || `${entry.photos?.length || 0} 张照片`)}</p></button>`).join('') || emptyState('没有匹配的日记', '换一个关键词试试。')}</div>`, 'large-modal journal-history-modal');
-  $$('[data-open-journal]').forEach(button => button.onclick = event => { event.preventDefault(); event.stopPropagation(); const day = button.dataset.openJournal; closeModal(); openJournalReader(day); });
+  $$('[data-open-journal]').forEach(button => button.onclick = onPastJournalClick);
   mountDeckHost($('#journal-history-deck'), entries, {
     heading: '牌组翻阅',
     hint: '按住牌面可倾斜，左右滑过一段会吸到上一篇或下一篇。焦点在牌组上时，左右方向键也能切。点照片仍打开原来的全屏查看器。',
-    onOpen: model => { closeModal(); openJournalReader(model.id); }
+    onOpen: model => { closeModal(); openPastJournal(model.id); }
   });
 }
 
@@ -750,7 +750,7 @@ function bindJournalView() {
   mountDeckHost($('#journal-past-deck'), journalDeckSource(journalEditingDay).slice(0, 12), {
     heading: '翻阅篇章',
     hint: '按住倾斜，左右滑过一段会吸到下一篇或上一篇。焦点在牌组上时，左右方向键也能切。',
-    onOpen: model => openJournalReader(model.id)
+    onOpen: model => openPastJournal(model.id)
   });
   $('#journal-date-input')?.addEventListener('change', event => {
     const nextDay = event.target.value;
