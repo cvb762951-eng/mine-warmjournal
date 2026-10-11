@@ -1,6 +1,8 @@
 import { $, $$, esc, uid, state, selected, save, render, modal, closeModal, show, confirmDelete, imgSrc, emptyState, go, registerView, registerBinder, registerSubmitHandler, registerHelper, callHelper, setSelected, setCursor, JOURNAL_PHOTO_LIMIT, PHOTO_IMPORT_BATCH_LIMIT, subpageHeader } from '../core.js';
 import { MOODS, WEATHERS, dateKey, snippetEntries, journalEntries, makeTodo, WEEK_DAYS, habitsForDate, habitProgressForDate, habitGoalMet, minutesOnDate } from '../model.js';
 import { journalMeta, photoViewer, micButtonHtml, bindVoiceInput } from './common.js';
+import { mountJournalDeck, releaseDetachedJournalDecks } from '../motion.js';
+import { mediaSource } from '../media-store.js';
 import { compressJournalPhoto, importPhotoBatch, isSupportedJournalPhoto } from '../photo-utils.js';
 import { livePhotoMarkHtml, normalizeLivePhotos, photosWithLiveMotion } from '../motion-photo.js';
 import { aiJournalGuide, aiSuggestStructure, applySuggestion } from '../ai.js';
@@ -341,8 +343,13 @@ function pickJournalPhotos() {
 
 export function journalHistory(search = '') {
   const entries = journalEntries(state, search);
-  modal(`<div class="modal-head"><div><span class="eyebrow">JOURNAL ARCHIVE</span><h2>日记历史</h2><p>按日期、正文、心情或天气寻找一篇生活志。</p></div><button type="button" class="icon-button" data-close aria-label="关闭日记历史"><span class="material-symbols-outlined">close</span></button></div><form id="journal-search" class="search-row"><input name="search" value="${esc(search)}" placeholder="搜索日记"><button class="icon-button" aria-label="搜索"><span class="material-symbols-outlined">search</span></button></form><div class="journal-history rich-history">${entries.map(entry => `<button type="button" data-open-journal="${entry.date}"><div><strong>${entry.date}</strong><span class="journal-meta">${journalMeta(entry)}</span></div>${entry.photos?.[0] ? `<img src="${imgSrc(entry.photos[0])}" alt="${entry.date} 日记照片">` : '<span class="journal-history-no-photo material-symbols-outlined">history_edu</span>'}<p>${esc(entry.content || `${entry.photos?.length || 0} 张照片`)}</p></button>`).join('') || emptyState('没有匹配的日记', '换一个关键词试试。')}</div>`, 'large-modal journal-history-modal');
-  $$('[data-open-journal]').forEach(button => button.onclick = onPastJournalClick);
+  modal(`<div class="modal-head"><div><span class="eyebrow">JOURNAL ARCHIVE</span><h2>日记历史</h2><p>按日期、正文、心情或天气寻找一篇生活志。</p></div><button type="button" class="icon-button" data-close aria-label="关闭日记历史"><span class="material-symbols-outlined">close</span></button></div><form id="journal-search" class="search-row"><input name="search" value="${esc(search)}" placeholder="搜索日记"><button class="icon-button" aria-label="搜索"><span class="material-symbols-outlined">search</span></button></form><div class="journal-deck-host" id="journal-history-deck"></div><div class="journal-history rich-history">${entries.map(entry => `<button type="button" data-open-journal="${entry.date}"><div><strong>${entry.date}</strong><span class="journal-meta">${journalMeta(entry)}</span></div>${entry.photos?.[0] ? `<img src="${imgSrc(entry.photos[0])}" alt="${entry.date} 日记照片">` : '<span class="journal-history-no-photo material-symbols-outlined">history_edu</span>'}<p>${esc(entry.content || `${entry.photos?.length || 0} 张照片`)}</p></button>`).join('') || emptyState('没有匹配的日记', '换一个关键词试试。')}</div>`, 'large-modal journal-history-modal');
+  $$('[data-open-journal]').forEach(button => button.onclick = event => { event.preventDefault(); event.stopPropagation(); const day = button.dataset.openJournal; closeModal(); openJournalReader(day); });
+  mountDeckHost($('#journal-history-deck'), entries, {
+    heading: '牌组翻阅',
+    hint: '按住牌面可倾斜，左右滑过一段会吸到上一篇或下一篇。点照片仍打开原来的全屏查看器。',
+    onOpen: model => { closeModal(); openJournalReader(model.id); }
+  });
 }
 
 // ---- 绑定 ----
@@ -480,6 +487,52 @@ function addPhotosToJournal(day) {
   });
 }
 
+function journalDeckSource(excludeDay = '') {
+  return Object.entries(state.journals || {})
+    .map(([date, entry]) => ({ date, ...(entry || {}) }))
+    .filter(entry => entry.date && entry.date !== excludeDay && (String(entry.content || '').trim() || entry.photos?.length))
+    .sort((a, b) => String(b.date).localeCompare(String(a.date)));
+}
+
+function journalDeckModels(list) {
+  return list.map(entry => {
+    const split = splitJournalContent(entry.content || '');
+    const body = split.body.replace(/\s+/g, ' ').trim();
+    const title = split.title || (body ? body.slice(0, 24) : `${entry.photos?.length || 0} 张照片`);
+    const photo = entry.photos?.[0] || '';
+    const mood = entry.mood ? (MOODS[entry.mood]?.label || '') : '';
+    const weather = entry.weather ? (WEATHERS[entry.weather]?.label || entry.weather) : '';
+    const weekday = WEEK_DAYS[new Date(`${entry.date}T12:00:00`).getDay()] || '';
+    return {
+      id: entry.date,
+      kicker: `${entry.date} · 星期${weekday}`,
+      title,
+      excerpt: body.slice(0, 72),
+      caption: String(entry.summary || '').trim() || mood || (photo ? '说明在照片下面' : ''),
+      photoSrc: photo ? mediaSource(photo) : '',
+      photoLabel: `查看${entry.date}的照片，共 ${entry.photos?.length || 0} 张`,
+      meta: [mood, weather].filter(Boolean).join(' · ') || '心情与天气未记'
+    };
+  });
+}
+
+function openDeckPhoto(day) {
+  const entry = state.journals?.[day];
+  if (!entry?.photos?.length) return;
+  photoViewer(photosWithLiveMotion(entry.photos, entry.livePhotos), 0);
+}
+
+function mountDeckHost(host, list, options = {}) {
+  if (!host || !list?.length) return;
+  mountJournalDeck(host, journalDeckModels(list), {
+    heading: options.heading,
+    hint: options.hint,
+    startIndex: options.startIndex,
+    onOpen: options.onOpen,
+    onPhoto: model => openDeckPhoto(model.id)
+  });
+}
+
 function journalFootprints(day) {
   const habits = habitsForDate(state, day);
   const completed = habits.filter(habit => habitGoalMet(habit, habitProgressForDate(state, habit, day))).length;
@@ -568,6 +621,7 @@ function openJournalReader(day) {
         ${rest.map((paragraph, index) => `<section class="journal-reader-section"><span class="journal-reader-roman">${['II', 'III', 'IV', 'V'][index] || 'VI'}</span><p>${esc(paragraph)}</p></section>`).join('')}
         ${quoteHtml}
       </div>
+      <div class="journal-deck-host" id="journal-reader-deck"></div>
       <footer class="journal-reader-footprints">
         <span><small>习惯</small><strong>${footprints.completed}/${footprints.total}</strong></span>
         <span><small>专注</small><strong>${footprints.minutes} <em>分钟</em></strong></span>
@@ -579,6 +633,14 @@ function openJournalReader(day) {
   callHelper('openSubpage', 'subpage-journal-reader', html);
   $('#journal-reader-edit')?.addEventListener('click', () => journalForm(day));
   $$('[data-view-journal-reader-photo]').forEach(button => button.onclick = () => photoViewer(photosWithLiveMotion(photos, entry.livePhotos), Number(button.dataset.viewJournalReaderPhoto)));
+  const readable = journalDeckSource('').filter(item => String(item.content || '').trim());
+  const startIndex = Math.max(0, readable.findIndex(item => item.date === day));
+  mountDeckHost($('#journal-reader-deck'), readable.length > 1 ? readable : [], {
+    heading: '继续翻篇',
+    hint: '左右切到相邻的一天。照片仍在上面的相框里打开。',
+    startIndex,
+    onOpen: model => { if (model.id !== day) openJournalReader(model.id); }
+  });
 }
 
 // 过往篇章和日记历史：有正文就开画报阅读，没有正文就进入这一天的编辑页。
@@ -653,6 +715,7 @@ export function journalView() {
       <div class="journal-footprint-strip"><span>习惯 ${journalFootprints(day).completed}/${journalFootprints(day).total}</span><span>专注 ${journalFootprints(day).minutes} 分钟</span><span>支出 ¥${journalFootprints(day).spend.toFixed(2)}</span></div>
       </div>
       <div class="journal-save-row"><button type="button" class="journal-save-btn" id="journal-screen-save"><span class="material-symbols-outlined">edit_document</span><span>保存生活日记</span></button></div>
+      <div class="journal-deck-host" id="journal-past-deck"></div>
       <h3 class="sheet-title journal-history-title">过往篇章</h3>
       ${entries.length ? entries.map(entry => `<button type="button" class="journal-preview-row" data-open-journal="${entry.date}"><span class="journal-preview-date"><b>${entry.date.slice(5, 7)}-</b><b>${entry.date.slice(8, 10)}</b></span><span class="journal-preview-copy"><strong>${entry.title ? esc(entry.title) : entry.content ? esc(entry.content.slice(0, 30)) : `${entry.photos?.length || 0} 张照片`}</strong><small>${entry.mood ? esc(MOODS[entry.mood]?.label || entry.mood) : '无心情标注'}</small></span><i class="material-symbols-outlined">chevron_right</i></button>`).join('') : `<p class="journal-preview-empty">还没有写过日记，写下第一篇吧。</p>`}
       <button class="journal-history-link" id="journal-history"><span class="material-symbols-outlined">history</span>浏览全部日记</button>
@@ -683,6 +746,12 @@ function syncJournalPick(kind) {
 }
 
 function bindJournalView() {
+  releaseDetachedJournalDecks();
+  mountDeckHost($('#journal-past-deck'), journalDeckSource(journalEditingDay).slice(0, 12), {
+    heading: '翻阅篇章',
+    hint: '按住倾斜，左右滑过一段会吸到下一篇或上一篇。',
+    onOpen: model => openJournalReader(model.id)
+  });
   $('#journal-date-input')?.addEventListener('change', event => {
     const nextDay = event.target.value;
     if (!nextDay || nextDay === journalEditingDay) return;

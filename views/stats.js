@@ -1,4 +1,4 @@
-import { withSharedTransition } from '../motion.js';
+import { withSharedTransition, rollNumbers } from '../motion.js';
 import { $, $$, esc, state, render, modal, formatMinutes, go, registerView, registerBinder, registerHelper, callHelper } from '../core.js';
 import { periodSummary, dateKey } from '../model.js';
 import { completeStatsWeekSummary, habitArchiveMetrics, warmWeeklyLifeMetrics, focusInsights } from '../analytics.js';
@@ -81,11 +81,11 @@ function kpiCard(summary, metrics) {
       <small>专注总时长</small>
       <strong>${focusTotalLabel(summary.totalMinutes)}</strong>
       <span class="stats-kpi-trend ${tone}">${trend}</span>
-      <p>${periodScope()}日均 ${summary.averageMinutes} 分钟 · 单次最长 ${summary.longestMinutes} 分钟</p>
+      <p>${periodScope()}日均 <span data-roll="${summary.averageMinutes}">${summary.averageMinutes}</span> 分钟 · 单次最长 <span data-roll="${summary.longestMinutes}">${summary.longestMinutes}</span> 分钟</p>
     </section>
     <section class="stats-kpi-sheet">
       <small>习惯达标</small>
-      <strong>${habitList.length ? `${habitMetCount}<em>/${habitList.length}</em>` : '—'}</strong>
+      <strong>${habitList.length ? `<span data-roll="${habitMetCount}">${habitMetCount}</span><em>/${habitList.length}</em>` : '—'}</strong>
       <span class="stats-kpi-badge ${habitTone}">${!habitList.length ? '暂无习惯' : habitMetCount === habitList.length ? '全部达标' : habitMetCount === 0 ? '继续积累' : `${habitMetCount} 项达成`}</span>
       <p>${habitSummaryLine}</p>
     </section>
@@ -301,6 +301,8 @@ function achievementSection(metrics) {
 
 // ---- 绑定 ----
 function bindStats() {
+  const statsRoot = $('.stats-view');
+  if (statsRoot) rollNumbers(statsRoot);
   $$('[data-period]').forEach(button => button.onclick = () => { period = button.dataset.period; render(); });
   $$('[data-stats-project]').forEach(button => button.onclick = () => callHelper('projectSessionHistory', button.dataset.statsProject));
   $('#report')?.addEventListener('click', reportModal);

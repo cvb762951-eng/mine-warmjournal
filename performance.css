@@ -4441,6 +4441,17 @@ body:has(.ai-companion-screen) main{padding-top:0}
 /* ── 交错入场的落地态：动画跑完就别再占着 will-change ── */
 .stagger-done { will-change: auto; }
 
+/* 今日刊头错落：只动 transform / opacity，不改纸色，也不做冷启动遮罩。 */
+@keyframes v3-masthead-rise {
+  from { opacity: 0; transform: translate3d(0, 14px, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+.today-view .magazine-header > * {
+  animation: v3-masthead-rise 720ms var(--spring-entrance, cubic-bezier(0.22, 1, 0.36, 1)) both;
+}
+.today-view .magazine-header > *:nth-child(2) { animation-delay: 80ms; }
+.today-view .magazine-header > *:nth-child(3) { animation-delay: 150ms; }
+
 /* ── 减弱动态效果：保留状态切换，去掉一切运动 ── */
 @media (prefers-reduced-motion: reduce) {
   .halo-ring,
