@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import vm from 'node:vm';
 import { readFile } from 'node:fs/promises';
 
 const root = new URL('../', import.meta.url);
@@ -296,11 +297,117 @@ test('service worker never serves a stale page/script/style', async () => {
 
 test('app self-heals when the plain theme failed to load', async () => {
   const appJs = await read('app.js');
-  assert.match(appJs, /function healPlainTheme/, '启动时要验一次清简主题是否真的生效');
+  const heal = appJs.slice(appJs.indexOf('function plainPaperStillShowing'), appJs.indexOf('async function boot'));
+  assert.ok(heal.includes('function healPlainTheme'), '启动时要验一次清简主题是否真的生效');
   // 探针是 #app 上的纸纹图：清简撤掉素材后这里应该是 none
   assert.match(appJs, /healPlainTheme\(state\.settings\?\.theme\)/, '渲染后要调用自检');
-  assert.match(appJs, /mine-plain-theme-heal/, '自检必须防重载死循环');
-  assert.match(appJs, /backgroundImage/, '自检要读实际计算样式，不能只看变量');
+  assert.match(heal, /mine-plain-theme-heal/, '提示要节流，避免反复打扰');
+  assert.match(heal, /backgroundImage/, '自检要读实际计算样式，不能只看变量');
+  assert.match(heal, /plain-theme-sheet/, '自检应重新打开清简样式表');
+  assert.match(heal, /data-theme/, '自检应补上 data-theme');
+  assert.doesNotMatch(heal, /location\.reload/, '纸纹还在时不要整页重载，那会把暖色纸闪烁再播一遍');
+  assert.match(heal, /show\(/, '修不掉时给一句轻提示');
+});
+
+function earlyThemeScript(html) {
+  const at = html.indexOf("const KEY = 'mine-warmjournal-theme'");
+  assert.ok(at > 0, '解析期脚本要读主题短键');
+  const start = html.lastIndexOf('<script>', at);
+  const end = html.indexOf('</script>', at);
+  return html.slice(start + '<script>'.length, end);
+}
+
+function runEarlyTheme({ storage = {}, cookie = '', userAgent = 'Mozilla/5.0' } = {}) {
+  const sheet = { disabled: true, media: 'not all' };
+  const attrs = {};
+  const classes = new Set();
+  const meta = { content: '#f5f1e8', setAttribute(name, value) { if (name === 'content') this.content = value; } };
+  const document = {
+    cookie,
+    documentElement: {
+      setAttribute(name, value) { attrs[name] = value; },
+      classList: { add(name) { classes.add(name); } }
+    },
+    getElementById(id) { return id === 'plain-theme-sheet' ? sheet : null; },
+    querySelector(selector) { return selector === 'meta[name="theme-color"]' ? meta : null; }
+  };
+  const localStorage = { getItem: key => (key in storage ? storage[key] : null) };
+  const context = { document, localStorage, navigator: { userAgent } };
+  vm.createContext(context);
+  vm.runInContext(earlyThemeScript(indexHtml), context);
+  return { attrs, classes: [...classes], sheet, meta };
+}
+
+test('first paint applies plain before storage boot and leaves other themes unloaded', () => {
+  assert.match(indexHtml, /id="plain-theme-sheet"[^>]*href="themes-plain\.css[^"]*"[^>]*media="not all"[^>]*disabled/,
+    '清简样式表默认不参与样式计算');
+  assert.match(indexHtml, /html\[data-theme="plain"\][\s\S]*background-image:\s*none !important/,
+    '清简外壳要在大样式表生效前先去掉纸纹');
+
+  const plain = runEarlyTheme({ storage: { 'mine-warmjournal-theme': 'plain' } });
+  assert.equal(plain.attrs['data-theme'], 'plain');
+  assert.equal(plain.sheet.disabled, false);
+  assert.equal(plain.sheet.media, 'all');
+  assert.equal(plain.meta.content, '#EAF0F8');
+  assert.deepEqual(plain.classes, []);
+
+  const fromCookie = runEarlyTheme({ cookie: 'mine-warmjournal-theme=plain' });
+  assert.equal(fromCookie.attrs['data-theme'], 'plain');
+  assert.equal(fromCookie.sheet.disabled, false);
+
+  const fromState = runEarlyTheme({
+    storage: { 'mine-warmjournal-state-v1': '{"settings":{"theme":"plain"}}' }
+  });
+  assert.equal(fromState.attrs['data-theme'], 'plain');
+  assert.equal(fromState.sheet.disabled, false);
+
+  const sunny = runEarlyTheme({ storage: { 'mine-warmjournal-theme': 'sunny' } });
+  assert.equal(sunny.attrs['data-theme'], 'sunny');
+  assert.equal(sunny.sheet.disabled, true);
+  assert.equal(sunny.sheet.media, 'not all');
+  assert.equal(sunny.meta.content, '#fbf3e4');
+
+  const classic = runEarlyTheme({ storage: { 'mine-warmjournal-theme': 'classic' } });
+  assert.equal(classic.attrs['data-theme'], undefined);
+  assert.equal(classic.sheet.disabled, true);
+  assert.equal(classic.sheet.media, 'not all');
+
+  const desktop = runEarlyTheme();
+  assert.equal(desktop.attrs['data-theme'], undefined);
+  assert.equal(desktop.sheet.disabled, true);
+  assert.deepEqual(desktop.classes, []);
+});
+
+test('native webview hides the shell until a theme is known', () => {
+  const webView = runEarlyTheme({
+    userAgent: 'Mozilla/5.0 (Linux; Android 14; Pixel Build/AP2A; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/128.0.0.0 Mobile Safari/537.36'
+  });
+  assert.deepEqual(webView.classes, ['theme-pending']);
+  assert.equal(webView.sheet.disabled, true, '还不知道是不是清简时不要让清简样式表参与样式计算');
+  assert.equal(webView.sheet.media, 'not all');
+
+  const knownPlain = runEarlyTheme({
+    storage: { 'mine-warmjournal-theme': 'plain' },
+    userAgent: 'Mozilla/5.0 (Linux; Android 14; Pixel Build/AP2A; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/128.0.0.0 Mobile Safari/537.36'
+  });
+  assert.equal(knownPlain.attrs['data-theme'], 'plain');
+  assert.deepEqual(knownPlain.classes, [], '已经知道是清简时不要再藏外壳');
+});
+
+test('theme memory is mirrored beyond localStorage and the mine row names the active theme', async () => {
+  assert.match(core, /function writeThemeCookie/, '主题要写入 cookie，解析期脚本才能同步读到');
+  assert.match(core, /function mirrorThemeToNative/, '真机要有一份不依赖 WebView localStorage 的镜像');
+  assert.match(core, /isPluginAvailable\?\.\('Preferences'\)/, '装机包里有 Preferences 时要一起镜像 THEME_KEY');
+  assert.match(core, /Filesystem\.writeFile/, '当前装机包已有 Filesystem，用它做原生镜像');
+  assert.match(core, /export async function primeThemeFromNativeMirror/, '数据库打开前要用原生镜像补主题');
+  assert.match(core, /theme !== 'classic'/, '过期的 classic 镜像不能抢在状态库之前把清简揭成暖色纸');
+  const appJs = await read('app.js');
+  assert.match(appJs, /primeThemeFromNativeMirror\(\)/, '启动时要先补主题再打开数据库');
+  assert.match(mineView, /const themeLabel = \(THEME_META\[state\.settings\?\.theme\] \|\| THEME_META\.classic\)\.label/,
+    '我的页要取出当前主题名');
+  assert.match(mineView, /backgroundImage \? '自定义壁纸' : esc\(themeLabel\)/,
+    '主题行右侧要显示当前主题，而不是写死暖色纸张');
+  assert.doesNotMatch(mineView, /暖色纸张/, '我的页不再把当前主题标成暖色纸张');
 });
 
 /**

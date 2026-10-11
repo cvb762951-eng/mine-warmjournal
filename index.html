@@ -22,26 +22,70 @@
   <!-- 清简主题的质感重置（撤掉图片素材），必须排在 themes.css 之后；
        文件里已由 gen-plain-theme.mjs 把「浅色化 + 美化」层拼在末尾，
        所以这里只引这一个文件 —— 少一个 <link> 就少一个"送不到设备上"的风险。
-       ⚠️ 默认 disabled：它含近 2000 条选择器，主题不是清简时全部匹配失败，
-          却照样参与启动时的样式计算（2026-10-10 实测约 230ms，占整个样式处理近三成）。
-          下面这段在**解析期**就决定要不要它，所以不会出现"先渲染再换皮"的闪烁。 -->
-  <link id="plain-theme-sheet" rel="stylesheet" href="themes-plain.css?v=1.1.8" disabled>
+       ⚠️ 默认 disabled + media="not all"：近 2000 条选择器在主题不是清简时不参与样式计算
+          （2026-10-10 实测约 230ms）。解析期脚本只在上次主题是清简时启用它。
+          光启用样式表不够：规则都挂在 [data-theme="plain"] 上，这里必须同时写上 data-theme，
+          否则首屏仍是暖色纸，要等存储启动后的 applyTheme 才切过去。 -->
+  <link id="plain-theme-sheet" rel="stylesheet" href="themes-plain.css?v=1.1.8" media="not all" disabled>
+  <style id="early-theme-shell">
+    html[data-theme="plain"],
+    html[data-theme="plain"] body,
+    html[data-theme="plain"] .phone-shell:not(.has-custom-background) {
+      background-color: #EAF0F8 !important;
+      background-image: none !important;
+    }
+    html.theme-pending,
+    html.theme-pending body {
+      background-color: #f4f5f6 !important;
+      background-image: none !important;
+    }
+    html.theme-pending .phone-shell { visibility: hidden; }
+  </style>
   <script>
     (() => {
-      // 取值来源：最近一次用过的主题（一个短键，读得很快）；没有就退回状态下找一次
-      // （首次安装）。注意只做一次正则查找，绝不解析整份状态 —— 那是几 MB 的字符串。
+      // 短键最快；没有再读同名 cookie（localStorage 在真机 WebView 上可能是空的）；
+      // 最后才对浏览器里的整份状态做一次正则，绝不 JSON.parse —— 那是几 MB。
+      const KEY = 'mine-warmjournal-theme';
+      const KNOWN = { classic: '#f5f1e8', sunny: '#fbf3e4', plain: '#EAF0F8' };
+      const readCookie = () => {
+        try {
+          const matched = document.cookie.match(/(?:^|;\s*)mine-warmjournal-theme=([a-z]+)/);
+          return matched ? matched[1] : '';
+        } catch { return ''; }
+      };
       let theme = '';
-      try { theme = localStorage.getItem('mine-warmjournal-theme') || ''; } catch { /* 隐私模式下不可用 */ }
-      if (!theme) {
+      try { theme = (localStorage.getItem(KEY) || '').trim(); } catch { /* 隐私模式下不可用 */ }
+      if (!KNOWN[theme]) theme = readCookie();
+      if (!KNOWN[theme]) {
         try {
           const raw = localStorage.getItem('mine-warmjournal-state-v1') || '';
           const matched = raw.match(/"theme"\s*:\s*"([a-z]+)"/);
-          if (matched) theme = matched[1];
+          if (matched && KNOWN[matched[1]]) theme = matched[1];
         } catch { /* 同上 */ }
       }
-      if (theme !== 'plain') return;
-      const sheet = document.getElementById('plain-theme-sheet');
-      if (sheet) sheet.disabled = false;
+      if (!KNOWN[theme]) theme = '';
+      const root = document.documentElement;
+      if (theme && theme !== 'classic') root.setAttribute('data-theme', theme);
+      if (theme) {
+        const meta = document.querySelector('meta[name="theme-color"]');
+        if (meta) meta.setAttribute('content', KNOWN[theme]);
+      }
+      if (theme === 'plain') {
+        const sheet = document.getElementById('plain-theme-sheet');
+        if (sheet) {
+          sheet.media = 'all';
+          sheet.disabled = false;
+        }
+        return;
+      }
+      if (theme) return;
+      const ua = (typeof navigator !== 'undefined' && navigator.userAgent) || '';
+      // 真机 WebView 同步读不到主题时，先别画出默认暖色纸；boot 会用原生镜像或状态库补上。
+      if (/;\s*wv\)/.test(ua)) {
+        root.classList.add('theme-pending');
+        const meta = document.querySelector('meta[name="theme-color"]');
+        if (meta) meta.setAttribute('content', '#f4f5f6');
+      }
     })();
   </script>
 </head>
