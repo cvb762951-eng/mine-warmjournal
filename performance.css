@@ -121,7 +121,7 @@ html, body { background: var(--bg); }
 }
 
 .phone-shell > main, .phone-shell > .modal-layer { position: relative; z-index: 1; }
-button, a { -webkit-tap-highlight-color: transparent; }
+button, a { -webkit-tap-highlight-color: rgba(0, 0, 0, 0); }
 body, button, input, textarea, select { font-family: Inter, "Noto Sans SC", sans-serif; }
 
 /* 局部数据刷新不重播整页动画；仅页面切换（go）时播放 iOS 式转场 */
@@ -1294,7 +1294,7 @@ body{background:var(--bg)}
 
 /* ---- 今日页折叠区块 ---- */
 .today-collapse{margin-top:0}
-.today-collapse>summary{list-style:none;cursor:pointer;user-select:none;-webkit-tap-highlight-color:transparent}
+.today-collapse>summary{list-style:none;cursor:pointer;user-select:none;-webkit-tap-highlight-color:rgba(0,0,0,0)}
 .today-collapse>summary::-webkit-details-marker{display:none}
 .today-collapse>summary:focus-visible{outline:2px solid #7a8a7c;outline-offset:2px;border-radius:12px}
 .today-collapse>summary:active{opacity:.7}
@@ -4311,7 +4311,12 @@ body:has(.ai-companion-screen) main{padding-top:0}
 
 /* ── View Transitions（卡片→详情）：让浏览器自己算那一趟 FLIP ──
    浏览器会把旧状态与新状态各拍一张快照，对我们指定的同名元素做位置/尺寸插值 ——
-   全程在合成器上，不触发布局。自定义曲线就写在这里。 */
+   全程在合成器上，不触发布局。自定义曲线就写在这里。
+   ⚠️ 整页交叉淡化会透出 Android WebView 的白底；默认 plus-lighter 还会把浅色快照加成纯白。
+      根快照不做动画，名字对得上的共享元素仍按原样放大。转场底用页面纸色，不用白。 */
+::view-transition {
+  background: var(--canvas, #f5f1e8);
+}
 ::view-transition-group(share-hero) {
   animation-duration: 420ms;
   animation-timing-function: var(--spring-entrance);
@@ -4322,9 +4327,14 @@ body:has(.ai-companion-screen) main{padding-top:0}
   animation-duration: 420ms;
   mix-blend-mode: normal;
 }
+::view-transition-old(*),
+::view-transition-new(*) {
+  mix-blend-mode: normal;
+}
 ::view-transition-old(root),
 ::view-transition-new(root) {
-  animation-duration: 240ms;
+  animation: none;
+  mix-blend-mode: normal;
 }
 
 /* ── 容器变形：从触发点长出来的那块"面" ──

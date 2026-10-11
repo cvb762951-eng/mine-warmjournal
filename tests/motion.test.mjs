@@ -231,6 +231,37 @@ test('打开私密视频停在深色底上，照片仍走共享元素', async ()
   assert.match(plainTheme, /\.modal\.vault-decrypting-modal\.vault-video-preparing[\s\S]{0,500}#050807 !important/);
 });
 
+/* 点击后的白块（各页面、三个主题都会遇到）：
+   不是某一页的特例。Android WebView 上同一类原因会在不同入口冒出来：
+   共享元素的默认加色混合把浅色快照加成纯白、没有落点时把点击处抠空、
+   浅色弹层从按钮上长出来、点击高亮的 transparent 关键字不生效、
+   视频首帧的原生白底，以及切页时用 blur 逼出一整层白。 */
+test('点击白块：转场、浅色变形、高亮和视频首帧走同一套守卫', async () => {
+  assert.match(motion, /function isNearWhite/, '浅纸色要能认出来');
+  assert.match(motion, /luminance >= 0\.82/, '浅纸和纯白都要跳过，不能只拦纯白');
+  assert.match(motion, /if \(transparentPanel \|\| isNearWhite\(panelBackground\)\) return null/, '浅色或透明弹层不能从点击处长出一块面');
+  assert.match(motion, /mix-blend-mode:normal/, '共享元素不能用默认的 plus-lighter，否则浅色卡片会加成白块');
+  assert.match(motion, /function mountShareBlend/, '随机转场名也要钉上混合模式，静态选择器对不上');
+  assert.match(motion, /sourceEl\?\.tagName === 'VIDEO'/, '视频本身不能当共享元素的源');
+  assert.match(motion, /target\.tagName === 'VIDEO'/, '落点是视频时要停掉转场');
+  assert.match(motion, /skipTransition\?\.\(\)/, '没有落点时要跳过转场，不能留着抠空的白块');
+  assert.match(motion, /installVideoFrameGuard/, '视频首帧守卫要跟按压一起挂上');
+  assert.match(motion, /new MutationObserver/, '后插入的视频也要盖住首帧白底');
+  assert.match(motion, /classList\.add\('is-awaiting-frame'\)/, '第一帧之前先藏起视频');
+
+  assert.match(performance, /::view-transition \{\s*background: var\(--canvas/);
+  assert.match(performance, /::view-transition-old\(\*\),\s*::view-transition-new\(\*\) \{\s*mix-blend-mode: normal/);
+  assert.match(performance, /::view-transition-old\(root\),\s*::view-transition-new\(root\) \{\s*animation: none;\s*mix-blend-mode: normal/);
+
+  assert.match(styles, /html body \* \{\s*-webkit-tap-highlight-color: rgba\(0, 0, 0, 0\)/);
+  assert.match(styles, /video\.is-awaiting-frame\{opacity:0\}/);
+  const pageEnter = styles.slice(styles.indexOf('@keyframes pageSpringEnter'), styles.indexOf('Prototype Dock'));
+  assert.ok(!pageEnter.includes('blur'), '切页不能动画 blur，WebView 会闪出一层白');
+
+  const capacitor = JSON.parse(await read('capacitor.config.json'));
+  assert.equal(capacitor.backgroundColor, '#f5f1e8', 'WebView 自己的底色不能是默认纯白');
+});
+
 test('共享元素：拍"新状态"快照前要等图片解码', async () => {
   /* 不等的话，快照里的图还是空白 —— 观感同样是"打开大图时闪一下"。
      View Transitions 的 update 回调支持 await，就是为这种场景准备的。 */
