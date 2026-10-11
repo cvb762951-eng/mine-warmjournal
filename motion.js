@@ -671,6 +671,8 @@ export function mountJournalDeck(host, entries = [], options = {}) {
     prev.textContent = '上一篇';
     const count = document.createElement('span');
     count.className = 'journal-deck-count';
+    count.setAttribute('aria-live', 'polite');
+    count.setAttribute('aria-atomic', 'true');
     const next = document.createElement('button');
     next.type = 'button';
     next.className = 'journal-deck-cut';
@@ -693,6 +695,10 @@ export function mountJournalDeck(host, entries = [], options = {}) {
       const tiltX = pitch.current;
       const tiltY = yaw.current;
       card.style.transform = `translate3d(${x.toFixed(2)}px, 0, 28px) rotateX(${tiltX.toFixed(2)}deg) rotateY(${tiltY.toFixed(2)}deg) rotateZ(${(x * 0.03).toFixed(2)}deg)`;
+      const span = Math.max(1, stage.clientWidth || 1);
+      const travel = Math.min(1, Math.abs(x) / span);
+      const nextOpacity = prefersReducedMotion() || travel < 0.02 ? '' : (1 - travel * 0.28).toFixed(3);
+      if (card.style.opacity !== nextOpacity) card.style.opacity = nextOpacity;
       const shadow = card.querySelector('.journal-deck-shadow');
       if (shadow) shadow.style.transform = `translate3d(${(-tiltY * 1.5).toFixed(2)}px, ${(12 - tiltX).toFixed(2)}px, 0)`;
     };
@@ -796,8 +802,10 @@ export function mountJournalDeck(host, entries = [], options = {}) {
         stage.setPointerCapture?.(event.pointerId);
       }
       offset.set(dx);
-      yaw.set(Math.max(-18, Math.min(18, dx / 16)));
-      pitch.set(Math.max(-8, Math.min(8, -dy / 36)));
+      if (!prefersReducedMotion()) {
+        yaw.set(Math.max(-18, Math.min(18, dx / 16)));
+        pitch.set(Math.max(-8, Math.min(8, -dy / 36)));
+      }
     };
     const finish = event => {
       if (event.pointerId !== pointerId) return;
@@ -893,44 +901,67 @@ export function rollNumbers(root = document) {
   });
 }
 
-/** 清简主题底栏：指针靠近时按钮轻微平移，不另做白胶囊。 */
+/**
+ * 清简主题底栏：指针靠近时，只把「当前页」那一格平移最多 5px。
+ * 其余格子在清简主题里是透明底，提升图层会在 WebView 里垫出白块，所以不动。
+ * 不另做白胶囊。指针远离、主题不是清简、或系统要求减弱动效时，直接停，不给每颗按钮建弹簧。
+ */
 let magneticDockInstalled = false;
 
 export function installMagneticDock() {
   if (typeof document === 'undefined' || magneticDockInstalled) return;
-  magneticDockInstalled = true;
   safely(() => {
     const springs = new WeakMap();
+    let engaged = false;
     const springFor = button => {
       let spring = springs.get(button);
       if (spring) return spring;
       spring = new SpringODE({ mass: 0.8, stiffness: 260, damping: 22, precision: 0.05 });
       spring.onUpdate = value => {
         if (!button.isConnected) { spring.stop(); return; }
+        if (Math.abs(value) < 0.04) {
+          if (button.style.translate) button.style.translate = '';
+          return;
+        }
         button.style.translate = `${value.toFixed(2)}px 0`;
       };
       springs.set(button, spring);
       return spring;
     };
-    const settle = () => {
-      document.querySelectorAll('.floating-dock .dock-btn').forEach(button => springFor(button).to(0));
+    const restDock = () => {
+      if (!engaged) return;
+      engaged = false;
+      document.querySelectorAll('.floating-dock .dock-btn.active').forEach(button => {
+        springs.get(button)?.to(0);
+      });
     };
     document.addEventListener('pointermove', event => {
-      if (!canAnimate() || document.documentElement.dataset.theme !== 'plain') {
-        settle();
+      if (document.documentElement.dataset.theme !== 'plain' || !canAnimate()) {
+        restDock();
         return;
       }
       const dock = document.querySelector('.floating-dock');
-      if (!dock) return;
+      if (!dock) {
+        restDock();
+        return;
+      }
       const rect = dock.getBoundingClientRect();
-      const near = event.clientY >= rect.top - 20 && event.clientY <= rect.bottom + 20
-        && event.clientX >= rect.left - 16 && event.clientX <= rect.right + 16;
-      dock.querySelectorAll('.dock-btn').forEach(button => {
-        const box = button.getBoundingClientRect();
-        const dx = event.clientX - (box.left + box.width / 2);
-        const pull = near && Math.abs(dx) < box.width * 0.9 ? Math.max(-5, Math.min(5, dx * 0.16)) : 0;
-        springFor(button).to(pull);
-      });
+      const near = event.clientY >= rect.top - 28 && event.clientY <= rect.bottom + 36
+        && event.clientX >= rect.left - 24 && event.clientX <= rect.right + 24;
+      if (!near) {
+        restDock();
+        return;
+      }
+      const button = dock.querySelector('.dock-btn.active');
+      if (!button) return;
+      const box = button.getBoundingClientRect();
+      const dx = event.clientX - (box.left + box.width / 2);
+      const pull = Math.abs(dx) < box.width ? Math.max(-5, Math.min(5, dx * 0.18)) : 0;
+      const spring = springFor(button);
+      if (Math.abs(spring.target - pull) < 0.05 && Math.abs(spring.current - pull) < spring.precision) return;
+      engaged = true;
+      spring.to(pull);
     }, { passive: true });
+    magneticDockInstalled = true;
   });
 }

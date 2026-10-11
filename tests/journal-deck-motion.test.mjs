@@ -50,6 +50,7 @@ test('日记浏览用牌组，照片仍交给原来的查看器', async () => {
 test('牌组相框不拉伸，说明在照片下面，切页不靠模糊', async () => {
   const styles = await read('styles.css');
   const performance = await read('performance.css');
+  const motion = await read('motion.js');
   assert.match(styles, /\.journal-deck-photo\{[^}]*aspect-ratio:16\/9/);
   assert.match(styles, /\.journal-deck-still\{[^}]*object-fit:contain/);
   assert.match(styles, /\.journal-deck-figure figcaption\{[^}]*position:static/);
@@ -57,6 +58,12 @@ test('牌组相框不拉伸，说明在照片下面，切页不靠模糊', async
   assert.match(styles, /\.journal-deck-host\{[^}]*overflow:hidden/);
   assert.match(styles, /:root\[data-theme="plain"\] \.journal-deck-face\{[^}]*#F4F7FC/);
   assert.match(styles, /:root\[data-theme="plain"\] button\.journal-deck-cut[^}]*background:#E2EAF8/);
+  assert.match(styles, /button\.journal-deck-cut:disabled\{[^}]*opacity:\.4/);
+  assert.match(styles, /\.journal-deck-stage:focus-visible\{[^}]*outline:2px solid/);
+  assert.match(motion, /setAttribute\('aria-live', 'polite'\)/);
+  assert.match(motion, /card\.style\.opacity/);
+  const dragTilt = motion.slice(motion.indexOf('offset.set(dx);'), motion.indexOf('const finish'));
+  assert.match(dragTilt, /if \(!prefersReducedMotion\(\)\)/);
   const rise = performance.slice(performance.indexOf('@keyframes v3-masthead-rise'), performance.indexOf('.today-view .magazine-header > *'));
   assert.match(rise, /transform: translate3d/);
   assert.ok(!rise.includes('blur'));
@@ -66,11 +73,18 @@ test('牌组相框不拉伸，说明在照片下面，切页不靠模糊', async
 test('统计数字和清简底栏接上弹簧，不新开样式表', async () => {
   const stats = await read('views/stats.js');
   const app = await read('app.js');
+  const motion = await read('motion.js');
   const indexHtml = await read('index.html');
   const sheets = [...indexHtml.matchAll(/href="([a-z-]+\.css)/g)].map(match => match[1]);
   assert.match(stats, /data-roll="\$\{habitMetCount\}"/);
   assert.match(stats, /rollNumbers\(statsRoot\)/);
   assert.match(app, /installMagneticDock\(\)/);
+  const dock = motion.slice(motion.indexOf('export function installMagneticDock'));
+  assert.match(dock, /dataset\.theme !== 'plain' \|\| !canAnimate\(\)/);
+  assert.match(dock, /if \(!near\) \{\s*restDock\(\);\s*return;/);
+  assert.match(dock, /\.dock-btn\.active/);
+  assert.doesNotMatch(dock, /querySelectorAll\('\.floating-dock \.dock-btn'\)/);
+  assert.doesNotMatch(dock, /#[fF]{3,8}\b|white/);
   assert.deepEqual(sheets, ['fonts.css', 'performance.css', 'styles.css', 'themes.css', 'themes-plain.css']);
   assert.match(indexHtml, /html\[data-theme="plain"\][\s\S]*#EAF0F8/);
 });

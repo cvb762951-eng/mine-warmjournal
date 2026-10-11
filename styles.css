@@ -9047,6 +9047,8 @@ html body * {
 .journal-deck-heading{margin:0 0 4px;font-family:'Newsreader','Noto Serif SC',serif;font-size:16px;font-weight:700;color:inherit}
 .journal-deck-hint{margin:0 0 8px;color:#6b7480;font-size:11px;line-height:1.5}
 .journal-deck-stage{position:relative;height:450px;max-width:100%;perspective:1100px;overflow:visible;touch-action:pan-y;user-select:none;-webkit-user-select:none}
+.journal-deck-stage:focus-visible{outline:2px solid rgba(77,112,86,.72);outline-offset:4px}
+:root[data-theme="plain"] .journal-deck-stage:focus-visible{outline-color:#4F76BD}
 .journal-deck-stage button{touch-action:pan-y;-webkit-tap-highlight-color:transparent}
 .journal-deck-card{position:absolute;inset:72px 8px 12px;transform-style:preserve-3d;will-change:transform}
 .journal-deck-card[data-depth="1"]{transform:translate3d(0,-28px,-16px) scale(.97);opacity:.96}
@@ -9071,5 +9073,6 @@ html body * {
 button.journal-deck-cut,button.journal-deck-open{min-height:36px;padding:6px 12px;border:1px solid rgba(220,212,198,.9);border-radius:999px;background:#fdfcf9;color:#315b49;font-size:12px;font-weight:700;-webkit-tap-highlight-color:transparent}
 button.journal-deck-open{display:block;width:100%;margin-top:8px}
 :root[data-theme="plain"] button.journal-deck-cut,:root[data-theme="plain"] button.journal-deck-open{border-color:rgba(85,96,108,.2);background:#E2EAF8;color:#3D5F9E}
+button.journal-deck-cut:disabled{opacity:.4;cursor:default}
 .journal-deck-card[data-depth="0"]{cursor:grab}
 .journal-history-modal .journal-deck-host{flex:none}
