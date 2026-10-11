@@ -377,6 +377,18 @@ async function readBrowserData(ref) {
   return fileToDataUrl(record.blob);
 }
 
+function retargetLiveStill(list, previous, value) {
+  if (!previous || previous === value || !Array.isArray(list)) return;
+  for (const item of list) if (item?.still === previous) item.still = value;
+}
+
+function addLiveVideoSlots(slots, list) {
+  for (const item of list || []) {
+    if (!item) continue;
+    slots.push({ get: () => item.video, set: value => { item.video = value; }, kind: 'video' });
+  }
+}
+
 function mediaSlots(state) {
   const slots = [];
   if (state?.profile) slots.push({ get: () => state.profile.avatar, set: value => { state.profile.avatar = value; } });
@@ -385,14 +397,27 @@ function mediaSlots(state) {
     slots.push({ get: () => state.settings.todayCoverImage, set: value => { state.settings.todayCoverImage = value; } });
     for (const draft of Object.values(state.settings.journalDrafts || {})) {
       if (!Array.isArray(draft?.photos)) continue;
-      draft.photos.forEach((_, index) => slots.push({ get: () => draft.photos[index], set: value => { draft.photos[index] = value; } }));
+      draft.photos.forEach((_, index) => slots.push({
+        get: () => draft.photos[index],
+        set: value => {
+          const previous = draft.photos[index];
+          draft.photos[index] = value;
+          retargetLiveStill(draft.livePhotos, previous, value);
+        }
+      }));
+      addLiveVideoSlots(slots, draft.livePhotos);
     }
   }
   for (const entry of state?.snippets || []) {
     // photos[] 为主（photo 是 photos[0] 的兼容镜像，同步更新）
     (entry.photos || []).forEach((_, index) => slots.push({
       get: () => entry.photos[index],
-      set: value => { entry.photos[index] = value; if (index === 0) entry.photo = value; }
+      set: value => {
+        const previous = entry.photos[index];
+        entry.photos[index] = value;
+        if (index === 0) entry.photo = value;
+        retargetLiveStill(entry.livePhotos, previous, value);
+      }
     }));
     // 视频/实况图项：poster 走图片外部化，video 走视频文件引用（kind: video）。
     (entry.videos || []).forEach(item => {
@@ -400,12 +425,23 @@ function mediaSlots(state) {
       slots.push({ get: () => item.poster, set: value => { item.poster = value; } });
       slots.push({ get: () => item.video, set: value => { item.video = value; }, kind: 'video' });
     });
+    addLiveVideoSlots(slots, entry.livePhotos);
   }
   for (const entry of state?.media || []) slots.push({ get: () => entry.poster, set: value => { entry.poster = value; } });
   for (const entry of state?.tasteEntries || []) (entry.photos || []).forEach((_, index) => slots.push({ get: () => entry.photos[index], set: value => { entry.photos[index] = value; } }));
   for (const entry of state?.countdowns || []) slots.push({ get: () => entry.image, set: value => { entry.image = value; } });
   for (const entry of state?.transactions || []) slots.push({ get: () => entry.photo, set: value => { entry.photo = value; } });
-  for (const journal of Object.values(state?.journals || {})) (journal.photos || []).forEach((_, index) => slots.push({ get: () => journal.photos[index], set: value => { journal.photos[index] = value; } }));
+  for (const journal of Object.values(state?.journals || {})) {
+    (journal.photos || []).forEach((_, index) => slots.push({
+      get: () => journal.photos[index],
+      set: value => {
+        const previous = journal.photos[index];
+        journal.photos[index] = value;
+        retargetLiveStill(journal.livePhotos, previous, value);
+      }
+    }));
+    addLiveVideoSlots(slots, journal.livePhotos);
+  }
   return slots;
 }
 

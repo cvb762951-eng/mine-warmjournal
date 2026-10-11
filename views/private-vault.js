@@ -2,7 +2,8 @@ import { Capacitor } from '@capacitor/core';
 import { NativeMediaStore } from '../native-media-store.js';
 import { PasswordVaultNative } from '../password-vault-native.js';
 import { $, $$, esc, state, save, render, modal, closeModal, show, confirmDelete, goBack, registerView, registerBinder, registerOnRender, registerSubmitHandler, callHelper } from '../core.js';
-import { compressSnippetPhoto, captureVideoFrame } from '../photo-utils.js';
+import { compressSnippetPhoto, captureVideoFrame, saveMotionFromMediaRef } from '../photo-utils.js';
+import { livePhotoMarkHtml } from '../motion-photo.js';
 import { privateVaultConfigured, privateVaultUnlocked, privateVaultContent, privateVaultKey, privateVaultKeyBase64, setupPrivateVault, unlockPrivateVault, unlockPrivateVaultWithKey, persistPrivateVault, lockPrivateVault, vaultPlayableDuration, vaultItemEdited, vaultItemOrientation } from '../private-vault.js';
 import { encryptVaultFile, encryptVaultPoster, encryptExistingVaultMedia, encryptExistingVaultPoster, openVaultAsset, deleteVaultAssets, exportVaultItemToGallery, reencodeVaultItem, cancelVaultReencode } from '../vault-media-store.js';
 import { imgSrc } from '../core.js';
@@ -13,7 +14,7 @@ import { formatVideoDuration } from '../video-player.js';
 import { readVideoMetadata, captureVideoCropFrame } from '../video-poster.js';
 import { redactSnapshotMediaReferences } from '../storage.js';
 import { makeSnippet, HABIT_HEAD_MAX_SECONDS } from '../model.js';
-import { mediaReferenceSize } from '../media-store.js';
+import { mediaReferenceSize, resolveMediaReference } from '../media-store.js';
 
 let activeFolderId = '';
 let vaultBrowseMode = 'folders';
@@ -249,7 +250,7 @@ function vaultItem(item) {
   const rawName = item.name || (item.type === 'video' ? '私密视频' : '私密照片');
   // 竖屏卡片样式：裁过画面之后也算重判（横屏裁成竖屏就该换成竖版卡片）
   const portraitCover = item.type === 'video' && vaultItemOrientation(item) === 'portrait';
-  const media = `<span class="vault-media-box ${item.type === 'video' ? 'video-contain-cover' : ''} ${portraitCover ? 'is-portrait-video-cover' : ''}">${cached ? `<img src="${esc(cached)}" alt="${esc(rawName)}">` : '<span class="vault-media-loading material-symbols-outlined">encrypted</span>'}${item.type === 'video' ? `<i class="material-symbols-outlined">play_arrow</i><em class="video-duration-stamp" data-vault-duration="${item.id}" aria-label="视频时长 ${duration}">${duration}</em>` : ''}${edited ? '<em class="video-edited-stamp" aria-label="已剪辑">已剪辑</em>' : ''}</span>`;
+  const media = `<span class="vault-media-box ${item.type === 'video' ? 'video-contain-cover' : ''} ${portraitCover ? 'is-portrait-video-cover' : ''}">${cached ? `<img src="${esc(cached)}" alt="${esc(rawName)}">` : '<span class="vault-media-loading material-symbols-outlined">encrypted</span>'}${item.type === 'video' ? `<i class="material-symbols-outlined">play_arrow</i><em class="video-duration-stamp" data-vault-duration="${item.id}" aria-label="视频时长 ${duration}">${duration}</em>` : ''}${item.type === 'photo' && item.motionRef ? livePhotoMarkHtml() : ''}${edited ? '<em class="video-edited-stamp" aria-label="已剪辑">已剪辑</em>' : ''}</span>`;
   const selected = vaultSelectedIds.has(item.id);
   const primary = vaultSelectionMode ? `data-select-vault-item="${item.id}" aria-label="${selected ? '取消选择' : '选择'}${esc(rawName)}"` : `data-open-vault-item="${item.id}" aria-label="${item.type === 'video' ? '播放' : '查看'}${esc(rawName)}"`;
   const mark = vaultSelectionMode ? `<span class="vault-selection-mark material-symbols-outlined">${selected ? 'check_circle' : 'radio_button_unchecked'}</span>` : '';
@@ -471,16 +472,20 @@ async function importVaultMedia({ deleteOriginals = false } = {}) {
     let stored = null;
     let poster = null;
     let addedItem = null;
+    let motionRef = '';
     updateVaultImportProgress(index, picked.length, input.name || `文件 ${index + 1}`, imported, failures.length);
     await waitForVaultPaint();
     try {
       const preview = await previewFile(input);
       const type = String(input.mimeType || input.type || '').startsWith('video/') || /\.(mp4|webm|mov|mkv)$/i.test(input.name || '') ? 'video' : 'photo';
       let videoMetadata = {};
-      const posterData = type === 'video' ? await captureVideoFrame(preview, { maxSide: VAULT_POSTER_MAX_SIDE, quality: .84, onMetadata: value => { videoMetadata = value; } }) : await compressSnippetPhoto(preview instanceof File ? preview : await sourceToFile(preview, input));
+      const photoFile = type === 'photo' ? (preview instanceof File ? preview : await sourceToFile(preview, input)) : null;
+      const posterData = type === 'video' ? await captureVideoFrame(preview, { maxSide: VAULT_POSTER_MAX_SIDE, quality: .84, onMetadata: value => { videoMetadata = value; } }) : await compressSnippetPhoto(photoFile);
       stored = await encryptVaultFile(input, key);
       poster = await encryptVaultPoster(posterData, key);
-      addedItem = { id: crypto.randomUUID(), folderId: activeFolderId, ...stored, ...poster, ...videoMetadata, createdAt: Date.now() };
+      // 用已经复制进应用目录的原件切视频。网页预览拿到的那份有时会被系统压成静图。
+      if (type === 'photo' && stored?.assetRef) motionRef = await saveMotionFromMediaRef(stored.assetRef);
+      addedItem = { id: crypto.randomUUID(), folderId: activeFolderId, ...stored, ...poster, ...videoMetadata, ...(motionRef ? { motionRef } : {}), createdAt: Date.now() };
       privateVaultContent().items.push(addedItem);
       touchFolder(activeFolderId);
       await persistPrivateVault(state);
@@ -494,7 +499,7 @@ async function importVaultMedia({ deleteOriginals = false } = {}) {
         const current = privateVaultContent();
         current.items = current.items.filter(item => item.id !== addedItem.id);
       }
-      await deleteVaultAssets([stored?.assetRef, poster?.posterRef].filter(Boolean), { force: true });
+      await deleteVaultAssets([stored?.assetRef, poster?.posterRef, motionRef].filter(Boolean), { force: true });
       await persistPrivateVault(state).then(() => save()).catch(() => {});
       failures.push({ name: input.name || `文件 ${index + 1}`, message: error?.message || '导入失败' });
     }
@@ -530,7 +535,7 @@ async function verifyImportedVaultItems(items) {
   for (const expected of items) {
     const record = records.get(expected.id);
     if (!record) throw new Error(`私密记录复核失败：${expected.name || '未命名文件'}`);
-    for (const ref of [record.assetRef, record.posterRef].filter(Boolean)) {
+    for (const ref of [record.assetRef, record.posterRef, record.motionRef].filter(Boolean)) {
       if (!persistedRefs.has(ref)) throw new Error(`私密索引复核失败：${record.name || '未命名文件'}`);
       if (await mediaReferenceSize(ref) <= 0) throw new Error(`私密文件复核失败：${record.name || '未命名文件'}`);
     }
@@ -566,7 +571,7 @@ function momentVaultCandidates() {
   (state.snippets || []).filter(entry => entry.type === 'photo').sort((a, b) => b.createdAt - a.createdAt).forEach(entry => {
     const photos = entry.photos?.length ? entry.photos : (entry.photo ? [entry.photo] : []);
     photos.forEach((source, index) => {
-      if (source) candidates.push({ id: `${entry.id}:photo:${index}`, entry, kind: 'photo', index, source, poster: source, name: `随手拍 ${entry.date} · 照片 ${index + 1}` });
+      if (source) candidates.push({ id: `${entry.id}:photo:${index}`, entry, kind: 'photo', index, source, poster: source, motion: (entry.livePhotos || []).find(item => item.still === source)?.video || '', name: `随手拍 ${entry.date} · 照片 ${index + 1}` });
     });
     (entry.videos || []).forEach((video, index) => {
       if (video?.video) candidates.push({ id: `${entry.id}:video:${index}`, entry, kind: 'video', index, source: video.video, poster: video.poster || '', sourceType: video.sourceType || '', duration: Number(video.duration) || 0, width: Number(video.width) || 0, height: Number(video.height) || 0, contentLeft: Number(video.contentLeft) || 0, contentRight: Number(video.contentRight) || 0, contentAspect: Number(video.contentAspect) || 0, displayOrientation: video.displayOrientation || '', name: video.label || `随手拍 ${entry.date} · 视频 ${index + 1}` });
@@ -610,13 +615,13 @@ async function transferMomentsToVault(candidates, move) {
         poster = await encryptExistingVaultPoster(candidate.poster, privateVaultKey());
         if (poster.posterRef && !poster.reused) createdRefs.push(poster.posterRef);
       }
-      added.push({ id: crypto.randomUUID(), folderId: destination, ...stored, ...poster, sourceType: '', remoteUrl: '', duration: candidate.duration || 0, width: candidate.width || 0, height: candidate.height || 0, contentLeft: candidate.contentLeft || 0, contentRight: candidate.contentRight || 0, contentAspect: candidate.contentAspect || 0, displayOrientation: candidate.displayOrientation || '', date: candidate.entry.date, note: candidate.entry.text || '', sourceModule: 'moments', sourceSnippetId: candidate.entry.id, sourceVideoIndex: candidate.index, createdAt: candidate.entry.createdAt || Date.now() });
+      added.push({ id: crypto.randomUUID(), folderId: destination, ...stored, ...poster, ...(candidate.kind === 'photo' && candidate.motion ? { motionRef: candidate.motion } : {}), sourceType: '', remoteUrl: '', duration: candidate.duration || 0, width: candidate.width || 0, height: candidate.height || 0, contentLeft: candidate.contentLeft || 0, contentRight: candidate.contentRight || 0, contentAspect: candidate.contentAspect || 0, displayOrientation: candidate.displayOrientation || '', date: candidate.entry.date, note: candidate.entry.text || '', sourceModule: 'moments', sourceSnippetId: candidate.entry.id, sourceVideoIndex: candidate.index, createdAt: candidate.entry.createdAt || Date.now() });
     }
     content.items.push(...added);
     touchFolder(destination);
     if (move) {
       removeTransferredMomentMedia(chosen);
-      await redactSnapshotMediaReferences(chosen.flatMap(candidate => [candidate.source, candidate.poster]).filter(Boolean));
+      await redactSnapshotMediaReferences(chosen.flatMap(candidate => [candidate.source, candidate.poster, candidate.motion]).filter(Boolean));
     }
     await persistPrivateVault(state);
     await save();
@@ -643,8 +648,9 @@ function removeTransferredMomentMedia(chosen) {
     if (!remove) return [entry];
     const photos = (entry.photos?.length ? entry.photos : (entry.photo ? [entry.photo] : [])).filter((_, index) => !remove.photos.has(index));
     const videos = (entry.videos || []).filter((_, index) => !remove.videos.has(index));
+    const livePhotos = (entry.livePhotos || []).filter(item => photos.includes(item.still));
     if (!photos.length && !videos.length) return [];
-    return [{ ...entry, photos, photo: photos[0] || '', videos, updatedAt: Date.now() }];
+    return [{ ...entry, photos, photo: photos[0] || '', videos, livePhotos, updatedAt: Date.now() }];
   });
 }
 
@@ -797,16 +803,21 @@ async function openVaultPhoto(item, providedItems = null, providedIndex = -1) {
   if (!thumbnailUrls.has(item.id)) showVaultPreparing(item, '正在安全读取原图…', 'image');
   const source = await vaultPhotoSource(item);
   if (!privateVaultUnlocked() || state.route !== 'private-vault') return closeModal();
-  renderVaultPhotoViewer(items, index, source);
+  const motion = item.motionRef ? await resolveMediaReference(item.motionRef).catch(() => '') : '';
+  renderVaultPhotoViewer(items, index, source, motion);
   if (items.length > 1) {
     [items[(index - 1 + items.length) % items.length], items[(index + 1) % items.length]].forEach(neighbor => vaultPhotoSource(neighbor).catch(() => {}));
   }
 }
 
-function renderVaultPhotoViewer(items, index, source) {
+function renderVaultPhotoViewer(items, index, source, motion = '') {
   const item = items[index];
-  const details = [item.date || '', formatSize(item.size)].filter(Boolean).join(' · ');
-  modal(`<div class="vault-photo-viewer" id="vault-photo-viewer"><div class="vault-photo-stage" id="vault-photo-stage"><img id="vault-photo-image" src="${esc(source)}" alt="${esc(item.name || '私密照片')}，第 ${index + 1} 张，共 ${items.length} 张" draggable="false"></div><div class="vault-photo-chrome" id="vault-photo-chrome"><header><button type="button" data-close aria-label="返回资料库"><span class="material-symbols-outlined">arrow_back</span></button><span><strong>${esc(currentVaultPhotoScopeLabel())}</strong><small>${index + 1} / ${items.length}</small></span><i aria-hidden="true"></i></header><footer><strong>${esc(item.name || '私密照片')}</strong>${details ? `<small>${esc(details)}</small>` : ''}</footer></div><div class="vault-photo-loading" id="vault-photo-loading" hidden><span class="material-symbols-outlined">progress_activity</span></div></div>`, 'photo-modal vault-photo-modal');
+  const details = [item.date || '', formatSize(item.size), motion ? '实况' : ''].filter(Boolean).join(' · ');
+  const frame = motion
+    ? `<video id="vault-photo-image" class="is-live-photo" src="${esc(motion)}" poster="${esc(source)}" autoplay loop muted controls playsinline></video>`
+    : `<img id="vault-photo-image" src="${esc(source)}" alt="${esc(item.name || '私密照片')}，第 ${index + 1} 张，共 ${items.length} 张" draggable="false">`;
+  modal(`<div class="vault-photo-viewer" id="vault-photo-viewer"><div class="vault-photo-stage" id="vault-photo-stage">${frame}</div><div class="vault-photo-chrome" id="vault-photo-chrome"><header><button type="button" data-close aria-label="返回资料库"><span class="material-symbols-outlined">arrow_back</span></button><span><strong>${esc(currentVaultPhotoScopeLabel())}</strong><small>${index + 1} / ${items.length}</small></span><i aria-hidden="true"></i></header><footer><strong>${esc(item.name || '私密照片')}</strong>${details ? `<small>${esc(details)}</small>` : ''}</footer></div><div class="vault-photo-loading" id="vault-photo-loading" hidden><span class="material-symbols-outlined">progress_activity</span></div></div>`, 'photo-modal vault-photo-modal');
+  if (motion) $('#vault-photo-image')?.play?.().catch(() => {});
   bindVaultPhotoGestures(items, index);
 }
 

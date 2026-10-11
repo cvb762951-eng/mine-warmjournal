@@ -1,5 +1,6 @@
 import { JOURNAL_PHOTO_MAX_BYTES, SUPPORTED_JOURNAL_PHOTO_TYPES, SNIPPET_PHOTO_MAX_BYTES, SNIPPET_PHOTO_MAX_SIDE, SNIPPET_PHOTO_QUALITY } from './core.js';
-import { persistImageData } from './media-store.js';
+import { persistImageData, resolveMediaReference, saveMediaFile } from './media-store.js';
+import { extractMotionVideoFromBlob } from './motion-photo.js';
 import { captureDecodedVideoFrame } from './video-poster.js';
 
 // 加载并解码一张图，偶发 decode 失败（Android WebView 大图常见）时重试一次。
@@ -61,7 +62,35 @@ export function compressSnippetPhoto(file) {
 //   用户重试时两批并发，内存峰值直接翻倍。现在 worker 永不 reject，
 //   失败项通过 onItemError 上报，全部跑完才返回。
 // · 未传 onItemError 的调用方保持旧语义：有失败则抛出第一条错误。
-export async function importPhotoBatch(files, compressor, { concurrency = 2, onProgress, onItemError } = {}) {
+// 先从原文件切出动态视频，再让 Canvas 压缩静帧。
+// 压缩会丢掉 JPEG 末尾的 MP4；切不出来时仍按普通照片保存，不让整批失败。
+async function saveExtractedMotion(blob) {
+  const motion = await extractMotionVideoFromBlob(blob);
+  if (!motion) return '';
+  return saveMediaFile(new File([motion.bytes], motion.name, { type: motion.mime }));
+}
+
+// 从已经落入本机的原件里再切一次。相册选择器有时会给网页一份去掉视频的 JPEG，
+// 而原生复制保留的是完整文件。
+export async function saveMotionFromMediaRef(ref) {
+  try {
+    const source = await resolveMediaReference(ref);
+    if (!source) return '';
+    const response = await fetch(source);
+    if (!response.ok) return '';
+    return await saveExtractedMotion(await response.blob());
+  } catch { return ''; }
+}
+
+async function keepLiveMotion(file, still, onLivePhoto) {
+  if (!onLivePhoto) return;
+  try {
+    const video = await saveExtractedMotion(file);
+    if (video) await onLivePhoto(still, video);
+  } catch { /* 静帧已经落盘 */ }
+}
+
+export async function importPhotoBatch(files, compressor, { concurrency = 2, onProgress, onItemError, onLivePhoto } = {}) {
   const queue = [...files];
   const results = new Array(queue.length);
   let next = 0;
@@ -73,6 +102,7 @@ export async function importPhotoBatch(files, compressor, { concurrency = 2, onP
       try {
         const compressed = await compressor(queue[index]);
         results[index] = await persistImageData(compressed);
+        await keepLiveMotion(queue[index], results[index], onLivePhoto);
       } catch (error) {
         if (onItemError) onItemError(queue[index], error);
         else errors.push(error);

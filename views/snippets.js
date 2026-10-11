@@ -6,6 +6,7 @@ import { $, $$, esc, uid, state, save, render, modal, closeModal, show, confirmD
 import { makeSnippet, makeTodo, snippetEntries, dateKey, WEEK_DAYS, activeStreak, formatShanghaiStamp } from '../model.js';
 import { photoViewer, micButtonHtml, bindVoiceInput } from './common.js';
 import { compressSnippetPhoto, captureVideoFrame, importPhotoBatch, isSupportedJournalPhoto } from '../photo-utils.js';
+import { livePhotoMarkHtml, photosWithLiveMotion } from '../motion-photo.js';
 import { mediaSource, saveMediaFile, saveNativeMediaSource } from '../media-store.js';
 import { attachVideoSource, formatVideoDuration, isHlsAddress, normalizeHlsAddress, presentWatchSession, summarizeWatchSession } from '../video-player.js';
 import { showVideoFramePicker } from '../video-frame-picker.js';
@@ -17,6 +18,7 @@ import { openMediaDetail } from './media.js';
 let snippetType = 'all';
 let snippetSearch = '';
 let pendingSnippetPhotos = [];
+let pendingSnippetLive = [];
 let pendingSnippetVideos = [];
 let pendingSnippetStructure = { tags: [], summary: '' };
 let snippetSuggestion = null;
@@ -73,7 +75,7 @@ export function snippetsView() {
   const photoCount = state.snippets.filter(entry => entry.type === 'photo').length;
   const noteCount = state.snippets.filter(entry => entry.type === 'text').length;
   const mediaCount = state.media.length;
-  const liveCount = state.snippets.filter(entry => entry.type === 'photo' && (entry.videos || []).length).length;
+  const liveCount = state.snippets.filter(snippetHasLive).length;
   const photoFilter = snippetType === 'photo';
   const textFilter = snippetType === 'text';
   const mediaFilter = snippetType === 'media';
@@ -81,7 +83,7 @@ export function snippetsView() {
   const hasAlbum = snippetPhotoStream().length > 0;
   const snippetList = mediaFilter
     ? []
-    : snippetEntries(state, { type: photoFilter || liveFilter ? 'photo' : textFilter ? 'text' : 'all', search: snippetSearch }).filter(entry => !liveFilter || (entry.videos || []).length);
+    : snippetEntries(state, { type: photoFilter || liveFilter ? 'photo' : textFilter ? 'text' : 'all', search: snippetSearch }).filter(entry => !liveFilter || snippetHasLive(entry));
   const mediaList = (state.media || []).filter(entry => !snippetSearch || entry.title.toLowerCase().includes(snippetSearch.toLowerCase()) || entry.notes.toLowerCase().includes(snippetSearch.toLowerCase()));
   const stream = [
     ...snippetList.map(entry => ({ date: entry.date, kind: entry.type === 'photo' ? 'photo' : 'note', entry })),
@@ -134,7 +136,8 @@ function snippetStreamCard(item) {
     const cover = photos[0] || videos[0]?.poster || '';
     const time = entry.createdAt ? new Date(entry.createdAt) : null;
     const tag = (entry.tags || [])[0];
-    const badge = videos.length ? `<span class="snippet-photo-badge"><span class="material-symbols-outlined">movie</span>${videos.length > 1 ? videos.length + ' 段' : '视频'}</span>` : photos.length > 1 ? `<span class="snippet-photo-badge"><span class="material-symbols-outlined">photo_camera</span>${photos.length} 张</span>` : '<span class="snippet-photo-badge"><span class="material-symbols-outlined">photo_camera</span>拍立得</span>';
+    const liveStills = (entry.livePhotos || []).length;
+    const badge = videos.length ? `<span class="snippet-photo-badge"><span class="material-symbols-outlined">movie</span>${videos.length > 1 ? videos.length + ' 段' : '视频'}</span>` : liveStills ? `<span class="snippet-photo-badge"><span class="material-symbols-outlined">motion_photos_on</span>${liveStills > 1 ? liveStills + ' 张实况' : '实况'}</span>` : photos.length > 1 ? `<span class="snippet-photo-badge"><span class="material-symbols-outlined">photo_camera</span>${photos.length} 张</span>` : '<span class="snippet-photo-badge"><span class="material-symbols-outlined">photo_camera</span>拍立得</span>';
     const visual = photos.length
       ? snippetPhotoMosaic(entry, photos)
       : cover ? `<div class="snippet-cover-frame is-video-cover">${snippetCoverImage(cover, entry.text || '随手拍')}</div>${videoDurationStamp(videos[0])}`
@@ -179,9 +182,17 @@ function snippetPhotoImage(source, alt = '') {
   return `<img class="snippet-photo-blur" src="${url}" alt="" aria-hidden="true" loading="lazy"><img class="snippet-photo-main" src="${url}" alt="${esc(alt)}" loading="lazy">`;
 }
 
+function snippetHasLive(entry) {
+  return entry?.type === 'photo' && Boolean((entry.videos || []).length || (entry.livePhotos || []).length);
+}
+
 function snippetPhotoMosaic(entry, photos) {
   const visible = photos.slice(0, 5);
-  return `<div class="snippet-photo-mosaic count-${Math.min(visible.length, 5)}" aria-label="${photos.length} 张照片">${visible.map((photo, index) => `<button type="button" class="snippet-photo-tile" data-view-snippet-photo="${entry.id}" data-photo-index="${index}" aria-label="查看第 ${index + 1} 张照片">${snippetPhotoImage(photo, entry.text || `随手拍 ${index + 1}`)}${index === visible.length - 1 && photos.length > visible.length ? `<span class="snippet-photo-more">+${photos.length - visible.length}</span>` : ''}</button>`).join('')}</div>`;
+  return `<div class="snippet-photo-mosaic count-${Math.min(visible.length, 5)}" aria-label="${photos.length} 张照片">${visible.map((photo, index) => `<button type="button" class="snippet-photo-tile" data-view-snippet-photo="${entry.id}" data-photo-index="${index}" aria-label="查看第 ${index + 1} 张照片">${snippetPhotoImage(photo, entry.text || `随手拍 ${index + 1}`)}${photoHasLiveMark(photo, entry.livePhotos)}${index === visible.length - 1 && photos.length > visible.length ? `<span class="snippet-photo-more">+${photos.length - visible.length}</span>` : ''}</button>`).join('')}</div>`;
+}
+
+function photoHasLiveMark(still, livePhotos) {
+  return (livePhotos || []).some(item => item?.still === still && item?.video) ? livePhotoMarkHtml() : '';
 }
 
 export function snippetForm(entry = null, requestedType = 'text', openCamera = false) {
@@ -189,10 +200,11 @@ export function snippetForm(entry = null, requestedType = 'text', openCamera = f
   snippetVoice = null;
   const item = entry || makeSnippet({ type: requestedType, date: dateKey(), text: '', createdAt: Date.now() });
   pendingSnippetPhotos = [...(item.photos?.length ? item.photos : (item.photo ? [item.photo] : []))];
+  pendingSnippetLive = [...(item.livePhotos || [])];
   pendingSnippetVideos = [...(item.videos || [])];
   pendingSnippetStructure = { tags: [...(item.tags || [])], summary: item.summary || '' };
   snippetSuggestion = null;
-  modal(`<form id="snippet-form"><input type="hidden" name="id" value="${entry ? item.id : ''}"><input type="hidden" name="type" value="${item.type}"><span class="eyebrow">QUICK CAPTURE</span><h2>${entry ? '编辑' : '新增'}${item.type === 'photo' ? '随手拍' : '随手记'}</h2><label>日期</label><input name="date" type="date" required value="${item.date}">${item.type === 'photo' ? `<div id="snippet-photo-grid" class="snippet-photo-grid">${snippetPhotoGrid()}</div><div class="snippet-photo-actions"><button type="button" id="capture-snippet-photo" ${pendingSnippetPhotos.length >= SNIPPET_PHOTO_LIMIT ? 'disabled' : ''}><span class="material-symbols-outlined">photo_camera</span>${pendingSnippetPhotos.length ? '继续拍摄' : '打开相机'}</button><button type="button" id="pick-snippet-photo" ${pendingSnippetPhotos.length >= SNIPPET_PHOTO_LIMIT ? 'disabled' : ''}><span class="material-symbols-outlined">photo_library</span>${pendingSnippetPhotos.length ? '继续选择' : '从相册批量选择'}</button></div><small class="field-help">一次最多选择 ${PHOTO_IMPORT_BATCH_LIMIT} 张，不限单张大小；每条随手拍最多 ${SNIPPET_PHOTO_LIMIT} 张，照片压缩后保存在本机。</small><div class="snippet-video-head"><div><strong>视频 / 实况</strong><small>本地视频离线保存，m3u8 仅保存地址</small></div></div><div id="snippet-video-grid" class="snippet-photo-grid">${snippetVideoGrid()}</div><div class="snippet-photo-actions snippet-video-actions"><button type="button" id="capture-snippet-video" ${pendingSnippetVideos.length >= SNIPPET_PHOTO_LIMIT ? 'disabled' : ''}><span class="material-symbols-outlined">videocam</span>${pendingSnippetVideos.length ? '继续拍视频' : '拍视频'}</button><button type="button" id="pick-snippet-video" ${pendingSnippetVideos.length >= SNIPPET_PHOTO_LIMIT ? 'disabled' : ''}><span class="material-symbols-outlined">video_library</span>导入本地视频</button></div><div class="snippet-hls-paper"><label for="snippet-hls-url"><span class="material-symbols-outlined" aria-hidden="true">stream</span>添加 m3u8 在线视频</label><div><input type="url" id="snippet-hls-url" maxlength="4096" placeholder="https://example.com/video/master.m3u8" autocomplete="off" inputmode="url"><button type="button" id="add-snippet-hls">添加地址</button></div><small>仅在你点击播放时联网；不支持 DRM，鉴权或跨域限制可能导致播放失败。</small></div><label>照片 / 视频说明（可选）</label><textarea name="text" maxlength="300" placeholder="这一段影像有什么值得记住的？">${esc(item.text)}</textarea>` : `<div class="snippet-write-head"><label>记录内容</label>${micButtonHtml()}</div><textarea name="text" maxlength="2000" required placeholder="记下一句话、一个想法或稍后想写进日记的内容……">${esc(item.text)}</textarea>`}${aiStructureCard(item)}<div class="modal-actions"><button type="button" data-close>取消</button><button class="save">保存素材</button></div></form>`, 'snippet-form-modal');
+  modal(`<form id="snippet-form"><input type="hidden" name="id" value="${entry ? item.id : ''}"><input type="hidden" name="type" value="${item.type}"><span class="eyebrow">QUICK CAPTURE</span><h2>${entry ? '编辑' : '新增'}${item.type === 'photo' ? '随手拍' : '随手记'}</h2><label>日期</label><input name="date" type="date" required value="${item.date}">${item.type === 'photo' ? `<div id="snippet-photo-grid" class="snippet-photo-grid">${snippetPhotoGrid()}</div><div class="snippet-photo-actions"><button type="button" id="capture-snippet-photo" ${pendingSnippetPhotos.length >= SNIPPET_PHOTO_LIMIT ? 'disabled' : ''}><span class="material-symbols-outlined">photo_camera</span>${pendingSnippetPhotos.length ? '继续拍摄' : '打开相机'}</button><button type="button" id="pick-snippet-photo" ${pendingSnippetPhotos.length >= SNIPPET_PHOTO_LIMIT ? 'disabled' : ''}><span class="material-symbols-outlined">photo_library</span>${pendingSnippetPhotos.length ? '继续选择' : '从相册批量选择'}</button></div><small class="field-help">一次最多选择 ${PHOTO_IMPORT_BATCH_LIMIT} 张，不限单张大小；每条随手拍最多 ${SNIPPET_PHOTO_LIMIT} 张。实况照片会留下可播放的动态。</small><div class="snippet-video-head"><div><strong>视频 / 实况</strong><small>本地视频离线保存，m3u8 仅保存地址</small></div></div><div id="snippet-video-grid" class="snippet-photo-grid">${snippetVideoGrid()}</div><div class="snippet-photo-actions snippet-video-actions"><button type="button" id="capture-snippet-video" ${pendingSnippetVideos.length >= SNIPPET_PHOTO_LIMIT ? 'disabled' : ''}><span class="material-symbols-outlined">videocam</span>${pendingSnippetVideos.length ? '继续拍视频' : '拍视频'}</button><button type="button" id="pick-snippet-video" ${pendingSnippetVideos.length >= SNIPPET_PHOTO_LIMIT ? 'disabled' : ''}><span class="material-symbols-outlined">video_library</span>导入本地视频</button></div><div class="snippet-hls-paper"><label for="snippet-hls-url"><span class="material-symbols-outlined" aria-hidden="true">stream</span>添加 m3u8 在线视频</label><div><input type="url" id="snippet-hls-url" maxlength="4096" placeholder="https://example.com/video/master.m3u8" autocomplete="off" inputmode="url"><button type="button" id="add-snippet-hls">添加地址</button></div><small>仅在你点击播放时联网；不支持 DRM，鉴权或跨域限制可能导致播放失败。</small></div><label>照片 / 视频说明（可选）</label><textarea name="text" maxlength="300" placeholder="这一段影像有什么值得记住的？">${esc(item.text)}</textarea>` : `<div class="snippet-write-head"><label>记录内容</label>${micButtonHtml()}</div><textarea name="text" maxlength="2000" required placeholder="记下一句话、一个想法或稍后想写进日记的内容……">${esc(item.text)}</textarea>`}${aiStructureCard(item)}<div class="modal-actions"><button type="button" data-close>取消</button><button class="save">保存素材</button></div></form>`, 'snippet-form-modal');
   $('#capture-snippet-photo')?.addEventListener('click', () => pickSnippetPhoto(true).catch(error => show(error.message)));
   $('#pick-snippet-photo')?.addEventListener('click', () => pickSnippetPhoto(false).catch(error => show(error.message)));
   $('#capture-snippet-video')?.addEventListener('click', () => pickSnippetVideo(true).catch(error => show(error.message)));
@@ -221,15 +233,18 @@ function aiStructureCard(item) {
 
 function snippetPhotoGrid() {
   if (!pendingSnippetPhotos.length) return '<div class="snippet-photo-empty"><span class="material-symbols-outlined">photo_camera</span><strong>拍下此刻</strong><small>也可以从相册选择，可连续添加</small></div>';
-  return `<div class="snippet-photo-grid-inner">${pendingSnippetPhotos.map((photo, index) => `<div class="snippet-photo-cell"><button type="button" class="snippet-photo-thumb" data-view-pending-snippet-photo="${index}" aria-label="查看第 ${index + 1} 张"><img src="${imgSrc(photo)}" alt="待保存照片 ${index + 1}"></button><button type="button" class="snippet-photo-remove" data-remove-pending-snippet-photo="${index}" aria-label="删除第 ${index + 1} 张"><span class="material-symbols-outlined">close</span></button></div>`).join('')}</div>`;
+  return `<div class="snippet-photo-grid-inner">${pendingSnippetPhotos.map((photo, index) => `<div class="snippet-photo-cell"><button type="button" class="snippet-photo-thumb" data-view-pending-snippet-photo="${index}" aria-label="查看第 ${index + 1} 张"><img src="${imgSrc(photo)}" alt="待保存照片 ${index + 1}">${photoHasLiveMark(photo, pendingSnippetLive)}</button><button type="button" class="snippet-photo-remove" data-remove-pending-snippet-photo="${index}" aria-label="删除第 ${index + 1} 张"><span class="material-symbols-outlined">close</span></button></div>`).join('')}</div>`;
 }
 
 function bindSnippetPhotoGrid() {
   $$('[data-remove-pending-snippet-photo]').forEach(button => button.onclick = () => {
-    pendingSnippetPhotos.splice(Number(button.dataset.removePendingSnippetPhoto), 1);
+    const index = Number(button.dataset.removePendingSnippetPhoto);
+    const removed = pendingSnippetPhotos[index];
+    pendingSnippetPhotos.splice(index, 1);
+    pendingSnippetLive = pendingSnippetLive.filter(item => item.still !== removed);
     refreshSnippetPhotoGrid();
   });
-  $$('[data-view-pending-snippet-photo]').forEach(button => button.onclick = () => photoViewer(pendingSnippetPhotos, Number(button.dataset.viewPendingSnippetPhoto)));
+  $$('[data-view-pending-snippet-photo]').forEach(button => button.onclick = () => photoViewer(photosWithLiveMotion(pendingSnippetPhotos, pendingSnippetLive), Number(button.dataset.viewPendingSnippetPhoto)));
 }
 
 async function pickSnippetPhoto(useCamera = false) {
@@ -253,7 +268,7 @@ async function pickSnippetPhoto(useCamera = false) {
       if (!response.ok) throw new Error('无法读取刚拍摄的照片');
       const blob = await response.blob();
       const file = new File([blob], `capture-${Date.now()}.jpg`, { type: blob.type || 'image/jpeg' });
-      const [compressed] = await importPhotoBatch([file], compressSnippetPhoto);
+      const [compressed] = await importPhotoBatch([file], compressSnippetPhoto, { onLivePhoto: (still, video) => pendingSnippetLive.push({ still, video }) });
       pendingSnippetPhotos.push(compressed);
       refreshSnippetPhotoGrid();
       return;
@@ -300,10 +315,10 @@ function pickSnippetPhotoWithInput(useCamera = false) {
         if (files.length > PHOTO_IMPORT_BATCH_LIMIT) throw new Error(`一次最多选择 ${PHOTO_IMPORT_BATCH_LIMIT} 张照片，请分批添加`);
         if (pendingSnippetPhotos.length + files.length > SNIPPET_PHOTO_LIMIT) throw new Error(`每条随手拍最多 ${SNIPPET_PHOTO_LIMIT} 张照片`);
         if (files.some(file => !isSupportedJournalPhoto(file))) throw new Error('仅支持 JPG、PNG 或 WebP 图片');
-        const { compressed, failed } = await importSnippetPhotos(files);
+        const { compressed, failed, liveAdded } = await importSnippetPhotos(files);
         pendingSnippetPhotos.push(...compressed);
         refreshSnippetPhotoGrid();
-        show(compressed.length ? `已加入 ${compressed.length} 张照片${failed ? `，${failed} 张无法读取已跳过` : ''}` : `这批照片都未能读取，请换一批试试`);
+        show(compressed.length ? `已加入 ${compressed.length} 张照片${liveAdded ? `，${liveAdded} 张实况仍可播放` : ''}${failed ? `，${failed} 张无法读取已跳过` : ''}` : `这批照片都未能读取，请换一批试试`);
         resolve();
       } catch (error) { reject(error); }
     };
@@ -404,12 +419,14 @@ async function importSnippetPhotos(files) {
   let failed = 0;
   try {
     // 单张失败不再废掉整批：失败的张数单独统计，跑完一起汇报。
+    let liveAdded = 0;
     const compressed = await importPhotoBatch(files, compressSnippetPhoto, {
       concurrency: 2,
       onProgress: (done, total) => showSnippetImportProgress(done, total),
-      onItemError: () => { failed += 1; }
+      onItemError: () => { failed += 1; },
+      onLivePhoto: (still, video) => { pendingSnippetLive.push({ still, video }); liveAdded += 1; }
     });
-    return { compressed, failed };
+    return { compressed, failed, liveAdded };
   } finally {
     snippetPhotoImporting = false;
     hideSnippetImportProgress();
@@ -1339,6 +1356,7 @@ async function adoptSnippetStructure(item, { tags = [], todos = [], summary = ''
 // quick-photo-modal：拍照预览（复用现有拍照能力）+ 标签胶囊 + 手写体图说
 function quickPhotoModal() {
   pendingSnippetPhotos = [];
+  pendingSnippetLive = [];
   pendingSnippetVideos = [];
   pendingQuickTag = '';
   pendingQuickCaption = '';
@@ -1387,7 +1405,8 @@ function quickPhotoPreview() {
   if (!photos.length && !videos.length) return '<span class="quick-photo-empty-icon material-symbols-outlined">photo_camera</span><strong>把这一刻留在这里</strong><small>轻触拍摄 · 或从相册选择</small>';
   const cover = photos[0] || videos[0]?.poster || '';
   const visual = cover ? `<img src="${imgSrc(cover)}" alt="预览画面">` : '<span class="quick-video-preview-placeholder"><span class="material-symbols-outlined">live_tv</span><strong>m3u8 在线视频</strong></span>';
-  return `${visual}<span class="quick-photo-overlay"><span class="material-symbols-outlined">${videos.length ? 'play_circle' : 'photo_camera'}</span><small>${photos.length} 张照片 · ${videos.length} 段视频</small></span>`;
+  const liveCount = pendingSnippetLive.filter(item => photos.includes(item.still)).length;
+  return `${visual}<span class="quick-photo-overlay"><span class="material-symbols-outlined">${videos.length || liveCount ? 'play_circle' : 'photo_camera'}</span><small>${photos.length} 张照片${liveCount ? ` · ${liveCount} 张实况` : ''} · ${videos.length} 段视频</small></span>`;
 }
 
 function refreshQuickPhotoPreview() {
@@ -1398,9 +1417,10 @@ function refreshQuickPhotoPreview() {
 async function saveQuickSnap() {
   const text = pendingQuickCaption.trim();
   if (!pendingSnippetPhotos.length && !pendingSnippetVideos.length) return show('请先拍一张或选择一张照片');
-  const next = makeSnippet({ type: 'photo', date: dateKey(), text, photos: pendingSnippetPhotos, videos: pendingSnippetVideos, tags: pendingQuickTag ? [pendingQuickTag.slice(1)] : [], createdAt: Date.now(), updatedAt: Date.now() });
+  const next = makeSnippet({ type: 'photo', date: dateKey(), text, photos: pendingSnippetPhotos, livePhotos: pendingSnippetLive, videos: pendingSnippetVideos, tags: pendingQuickTag ? [pendingQuickTag.slice(1)] : [], createdAt: Date.now(), updatedAt: Date.now() });
   state.snippets.push(next);
   pendingSnippetPhotos = [];
+  pendingSnippetLive = [];
   pendingSnippetVideos = [];
   pendingQuickTag = '';
   pendingQuickCaption = '';
@@ -1482,7 +1502,7 @@ async function saveQuickMemo() {
 
 function visibleMomentPhotoEntries() {
   return snippetEntries(state, { type: 'photo', search: snippetSearch })
-    .filter(item => (item.photos?.length || item.photo) && (snippetType !== 'live' || (item.videos || []).length))
+    .filter(item => (item.photos?.length || item.photo) && (snippetType !== 'live' || snippetHasLive(item)))
     .sort((a, b) => b.date.localeCompare(a.date) || b.createdAt - a.createdAt);
 }
 
@@ -1501,7 +1521,7 @@ function photoLightbox(entry, active = 0) {
   const meta = [timeText, tag ? '#' + tag : ''].filter(Boolean).join(' · ');
   const entries = visibleMomentPhotoEntries();
   const entryIndex = entries.findIndex(item => item.id === entry.id);
-  photoViewer(photos, index, photos.map(() => ({ text: entry.text || '随手拍', time: meta || '未记录时间' })), {
+  photoViewer(photosWithLiveMotion(photos, entry.livePhotos), index, photos.map(() => ({ text: entry.text || '随手拍', time: meta || '未记录时间' })), {
     loop: true,
     filmstrip: true,
     onVerticalNavigate: entries.length > 1 && entryIndex >= 0 ? direction => {
@@ -1539,12 +1559,13 @@ registerSubmitHandler('snippet-form', async data => {
   const existing = state.snippets.find(entry => entry.id === data.get('id'));
   const type = data.get('type');
   if (type === 'photo' && !pendingSnippetPhotos.length && !pendingSnippetVideos.length) throw new Error('请至少选择一张照片或一个视频');
-  const next = makeSnippet({ ...existing, id: existing?.id || uid(), type, date: data.get('date'), text: data.get('text'), photos: pendingSnippetPhotos, videos: pendingSnippetVideos, tags: pendingSnippetStructure.tags, summary: pendingSnippetStructure.summary, createdAt: existing?.createdAt || Date.now(), updatedAt: Date.now() });
+  const next = makeSnippet({ ...existing, id: existing?.id || uid(), type, date: data.get('date'), text: data.get('text'), photos: pendingSnippetPhotos, livePhotos: pendingSnippetLive, videos: pendingSnippetVideos, tags: pendingSnippetStructure.tags, summary: pendingSnippetStructure.summary, createdAt: existing?.createdAt || Date.now(), updatedAt: Date.now() });
   existing ? Object.assign(existing, next) : state.snippets.push(next);
   const justSavedPhoto = type === 'photo' && next.photo ? next.photo : '';
   snippetVoice?.destroy();
   snippetVoice = null;
   pendingSnippetPhotos = [];
+  pendingSnippetLive = [];
   pendingSnippetVideos = [];
   await save();
   if (justSavedPhoto) callHelper('rememberPhoto', justSavedPhoto).catch(() => {});

@@ -56,7 +56,7 @@ test('HLS addresses accept only explicit HTTP m3u8 sources', () => {
 });
 
 test('Moments large albums use a looping fullscreen viewer with a lazy filmstrip', () => {
-  assert.match(snippets, /photoViewer\(photos, index,[\s\S]*?\{\s*loop: true,\s*filmstrip: true,\s*onVerticalNavigate:/);
+  assert.match(snippets, /photoViewer\(photosWithLiveMotion\(photos, entry\.livePhotos\), index,[\s\S]*?\{\s*loop: true,\s*filmstrip: true,\s*onVerticalNavigate:/);
   assert.match(common, /class="photo-viewer-filmstrip"/);
   assert.match(common, /photo-viewer \$\{strip \? 'has-filmstrip'/);
   assert.match(common, /data-photo-strip/);

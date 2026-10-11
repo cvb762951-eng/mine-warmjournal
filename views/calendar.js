@@ -43,10 +43,10 @@ function mediaForDay(day) {
     .sort((a, b) => b.createdAt - a.createdAt)
     .forEach(entry => {
       const photos = entry.photos?.length ? entry.photos : (entry.photo ? [entry.photo] : []);
-      photos.filter(Boolean).forEach(source => add({ kind: 'photo', source, entryId: entry.id }));
+      photos.filter(Boolean).forEach(source => add({ kind: 'photo', source, motion: (entry.livePhotos || []).find(item => item.still === source)?.video || '', entryId: entry.id }));
       (entry.videos || []).filter(video => video?.video).forEach((video, index) => add({ kind: 'video', video, entryId: entry.id, index }));
     });
-  (state.journals[day]?.photos || []).filter(Boolean).forEach(source => add({ kind: 'photo', source, entryId: `journal:${day}` }));
+  (state.journals[day]?.photos || []).filter(Boolean).forEach(source => add({ kind: 'photo', source, motion: (state.journals[day]?.livePhotos || []).find(item => item.still === source)?.video || '', entryId: `journal:${day}` }));
   (state.tasteEntries || []).filter(entry => entry.date === day).forEach(entry => (entry.photos || []).forEach(source => add({ kind: 'photo', source, entryId: `taste:${entry.id}` })));
   return media;
 }
@@ -236,7 +236,7 @@ function bindCalendar() {
     }
     const photos = media.filter(entry => entry.kind === 'photo');
     const photoIndex = photos.findIndex(entry => entry === item);
-    withSharedTransition(source, () => photoViewer(photos.map(entry => entry.source), Math.max(0, photoIndex)), shared);
+    withSharedTransition(source, () => photoViewer(photos.map(entry => entry.motion ? { poster: entry.source, video: entry.motion, live: true } : entry.source), Math.max(0, photoIndex)), shared);
   });
   $('#gen-day-summary')?.addEventListener('click', () => {
     if (summaryGenerating) return;

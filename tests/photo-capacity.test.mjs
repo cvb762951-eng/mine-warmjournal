@@ -15,7 +15,7 @@ test('high-capacity albums retain 100 local photos per photo record', () => {
 });
 
 test('journal and moment photo pickers accept multi-select batches and externalize imports', () => {
-  assert.match(journal, /importPhotoBatch\(files, compressJournalPhoto\)/);
+  assert.match(journal, /importPhotoBatch\(files, compressJournalPhoto, \{ onLivePhoto:/);
   assert.match(snippets, /input\.multiple = !useCamera/);
   // 2026-10-09 稳定性修复：进度只增不减（onProgress 接独立计数器），
   // 单张失败不废整批（onItemError 收集失败张数），详见 photo-utils.js importPhotoBatch。

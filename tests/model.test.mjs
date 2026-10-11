@@ -302,6 +302,16 @@ test('browser video data URLs keep every byte instead of being truncated', () =>
   assert.equal(entry.videos[0].video.length, embedded.length);
 });
 
+test('live photos keep the still linked to its motion clip and drop orphans', () => {
+  const still = 'mine-media://still.jpg';
+  const other = 'mine-media://plain.jpg';
+  const entry = makeSnippet({ type: 'photo', photos: [still, other], livePhotos: [{ still, video: 'mine-media://motion.mp4' }, { still: 'mine-media://missing.jpg', video: 'mine-media://orphan.mp4' }] });
+  assert.deepEqual(entry.livePhotos, [{ still, video: 'mine-media://motion.mp4' }]);
+  assert.equal(makeSnippet({ type: 'photo', photos: [still] }).livePhotos.length, 0);
+  const journal = migrateState({ journals: { '2026-08-13': { content: '实况', photos: [still, other], livePhotos: [{ still, video: 'mine-media://motion.mp4' }, { still: other, video: 'not-a-video' }] } } }).journals['2026-08-13'];
+  assert.deepEqual(journal.livePhotos, [{ still, video: 'mine-media://motion.mp4' }]);
+});
+
 test('browser IndexedDB media references survive image and poster normalization', () => {
   const ref = 'mine-browser-media://poster-1.webp';
   assert.equal(makeSnippet({ type: 'photo', photos: [ref], videos: [{ poster: ref, video: 'mine-browser-media://clip-1.webm' }] }).photo, ref);

@@ -103,7 +103,7 @@ async function writePrivateVault(state) {
   const encrypted = await encryptText(JSON.stringify(content), keyBytes);
   state.privateVault.payloadIv = encrypted.iv;
   state.privateVault.payload = encrypted.ciphertext;
-  state.privateVault.assetRefs = [...new Set(content.items.flatMap(item => [item.assetRef, item.posterRef]).filter(Boolean))];
+  state.privateVault.assetRefs = [...new Set(content.items.flatMap(item => [item.assetRef, item.posterRef, item.motionRef]).filter(Boolean))];
   state.privateVault.updatedAt = Date.now();
 }
 
@@ -134,6 +134,8 @@ function normalizeContent(input) {
     assetIv: String(item?.assetIv || ''),
     posterRef: String(item?.posterRef || ''),
     posterIv: String(item?.posterIv || ''),
+    // 实况照片的短视频。不写进这个白名单的话，下一次保存会把它抹掉。
+    ...( /^mine-(?:vault-media|media|browser-media):\/\//.test(String(item?.motionRef || '')) ? { motionRef: String(item.motionRef) } : {}),
     sourceType: item?.sourceType === 'hls' ? 'hls' : '',
     remoteUrl: item?.sourceType === 'hls' ? String(item?.remoteUrl || '').slice(0, 4096) : '',
     date: /^\d{4}-\d{2}-\d{2}$/.test(item?.date || '') ? item.date : '',

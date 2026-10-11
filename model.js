@@ -1,5 +1,6 @@
 import { makeDefaultTimetable, normalizeTimetable } from './timetable.js';
 import { normalizePasswordVault } from './password-vault.js';
+import { normalizeLivePhotos } from './motion-photo.js';
 
 export const SCHEMA_VERSION = 18;
 
@@ -617,6 +618,8 @@ export function makeSnippet(input = {}) {
         .filter(item => item.video)
         .slice(0, SNIPPET_PHOTO_LIMIT)
     : [];
+  // 实况：静帧仍在 photos 里，短视频单独存放并用 still 指回去。没有动态时保持空数组。
+  const livePhotos = normalizeLivePhotos(input.livePhotos, photos, SNIPPET_PHOTO_LIMIT);
   return {
     id: String(input.id || crypto.randomUUID()),
     type,
@@ -625,6 +628,7 @@ export function makeSnippet(input = {}) {
     photo: photos[0] || '',
     photos,
     videos,
+    livePhotos,
     tags: normalizeStringArray(input.tags, 8, 24),
     summary: String(input.summary || '').trim().slice(0, 120),
     createdAt,
@@ -1094,6 +1098,8 @@ function normalizeJournals(journals) {
           summary: String(value?.summary || '').trim().slice(0, 120),
           updatedAt: Number(value?.updatedAt) || Date.now()
         };
+    const livePhotos = normalizeLivePhotos(value?.livePhotos, entry.photos, 60);
+    if (livePhotos.length) entry.livePhotos = livePhotos;
     return entry.content || entry.mood || entry.weather || entry.photos.length ? [[day, entry]] : [];
   }));
 }
