@@ -1,7 +1,7 @@
 ﻿import { initializeStorage, persistState, blockStorageWrites } from './storage.js';
 import { APP_VERSION_NAME } from './app-updater.js';
 import { Capacitor, registerPlugin } from '@capacitor/core';
-import { $, $$, state, cursor, selected, setState, setCursor, setSelected, defaults, render, go, goBack, save, show, confirmDelete, closeModal, getSubmitHandler, registerBinder, registerHelper, registerOnRender, callHelper, pushBackState } from './core.js';
+import { $, $$, state, cursor, selected, setState, setCursor, setSelected, defaults, render, go, goBack, save, show, confirmDelete, closeModal, getSubmitHandler, registerBinder, registerHelper, registerOnRender, callHelper, pushBackState, applyTheme, primeThemeFromNativeMirror } from './core.js';
 import { installPressFeedback } from './motion.js';
 import { migrateState, dateKey } from './model.js';
 import { externalizeStateMedia } from './media-store.js';
@@ -178,38 +178,60 @@ document.addEventListener('visibilitychange', async () => {
   if (document.visibilityState === 'visible' && await isTimerAlarmRinging().catch(() => false)) completionAlarmModal('计时');
 });
 
-/* 主题自检（2026-10-10）
+/* 主题自检（2026-10-10；2026-10-11 不再整页重载）
  *
  * 清简主题靠 themes-plain.css 把原始主题的图片素材整体撤掉。
  * 万一这个文件没能到位（热更新下载中断、缓存半新半旧），页面就会出现
- * 「一部分界面变回旧样子」—— 用户报的「用着用着有一部分切回原始素材」。
+ * 「一部分界面变回旧样子」。
  *
- * 做法：渲染完验一次。选了清简、却仍能看到 `#app` 上的原始纸纹图，就自动重载一次。
- * 只重重载一次（sessionStorage 打时间戳防死循环）；重载后仍不对就安静放弃 ——
- * 宁可看到旧界面，也绝不白屏或动数据。
+ * 以前的做法是发现 `#app` 上还有 assets/ 纸纹就 location.reload()。
+ * 重载会把「先暖色纸、再清简」再播一遍，而且一分钟内只能救一次。
+ * 现在改为把 data-theme 和样式表再拨正一次；样式表还在加载就等它。
+ * 仍然不对才轻提示一句，不刷新、不动数据。
  */
+function plainPaperStillShowing(node) {
+  let paperTexture = '';
+  try { paperTexture = getComputedStyle(node).backgroundImage || ''; }
+  catch { return false; }
+  return Boolean(paperTexture && paperTexture !== 'none' && paperTexture.includes('assets/'));
+}
+
 function healPlainTheme(theme) {
   if (theme !== 'plain') return;
   const app = document.querySelector('#app');
-  if (!app) return;
-  let paperTexture = '';
-  try {
-    paperTexture = getComputedStyle(app).backgroundImage || '';
-  } catch {
+  if (!app || !plainPaperStillShowing(app)) return;
+  document.documentElement?.setAttribute?.('data-theme', 'plain');
+  const sheet = document.getElementById('plain-theme-sheet');
+  if (sheet) {
+    sheet.media = 'all';
+    sheet.disabled = false;
+  }
+  applyTheme('plain');
+  const hint = () => {
+    if (!plainPaperStillShowing(app)) return;
+    const KEY = 'mine-plain-theme-heal';
+    let last = 0;
+    try { last = Number(sessionStorage.getItem(KEY) || 0); }
+    catch { return; }
+    if (Date.now() - last < 60000) return;
+    try { sessionStorage.setItem(KEY, String(Date.now())); }
+    catch { return; }
+    show('清简样式还没完全生效，界面可能暂时还带着纸纹');
+  };
+  // 等一帧，让刚启用的样式表参与级联，避免样式其实马上就到、却先弹出提示。
+  const recheck = () => requestAnimationFrame(() => hint());
+  let ready = true;
+  try { ready = Boolean(sheet?.sheet); }
+  catch { ready = true; }
+  if (sheet && !ready) {
+    let settled = false;
+    const done = () => { if (settled) return; settled = true; recheck(); };
+    sheet.addEventListener('load', done, { once: true });
+    sheet.addEventListener('error', done, { once: true });
+    setTimeout(done, 1200);
     return;
   }
-  // 清简下这里应该是 none；还带着 assets/ 的图就说明撤图样式没生效
-  if (!paperTexture || paperTexture === 'none' || !paperTexture.includes('assets/')) return;
-  const KEY = 'mine-plain-theme-heal';
-  const last = Number(sessionStorage.getItem(KEY) || 0);
-  if (Date.now() - last < 60000) return; // 一分钟内只自救一次
-  try {
-    sessionStorage.setItem(KEY, String(Date.now()));
-  } catch {
-    return;
-  }
-  console.warn('清简主题样式未生效，自动重载一次');
-  location.reload();
+  recheck();
 }
 
 async function boot() {
@@ -218,6 +240,8 @@ async function boot() {
   installPressFeedback();
   let autoSummaryLaunch = false;
   try {
+    // 解析期没读到主题时，先用原生存储把清简/暖阳补上，避免数据库打开期间先露出暖色纸。
+    await primeThemeFromNativeMirror();
     // 在任何 UI/通知初始化前识别凌晨静默唤醒，避免改变用户正常启动流程。
     autoSummaryLaunch = Boolean(await callHelper('isAutoSummaryLaunch'));
     setState(await initializeStorage(defaults));
@@ -270,6 +294,7 @@ async function boot() {
     }
   } catch (error) {
     booted = false;
+    document.documentElement?.classList?.remove('theme-pending');
     blockStorageWrites();
     console.error(error);
     if (autoSummaryLaunch) {

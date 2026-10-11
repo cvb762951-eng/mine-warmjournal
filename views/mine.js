@@ -135,6 +135,7 @@ export function mineView() {
   const reminderCount = state.settings?.notificationsEnabled === false ? 0 : (state.settings?.dailyReminders || []).length;
   const aiConfigured = Boolean(state.settings?.aiEnabled && state.settings?.aiApiKey);
   const clarity = 100 - Math.max(0, Math.min(100, Number(state.settings?.backgroundOverlayOpacity) || 0));
+  const themeLabel = (THEME_META[state.settings?.theme] || THEME_META.classic).label;
   const version = displayedAppVersion();
   return `<section class="view mine-view">
     <header class="subpage-header mine-editorial-header">
@@ -172,7 +173,7 @@ export function mineView() {
       </div></section>
       <section class="mine-settings-section mine-appearance-section"><header class="mine-section-heading"><span class="mine-section-index" aria-hidden="true">03</span><h2>外观与偏好</h2><small>LOOK &amp; FEEL</small></header>
       <div class="settings-group-card">
-        <button class="setting-item-row" id="settings-background"><span class="setting-row-left"><span class="setting-icon-box"><span class="material-symbols-outlined">palette</span></span><span><span class="setting-row-title">主题与外观</span><span class="setting-row-subtitle">${esc((THEME_META[state.settings?.theme] || THEME_META.classic).label)}主题 · 背景清晰度 ${clarity}%</span></span></span><span class="setting-row-right"><span>${state.settings?.backgroundImage ? '自定义壁纸' : '暖色纸张'}</span><span class="material-symbols-outlined">chevron_right</span></span></button>
+        <button class="setting-item-row" id="settings-background"><span class="setting-row-left"><span class="setting-icon-box"><span class="material-symbols-outlined">palette</span></span><span><span class="setting-row-title">主题与外观</span><span class="setting-row-subtitle">${esc(themeLabel)}主题 · 背景清晰度 ${clarity}%</span></span></span><span class="setting-row-right"><span>${state.settings?.backgroundImage ? '自定义壁纸' : esc(themeLabel)}</span><span class="material-symbols-outlined">chevron_right</span></span></button>
       </div></section>
       <section class="mine-settings-section mine-security-section"><header class="mine-section-heading"><span class="mine-section-index" aria-hidden="true">04</span><h2>数据与安全</h2><small>LOCAL SAFETY</small></header>
       <div class="settings-group-card">
@@ -391,7 +392,10 @@ function backgroundForm() {
 }
 
 function backgroundPreview() {
-  if (!pendingBackgroundImage) return `<span class="material-symbols-outlined">wallpaper</span><small>默认暖色纸张</small>`;
+  if (!pendingBackgroundImage) {
+    const label = (THEME_META[state.settings?.theme] || THEME_META.classic).label;
+    return `<span class="material-symbols-outlined">wallpaper</span><small>当前${esc(label)}主题</small>`;
+  }
   return `<img id="background-preview-image" src="${imgSrc(pendingBackgroundImage)}" alt="当前背景预览" style="object-fit:${pendingBackgroundFit}"><i style="--background-preview-overlay:${pendingBackgroundOverlayOpacity / 100}"></i>`;
 }
 

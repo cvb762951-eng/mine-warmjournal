@@ -1,4 +1,5 @@
-import { Capacitor } from '@capacitor/core';
+import { Capacitor, registerPlugin } from '@capacitor/core';
+import { Directory, Encoding, Filesystem } from '@capacitor/filesystem';
 import { persistState, protectedSnapshotMediaReferences } from './storage.js';
 import { CATEGORIES, dateKey, makeDefaultState, makeDefaultNavTabs, DEFAULT_NAV_ROUTES, ledgerSummary, calibrateLedgerAccount, habitHeatmapData, previousCompleteWeekRange, calculateFlowScore } from './model.js';
 import { externalizeStateMedia, mediaSource, removeUnusedMedia, stateMediaReferences } from './media-store.js';
@@ -242,35 +243,124 @@ export function getSubmitHandler(formId) { return submitHandlers[formId]; }
 // 只在值变化时写 DOM，避免每次 render 都触发无谓的样式重算。
 let appliedTheme = null;
 
-/* 主题记忆键：index.html 的解析期脚本据此决定要不要加载「清简」那份样式表。
-   单独存一个短键，而不是每次启动去解析整份状态（那是几 MB 的字符串）。 */
+/* 主题记忆键：index.html 的解析期脚本据此决定要不要加载「清简」那份样式表，
+   并在首屏前写上 data-theme。单独存一个短键，而不是每次启动去解析整份状态。 */
 const THEME_KEY = 'mine-warmjournal-theme';
+const THEME_FILE = 'mine-warmjournal-theme.txt';
+const KNOWN_THEMES = new Set(['classic', 'sunny', 'plain']);
+let themePreferences;
 
-/* 清简主题的样式表在 index.html 里是 disabled 的（理由见那里的注释）：
-   它含近 2000 条选择器，主题不是清简时全部匹配失败，却照样参与启动时的样式计算。
-   真的切到清简时必须在这儿补上，否则会出现「变量换了、质感重置没到」的半截状态。 */
+function knownTheme(value) {
+  const theme = String(value ?? '').trim();
+  return KNOWN_THEMES.has(theme) ? theme : '';
+}
+
+function preferencesPlugin() {
+  themePreferences ||= registerPlugin('Preferences');
+  return themePreferences;
+}
+
+/* 清简主题的样式表在 index.html 里默认不参与样式计算（理由见那里的注释）。
+   切到清简时要同时打开 media 和 disabled，否则变量换了、撤图规则还没进来。
+   其他主题保持关闭，避免那近 2000 条选择器参与启动时的样式计算。 */
 function syncPlainThemeSheet(theme) {
   const sheet = document.getElementById?.('plain-theme-sheet');
   if (!sheet) return;
   const want = theme === 'plain';
-  if (Boolean(sheet.disabled) !== !want) sheet.disabled = !want;
+  if (want) {
+    if (sheet.media !== 'all') sheet.media = 'all';
+    if (sheet.disabled) sheet.disabled = false;
+    return;
+  }
+  if (!sheet.disabled) sheet.disabled = true;
+  if (sheet.media !== 'not all') sheet.media = 'not all';
+}
+
+function writeThemeCookie(theme) {
+  try {
+    const current = document.cookie.match(/(?:^|;\s*)mine-warmjournal-theme=([^;]*)/)?.[1] || '';
+    if (current === theme) return;
+    document.cookie = `${THEME_KEY}=${theme}; Path=/; Max-Age=31536000; SameSite=Lax`;
+  } catch { /* 隐私模式下写不进去也不影响本次换肤 */ }
 }
 
 function rememberTheme(theme) {
   try {
     if (localStorage.getItem(THEME_KEY) !== theme) localStorage.setItem(THEME_KEY, theme);
   } catch { /* 无痕模式 / 测试 mock 下写入会抛错，与主题本身无关 */ }
+  writeThemeCookie(theme);
+  void mirrorThemeToNative(theme);
+}
+
+/* localStorage 是 WebView 存储，真机上可能丢；SQLite 里的主题要等数据库打开才读得到。
+   这里再镜像一份到原生存储：Filesystem 当前装机包里就有；Preferences 有插件时一并写。
+   两者都是异步的，只给下一次冷启动的 primeThemeFromNativeMirror 用。 */
+async function mirrorThemeToNative(theme) {
+  if (!knownTheme(theme) || !Capacitor.isNativePlatform?.()) return;
+  const writes = [];
+  if (Capacitor.isPluginAvailable?.('Filesystem')) {
+    writes.push(Filesystem.writeFile({
+      path: THEME_FILE,
+      data: theme,
+      directory: Directory.Data,
+      encoding: Encoding.UTF8
+    }).catch(() => {}));
+  }
+  if (Capacitor.isPluginAvailable?.('Preferences')) {
+    writes.push(preferencesPlugin().set({ key: THEME_KEY, value: theme }).catch(() => {}));
+  }
+  await Promise.all(writes);
+}
+
+async function readNativeThemeMirror() {
+  if (!Capacitor.isNativePlatform?.()) return '';
+  const jobs = [];
+  if (Capacitor.isPluginAvailable?.('Filesystem')) {
+    jobs.push(Filesystem.readFile({
+      path: THEME_FILE,
+      directory: Directory.Data,
+      encoding: Encoding.UTF8
+    }).then(result => knownTheme(result?.data)).catch(() => ''));
+  }
+  if (Capacitor.isPluginAvailable?.('Preferences')) {
+    jobs.push(preferencesPlugin().get({ key: THEME_KEY }).then(result => knownTheme(result?.value)).catch(() => ''));
+  }
+  if (!jobs.length) return '';
+  const values = await Promise.race([
+    Promise.all(jobs),
+    new Promise(resolve => setTimeout(() => resolve([]), 400))
+  ]);
+  return values.find(value => value && value !== 'classic') || '';
+}
+
+/* 解析期没读到主题时，index.html 会给 html 加上 theme-pending，先藏住暖色纸。
+   数据库打开前先看原生镜像：是清简或暖阳就立刻揭开，经典则继续等状态库确认，
+   避免一份过期的 classic 把清简又闪回暖色纸。 */
+export async function primeThemeFromNativeMirror() {
+  const root = document?.documentElement;
+  if (!root?.classList?.contains('theme-pending')) return '';
+  if (!Capacitor.isNativePlatform?.()) {
+    root.classList.remove('theme-pending');
+    return '';
+  }
+  const theme = await readNativeThemeMirror();
+  if (theme && theme !== 'classic') applyTheme(theme);
+  return theme || '';
 }
 
 export function applyTheme(theme = state.settings?.theme) {
   const next = typeof theme === 'string' && theme ? theme : 'classic';
-  if (next === appliedTheme) return next;
+  if (next === appliedTheme) {
+    document?.documentElement?.classList?.remove('theme-pending');
+    return next;
+  }
   appliedTheme = next;
   syncPlainThemeSheet(next);
   rememberTheme(next);
   // 全部用 ?. 容错：单元测试跑在精简 DOM mock 上，缺 removeAttribute / getComputedStyle 时不应中断。
   const root = document?.documentElement;
   if (!root) return next;
+  root.classList?.remove('theme-pending');
   if (next === 'classic') root.removeAttribute?.('data-theme');
   else root.setAttribute?.('data-theme', next);
   // 让系统状态栏/浏览器 UI 的底色跟着主题走（index.html 里的默认值是米白）。
