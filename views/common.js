@@ -1,4 +1,5 @@
 import { $, $$, pad, esc, imgSrc, state, cursor, formatMinutes, category, modal, confirmDelete, save, render, show, callHelper } from '../core.js';
+import { clampStillTransform, measureLongStill } from '../photo-utils.js';
 import { MOODS, WEATHERS, WEEK_DAYS, dateKey, habitProgressForDate, habitGoalMet } from '../model.js';
 import { mediaFocusSummary } from '../analytics.js';
 import { rebuildActivityLog } from '../activity-log.js';
@@ -202,17 +203,37 @@ export function bindPhotoViewerGestures(photos = [], meta = null, active = 0, op
   if (!stage || !image) return;
   const pointers = new Map();
   let scale = 1, x = 0, y = 0, startDistance = 0, startScale = 1, moved = false, lastTap = 0, switched = false, startX = 0, startY = 0, multiTouch = false;
+  let longMode = false, baseHeight = 0;
   const clampView = () => {
-    if (scale <= 1) { scale = 1; x = 0; y = 0; }
-    else {
-      const rect = stage.getBoundingClientRect();
-      x = Math.max(-rect.width * (scale - 1) / 2, Math.min(rect.width * (scale - 1) / 2, x));
-      y = Math.max(-rect.height * (scale - 1) / 2, Math.min(rect.height * (scale - 1) / 2, y));
-    }
+    const rect = stage.getBoundingClientRect();
+    const next = clampStillTransform({ longMode, baseHeight, scale, x, y, width: rect.width, height: rect.height });
+    scale = next.scale; x = next.x; y = next.y;
     image.style.transform = `translate3d(${x}px,${y}px,0) scale(${scale})`;
     image.classList.toggle('zoomed', scale > 1);
   };
-  const zoomAtCenter = next => { scale = next; clampView(); };
+  const zoomAtCenter = next => {
+    if (longMode && baseHeight > 0) {
+      const rect = stage.getBoundingClientRect();
+      const anchor = (-y + rect.height / 2) / Math.max(scale, 1);
+      scale = next;
+      y = rect.height / 2 - anchor * next;
+      x = 0;
+      clampView();
+      return;
+    }
+    scale = next; clampView();
+  };
+  const refreshLongImage = () => {
+    const rect = stage.getBoundingClientRect?.() || { width: 0, height: 0 };
+    const measured = measureLongStill(image, rect.width, rect.height);
+    longMode = measured.long;
+    baseHeight = measured.baseHeight;
+    stage.classList?.toggle?.('is-long-image', longMode);
+    if (!longMode) return;
+    const hint = $('.photo-viewer-chrome footer small');
+    if (hint) hint.textContent = '上下滑动浏览长图 · 双指缩放 · 左右滑动切换';
+    clampView();
+  };
   stage.onpointerdown = event => {
     pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
     if (pointers.size === 1) {
@@ -237,7 +258,17 @@ export function bindPhotoViewerGestures(photos = [], meta = null, active = 0, op
       const [a, b] = [...pointers.values()];
       scale = Math.max(1, Math.min(5, startScale * Math.hypot(a.x - b.x, a.y - b.y) / Math.max(1, startDistance)));
     } else if (scale > 1) { x += dx; y += dy; }
-    else if (!switched && !multiTouch) {
+    else if (longMode && !switched && !multiTouch) {
+      const totalDx = event.clientX - startX;
+      const totalDy = event.clientY - startY;
+      if (Math.abs(totalDx) > Math.abs(totalDy) && Math.abs(totalDx) > 60) {
+        switched = true;
+        openPhotoAt(photos, meta, totalDx < 0 ? active + 1 : active - 1, options);
+        return;
+      }
+      y += dy;
+      if (Math.abs(totalDx) + Math.abs(totalDy) > 8) moved = true;
+    } else if (!switched && !multiTouch) {
       // 未缩放时水平滑动切换（位移为主且超阈值约 60px），向左下一张、向右上一张。
       const totalDx = event.clientX - startX;
       const totalDy = event.clientY - startY;
@@ -264,7 +295,15 @@ export function bindPhotoViewerGestures(photos = [], meta = null, active = 0, op
     else { lastTap = now; setTimeout(() => { if (lastTap === now) chrome.classList.toggle('hidden'); }, 290); }
   };
   stage.onpointercancel = release;
-  stage.onwheel = event => { event.preventDefault(); scale = Math.max(1, Math.min(5, scale + (event.deltaY < 0 ? .25 : -.25))); clampView(); };
+  stage.onwheel = event => {
+    event.preventDefault();
+    if (longMode && scale <= 1 && !event.ctrlKey && !event.metaKey) { y -= event.deltaY; clampView(); return; }
+    const next = Math.max(1, Math.min(5, scale + (event.deltaY < 0 ? .25 : -.25)));
+    if (longMode) zoomAtCenter(next);
+    else { scale = next; clampView(); }
+  };
+  if (typeof image.addEventListener === 'function') image.addEventListener('load', refreshLongImage);
+  if (image.complete && image.naturalWidth) refreshLongImage();
 }
 
 // 会话记录的编辑/删除绑定（供专注项目历史、阅读专注历史复用）

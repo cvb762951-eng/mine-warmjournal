@@ -328,7 +328,6 @@ function pickJournalPhotos() {
         if (!files.length) return resolve();
         if (files.length > PHOTO_IMPORT_BATCH_LIMIT) throw new Error(`一次最多选择 ${PHOTO_IMPORT_BATCH_LIMIT} 张照片，请分批添加`);
         if (pendingJournalPhotos.length + files.length > JOURNAL_PHOTO_LIMIT) throw new Error(`每篇日记最多添加 ${JOURNAL_PHOTO_LIMIT} 张照片`);
-        if (files.some(file => file.size > 20 * 1024 * 1024)) throw new Error('单张图片不能超过 20MB');
         if (files.some(file => !isSupportedJournalPhoto(file))) throw new Error('仅支持 JPG、PNG 或 WebP 图片');
         show(`正在处理 ${files.length} 张照片…`);
         let liveAdded = 0;
@@ -457,7 +456,6 @@ function addPhotosToJournal(day) {
         const existingPhotos = draft?.photos || previous?.photos || [];
         if (files.length > PHOTO_IMPORT_BATCH_LIMIT) throw new Error(`一次最多选择 ${PHOTO_IMPORT_BATCH_LIMIT} 张照片，请分批添加`);
         if (existingPhotos.length + files.length > JOURNAL_PHOTO_LIMIT) throw new Error(`每篇日记最多添加 ${JOURNAL_PHOTO_LIMIT} 张照片`);
-        if (files.some(file => file.size > 20 * 1024 * 1024)) throw new Error('单张图片不能超过 20MB');
         if (files.some(file => !isSupportedJournalPhoto(file))) throw new Error('仅支持 JPG、PNG 或 WebP 图片');
         show(`正在处理 ${files.length} 张照片…`);
         const livePhotos = [...(draft?.livePhotos || previous?.livePhotos || [])];
