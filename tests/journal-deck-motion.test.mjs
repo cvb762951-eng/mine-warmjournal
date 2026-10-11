@@ -62,6 +62,11 @@ test('牌组相框不拉伸，说明在照片下面，切页不靠模糊', async
   assert.match(styles, /\.journal-deck-stage:focus-visible\{[^}]*outline:2px solid/);
   assert.match(motion, /setAttribute\('aria-live', 'polite'\)/);
   assert.match(motion, /card\.style\.opacity/);
+  assert.match(motion, /pool\.get\(key\)/);
+  assert.match(motion, /offset\.current = park/);
+  assert.match(motion, /if \(event\.target !== stage\) return/);
+  assert.match(motion, /card\.inert = true/);
+  assert.match(motion, /button\.tabIndex = -1/);
   const dragTilt = motion.slice(motion.indexOf('offset.set(dx);'), motion.indexOf('const finish'));
   assert.match(dragTilt, /if \(!prefersReducedMotion\(\)\)/);
   const rise = performance.slice(performance.indexOf('@keyframes v3-masthead-rise'), performance.indexOf('.today-view .magazine-header > *'));

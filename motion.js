@@ -589,7 +589,7 @@ function deckCard(entry, depth) {
     pad.src = entry.photoSrc;
     const still = document.createElement('img');
     still.className = 'journal-deck-still';
-    still.alt = entry.title || '日记照片';
+    still.alt = '';
     still.draggable = false;
     still.src = entry.photoSrc;
     photo.append(pad, still);
@@ -671,13 +671,17 @@ export function mountJournalDeck(host, entries = [], options = {}) {
     prev.textContent = '上一篇';
     const count = document.createElement('span');
     count.className = 'journal-deck-count';
-    count.setAttribute('aria-live', 'polite');
-    count.setAttribute('aria-atomic', 'true');
+    const live = document.createElement('span');
+    live.className = 'journal-deck-live';
+    live.setAttribute('aria-live', 'polite');
+    live.setAttribute('aria-atomic', 'true');
     const next = document.createElement('button');
     next.type = 'button';
     next.className = 'journal-deck-cut';
     next.textContent = '切下一篇';
-    controls.append(prev, count, next);
+    next.setAttribute('aria-label', '下一篇');
+    prev.setAttribute('aria-label', '上一篇');
+    controls.append(prev, count, next, live);
     const open = document.createElement('button');
     open.type = 'button';
     open.className = 'journal-deck-open';
@@ -695,9 +699,9 @@ export function mountJournalDeck(host, entries = [], options = {}) {
       const tiltX = pitch.current;
       const tiltY = yaw.current;
       card.style.transform = `translate3d(${x.toFixed(2)}px, 0, 28px) rotateX(${tiltX.toFixed(2)}deg) rotateY(${tiltY.toFixed(2)}deg) rotateZ(${(x * 0.03).toFixed(2)}deg)`;
-      const span = Math.max(1, stage.clientWidth || 1);
-      const travel = Math.min(1, Math.abs(x) / span);
-      const nextOpacity = prefersReducedMotion() || travel < 0.02 ? '' : (1 - travel * 0.28).toFixed(3);
+      const travel = Math.min(1, Math.abs(x) / stageWidth);
+      const gone = travel < 0.35 ? 0 : (travel - 0.35) / 0.65;
+      const nextOpacity = prefersReducedMotion() || gone < 0.02 ? '' : (1 - gone * 0.45).toFixed(3);
       if (card.style.opacity !== nextOpacity) card.style.opacity = nextOpacity;
       const shadow = card.querySelector('.journal-deck-shadow');
       if (shadow) shadow.style.transform = `translate3d(${(-tiltY * 1.5).toFixed(2)}px, ${(12 - tiltX).toFixed(2)}px, 0)`;
@@ -706,19 +710,60 @@ export function mountJournalDeck(host, entries = [], options = {}) {
     pitch.onUpdate = applyPose;
     yaw.onUpdate = applyPose;
 
+    const pool = new Map();
+    let stageWidth = 1;
+    let voiced = false;
+    const measureStage = () => { stageWidth = Math.max(1, stage.clientWidth || 1); };
+    const placeCard = (card, depth) => {
+      card.dataset.depth = String(depth);
+      card.style.zIndex = String(3 - depth);
+      if (!depth) {
+        card.inert = false;
+        card.removeAttribute('aria-hidden');
+        card.style.pointerEvents = '';
+        card.querySelectorAll('button').forEach(button => { button.tabIndex = 0; });
+        return;
+      }
+      card.inert = true;
+      card.setAttribute('aria-hidden', 'true');
+      card.style.pointerEvents = 'none';
+      card.style.opacity = '';
+      card.style.transform = '';
+      card.querySelectorAll('button').forEach(button => { button.tabIndex = -1; });
+    };
     const paint = () => {
       const total = list.length;
       const visible = Math.min(3, total);
-      const cards = [];
+      const keys = [];
       for (let depth = 0; depth < visible; depth += 1) {
-        cards.push(deckCard(list[(index + depth) % total], depth));
+        const at = (index + depth) % total;
+        const entry = list[at];
+        const key = entry.id || `i${at}`;
+        keys.push(key);
+        let card = pool.get(key);
+        if (!card) {
+          card = deckCard(entry, depth);
+          pool.set(key, card);
+        }
+        placeCard(card, depth);
       }
-      stage.replaceChildren(...cards.reverse());
+      for (const [key, card] of [...pool]) {
+        if (!keys.includes(key)) {
+          card.remove();
+          pool.delete(key);
+        }
+      }
+      stage.replaceChildren(...keys.map(key => pool.get(key)).reverse());
       const entry = list[index];
-      count.textContent = `${index + 1} / ${total}`;
-      stage.setAttribute('aria-label', entry ? `${entry.title || '这一篇'}，第 ${index + 1} 篇，共 ${total} 篇` : '');
+      const label = entry ? `${entry.title || '这一篇'}，第 ${index + 1} 篇，共 ${total} 篇` : '';
+      const indexLabel = `${index + 1} / ${total}`;
+      if (count.textContent !== indexLabel) count.textContent = indexLabel;
+      stage.setAttribute('aria-label', label);
+      if (voiced && live.textContent !== label) live.textContent = label;
+      voiced = true;
       prev.disabled = total < 2;
       next.disabled = total < 2;
+      measureStage();
       applyPose();
     };
 
@@ -739,8 +784,9 @@ export function mountJournalDeck(host, entries = [], options = {}) {
       }
       if (cutting) return;
       cutting = true;
+      measureStage();
       const dir = direction === 'next' ? -1 : 1;
-      const travel = dir * ((stage.clientWidth || 280) + 72);
+      const travel = dir * (stageWidth + 72);
       const token = ++cutToken;
       offset.onSettle = () => {
         if (!active || token !== cutToken) {
@@ -748,10 +794,20 @@ export function mountJournalDeck(host, entries = [], options = {}) {
           return;
         }
         index = direction === 'next' ? (index + 1) % list.length : (index - 1 + list.length) % list.length;
+        const park = -dir * 28;
+        offset.stop();
+        offset.current = park;
+        offset.target = park;
+        offset.velocity = 0;
+        yaw.stop();
+        yaw.current = 0;
+        yaw.target = 0;
+        yaw.velocity = 0;
+        pitch.stop();
+        pitch.current = 0;
+        pitch.target = 0;
+        pitch.velocity = 0;
         paint();
-        offset.set(-dir * 28);
-        yaw.set(0);
-        pitch.set(0);
         offset.onSettle = () => { cutting = false; };
         offset.to(0);
       };
@@ -769,6 +825,8 @@ export function mountJournalDeck(host, entries = [], options = {}) {
       tracking = true;
       dragged = false;
       vertical = false;
+      stage.classList.remove('is-dragging');
+      measureStage();
       pointerId = event.pointerId;
       startX = event.clientX;
       startY = event.clientY;
@@ -799,6 +857,7 @@ export function mountJournalDeck(host, entries = [], options = {}) {
           return;
         }
         dragged = true;
+        stage.classList.add('is-dragging');
         stage.setPointerCapture?.(event.pointerId);
       }
       offset.set(dx);
@@ -813,6 +872,7 @@ export function mountJournalDeck(host, entries = [], options = {}) {
       const wasVertical = vertical;
       tracking = false;
       pointerId = null;
+      stage.classList.remove('is-dragging');
       if (wasVertical || !wasDrag) {
         offset.to(0);
         yaw.to(0);
@@ -852,6 +912,7 @@ export function mountJournalDeck(host, entries = [], options = {}) {
       }
     }, { signal });
     stage.addEventListener('keydown', event => {
+      if (event.target !== stage) return;
       if (event.key === 'ArrowLeft') { event.preventDefault(); fly('prev'); }
       else if (event.key === 'ArrowRight') { event.preventDefault(); fly('next'); }
       else if (event.key === 'Enter') { event.preventDefault(); options.onOpen?.(list[index]); }
@@ -913,6 +974,9 @@ export function installMagneticDock() {
   safely(() => {
     const springs = new WeakMap();
     let engaged = false;
+    let dockRect = null;
+    let dockRectAt = 0;
+    let dockNode = null;
     const springFor = button => {
       let spring = springs.get(button);
       if (spring) return spring;
@@ -943,9 +1007,17 @@ export function installMagneticDock() {
       const dock = document.querySelector('.floating-dock');
       if (!dock) {
         restDock();
+        dockNode = null;
+        dockRect = null;
         return;
       }
-      const rect = dock.getBoundingClientRect();
+      const now = performance.now();
+      if (dock !== dockNode || !dockRect || now - dockRectAt > 240) {
+        dockNode = dock;
+        dockRect = dock.getBoundingClientRect();
+        dockRectAt = now;
+      }
+      const rect = dockRect;
       const near = event.clientY >= rect.top - 28 && event.clientY <= rect.bottom + 36
         && event.clientX >= rect.left - 24 && event.clientX <= rect.right + 24;
       if (!near) {

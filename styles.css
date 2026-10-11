@@ -9068,11 +9068,13 @@ html body * {
 .journal-deck-excerpt{margin:4px 0 0;color:#4a453f;font-size:12.5px;line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 :root[data-theme="plain"] .journal-deck-excerpt{color:#55606c}
 .journal-deck-meta{margin-top:auto;padding-top:8px;border-top:1px solid rgba(85,96,108,.12);color:#6b7480;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.journal-deck-controls{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:8px}
+.journal-deck-controls{position:relative;display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:8px}
+.journal-deck-live{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 .journal-deck-count{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-variant-numeric:tabular-nums;font-size:11px;color:#55606c;text-align:center}
 button.journal-deck-cut,button.journal-deck-open{min-height:36px;padding:6px 12px;border:1px solid rgba(220,212,198,.9);border-radius:999px;background:#fdfcf9;color:#315b49;font-size:12px;font-weight:700;-webkit-tap-highlight-color:transparent}
 button.journal-deck-open{display:block;width:100%;margin-top:8px}
 :root[data-theme="plain"] button.journal-deck-cut,:root[data-theme="plain"] button.journal-deck-open{border-color:rgba(85,96,108,.2);background:#E2EAF8;color:#3D5F9E}
 button.journal-deck-cut:disabled{opacity:.4;cursor:default}
 .journal-deck-card[data-depth="0"]{cursor:grab}
+.journal-deck-stage.is-dragging .journal-deck-card[data-depth="0"]{cursor:grabbing}
 .journal-history-modal .journal-deck-host{flex:none}
