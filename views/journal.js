@@ -343,7 +343,7 @@ function pickJournalPhotos() {
 export function journalHistory(search = '') {
   const entries = journalEntries(state, search);
   modal(`<div class="modal-head"><div><span class="eyebrow">JOURNAL ARCHIVE</span><h2>日记历史</h2><p>按日期、正文、心情或天气寻找一篇生活志。</p></div><button type="button" class="icon-button" data-close aria-label="关闭日记历史"><span class="material-symbols-outlined">close</span></button></div><form id="journal-search" class="search-row"><input name="search" value="${esc(search)}" placeholder="搜索日记"><button class="icon-button" aria-label="搜索"><span class="material-symbols-outlined">search</span></button></form><div class="journal-history rich-history">${entries.map(entry => `<button type="button" data-open-journal="${entry.date}"><div><strong>${entry.date}</strong><span class="journal-meta">${journalMeta(entry)}</span></div>${entry.photos?.[0] ? `<img src="${imgSrc(entry.photos[0])}" alt="${entry.date} 日记照片">` : '<span class="journal-history-no-photo material-symbols-outlined">history_edu</span>'}<p>${esc(entry.content || `${entry.photos?.length || 0} 张照片`)}</p></button>`).join('') || emptyState('没有匹配的日记', '换一个关键词试试。')}</div>`, 'large-modal journal-history-modal');
-  $$('[data-open-journal]').forEach(button => button.onclick = event => { event.preventDefault(); event.stopPropagation(); const day = button.dataset.openJournal; closeModal(); openJournalReader(day); });
+  $$('[data-open-journal]').forEach(button => button.onclick = onPastJournalClick);
 }
 
 // ---- 绑定 ----
@@ -583,6 +583,33 @@ function openJournalReader(day) {
   $$('[data-view-journal-reader-photo]').forEach(button => button.onclick = () => photoViewer(photosWithLiveMotion(photos, entry.livePhotos), Number(button.dataset.viewJournalReaderPhoto)));
 }
 
+// 过往篇章和日记历史：有正文就开画报阅读，没有正文就进入这一天的编辑页。
+// 不改已保存的日记；从编辑页改去别的日期前，先把当前输入收成草稿。
+function openPastJournal(day) {
+  const normalized = String(day || '');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(normalized) || !state.journals?.[normalized]) return;
+  if (state.journals[normalized].content?.trim()) {
+    openJournalReader(normalized);
+    return;
+  }
+  if (state.route === 'journal' && normalized === journalEditingDay) return;
+  if (state.route === 'journal' && !stageJournalScreenDraft(journalEditingDay)) {
+    show('草稿还未安全暂存，请先保存后再打开其他日期');
+    return;
+  }
+  setJournalEditingDay(normalized);
+  if (state.route === 'journal') render();
+  else go('journal');
+}
+
+function onPastJournalClick(event) {
+  event.preventDefault();
+  event.stopPropagation();
+  const button = event.currentTarget;
+  if (button?.closest('#modal-layer')) closeModal();
+  openPastJournal(button?.dataset?.openJournal);
+}
+
 export function journalView() {
   const day = journalEditingDay;
   const journalEntry = state.journals[day];
@@ -687,7 +714,7 @@ function bindJournalView() {
     const entry = state.journals[journalEditingDay];
     photoViewer(photosWithLiveMotion(draft?.photos || entry?.photos || [], draft?.livePhotos || entry?.livePhotos), Number(button.dataset.viewJournalScreenPhoto));
   });
-  $$('[data-open-journal]').forEach(button => button.onclick = event => { event.preventDefault(); event.stopPropagation(); openJournalReader(button.dataset.openJournal); });
+  $$('[data-open-journal]').forEach(button => button.onclick = onPastJournalClick);
   $('#journal-screen-save')?.addEventListener('click', async () => {
     const button = $('#journal-screen-save');
     const title = ($('#journal-title-input')?.value || '').trim();
@@ -727,3 +754,4 @@ function bindJournalView() {
 registerView('journal', journalView);
 registerBinder(bindJournalView);
 registerHelper('setJournalEditingDay', setJournalEditingDay);
+registerHelper('openPastJournal', openPastJournal);
