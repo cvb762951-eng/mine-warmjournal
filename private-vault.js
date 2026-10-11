@@ -70,13 +70,36 @@ export async function unlockPrivateVaultWithKey(state, key) {
   }
 }
 
-export async function persistPrivateVault(state) {
+// 播放器会一直拿着某一条 item 的引用（上下滑动切视频时尤其如此）。
+// 保存若换成新对象，这次之后写入的观看记录和播放进度就落到已经不在 content 里的旧对象上，下一次保存会把它们丢掉。
+function adoptNormalizedEntries(currentEntries, normalizedEntries) {
+  const existing = new Map((Array.isArray(currentEntries) ? currentEntries : []).filter(entry => entry?.id).map(entry => [entry.id, entry]));
+  return normalizedEntries.map(entry => {
+    const current = existing.get(entry.id);
+    if (!current || current === entry) return entry;
+    for (const field of Object.keys(current)) {
+      if (!Object.prototype.hasOwnProperty.call(entry, field)) delete current[field];
+    }
+    return Object.assign(current, entry);
+  });
+}
+
+let vaultPersistQueue = Promise.resolve();
+
+export function persistPrivateVault(state) {
+  const job = vaultPersistQueue.then(() => writePrivateVault(state));
+  // 失败不能卡住后面的保存；调用方仍然能从返回的 promise 上看到这次错误。
+  vaultPersistQueue = job.then(() => {}, () => {});
+  return job;
+}
+
+async function writePrivateVault(state) {
   if (!privateVaultUnlocked()) throw new Error('私密空间已经锁定');
   // 保持已交给视图层的 content 对象身份稳定。批量导入会在异步保存之间继续
-  // 使用同一个引用；若在这里替换对象，后续项目会被写入已经失效的旧对象。
+  // 使用同一个引用；条目本身也不能换成新对象，否则播放器拿着的旧引用会写丢。
   const normalized = normalizeContent(content);
-  content.folders = normalized.folders;
-  content.items = normalized.items;
+  content.folders = adoptNormalizedEntries(content.folders, normalized.folders);
+  content.items = adoptNormalizedEntries(content.items, normalized.items);
   const encrypted = await encryptText(JSON.stringify(content), keyBytes);
   state.privateVault.payloadIv = encrypted.iv;
   state.privateVault.payload = encrypted.ciphertext;

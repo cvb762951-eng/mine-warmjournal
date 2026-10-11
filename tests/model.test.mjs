@@ -1,8 +1,13 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { SCHEMA_VERSION, HABIT_HEAD_MAX_SECONDS, habitHeadLimit, activeStreak, calculateFlowScore, calibrateLedgerAccount, habitGoalMet, habitHeatmapData, habitProgressForDate, habitsForDate, journalEntries, ledgerSummary, makeDefaultState, makeFocusProject, makeHabit, makeMediaEntry, makeSnippet, makeTodo, makeTransaction, mediaEntries, migrateState, nextPomodoroStage, periodSummary, pomodoroPhaseSeconds, previousCompleteWeekRange, snippetEntries, todayCompletion, todosForDate } from '../model.js';
+import { SCHEMA_VERSION, HABIT_HEAD_MAX_SECONDS, habitHeadLimit, activeStreak, calculateFlowScore, calibrateLedgerAccount, formatShanghaiStamp, habitGoalMet, habitHeatmapData, habitProgressForDate, habitsForDate, journalEntries, ledgerSummary, makeDefaultState, makeFocusProject, makeHabit, makeMediaEntry, makeSnippet, makeTodo, makeTransaction, mediaEntries, migrateState, nextPomodoroStage, periodSummary, pomodoroPhaseSeconds, previousCompleteWeekRange, snippetEntries, todayCompletion, todosForDate } from '../model.js';
 import { activityForDate, rebuildActivityLog } from '../activity-log.js';
 import { focusInsights, mediaFocusSummary, projectGoalSummary } from '../analytics.js';
+
+test('shanghai stamps stay on UTC+8 regardless of the host timezone', () => {
+  assert.equal(formatShanghaiStamp(Date.UTC(2026, 9, 11, 4, 30)), '2026-10-11 12:30');
+  assert.equal(formatShanghaiStamp(0), '');
+});
 
 test('legacy demo data migrates to the current schema without fake sessions', () => {
   const defaults = makeDefaultState(new Date('2026-08-13T10:00:00'));

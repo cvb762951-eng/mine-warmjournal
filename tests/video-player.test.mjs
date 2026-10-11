@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
-import { formatVideoDuration, isHlsAddress, normalizeHlsAddress } from '../video-player.js';
+import { formatVideoDuration, isHlsAddress, normalizeHlsAddress, presentWatchSession, summarizeWatchSession } from '../video-player.js';
 import { detectPillarboxFromImageData, selectPillarboxConsensus, posterFrameTimes } from '../video-poster.js';
 
 const snippets = await readFile(new URL('../views/snippets.js', import.meta.url), 'utf8');
@@ -21,6 +21,30 @@ const backup = await readFile(new URL('../backup.js', import.meta.url), 'utf8');
 const mainActivity = await readFile(new URL('../android/app/src/main/java/com/mine/focus/MainActivity.java', import.meta.url), 'utf8');
 const nativeMedia = await readFile(new URL('../android/app/src/main/java/com/mine/focus/NativeMediaStorePlugin.java', import.meta.url), 'utf8');
 const pkg = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
+
+test('watch sessions drop glances, keep a looped ending, and score a trimmed span', () => {
+  assert.equal(summarizeWatchSession({ startedAt: 1, watchedMilliseconds: 2_900, startPosition: 0, endPosition: 2, furthest: 2, duration: 30 }), null);
+  const looped = summarizeWatchSession({
+    id: 'loop', startedAt: 1_000, endedAt: 31_000,
+    watchedMilliseconds: 30_800, startPosition: 0, endPosition: 1.2, furthest: 59.8, duration: 60
+  });
+  assert.equal(looped.watchedSeconds, 30);
+  assert.equal(looped.startPosition, 0);
+  assert.equal(looped.endPosition, 59);
+  assert.equal(looped.completion, 59.8 / 60);
+  const trimmed = summarizeWatchSession({
+    id: 'trim', startedAt: 1, endedAt: 2,
+    watchedMilliseconds: 20_000, startPosition: 30, endPosition: 32, furthest: 74, duration: 600,
+    trim: { start: 30, end: 75 }
+  });
+  assert.equal(trimmed.endPosition, 74);
+  assert.ok(Math.abs(trimmed.completion - (44 / 45)) < 1e-9);
+  const shown = presentWatchSession(trimmed, { start: 30, end: 75 });
+  assert.equal(shown.startPosition, 0);
+  assert.equal(shown.endPosition, 44);
+  assert.equal(shown.completion, trimmed.completion);
+  assert.equal(presentWatchSession(looped, null), looped);
+});
 
 test('HLS addresses accept only explicit HTTP m3u8 sources', () => {
   assert.equal(normalizeHlsAddress('https://media.example.test/live/master.m3u8?token=abc'), 'https://media.example.test/live/master.m3u8?token=abc');
