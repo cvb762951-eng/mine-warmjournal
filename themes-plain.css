@@ -3,7 +3,7 @@
    —— 本文件由 scripts/gen-plain-theme.mjs 自动生成，请勿手工编辑。
       改了 styles.css / performance.css 之后重新运行该脚本即可。
 
-   扫描 7044 条规则，命中素材规则 491 条。
+   扫描 7061 条规则，命中素材规则 491 条。
    只影响 [data-theme="plain"]，米白与暖阳两个主题完全不受影响。
    ========================================================================== */
 
@@ -421,10 +421,10 @@
 :root[data-theme="plain"] .journal-view .journal-preview-row,
 :root[data-theme="plain"] .journal-view .journal-save-btn,
 :root[data-theme="plain"] .journal-view .mood-pick-item,
-:root[data-theme="plain"] .journal-view .mood-pick-item.active,
+:root[data-theme="plain"] .journal-view .mood-pick-item.active::before,
 :root[data-theme="plain"] .journal-view .picker-section-label>span,
 :root[data-theme="plain"] .journal-view .weather-pick-item,
-:root[data-theme="plain"] .journal-view .weather-pick-item.active,
+:root[data-theme="plain"] .journal-view .weather-pick-item.active::before,
 :root[data-theme="plain"] .journal-view#screen-journal,
 :root[data-theme="plain"] .journal-view#screen-journal::before,
 :root[data-theme="plain"] .journal-view#screen-journal>.subpage-header,
@@ -1061,9 +1061,7 @@
 :root[data-theme="plain"] .journal-view .journal-preview-empty,
 :root[data-theme="plain"] .journal-view .journal-preview-row,
 :root[data-theme="plain"] .journal-view .mood-pick-item,
-:root[data-theme="plain"] .journal-view .mood-pick-item.active,
 :root[data-theme="plain"] .journal-view .weather-pick-item,
-:root[data-theme="plain"] .journal-view .weather-pick-item.active,
 :root[data-theme="plain"] .launch-film-fallback,
 :root[data-theme="plain"] .ledger-analysis-card,
 :root[data-theme="plain"] .ledger-analysis-overview,
@@ -2471,4 +2469,31 @@ button.danger) {
   background-color: var(--pl-danger-soft) !important;
   background-image: none !important;
   border-color: rgba(178, 88, 88, 0.20) !important;
+}
+
+/* ---------------------------------------------------------------------------
+   二十二 · 日记页心情 / 天气：选中必须一眼能认出来
+   生成器把 .mood-pick-item 和 .mood-pick-item.active 收进同一条「补白底」，
+   纸纹撤掉之后两态都是白胶囊，点了跟没点一样。
+   这里用实心蓝 + 白字 + 勾，压过那条 !important。暖色纸主题走 styles.css，不在这里。
+   --------------------------------------------------------------------------- */
+:root[data-theme="plain"] .journal-view :is(.mood-pick-item, .weather-pick-item).active {
+  background: var(--pl-blue) !important;
+  background-color: var(--pl-blue) !important;
+  background-image: none !important;
+  color: #fff !important;
+  box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--pl-blue-deep) !important;
+  scale: 1.08;
+  filter: none !important;
+}
+:root[data-theme="plain"] .journal-view :is(.mood-pick-item, .weather-pick-item).active::before {
+  content: none !important;
+}
+:root[data-theme="plain"] .journal-view :is(.mood-pick-item, .weather-pick-item).active::after {
+  background-color: #fff !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.3 6.2 4.8 8.7 9.8 3.3' fill='none' stroke='%233D5F9E' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") !important;
+  box-shadow: 0 0 0 1.5px var(--pl-blue-deep) !important;
+}
+:root[data-theme="plain"] .journal-view :is(.mood-pick-item, .weather-pick-item).active :is(small, .material-symbols-outlined) {
+  color: #fff !important;
 }

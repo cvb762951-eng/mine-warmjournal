@@ -630,11 +630,11 @@ export function journalView() {
     <header class="subpage-header"><div class="subpage-title">Mine Journal</div><div class="subpage-subtitle">Daily Moment · 暖色生活手记</div><span class="journal-corner-note" aria-hidden="true">Write<br>A Better<br>Me<br>Everyday.</span></header>
     <div class="journal-magazine-hero-box">
       <div class="journal-hero-top-row"><div><span class="journal-date-large">${dayLabel}</span><label class="journal-date-control"><span class="material-symbols-outlined">event</span><span>补写或修改日期</span><input type="date" id="journal-date-input" value="${day}" max="${dateKey()}" aria-label="选择日记日期"></label></div><span class="journal-roman-badge">${romanDate(day)}</span></div>
-      <div class="journal-env-meta"><span><i class="material-symbols-outlined">location_on</i>本地生活记录</span><span><i class="material-symbols-outlined">${journalDraftWeather ? WEATHERS[journalDraftWeather]?.icon || 'cloud' : 'cloud'}</i>${journalDraftWeather ? esc(WEATHERS[journalDraftWeather]?.label || journalDraftWeather) : '天气未记录'}</span><span><i class="material-symbols-outlined">favorite</i>${journalDraftMood ? `${MOODS[journalDraftMood]?.symbol} ${esc(MOODS[journalDraftMood]?.label)}` : '心情未记录'}</span></div>
+      <div class="journal-env-meta"><span><i class="material-symbols-outlined">location_on</i>本地生活记录</span><span data-journal-weather-readout><i class="material-symbols-outlined">${journalDraftWeather ? WEATHERS[journalDraftWeather]?.icon || 'cloud' : 'cloud'}</i><span>${journalDraftWeather ? esc(WEATHERS[journalDraftWeather]?.label || journalDraftWeather) : '天气未记录'}</span></span><span data-journal-mood-readout><i class="material-symbols-outlined">favorite</i><span>${journalDraftMood ? `${MOODS[journalDraftMood]?.symbol} ${esc(MOODS[journalDraftMood]?.label)}` : '心情未记录'}</span></span></div>
       <div class="picker-section-label"><span>这一天的心情与能量</span><small data-clear-journal-draft="mood">重选</small></div>
-      <div class="mood-grid-picker">${Object.entries(MOODS).map(([key, item]) => `<button type="button" class="mood-pick-item ${journalDraftMood === key ? 'active' : ''}" data-draft-mood="${key}"><span>${item.symbol}</span><small>${item.label}</small></button>`).join('')}</div>
+      <div class="mood-grid-picker">${Object.entries(MOODS).map(([key, item]) => `<button type="button" class="mood-pick-item ${journalDraftMood === key ? 'active' : ''}" data-draft-mood="${key}" aria-pressed="${journalDraftMood === key ? 'true' : 'false'}"><span>${item.symbol}</span><small>${item.label}</small></button>`).join('')}</div>
       <div class="picker-section-label"><span>天候与环境氛围</span><small data-clear-journal-draft="weather">重选</small></div>
-      <div class="weather-grid-picker">${Object.entries(WEATHERS).map(([key, item]) => `<button type="button" class="weather-pick-item ${journalDraftWeather === key ? 'active' : ''}" data-draft-weather="${key}"><span class="material-symbols-outlined">${item.icon}</span><small>${item.label}</small></button>`).join('')}</div>
+      <div class="weather-grid-picker">${Object.entries(WEATHERS).map(([key, item]) => `<button type="button" class="weather-pick-item ${journalDraftWeather === key ? 'active' : ''}" data-draft-weather="${key}" aria-pressed="${journalDraftWeather === key ? 'true' : 'false'}"><span class="material-symbols-outlined">${item.icon}</span><small>${item.label}</small></button>`).join('')}</div>
     </div>
     <div class="stream-sheet journal-stream-sheet">
       <div class="sheet-handle"></div>
@@ -660,6 +660,28 @@ export function journalView() {
   </section>`;
 }
 
+function syncJournalPick(kind) {
+  const selected = kind === 'mood' ? journalDraftMood : journalDraftWeather;
+  const dataKey = kind === 'mood' ? 'draftMood' : 'draftWeather';
+  $$(kind === 'mood' ? '[data-draft-mood]' : '[data-draft-weather]').forEach(button => {
+    const on = Boolean(selected) && button.dataset[dataKey] === selected;
+    button.classList.toggle('active', on);
+    button.setAttribute('aria-pressed', on ? 'true' : 'false');
+  });
+  const readout = $(kind === 'mood' ? '[data-journal-mood-readout]' : '[data-journal-weather-readout]');
+  const label = readout?.querySelector('span');
+  if (!label) return;
+  if (kind === 'mood') {
+    const item = MOODS[selected];
+    label.textContent = item ? `${item.symbol} ${item.label}` : '心情未记录';
+    return;
+  }
+  const item = WEATHERS[selected];
+  const icon = readout.querySelector('i');
+  if (icon) icon.textContent = item?.icon || 'cloud';
+  label.textContent = item?.label || '天气未记录';
+}
+
 function bindJournalView() {
   $('#journal-date-input')?.addEventListener('change', event => {
     const nextDay = event.target.value;
@@ -672,11 +694,12 @@ function bindJournalView() {
     setJournalEditingDay(nextDay);
     render();
   });
-  $$('[data-draft-mood]').forEach(button => button.onclick = () => { journalDraftMood = button.dataset.draftMood; $$('[data-draft-mood]').forEach(b => b.classList.toggle('active', b === button)); stageJournalScreenDraft(); });
-  $$('[data-draft-weather]').forEach(button => button.onclick = () => { journalDraftWeather = button.dataset.draftWeather; $$('[data-draft-weather]').forEach(b => b.classList.toggle('active', b === button)); stageJournalScreenDraft(); });
+  $$('[data-draft-mood]').forEach(button => button.onclick = () => { journalDraftMood = button.dataset.draftMood; syncJournalPick('mood'); stageJournalScreenDraft(); });
+  $$('[data-draft-weather]').forEach(button => button.onclick = () => { journalDraftWeather = button.dataset.draftWeather; syncJournalPick('weather'); stageJournalScreenDraft(); });
   $$('[data-clear-journal-draft]').forEach(button => button.onclick = () => {
-    if (button.dataset.clearJournalDraft === 'mood') { journalDraftMood = ''; $$('[data-draft-mood]').forEach(b => b.classList.remove('active')); }
-    else { journalDraftWeather = ''; $$('[data-draft-weather]').forEach(b => b.classList.remove('active')); }
+    if (button.dataset.clearJournalDraft === 'mood') journalDraftMood = '';
+    else journalDraftWeather = '';
+    syncJournalPick(button.dataset.clearJournalDraft === 'mood' ? 'mood' : 'weather');
     stageJournalScreenDraft();
   });
   const wordCount = () => { const el = $('#journal-live-word-count'); const ta = $('#journal-content-input'); if (el && ta) el.innerHTML = `<i class="material-symbols-outlined">edit</i>共 ${ta.value.length} 字`; };
