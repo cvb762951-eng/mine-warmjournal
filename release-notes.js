@@ -1,17 +1,19 @@
 // 版本说明注册表：每次发版在这里加一条，更新完成后会自动出现在「当天活动」（Life Stream）里。
 // ⚠️ code 必须与 android/app/build.gradle 的 versionCode 一致（tests/release-activity.test.mjs 锁着：
 //    当前版本必须有说明条目，漏了测试会挂）。
-// ⚠️ date = 该版本真实发布日（APK 归档时间 / git 提交 / 每日日志三方核对）。更新动态会落在
-//    这一天的 Life Stream 里 —— 不写 date 的条目才会落到「用户更新的那天」。
+// ⚠️ date = 发布日（YYYY-MM-DD）；time = 同一时刻的北京时间（HH:mm:ss，UTC+8）。
+//    来自该版本 APK 的归档时间（Last-Modified 换算到 Asia/Shanghai）。更新动态落在
+//    date 这一天，卡片和说明上的时分用 time，不再一律写成中午 12:00。
+//    不写 date 的条目才会落到「用户更新的那天」，时间用当时的现在。
 // ⚠️ 截图放 assets/（宽 640 左右、单张 ≤250KB），tests 里会核对文件存在。
 // ⚠️ 补发语义：启动时（release-activity.js）把登记表里 ≤ 当前版本、还没写过的条目各补一条，
-//    已写过的条目按登记表纠正日期 —— 所以想让人看到的版本就登记，不想让人看到的不登记。
+//    已写过的条目按登记表纠正日期和时分 —— 所以想让人看到的版本就登记，不想让人看到的不登记。
 // 版本号 → versionCode 规则：1.0.x = x+1（1.0.82 → 83）；1.1.y = 101+y（1.1.0 → 101）。
 // 1.0.79、1.0.92 未登记：当年没留下说明文字。
 
 export const RELEASE_NOTES = {
   73: {
-    name: '1.0.72', date: '2026-10-09',
+    name: '1.0.72', date: '2026-10-09', time: '14:02:52',
     title: '应用内更新上线',
     summary: '不用再满世界找安装包 —— App 里直接检查更新，只下变化的文件。',
     bullets: [
@@ -22,7 +24,7 @@ export const RELEASE_NOTES = {
     screenshots: []
   },
   74: {
-    name: '1.0.73', date: '2026-10-09',
+    name: '1.0.73', date: '2026-10-09', time: '15:49:55',
     title: '随手拍观感修缮',
     summary: '视频封面统一卡片感，照片格高度压矮一档。',
     bullets: [
@@ -33,7 +35,7 @@ export const RELEASE_NOTES = {
     screenshots: []
   },
   75: {
-    name: '1.0.74', date: '2026-10-09',
+    name: '1.0.74', date: '2026-10-09', time: '17:01:27',
     title: '新主题「清简」上线',
     summary: '第三个主题：纯色、无纸纹，整体统一暖色调。',
     bullets: [
@@ -43,7 +45,7 @@ export const RELEASE_NOTES = {
     screenshots: []
   },
   76: {
-    name: '1.0.75', date: '2026-10-09',
+    name: '1.0.75', date: '2026-10-09', time: '17:38:12',
     title: '课程表顶栏让位',
     summary: '课程表顶栏不再顶到屏幕边缘。',
     bullets: [
@@ -52,7 +54,7 @@ export const RELEASE_NOTES = {
     screenshots: []
   },
   77: {
-    name: '1.0.76', date: '2026-10-09',
+    name: '1.0.76', date: '2026-10-09', time: '17:43:10',
     title: '课程表安全区二次修正',
     summary: '让位方式改为页面层留白。',
     bullets: [
@@ -61,7 +63,7 @@ export const RELEASE_NOTES = {
     screenshots: []
   },
   78: {
-    name: '1.0.77', date: '2026-10-09',
+    name: '1.0.77', date: '2026-10-09', time: '17:54:18',
     title: '随手拍批量导入升级',
     summary: '一次最多 100 张、不限单张大小，全程实时进度。',
     bullets: [
@@ -72,7 +74,7 @@ export const RELEASE_NOTES = {
     screenshots: []
   },
   79: {
-    name: '1.0.78', date: '2026-10-09',
+    name: '1.0.78', date: '2026-10-09', time: '18:35:50',
     title: '更新模块修缮',
     summary: '应用内更新的几处缺陷一次修掉。',
     bullets: [
@@ -81,7 +83,7 @@ export const RELEASE_NOTES = {
     screenshots: []
   },
   81: {
-    name: '1.0.80', date: '2026-10-09',
+    name: '1.0.80', date: '2026-10-09', time: '19:33:49',
     title: '玻璃拟态手感升级',
     summary: '按压、进度、入场都有了自己的动效。',
     bullets: [
@@ -91,7 +93,7 @@ export const RELEASE_NOTES = {
     screenshots: []
   },
   82: {
-    name: '1.0.81', date: '2026-10-09',
+    name: '1.0.81', date: '2026-10-09', time: '20:02:17',
     title: '清简主题荧光迭代',
     summary: '选中态荧光化的一次快速迭代。',
     bullets: [
@@ -100,7 +102,7 @@ export const RELEASE_NOTES = {
     screenshots: []
   },
   83: {
-    name: '1.0.82', date: '2026-10-09',
+    name: '1.0.82', date: '2026-10-09', time: '20:40:05',
     title: '清简主题重构「晨曦微光」',
     summary: '宣纸白底、晨曦金点缀、五层细腻阴影的完整重构。',
     bullets: [
@@ -111,7 +113,7 @@ export const RELEASE_NOTES = {
     screenshots: []
   },
   84: {
-    name: '1.0.83', date: '2026-10-09',
+    name: '1.0.83', date: '2026-10-09', time: '21:31:29',
     title: '批量导入稳定性修复',
     summary: '进度条不再来回跳，一张失败不再连累整批。',
     bullets: [
@@ -122,7 +124,7 @@ export const RELEASE_NOTES = {
     screenshots: []
   },
   85: {
-    name: '1.0.84', date: '2026-10-09',
+    name: '1.0.84', date: '2026-10-09', time: '21:46:23',
     title: '批量导入进度再升级',
     summary: '进度直接长在你按过的按钮上。',
     bullets: [
@@ -133,7 +135,7 @@ export const RELEASE_NOTES = {
     screenshots: []
   },
   86: {
-    name: '1.0.85', date: '2026-10-09',
+    name: '1.0.85', date: '2026-10-09', time: '22:11:30',
     title: '随手拍进度条修复（第三轮）',
     summary: '找到真正的病根：随手拍有两个入口，这次两个都统一了。',
     bullets: [
@@ -144,7 +146,7 @@ export const RELEASE_NOTES = {
     screenshots: []
   },
   87: {
-    name: '1.0.86', date: '2026-10-09',
+    name: '1.0.86', date: '2026-10-09', time: '22:40:33',
     title: '清简主题换蓝',
     summary: '主色换成清简蓝，全站统一；深色块改成同族的石板灰蓝。',
     bullets: [
@@ -155,7 +157,7 @@ export const RELEASE_NOTES = {
     screenshots: []
   },
   88: {
-    name: '1.0.87', date: '2026-10-09',
+    name: '1.0.87', date: '2026-10-09', time: '23:06:38',
     title: '清简主题全面浅色化',
     summary: '深色块全部收成浅色卡，再做一轮深度美化。',
     bullets: [
@@ -165,7 +167,7 @@ export const RELEASE_NOTES = {
     screenshots: []
   },
   89: {
-    name: '1.0.88', date: '2026-10-09',
+    name: '1.0.88', date: '2026-10-09', time: '23:23:01',
     title: '底栏图标修复',
     summary: '底栏「Today」一格不再是空的。',
     bullets: [
@@ -175,7 +177,7 @@ export const RELEASE_NOTES = {
     screenshots: []
   },
   90: {
-    name: '1.0.89', date: '2026-10-10',
+    name: '1.0.89', date: '2026-10-10', time: '10:25:59',
     title: '主题「不稳定」修复',
     summary: '修掉「清简主题用着用着变回旧样子」的问题。',
     bullets: [
@@ -185,7 +187,7 @@ export const RELEASE_NOTES = {
     screenshots: []
   },
   91: {
-    name: '1.0.90', date: '2026-10-10',
+    name: '1.0.90', date: '2026-10-10', time: '10:48:09',
     title: '倒数日接上主题',
     summary: '倒数日页面适配清简主题，整体不再「白成一片」。',
     bullets: [
@@ -195,7 +197,7 @@ export const RELEASE_NOTES = {
     screenshots: []
   },
   92: {
-    name: '1.0.91', date: '2026-10-10',
+    name: '1.0.91', date: '2026-10-10', time: '11:28:40',
     title: '柔化棱角',
     summary: '撤图后变直角白方块的地方全部重新塑形。',
     bullets: [
@@ -205,7 +207,7 @@ export const RELEASE_NOTES = {
     screenshots: []
   },
   94: {
-    name: '1.0.93', date: '2026-10-10',
+    name: '1.0.93', date: '2026-10-10', time: '11:53:25',
     title: '私密视频可保存到相册',
     summary: '想分享或用系统剪辑时，可以另存一份出去。',
     bullets: [
@@ -216,7 +218,7 @@ export const RELEASE_NOTES = {
     screenshots: []
   },
   95: {
-    name: '1.0.94', date: '2026-10-10',
+    name: '1.0.94', date: '2026-10-10', time: '12:14:21',
     title: '交互手感五件套',
     summary: '把「点一下就切」换成有物理感的手感。',
     bullets: [
@@ -228,7 +230,7 @@ export const RELEASE_NOTES = {
     screenshots: []
   },
   96: {
-    name: '1.0.95', date: '2026-10-10',
+    name: '1.0.95', date: '2026-10-10', time: '12:38:31',
     title: '动效卡顿修复',
     summary: '实测抓到常驻的性能杀手，改用业界推荐做法。',
     bullets: [
@@ -238,7 +240,7 @@ export const RELEASE_NOTES = {
     screenshots: []
   },
   97: {
-    name: '1.0.96', date: '2026-10-10',
+    name: '1.0.96', date: '2026-10-10', time: '12:56:13',
     title: '大图白屏修复',
     summary: '点进大图不再白屏闪一下。',
     bullets: [
@@ -248,7 +250,7 @@ export const RELEASE_NOTES = {
     screenshots: []
   },
   98: {
-    name: '1.0.97', date: '2026-10-10',
+    name: '1.0.97', date: '2026-10-10', time: '15:05:42',
     title: '「我的」页可读性优化',
     summary: '设置列表看得更清楚了。',
     bullets: [
@@ -258,7 +260,7 @@ export const RELEASE_NOTES = {
     screenshots: []
   },
   99: {
-    name: '1.0.98', date: '2026-10-10',
+    name: '1.0.98', date: '2026-10-10', time: '15:20:50',
     title: '「我的」页杂志式分类标题',
     summary: '五个分类带大号衬线编号，杂志目录的感觉。',
     bullets: [
@@ -268,7 +270,7 @@ export const RELEASE_NOTES = {
     screenshots: []
   },
   100: {
-    name: '1.0.99', date: '2026-10-10',
+    name: '1.0.99', date: '2026-10-10', time: '15:44:58',
     title: '「我的」页杂志式排版',
     summary: '整页按先锋杂志风格重排。',
     bullets: [
@@ -278,7 +280,7 @@ export const RELEASE_NOTES = {
     screenshots: []
   },
   101: {
-    name: '1.1.0', date: '2026-10-10',
+    name: '1.1.0', date: '2026-10-10', time: '17:11:05',
     title: '私密空间 · 视频剪辑上线',
     summary: '剪时长、框选画面，还能把剪辑真正做进文件里。',
     bullets: [
@@ -289,7 +291,7 @@ export const RELEASE_NOTES = {
     screenshots: []
   },
   102: {
-    name: '1.1.1', date: '2026-10-10',
+    name: '1.1.1', date: '2026-10-10', time: '18:01:54',
     title: '裁剪后方向自动归类',
     summary: '横竖屏裁剪后自动归到正确分类，播放也不再压住画面。',
     bullets: [
@@ -299,7 +301,7 @@ export const RELEASE_NOTES = {
     screenshots: []
   },
   103: {
-    name: '1.1.2', date: '2026-10-10',
+    name: '1.1.2', date: '2026-10-10', time: '20:14:48',
     title: '剪辑 · 封面与习惯裁开头',
     summary: '挑封面、裁画面、习惯裁开头，都按剪完之后的样子来。',
     bullets: [
@@ -311,7 +313,7 @@ export const RELEASE_NOTES = {
     screenshots: []
   },
   104: {
-    name: '1.1.3', date: '2026-10-10',
+    name: '1.1.3', date: '2026-10-10', time: '23:18:26',
     title: '剪辑微调 + 日记页试验',
     summary: '习惯裁开头放宽到 20 秒；日记页做了一轮书写体验试验。',
     bullets: [
@@ -322,7 +324,7 @@ export const RELEASE_NOTES = {
     screenshots: []
   },
   105: {
-    name: '1.1.4', date: '2026-10-10',
+    name: '1.1.4', date: '2026-10-10', time: '23:51:16',
     title: '更新动态上线',
     summary: '从这版起，每次升级都会在当天的活动里留一条「更新」动态，点开能看完整说明和演示图。',
     bullets: [
@@ -333,7 +335,7 @@ export const RELEASE_NOTES = {
     screenshots: ['assets/release-1.1.4-1.png']
   },
   106: {
-    name: '1.1.5', date: '2026-10-11',
+    name: '1.1.5', date: '2026-10-11', time: '00:04:10',
     title: '历史更新补进动态',
     summary: '之前几个版本的说明也进了当天的活动；版本说明页重新设计，和整体风格对齐。',
     bullets: [
@@ -344,7 +346,7 @@ export const RELEASE_NOTES = {
     screenshots: []
   },
   107: {
-    name: '1.1.6', date: '2026-10-11',
+    name: '1.1.6', date: '2026-10-11', time: '00:27:28',
     title: '更新动态各归各位',
     summary: '每个版本的说明都落到它发布那天的活动里；历史版本的说明和时间也补齐登记了。',
     bullets: [
@@ -355,7 +357,7 @@ export const RELEASE_NOTES = {
     screenshots: []
   },
   108: {
-    name: '1.1.7', date: '2026-10-11',
+    name: '1.1.7', date: '2026-10-11', time: '19:06:35',
     title: '私密空间看视频不再闪白',
     summary: '点开私密视频时不再先闪一块白、再闪一整屏白，直接就是深色画面。',
     bullets: [

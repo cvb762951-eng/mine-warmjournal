@@ -1,5 +1,5 @@
 import { $, $$, esc, state, save, render, modal, closeModal, show, confirmDelete, imgSrc, emptyState, go, formatMinutes, setState, defaults, registerView, registerBinder, registerSubmitHandler, callHelper, NAV_TABS, renderNav, pushBackState, applyTheme } from '../core.js';
-import { journalEntries, migrateState, makeDefaultNavTabs, APP_THEMES, THEME_META } from '../model.js';
+import { journalEntries, migrateState, makeDefaultNavTabs, APP_THEMES, THEME_META, formatShanghaiDateTime } from '../model.js';
 import { exportEncryptedBackup, importEncryptedBackup, finalizeImportedBackup, rollbackImportedBackup, verifyEncryptedBackup } from '../backup.js';
 import { createSafetySnapshot, listSafetySnapshots, readSafetySnapshot, storageHealth, replaceState } from '../storage.js';
 import { mediaHealth, externalizeStateMedia } from '../media-store.js';
@@ -732,12 +732,20 @@ async function checkForUpdate() {
   }
 }
 
+function updatePublishedLabel(value) {
+  const text = String(value || '').trim();
+  if (!/(?:T|\s)\d{2}:\d{2}/.test(text)) return '';
+  const parsed = Date.parse(text);
+  return Number.isFinite(parsed) ? formatShanghaiDateTime(parsed) : '';
+}
+
 function updateDialog(manifest, current) {
   const size = formatBytes(manifest.sizeBytes);
+  const published = updatePublishedLabel(manifest.publishedAt);
   const notes = String(manifest.notes || '').split('\n').map(line => line.trim()).filter(Boolean);
   // 支持资源热更新时，实际下载量通常只有几 MB，明确告诉用户，别被整包体积吓到
   const hot = Boolean(manifest.resourceManifestUrl);
-  modal(`<div class="update-dialog"><span class="eyebrow">NEW VERSION</span><h2>发现新版本 ${esc(manifest.versionName)}</h2><p class="update-from">${esc(current.versionName || APP_VERSION_NAME)} → <strong>${esc(manifest.versionName)}</strong>${size ? ` · ${esc(size)}` : ''}</p>${hot ? '<p class="update-hint"><span class="material-symbols-outlined">bolt</span>只需下载变化的文件，通常几 MB；装不上的功能才会退回完整安装包。</p>' : ''}${notes.length ? `<div class="update-notes">${notes.map(line => `<p>${esc(line)}</p>`).join('')}</div>` : ''}<div class="update-progress" id="update-progress" hidden><span class="update-progress-track"><i id="update-progress-bar"></i></span><small id="update-progress-text">准备中…</small></div><div class="modal-actions"><button type="button" data-close>以后再说</button><button type="button" class="save" id="update-download">${hot ? '下载变化部分' : '下载并更新'}</button></div></div>`, 'update-modal');
+  modal(`<div class="update-dialog"><span class="eyebrow">NEW VERSION</span><h2>发现新版本 ${esc(manifest.versionName)}</h2><p class="update-from">${esc(current.versionName || APP_VERSION_NAME)} → <strong>${esc(manifest.versionName)}</strong>${size ? ` · ${esc(size)}` : ''}${published ? ` · ${esc(published)}` : ''}</p>${hot ? '<p class="update-hint"><span class="material-symbols-outlined">bolt</span>只需下载变化的文件，通常几 MB；装不上的功能才会退回完整安装包。</p>' : ''}${notes.length ? `<div class="update-notes">${notes.map(line => `<p>${esc(line)}</p>`).join('')}</div>` : ''}<div class="update-progress" id="update-progress" hidden><span class="update-progress-track"><i id="update-progress-bar"></i></span><small id="update-progress-text">准备中…</small></div><div class="modal-actions"><button type="button" data-close>以后再说</button><button type="button" class="save" id="update-download">${hot ? '下载变化部分' : '下载并更新'}</button></div></div>`, 'update-modal');
   $('#update-download')?.addEventListener('click', () => runUpdate(manifest));
 }
 

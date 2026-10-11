@@ -112,6 +112,32 @@ export function dateKey(date = new Date()) {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
+// 北京时间（Asia/Shanghai）全年固定 UTC+8，没有夏令时。
+// 用固定偏移而不是本机时区，避免更新日志的时分跟着运行环境跑偏。
+function shanghaiWallClock(timestamp) {
+  const value = Number(timestamp);
+  if (!Number.isFinite(value) || value <= 0) return null;
+  const shifted = new Date(value + 8 * 3600000);
+  const pad = number => String(number).padStart(2, '0');
+  return {
+    year: shifted.getUTCFullYear(),
+    month: shifted.getUTCMonth() + 1,
+    day: shifted.getUTCDate(),
+    hour: pad(shifted.getUTCHours()),
+    minute: pad(shifted.getUTCMinutes())
+  };
+}
+
+export function formatShanghaiClock(timestamp) {
+  const clock = shanghaiWallClock(timestamp);
+  return clock ? `${clock.hour}:${clock.minute}` : '';
+}
+
+export function formatShanghaiDateTime(timestamp) {
+  const clock = shanghaiWallClock(timestamp);
+  return clock ? `${clock.year}年${clock.month}月${clock.day}日 · ${clock.hour}:${clock.minute}` : '';
+}
+
 export const DEFAULT_NAV_ROUTES = ['today', 'calendar', 'focus', 'ledger', 'ai'];
 export const MORE_NAV_ROUTES = ['statistics', 'documents', 'mine'];
 

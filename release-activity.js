@@ -5,11 +5,21 @@ import { APP_VERSION_CODE } from './app-updater.js';
 import { dateKey, makeRelease } from './model.js';
 import { RELEASE_NOTES } from './release-notes.js';
 
-// 登记表里的 date 是该版本的真实发布日 —— 动态落位到那一天的 Life Stream。
-const registryTimestamp = date => Date.parse(`${date}T12:00:00`) || 0;
+// 登记表里的 date 是发布日，time 是同一时刻的北京时间（HH:mm 或 HH:mm:ss）。
+// 时分按 Asia/Shanghai（固定 UTC+8）换成时间戳，不跟运行环境的本地时区走。
+// 没写 time 的旧条目才退回当天 12:00（+08:00）。
+const CLOCK = /^(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/;
+
+export function releaseInstant(notes = {}) {
+  const date = String(notes.date || '');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return 0;
+  const raw = String(notes.time || '').trim();
+  const clock = CLOCK.test(raw) ? (raw.length === 5 ? `${raw}:00` : raw) : '12:00:00';
+  return Date.parse(`${date}T${clock}+08:00`) || 0;
+}
 
 // 启动时调用：把登记表里 ≤ 当前版本、还没写过动态的版本各补一条（落在登记表给的
-// 真实发布日）；已写过的条目按登记表同步文案、纠正日期（幂等，随便跑）。
+// 真实发布时刻）；已写过的条目按登记表同步文案，并把时间纠正到登记的时分（幂等）。
 // settings.lastSeenReleaseCode 只作记录，不参与判断。
 export function ensureReleaseActivities(state, currentCode = APP_VERSION_CODE, now = Date.now()) {
   state.settings = state.settings || {};
@@ -22,13 +32,24 @@ export function ensureReleaseActivities(state, currentCode = APP_VERSION_CODE, n
     const notes = RELEASE_NOTES[key];
     const existing = state.releases.find(release => Number(release.code) === code);
     if (existing) {
-      // 登记表是唯一事实来源：文案同步；日期不一致（比如早期误写到更新当天）就归位。
+      const nextDate = notes.date || existing.date;
       const needsRelocate = Boolean(notes.date && existing.date !== notes.date);
-      Object.assign(existing, makeRelease({ ...notes, code, date: notes.date || existing.date, createdAt: existing.createdAt }));
-      if (needsRelocate) existing.createdAt = registryTimestamp(notes.date);
+      // 登记了时分就以它为准，连以前写成中午 12:00 的条目一起改掉。
+      // 只有「日期已经对、又没登记时分」时，才保留设备上原来的 createdAt。
+      const createdAt = notes.time
+        ? releaseInstant({ date: nextDate, time: notes.time })
+        : (needsRelocate ? releaseInstant({ date: nextDate }) : existing.createdAt);
+      Object.assign(existing, makeRelease({
+        ...notes,
+        code,
+        versionName: notes.name,
+        date: nextDate,
+        createdAt
+      }));
       continue;
     }
     const fallbackDate = dateKey(new Date(now + created));
+    const date = notes.date || fallbackDate;
     state.releases.push(makeRelease({
       code,
       versionName: notes.name,
@@ -36,8 +57,8 @@ export function ensureReleaseActivities(state, currentCode = APP_VERSION_CODE, n
       summary: notes.summary,
       bullets: notes.bullets,
       screenshots: notes.screenshots,
-      date: notes.date || fallbackDate,
-      createdAt: notes.date ? registryTimestamp(notes.date) : now + created
+      date,
+      createdAt: notes.date ? releaseInstant(notes) : now + created
     }));
     created++;
   }

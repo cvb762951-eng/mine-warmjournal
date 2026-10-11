@@ -1,6 +1,6 @@
 // 版本更新动态（release-activity）回归：
-// - 补发：登记表里 ≤ 当前版本、还没写过的条目，启动时各补一条，落在登记表的真实发布日；
-// - 归位：已写过的条目按登记表同步文案、纠正日期（早期误写到更新当天的会归回去）；
+// - 补发：登记表里 ≤ 当前版本、还没写过的条目，启动时各补一条，落在登记表的真实发布时刻（北京时间，含时分）；
+// - 归位：已写过的条目按登记表同步文案、纠正日期和时分（早期误写到更新当天、或写成中午 12:00 的会改回去）；
 // - 幂等：以 state.releases 里是否已有该 code 为准，同一版本绝不写第二次；
 // - 字段完整性：字符串字段过一遍 normalize 后不许损坏（启动链路多道迁移）；
 // - 登记表纪律：当前 versionCode 必须有说明条目，引用的演示图必须真实存在。
@@ -11,9 +11,9 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { dirname, join } from 'node:path';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
-const { makeRelease, migrateState, defaults } = await import(pathToFileURL(join(root, 'model.js')));
+const { makeRelease, migrateState, defaults, formatShanghaiClock, formatShanghaiDateTime } = await import(pathToFileURL(join(root, 'model.js')));
 const { RELEASE_NOTES } = await import(pathToFileURL(join(root, 'release-notes.js')));
-const { ensureReleaseActivities } = await import(pathToFileURL(join(root, 'release-activity.js')));
+const { ensureReleaseActivities, releaseInstant } = await import(pathToFileURL(join(root, 'release-activity.js')));
 const storage = await import(pathToFileURL(join(root, 'storage.js')));
 
 const registryCodes = () => Object.keys(RELEASE_NOTES).map(Number).sort((a, b) => a - b);
@@ -29,6 +29,7 @@ test('登记表条目齐全：每个版本都有名称、日期、标题、摘�
     const notes = RELEASE_NOTES[code];
     assert.ok(notes.name, `${code} 缺 versionName`);
     assert.match(notes.date || '', /^\d{4}-\d{2}-\d{2}$/, `${code} 缺真实发布日（YYYY-MM-DD）`);
+    assert.match(notes.time || '', /^(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d$/, `${code} 缺真实发布时间（HH:mm:ss，北京时间）`);
     assert.ok(notes.title && notes.summary, `${code} 缺标题或摘要`);
     assert.ok(Array.isArray(notes.bullets) && notes.bullets.length >= 1, `${code} 缺改动清单`);
   }
@@ -41,6 +42,24 @@ test('登记表的日期随版本号单调不减（动态按天归位的前提�
     const current = RELEASE_NOTES[codes[i]].date;
     assert.ok(previous <= current, `${codes[i]} 的日期（${current}）早于 ${codes[i - 1]}（${previous}）`);
   }
+});
+
+test('登记的时分是北京时间，并且随版本严格变晚', () => {
+  const codes = registryCodes();
+  let previous = 0;
+  for (const code of codes) {
+    const notes = RELEASE_NOTES[code];
+    const instant = releaseInstant(notes);
+    const shifted = new Date(instant + 8 * 3600000);
+    const pad = value => String(value).padStart(2, '0');
+    const day = `${shifted.getUTCFullYear()}-${pad(shifted.getUTCMonth() + 1)}-${pad(shifted.getUTCDate())}`;
+    assert.equal(day, notes.date, `${code} 的时分换回北京时间后不在发布日上`);
+    assert.equal(formatShanghaiClock(instant), notes.time.slice(0, 5), `${code} 展示时分和登记不一致`);
+    assert.ok(instant > previous, `${code} 的更新时间没有晚于上一版`);
+    previous = instant;
+  }
+  assert.equal(formatShanghaiDateTime(releaseInstant(RELEASE_NOTES[108])), '2026年10月11日 · 19:06');
+  assert.equal(formatShanghaiClock(releaseInstant(RELEASE_NOTES[106])), '00:04');
 });
 
 test('当前 versionCode 必须有说明条目（发版漏登记 = 更新后当天活动没内容）', () => {
@@ -83,13 +102,10 @@ test('全新用户：一次补齐登记表里所有 ≤ 当前版本的说明，
   assert.equal(created, codes.length);
   assert.deepEqual(state.releases.map(release => release.code), codes);
   for (const release of state.releases) {
-    assert.equal(release.date, RELEASE_NOTES[release.code].date, `${release.code} 没落在登记表的日期上`);
-  }
-  // 早于今天发布的版本，时间戳取当天中午（展示时间稳定），不许跑到发布日之外
-  for (const release of state.releases) {
-    if (release.date < '2026-10-11') {
-      assert.equal(release.createdAt, Date.parse(`${release.date}T12:00:00`));
-    }
+    const notes = RELEASE_NOTES[release.code];
+    assert.equal(release.date, notes.date, `${release.code} 没落在登记表的日期上`);
+    assert.equal(release.createdAt, releaseInstant(notes), `${release.code} 的时间戳不是登记的时分`);
+    assert.equal(release.versionName, notes.name);
   }
   assert.equal(state.settings.lastSeenReleaseCode, newest);
 });
@@ -102,18 +118,20 @@ test('老用户：只补缺的；误写的日期归位回登记表；文案按�
     releases: [
       // 103 是早期误写到「更新当天」的：日期错、标题旧 —— 都应被登记表纠正
       { code: 103, versionName: '1.1.2', title: '旧标题', summary: '旧摘要', bullets: [], screenshots: [], date: '2026-10-11', createdAt: Date.parse('2026-10-11T00:20:00') },
-      // 105 日期本来就对：createdAt（真实时间）必须保留
-      { code: 105, versionName: '1.1.4', title: '更新动态上线', summary: 's', bullets: [], screenshots: [], date: '2026-10-10', createdAt: 1791650000000 }
+      // 105 日期对，但时间被写成了中午：要改成登记表里的真实时分
+      { code: 105, versionName: '1.1.4', title: '更新动态上线', summary: 's', bullets: [], screenshots: [], date: '2026-10-10', createdAt: Date.parse('2026-10-10T12:00:00') }
     ]
   };
   const created = ensureReleaseActivities(state, newest, Date.parse('2026-10-11T00:30:00'));
   assert.equal(created, codes.length - 2, '只补缺的版本');
   const entry103 = state.releases.find(release => release.code === 103);
   assert.equal(entry103.date, RELEASE_NOTES[103].date, '误写的日期归位');
-  assert.equal(entry103.createdAt, Date.parse(`${RELEASE_NOTES[103].date}T12:00:00`), '归位时时间戳也落到当天');
+  assert.equal(entry103.createdAt, releaseInstant(RELEASE_NOTES[103]), '归位时时间戳落到登记的时分');
   assert.equal(entry103.title, RELEASE_NOTES[103].title, '文案按登记表同步');
+  assert.equal(entry103.versionName, RELEASE_NOTES[103].name, '版本号不能在同步时被清空');
   const entry105 = state.releases.find(release => release.code === 105);
-  assert.equal(entry105.createdAt, 1791650000000, '日期本来就对的条目不动时间戳');
+  assert.equal(entry105.createdAt, releaseInstant(RELEASE_NOTES[105]), '日期没变也要把中午 12:00 改成真实时分');
+  assert.notEqual(entry105.createdAt, Date.parse('2026-10-10T12:00:00+08:00'));
   // 再跑一遍：一条都不多，日期不再变化
   assert.equal(ensureReleaseActivities(state, newest, Date.parse('2026-10-11T00:40:00')), 0);
   assert.equal(state.releases.length, codes.length);
@@ -125,6 +143,18 @@ test('低版本只补到该版本为止（登记表里更新的条目不出现�
   ensureReleaseActivities(state, oldest, 4000000);
   assert.deepEqual(state.releases.map(release => release.code), [oldest]);
   assert.equal(state.releases[0].date, RELEASE_NOTES[oldest].date);
+});
+
+test('更新清单记下北京时间的时分，检查更新弹层能显示出来', () => {
+  const script = readFileSync(join(root, 'scripts/make-update-manifest.mjs'), 'utf8');
+  const mine = readFileSync(join(root, 'views/mine.js'), 'utf8');
+  const today = readFileSync(join(root, 'views/today.js'), 'utf8');
+  assert.match(script, /function shanghaiPublishedAt/);
+  assert.match(script, /\+08:00/);
+  assert.doesNotMatch(script, /toISOString\(\)\.slice\(0,\s*10\)/);
+  assert.match(mine, /formatShanghaiDateTime\(parsed\)/);
+  assert.match(today, /formatShanghaiDateTime\(release\.createdAt\)/);
+  assert.match(today, /formatShanghaiClock\(item\.time\)/);
 });
 
 test('makeRelease 会拦下脏数据：超长截断、非法日期清空、数组封顶', () => {

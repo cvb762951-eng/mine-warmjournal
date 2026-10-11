@@ -220,6 +220,14 @@ test('首次热更新必须只下变化文件：以装机自带指纹为基线',
     '发布清单要排除装机指纹');
 });
 
+test('发布清单的时间写到北京时间的时分，不再只留 UTC 日期', () => {
+  assert.match(script, /function shanghaiPublishedAt/);
+  assert.match(script, /\+08:00/);
+  assert.doesNotMatch(script, /toISOString\(\)\.slice\(0,\s*10\)/);
+  assert.match(mine, /formatShanghaiDateTime\(parsed\)/);
+  assert.match(mine, /publishedAt/);
+});
+
 test('界面开关：仅 Android 原生支持，网页预览给出明确提示', () => {
   assert.equal(typeof isUpdateSupported(), 'boolean');
   assert.match(updater, /return Capacitor\.isNativePlatform\(\) && Capacitor\.getPlatform\(\) === 'android'/);
