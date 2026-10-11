@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="plain">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>导出确认框预览</title>
+<link rel="stylesheet" href="../fonts.css">
+<link rel="stylesheet" href="../performance.css">
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../themes.css">
+<link rel="stylesheet" href="../themes-plain.css">
+<style>
+  body { margin: 0; padding: 24px; background: #EAF0F8; font-family: system-ui, "PingFang SC", sans-serif; }
+  .row { display: flex; gap: 20px; flex-wrap: wrap; align-items: flex-start; justify-content: center; }
+  .phone { width: 390px; background: #FFFFFF; border-radius: 24px; border: 1px solid rgba(46,52,59,.10); box-shadow: 0 10px 30px rgba(46,52,59,.10); overflow: hidden; }
+  .sheet { padding: 22px 20px 18px; }
+  .lbl { text-align: center; font-size: 12px; color: #5A6572; margin: 10px 0 0; }
+  /* 复用 App 的弹窗外观：这里只是一个"装内容的壳" */
+  .modal-actions { display: flex; gap: 10px; margin-top: 18px; }
+  .modal-actions button { flex: 1; min-height: 44px; border: 1px solid rgba(46,52,59,.14); border-radius: 14px; background: #fff; color: var(--ink); font-size: 14px; font-weight: 600; }
+  .modal-actions button.save { background: #4F76BD; border-color: #4F76BD; color: #fff; }
+  .eyebrow { display: block; font-size: 10px; letter-spacing: .16em; color: #4F76BD; margin-bottom: 8px; }
+</style>
+</head>
+<body>
+<div class="row">
+  <div class="phone">
+    <div class="sheet">
+      <div class="vault-export-sheet">
+        <span class="eyebrow">SAVE TO ALBUM</span>
+        <h2 style="margin:5px 0 14px;font-size:21px;font-weight:600;">保存到相册</h2>
+        <div class="vault-export-warning">
+          <span class="material-symbols-outlined">shield</span>
+          <span><strong>导出后不再受私密空间保护</strong><small>这段视频会写进系统相册，手机上任何能看相册的应用都能看到它。</small></span>
+        </div>
+        <div class="vault-export-meta">
+          <strong>三亚海边日落</strong>
+          <small>86.4 MB · 01:24</small>
+        </div>
+        <p class="vault-export-note">原件仍留在私密空间，这里只是另存一份，不会被移走。存出来之后，想剪短时长或裁画面，用手机自带的编辑功能就行。</p>
+        <div class="modal-actions"><button type="button">取消</button><button type="button" class="save">保存到相册</button></div>
+      </div>
+    </div>
+  </div>
+  <div class="phone">
+    <div class="sheet">
+      <div class="vault-item-menu-sheet">
+        <span class="eyebrow">PRIVATE VIDEO</span>
+        <h2 style="margin:5px 0 10px;font-size:21px;font-weight:600;">三亚海边日落</h2>
+        <small>2026-10-02 · 01:24 · 86.4 MB</small>
+        <div class="vault-item-menu-actions" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:17px;">
+          <button type="button"><span class="material-symbols-outlined">edit_note</span><span><strong>编辑说明</strong><small>名称、日期与视频故事</small></span></button>
+          <button type="button"><span class="material-symbols-outlined">image</span><span><strong>选择封面</strong><small>从视频时间轴重新取帧</small></span></button>
+          <button type="button"><span class="material-symbols-outlined">drive_file_move</span><span><strong>移动到文件夹</strong><small>整理私密影像</small></span></button>
+          <button type="button"><span class="material-symbols-outlined">restore</span><span><strong>恢复到随手拍</strong><small>重新显示在普通生活记录中</small></span></button>
+          <button type="button"><span class="material-symbols-outlined">download</span><span><strong>保存到相册</strong><small>导出到系统相册，可用手机自带剪辑</small></span></button>
+          <button type="button" class="danger"><span class="material-symbols-outlined">delete</span><span><strong>永久删除</strong><small>此操作无法撤销</small></span></button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined">
+<script>
+  // 让图标字形在离线预览里也尽量显示：失败就让它作为文字显示，不影响布局判断
+</script>
+</body>
+</html>

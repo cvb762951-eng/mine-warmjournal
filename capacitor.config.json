@@ -1,0 +1,17 @@
+{
+  "appId": "com.mine.warmjournal",
+  "appName": "暖色生活志",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "https"
+  },
+  "android": {
+    "allowMixedContent": false
+  },
+  "plugins": {
+    "LocalNotifications": {
+      "smallIcon": "ic_stat_focus",
+      "iconColor": "#4D5E82"
+    }
+  }
+}

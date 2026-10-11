@@ -1,0 +1,2446 @@
+/* ============================================================================
+   清简 · 纯色极简主题的质感重置  themes-plain.css
+   —— 本文件由 scripts/gen-plain-theme.mjs 自动生成，请勿手工编辑。
+      改了 styles.css / performance.css 之后重新运行该脚本即可。
+
+   扫描 7030 条规则，命中素材规则 491 条。
+   只影响 [data-theme="plain"]，米白与暖阳两个主题完全不受影响。
+   ========================================================================== */
+
+/* —— 纸边 / 相框：撤掉图片边框 —— */
+:root[data-theme="plain"] #background-form :is(.background-zoom-control,.background-blur-control),
+:root[data-theme="plain"] #subpage-habit-detail .habit-achievement-list>div,
+:root[data-theme="plain"] #subpage-habit-detail .habit-achievement-list>div.earned,
+:root[data-theme="plain"] #subpage-habit-detail .habit-detail-switcher,
+:root[data-theme="plain"] #subpage-habit-detail .habit-detail-switcher>button,
+:root[data-theme="plain"] #subpage-habit-detail .habit-detail-switcher>button.active,
+:root[data-theme="plain"] #subpage-habit-detail .habit-heatmap-year-switch button,
+:root[data-theme="plain"] #subpage-habit-detail .habit-heatmap-year-switch button.active,
+:root[data-theme="plain"] #subpage-habit-detail .habit-hero-badge,
+:root[data-theme="plain"] #subpage-habit-detail :is(.habit-hero-card,.habit-heatmap-card,.habit-achievement-card),
+:root[data-theme="plain"] #subpage-journal-reader .journal-reader-edit,
+:root[data-theme="plain"] #subpage-journal-reader .journal-reader-page .subpage-nav-bar,
+:root[data-theme="plain"] #subpage-journal-reader .journal-reader-quote,
+:root[data-theme="plain"] #subpage-journal-reader :is(.journal-reader-hero,.journal-reader-paper),
+:root[data-theme="plain"] #timer-settings-form .orientation-option>input:checked+span,
+:root[data-theme="plain"] #timer-settings-form .orientation-option>span,
+:root[data-theme="plain"] .ai-bubble .ai-ledger-card,
+:root[data-theme="plain"] .ai-ledger-card :is(input:not([type=checkbox]):not([type=radio]),select),
+:root[data-theme="plain"] .ai-ledger-card button,
+:root[data-theme="plain"] .ai-ledger-card button.save,
+:root[data-theme="plain"] .daily-focus-outcome,
+:root[data-theme="plain"] .daily-focus-outcome button,
+:root[data-theme="plain"] .daily-focus-sheet,
+:root[data-theme="plain"] .daily-focus-sheet input,
+:root[data-theme="plain"] .daily-focus-starts button,
+:root[data-theme="plain"] .daily-task-start,
+:root[data-theme="plain"] .focus-view .focus-stream-sheet:not([open]),
+:root[data-theme="plain"] .habit-focus-entry,
+:root[data-theme="plain"] .habit-modal .habit-icon-picker>label>input:checked+span,
+:root[data-theme="plain"] .habit-modal .habit-icon-picker>label>span,
+:root[data-theme="plain"] .habit-modal :is(.habit-tracking-picker,.habit-goal-picker) input:checked+span,
+:root[data-theme="plain"] .habit-modal :is(.habit-tracking-picker,.habit-goal-picker)>label>span,
+:root[data-theme="plain"] .habit-modal fieldset,
+:root[data-theme="plain"] .habit-starter-choices button,
+:root[data-theme="plain"] .journal-reader-figure,
+:root[data-theme="plain"] .journal-reader-gallery,
+:root[data-theme="plain"] .media-detail-actions .media-detail-btn,
+:root[data-theme="plain"] .media-detail-actions button,
+:root[data-theme="plain"] .media-detail-page :is(.media-detail-hero-card,.media-detail-quote-card,.media-detail-note-card,.media-detail-focus-card),
+:root[data-theme="plain"] .modal .modal-actions :is(button.save,button.primary),
+:root[data-theme="plain"] .modal .modal-actions button,
+:root[data-theme="plain"] .modal .modal-actions button.danger,
+:root[data-theme="plain"] .modal:has(form) .modal-head,
+:root[data-theme="plain"] .modal:has(form) :is(input:not([type=hidden]):not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]):not([type=color]),textarea,select),
+:root[data-theme="plain"] .modal:has(form) p.subtle,
+:root[data-theme="plain"] .password-vault-view .password-entry,
+:root[data-theme="plain"] .password-vault-view .password-entry>div>button,
+:root[data-theme="plain"] .private-vault-view .vault-folder-copy,
+:root[data-theme="plain"] .private-vault-view .vault-folder-cover,
+:root[data-theme="plain"] .private-vault-view .vault-item:not(.vault-video-item),
+:root[data-theme="plain"] .private-vault-view .vault-item:not(.vault-video-item)>div>button,
+:root[data-theme="plain"] .private-vault-view .vault-view-switch,
+:root[data-theme="plain"] .private-vault-view :is(#vault-fingerprint-settings,#vault-passwordless),
+:root[data-theme="plain"] .stats-screen .stats-kpi-sheet,
+:root[data-theme="plain"] .stats-screen .stats-sheet,
+:root[data-theme="plain"] .stats-toolbar .segment button,
+:root[data-theme="plain"] .stats-toolbar .segment button.active,
+:root[data-theme="plain"] .taste-entry-card,
+:root[data-theme="plain"] .taste-place-card,
+:root[data-theme="plain"] :is(#password-vault-setup,#password-vault-unlock,#vault-setup-form,#vault-unlock-form) button.save,
+:root[data-theme="plain"] :is(#password-vault-setup,#password-vault-unlock,#vault-setup-form,#vault-unlock-form) input:not([type=checkbox]):not([type=radio]),
+:root[data-theme="plain"] :is(#subpage-habit-detail,#subpage-media-detail,#subpage-focus-detail,#subpage-ledger-detail) .subpage-nav-bar,
+:root[data-theme="plain"] :is(.focus-main-header,.taste-header,.mine-editorial-header,.vault-header,.password-vault-header) {
+  border-image: none !important;
+  border-image-source: none !important;
+}
+
+/* —— 撕纸边等形状遮罩：恢复为完整矩形 —— */
+:root[data-theme="plain"] #app>.private-vault-view::before,
+:root[data-theme="plain"] #countdown-banner,
+:root[data-theme="plain"] #screen-ledger .ledger-accounts-mark,
+:root[data-theme="plain"] #screen-ledger .ledger-add-btn,
+:root[data-theme="plain"] #screen-ledger .ledger-budget-copy strong,
+:root[data-theme="plain"] #screen-ledger .ledger-quick-save,
+:root[data-theme="plain"] #screen-ledger .ledger-quick-type button.active,
+:root[data-theme="plain"] #screen-ledger .ledger-tabs button.active,
+:root[data-theme="plain"] #subpage-timetable .course-collage-footer,
+:root[data-theme="plain"] #subpage-timetable .course-day-tab.active,
+:root[data-theme="plain"] #subpage-timetable .course-hero,
+:root[data-theme="plain"] .calendar-view .cal-detail-head,
+:root[data-theme="plain"] .calendar-view.cal-screen .cal-cell.active,
+:root[data-theme="plain"] .calendar-view.cal-screen .cal-cell.today.active,
+:root[data-theme="plain"] .journal-view .journal-canvas-card #journal-title-input,
+:root[data-theme="plain"] .journal-view .journal-history-link,
+:root[data-theme="plain"] .journal-view .journal-history-title,
+:root[data-theme="plain"] .journal-view .journal-photo-wall-head,
+:root[data-theme="plain"] .journal-view .journal-save-btn,
+:root[data-theme="plain"] .journal-view .picker-section-label>span,
+:root[data-theme="plain"] .mine-view::before,
+:root[data-theme="plain"] .snippets-view .snippet-add-btn,
+:root[data-theme="plain"] .snippets-view .snippet-day-header,
+:root[data-theme="plain"] .snippets-view .snippet-filter-pill.active,
+:root[data-theme="plain"] .today-view #countdown-banner,
+:root[data-theme="plain"] .today-view .quick-access-grid,
+:root[data-theme="plain"] .today-view .today-courses,
+:root[data-theme="plain"] .today-view .today-hero-actions,
+:root[data-theme="plain"] .today-view .weather-box,
+:root[data-theme="plain"] .weather-box {
+  -webkit-mask-image: none !important;
+  mask-image: none !important;
+}
+
+/* —— 纹理 / 装饰图底：撤掉图片图层（颜色与渐变保留） —— */
+:root[data-theme="plain"] #app:has(.calendar-view),
+:root[data-theme="plain"] #app:has(.journal-view),
+:root[data-theme="plain"] #app:has(.ledger-view),
+:root[data-theme="plain"] #app:has(.snippets-view),
+:root[data-theme="plain"] #app:has(.today-view),
+:root[data-theme="plain"] #app>.private-vault-view,
+:root[data-theme="plain"] #app>.private-vault-view::before,
+:root[data-theme="plain"] #background-form :is(.background-zoom-control,.background-blur-control),
+:root[data-theme="plain"] #countdown-banner,
+:root[data-theme="plain"] #countdown-banner + .today-bento-grid,
+:root[data-theme="plain"] #countdown-banner + .today-bento-grid::after,
+:root[data-theme="plain"] #countdown-banner + .today-bento-grid::before,
+:root[data-theme="plain"] #dock-btn-today .material-symbols-outlined,
+:root[data-theme="plain"] #full-ledger-modal,
+:root[data-theme="plain"] #full-ledger-modal .ledger-amount-main,
+:root[data-theme="plain"] #full-ledger-modal .ledger-category-grid button,
+:root[data-theme="plain"] #full-ledger-modal .ledger-category-grid button.active,
+:root[data-theme="plain"] #full-ledger-modal .ledger-form-budget,
+:root[data-theme="plain"] #full-ledger-modal .ledger-photo-actions button,
+:root[data-theme="plain"] #full-ledger-modal .ledger-photo-picker,
+:root[data-theme="plain"] #full-ledger-modal .ledger-type-toggle,
+:root[data-theme="plain"] #full-ledger-modal .modal-actions .save,
+:root[data-theme="plain"] #full-ledger-modal .modal-actions button,
+:root[data-theme="plain"] #full-ledger-modal input:not([type=hidden]),
+:root[data-theme="plain"] #full-ledger-modal select,
+:root[data-theme="plain"] #generate-focus-coach,
+:root[data-theme="plain"] #launch-overlay,
+:root[data-theme="plain"] #ledger-analysis-ai,
+:root[data-theme="plain"] #ledger-analysis-ai button,
+:root[data-theme="plain"] #ledger-transfer-fields,
+:root[data-theme="plain"] #quick-photo-modal .quick-modal-title-mark,
+:root[data-theme="plain"] #quick-photo-modal .quick-publish-btn,
+:root[data-theme="plain"] #screen-ledger .account-mini-card,
+:root[data-theme="plain"] #screen-ledger .account-mini-card.featured,
+:root[data-theme="plain"] #screen-ledger .ledger-accounts-all,
+:root[data-theme="plain"] #screen-ledger .ledger-accounts-head .soft-button,
+:root[data-theme="plain"] #screen-ledger .ledger-accounts-mark,
+:root[data-theme="plain"] #screen-ledger .ledger-accounts-section,
+:root[data-theme="plain"] #screen-ledger .ledger-add-btn,
+:root[data-theme="plain"] #screen-ledger .ledger-budget-box,
+:root[data-theme="plain"] #screen-ledger .ledger-budget-box .level-bar,
+:root[data-theme="plain"] #screen-ledger .ledger-budget-box .level-bar>i,
+:root[data-theme="plain"] #screen-ledger .ledger-budget-box .level-bar>i.orange,
+:root[data-theme="plain"] #screen-ledger .ledger-budget-box .level-bar>i.red,
+:root[data-theme="plain"] #screen-ledger .ledger-budget-copy strong,
+:root[data-theme="plain"] #screen-ledger .ledger-budget-head>button:last-child,
+:root[data-theme="plain"] #screen-ledger .ledger-corner-note,
+:root[data-theme="plain"] #screen-ledger .ledger-overview-card,
+:root[data-theme="plain"] #screen-ledger .ledger-page-header,
+:root[data-theme="plain"] #screen-ledger .ledger-page-header::after,
+:root[data-theme="plain"] #screen-ledger .ledger-quick-account-wrap,
+:root[data-theme="plain"] #screen-ledger .ledger-quick-amount-main,
+:root[data-theme="plain"] #screen-ledger .ledger-quick-card,
+:root[data-theme="plain"] #screen-ledger .ledger-quick-cats button,
+:root[data-theme="plain"] #screen-ledger .ledger-quick-cats button.active,
+:root[data-theme="plain"] #screen-ledger .ledger-quick-note-wrap,
+:root[data-theme="plain"] #screen-ledger .ledger-quick-save,
+:root[data-theme="plain"] #screen-ledger .ledger-quick-type,
+:root[data-theme="plain"] #screen-ledger .ledger-quick-type button.active,
+:root[data-theme="plain"] #screen-ledger .ledger-row,
+:root[data-theme="plain"] #screen-ledger .ledger-row.calibrate,
+:root[data-theme="plain"] #screen-ledger .ledger-stream-sheet,
+:root[data-theme="plain"] #screen-ledger .ledger-stream-sheet::after,
+:root[data-theme="plain"] #screen-ledger .ledger-stream-sheet::before,
+:root[data-theme="plain"] #screen-ledger .ledger-sub-stats>span,
+:root[data-theme="plain"] #screen-ledger .ledger-tabs button.active,
+:root[data-theme="plain"] #screen-ledger .ledger-toolbar>.soft-button,
+:root[data-theme="plain"] #screen-ledger.ledger-view,
+:root[data-theme="plain"] #screen-ledger.ledger-view::before,
+:root[data-theme="plain"] #screen-library .library-controls-paper,
+:root[data-theme="plain"] #screen-library .library-hero-paper,
+:root[data-theme="plain"] #screen-library .library-media-card .media-cover,
+:root[data-theme="plain"] #screen-library .library-stream-sheet,
+:root[data-theme="plain"] #screen-library .media-empty-icon,
+:root[data-theme="plain"] #screen-library .media-focus-link,
+:root[data-theme="plain"] #screen-library .media-search,
+:root[data-theme="plain"] #screen-library .media-search button,
+:root[data-theme="plain"] #screen-library .media-statuses button,
+:root[data-theme="plain"] #screen-library .media-statuses button.active,
+:root[data-theme="plain"] #screen-library .media-tabs button,
+:root[data-theme="plain"] #screen-library .media-tabs button.active,
+:root[data-theme="plain"] #subpage-focus-detail,
+:root[data-theme="plain"] #subpage-focus-detail .subpage-nav-bar,
+:root[data-theme="plain"] #subpage-focus-detail.active,
+:root[data-theme="plain"] #subpage-habit-detail,
+:root[data-theme="plain"] #subpage-habit-detail .habit-achievement-list>div,
+:root[data-theme="plain"] #subpage-habit-detail .habit-detail-nav,
+:root[data-theme="plain"] #subpage-habit-detail .habit-detail-switcher,
+:root[data-theme="plain"] #subpage-habit-detail .habit-detail-switcher>button,
+:root[data-theme="plain"] #subpage-habit-detail .habit-heatmap-year-switch button,
+:root[data-theme="plain"] #subpage-habit-detail .habit-hero-badge,
+:root[data-theme="plain"] #subpage-habit-detail .subpage-nav-bar,
+:root[data-theme="plain"] #subpage-habit-detail :is(.habit-hero-card,.habit-heatmap-card,.habit-achievement-card),
+:root[data-theme="plain"] #subpage-habit-detail.active,
+:root[data-theme="plain"] #subpage-journal-reader,
+:root[data-theme="plain"] #subpage-journal-reader .journal-reader-edit,
+:root[data-theme="plain"] #subpage-journal-reader .journal-reader-page .subpage-nav-bar,
+:root[data-theme="plain"] #subpage-journal-reader .journal-reader-quote,
+:root[data-theme="plain"] #subpage-journal-reader .subpage-nav-bar,
+:root[data-theme="plain"] #subpage-journal-reader :is(.journal-reader-hero,.journal-reader-paper),
+:root[data-theme="plain"] #subpage-journal-reader.active,
+:root[data-theme="plain"] #subpage-ledger-detail,
+:root[data-theme="plain"] #subpage-ledger-detail .subpage-nav-bar,
+:root[data-theme="plain"] #subpage-ledger-detail.active,
+:root[data-theme="plain"] #subpage-media-detail,
+:root[data-theme="plain"] #subpage-media-detail .subpage-nav-bar,
+:root[data-theme="plain"] #subpage-media-detail.active,
+:root[data-theme="plain"] #subpage-timetable,
+:root[data-theme="plain"] #subpage-timetable .course-agenda,
+:root[data-theme="plain"] #subpage-timetable .course-agenda::after,
+:root[data-theme="plain"] #subpage-timetable .course-collage-footer,
+:root[data-theme="plain"] #subpage-timetable .course-day-tab,
+:root[data-theme="plain"] #subpage-timetable .course-day-tab.active,
+:root[data-theme="plain"] #subpage-timetable .course-hero,
+:root[data-theme="plain"] #subpage-timetable .course-hero::before,
+:root[data-theme="plain"] #subpage-timetable .course-manage-bar button,
+:root[data-theme="plain"] #subpage-timetable .course-nav-seal,
+:root[data-theme="plain"] #subpage-timetable .course-nav-settings,
+:root[data-theme="plain"] #subpage-timetable .course-page::before,
+:root[data-theme="plain"] #subpage-timetable .course-row,
+:root[data-theme="plain"] #subpage-timetable .course-subpage-nav,
+:root[data-theme="plain"] #subpage-timetable .course-subpage-nav::before,
+:root[data-theme="plain"] #subpage-timetable .course-training,
+:root[data-theme="plain"] #subpage-timetable .subpage-back-btn,
+:root[data-theme="plain"] #subpage-timetable .subpage-nav-bar,
+:root[data-theme="plain"] #timer-settings-form .orientation-option>span,
+:root[data-theme="plain"] #vault-fingerprint-unlock,
+:root[data-theme="plain"] .ai-bubble .ai-ledger-card,
+:root[data-theme="plain"] .ai-capsule,
+:root[data-theme="plain"] .ai-card-action,
+:root[data-theme="plain"] .ai-chat-page.is-immersive,
+:root[data-theme="plain"] .ai-chat-page.is-immersive .ai-chat-header,
+:root[data-theme="plain"] .ai-companion-bubble,
+:root[data-theme="plain"] .ai-companion-screen,
+:root[data-theme="plain"] .ai-composer,
+:root[data-theme="plain"] .ai-greet-setup,
+:root[data-theme="plain"] .ai-insight-action,
+:root[data-theme="plain"] .ai-ledger-card :is(input:not([type=checkbox]):not([type=radio]),select),
+:root[data-theme="plain"] .ai-ledger-card button,
+:root[data-theme="plain"] .ai-memory-import-modal #import-memory-json,
+:root[data-theme="plain"] .ai-memory-import-modal .modal-actions .save,
+:root[data-theme="plain"] .ai-memory-import-modal .modal-actions button,
+:root[data-theme="plain"] .ai-memory-import-modal .modal-head,
+:root[data-theme="plain"] .ai-memory-import-modal textarea,
+:root[data-theme="plain"] .ai-msg.assistant .ai-bubble,
+:root[data-theme="plain"] .ai-msg.user .ai-bubble,
+:root[data-theme="plain"] .ai-quick button,
+:root[data-theme="plain"] .ai-report-card,
+:root[data-theme="plain"] .ai-report-section,
+:root[data-theme="plain"] .ai-report-track,
+:root[data-theme="plain"] .ai-semantic-scope,
+:root[data-theme="plain"] .ai-settings-modal .ai-care-block,
+:root[data-theme="plain"] .ai-settings-modal .confirm-line,
+:root[data-theme="plain"] .ai-settings-modal .modal-actions .save,
+:root[data-theme="plain"] .ai-settings-modal .modal-actions button,
+:root[data-theme="plain"] .ai-settings-modal .subtle,
+:root[data-theme="plain"] .ai-settings-modal input:not([type=checkbox]),
+:root[data-theme="plain"] .ai-settings-modal select,
+:root[data-theme="plain"] .ai-tabs.segmented-control,
+:root[data-theme="plain"] .ambient-modal .ambient-list,
+:root[data-theme="plain"] .ambient-modal .ambient-option.active,
+:root[data-theme="plain"] .ambient-modal .ambient-volume,
+:root[data-theme="plain"] .ambient-modal .modal-actions button,
+:root[data-theme="plain"] .ambient-modal .modal-head,
+:root[data-theme="plain"] .bento-botanical,
+:root[data-theme="plain"] .calendar-view .cal-archive-paper,
+:root[data-theme="plain"] .calendar-view .cal-cell.active,
+:root[data-theme="plain"] .calendar-view .cal-cell.today.active,
+:root[data-theme="plain"] .calendar-view .cal-day-sheet,
+:root[data-theme="plain"] .calendar-view .cal-detail-head,
+:root[data-theme="plain"] .calendar-view .cal-edit-journal-btn,
+:root[data-theme="plain"] .calendar-view .cal-journal-card,
+:root[data-theme="plain"] .calendar-view .cal-kpi-strip,
+:root[data-theme="plain"] .calendar-view .cal-photo-paper,
+:root[data-theme="plain"] .calendar-view .cal-screen-head::after,
+:root[data-theme="plain"] .calendar-view .cal-tool-btn,
+:root[data-theme="plain"] .calendar-view .calendar-month-paper,
+:root[data-theme="plain"] .calendar-view .calendar-month-paper::after,
+:root[data-theme="plain"] .calendar-view .day-photo-thumb,
+:root[data-theme="plain"] .calendar-view .day-summary-action,
+:root[data-theme="plain"] .calendar-view .day-summary-card,
+:root[data-theme="plain"] .calendar-view .day-summary-card>button,
+:root[data-theme="plain"] .calendar-view .journal-empty-button,
+:root[data-theme="plain"] .calendar-view.cal-screen,
+:root[data-theme="plain"] .calendar-view.cal-screen .cal-cell.active,
+:root[data-theme="plain"] .calendar-view.cal-screen .cal-cell.today.active,
+:root[data-theme="plain"] .calendar-view.cal-screen .cal-corner-note,
+:root[data-theme="plain"] .calendar-view.cal-screen .cal-kpi-cell,
+:root[data-theme="plain"] .calendar-view.cal-screen .cal-screen-head::before,
+:root[data-theme="plain"] .calendar-view.cal-screen::after,
+:root[data-theme="plain"] .calendar-view.cal-screen::before,
+:root[data-theme="plain"] .countdown-form-modal #countdown-image-preview,
+:root[data-theme="plain"] .countdown-form-modal .confirm-line,
+:root[data-theme="plain"] .countdown-form-modal .countdown-image-picker,
+:root[data-theme="plain"] .countdown-form-modal .countdown-image-picker button,
+:root[data-theme="plain"] .countdown-form-modal .modal-actions .danger,
+:root[data-theme="plain"] .countdown-form-modal .modal-actions .save,
+:root[data-theme="plain"] .countdown-form-modal .modal-actions button,
+:root[data-theme="plain"] .countdown-form-modal>input:not([type=hidden]),
+:root[data-theme="plain"] .course-edit-modal .course-edit-meta,
+:root[data-theme="plain"] .course-edit-modal .modal-actions .save,
+:root[data-theme="plain"] .course-edit-modal .modal-actions button,
+:root[data-theme="plain"] .course-edit-modal .modal-head,
+:root[data-theme="plain"] .course-edit-modal input,
+:root[data-theme="plain"] .daily-focus-outcome,
+:root[data-theme="plain"] .daily-focus-outcome button,
+:root[data-theme="plain"] .daily-focus-sheet,
+:root[data-theme="plain"] .daily-focus-sheet input,
+:root[data-theme="plain"] .daily-focus-starts button,
+:root[data-theme="plain"] .daily-task-start,
+:root[data-theme="plain"] .dock-btn.active,
+:root[data-theme="plain"] .editorial-hero-image,
+:root[data-theme="plain"] .editorial-hero-image::after,
+:root[data-theme="plain"] .editorial-paperclip-corner,
+:root[data-theme="plain"] .floating-dock,
+:root[data-theme="plain"] .focus-history-modal .modal-actions button,
+:root[data-theme="plain"] .focus-history-modal .modal-head,
+:root[data-theme="plain"] .focus-history-modal .record-list,
+:root[data-theme="plain"] .focus-history-modal .session-card,
+:root[data-theme="plain"] .focus-report-badge,
+:root[data-theme="plain"] .focus-report-card,
+:root[data-theme="plain"] .focus-report-coach,
+:root[data-theme="plain"] .focus-report-empty,
+:root[data-theme="plain"] .focus-report-hero,
+:root[data-theme="plain"] .focus-screen .duration-chip.active,
+:root[data-theme="plain"] .focus-screen .focus-category-picker,
+:root[data-theme="plain"] .focus-screen .focus-context-actions button,
+:root[data-theme="plain"] .focus-screen .focus-main-header,
+:root[data-theme="plain"] .focus-screen .focus-main-panel,
+:root[data-theme="plain"] .focus-screen .focus-mode-btn.active,
+:root[data-theme="plain"] .focus-screen .focus-mode-selector,
+:root[data-theme="plain"] .focus-screen .focus-single-ambient,
+:root[data-theme="plain"] .focus-screen .focus-stream-sheet,
+:root[data-theme="plain"] .focus-screen .focus-timer-actions .play,
+:root[data-theme="plain"] .focus-screen .focus-timer-actions .timer-action-screensaver,
+:root[data-theme="plain"] .focus-screen .focus-timer-actions button,
+:root[data-theme="plain"] .focus-screen .timer-svg-wrap,
+:root[data-theme="plain"] .focus-view .focus-stream-sheet:not([open]),
+:root[data-theme="plain"] .folder-modal .modal-actions .save,
+:root[data-theme="plain"] .folder-modal .modal-actions button,
+:root[data-theme="plain"] .folder-modal input,
+:root[data-theme="plain"] .folder-modal select,
+:root[data-theme="plain"] .habit-achievement-card,
+:root[data-theme="plain"] .habit-detail-switcher,
+:root[data-theme="plain"] .habit-detail-switcher>button,
+:root[data-theme="plain"] .habit-detail-switcher>button.active,
+:root[data-theme="plain"] .habit-focus-entry,
+:root[data-theme="plain"] .habit-heatmap-card,
+:root[data-theme="plain"] .habit-hero-badge,
+:root[data-theme="plain"] .habit-hero-card,
+:root[data-theme="plain"] .habit-log-modal #habit-amount-form,
+:root[data-theme="plain"] .habit-log-modal .habit-amount-input,
+:root[data-theme="plain"] .habit-log-modal .habit-log-actions button,
+:root[data-theme="plain"] .habit-log-modal .habit-log-head,
+:root[data-theme="plain"] .habit-log-modal .habit-log-progress,
+:root[data-theme="plain"] .habit-log-modal .habit-quick-log button,
+:root[data-theme="plain"] .habit-log-modal .habit-total-input,
+:root[data-theme="plain"] .habit-log-modal .modal-actions .save,
+:root[data-theme="plain"] .habit-log-modal .modal-actions button,
+:root[data-theme="plain"] .habit-manager-modal #new-habit,
+:root[data-theme="plain"] .habit-manager-modal .manage-list .round-icon,
+:root[data-theme="plain"] .habit-manager-modal .manage-list>button,
+:root[data-theme="plain"] .habit-manager-modal .modal-actions button,
+:root[data-theme="plain"] .habit-manager-modal .modal-head,
+:root[data-theme="plain"] .habit-modal .form-grid input,
+:root[data-theme="plain"] .habit-modal .habit-goal-picker span,
+:root[data-theme="plain"] .habit-modal .habit-icon-picker>label>span,
+:root[data-theme="plain"] .habit-modal .habit-tracking-picker span,
+:root[data-theme="plain"] .habit-modal .modal-actions .danger,
+:root[data-theme="plain"] .habit-modal .modal-actions .save,
+:root[data-theme="plain"] .habit-modal .modal-actions button,
+:root[data-theme="plain"] .habit-modal :is(.habit-tracking-picker,.habit-goal-picker)>label>span,
+:root[data-theme="plain"] .habit-modal fieldset,
+:root[data-theme="plain"] .habit-modal input:checked+span,
+:root[data-theme="plain"] .habit-modal>input,
+:root[data-theme="plain"] .habit-starter-choices button,
+:root[data-theme="plain"] .heatmap-year-switch,
+:root[data-theme="plain"] .journal-date-control,
+:root[data-theme="plain"] .journal-history-modal #journal-search,
+:root[data-theme="plain"] .journal-history-modal .journal-history>button,
+:root[data-theme="plain"] .journal-inline-snippet-apply,
+:root[data-theme="plain"] .journal-inline-snippet-head .icon-button,
+:root[data-theme="plain"] .journal-inline-snippet-item,
+:root[data-theme="plain"] .journal-inline-snippet-item:has(input:checked),
+:root[data-theme="plain"] .journal-inline-snippet-picker,
+:root[data-theme="plain"] .journal-modal-draft-status,
+:root[data-theme="plain"] .journal-reader-edit,
+:root[data-theme="plain"] .journal-reader-figure,
+:root[data-theme="plain"] .journal-reader-gallery,
+:root[data-theme="plain"] .journal-reader-hero,
+:root[data-theme="plain"] .journal-reader-page,
+:root[data-theme="plain"] .journal-reader-page .subpage-nav-bar,
+:root[data-theme="plain"] .journal-reader-paper,
+:root[data-theme="plain"] .journal-reader-quote,
+:root[data-theme="plain"] .journal-view .creative-tool-btn,
+:root[data-theme="plain"] .journal-view .journal-add-polaroid-btn,
+:root[data-theme="plain"] .journal-view .journal-canvas-card,
+:root[data-theme="plain"] .journal-view .journal-canvas-card #journal-title-input,
+:root[data-theme="plain"] .journal-view .journal-corner-note,
+:root[data-theme="plain"] .journal-view .journal-history-link,
+:root[data-theme="plain"] .journal-view .journal-history-title,
+:root[data-theme="plain"] .journal-view .journal-magazine-hero-box,
+:root[data-theme="plain"] .journal-view .journal-magazine-hero-box::after,
+:root[data-theme="plain"] .journal-view .journal-photo-wall,
+:root[data-theme="plain"] .journal-view .journal-photo-wall-head,
+:root[data-theme="plain"] .journal-view .journal-polaroid-frame,
+:root[data-theme="plain"] .journal-view .journal-preview-empty,
+:root[data-theme="plain"] .journal-view .journal-preview-row,
+:root[data-theme="plain"] .journal-view .journal-save-btn,
+:root[data-theme="plain"] .journal-view .mood-pick-item,
+:root[data-theme="plain"] .journal-view .mood-pick-item.active,
+:root[data-theme="plain"] .journal-view .picker-section-label>span,
+:root[data-theme="plain"] .journal-view .weather-pick-item,
+:root[data-theme="plain"] .journal-view .weather-pick-item.active,
+:root[data-theme="plain"] .journal-view#screen-journal,
+:root[data-theme="plain"] .journal-view#screen-journal::before,
+:root[data-theme="plain"] .journal-view#screen-journal>.subpage-header,
+:root[data-theme="plain"] .journal-view#screen-journal>.subpage-header::after,
+:root[data-theme="plain"] .launch-corner,
+:root[data-theme="plain"] .launch-film-fallback,
+:root[data-theme="plain"] .ledger-analysis-card,
+:root[data-theme="plain"] .ledger-analysis-overview,
+:root[data-theme="plain"] .ledger-analysis-status,
+:root[data-theme="plain"] .ledger-merchant-rule-form-modal,
+:root[data-theme="plain"] .ledger-merchant-rules-modal,
+:root[data-theme="plain"] .local-gallery-view,
+:root[data-theme="plain"] .media-detail-actions .media-detail-btn,
+:root[data-theme="plain"] .media-detail-actions button,
+:root[data-theme="plain"] .media-detail-focus-card,
+:root[data-theme="plain"] .media-detail-hero-card,
+:root[data-theme="plain"] .media-detail-note-card,
+:root[data-theme="plain"] .media-detail-page :is(.media-detail-hero-card,.media-detail-quote-card,.media-detail-note-card,.media-detail-focus-card),
+:root[data-theme="plain"] .media-detail-quote-card,
+:root[data-theme="plain"] .media-empty>button,
+:root[data-theme="plain"] .media-form-modal .modal-actions .save,
+:root[data-theme="plain"] .media-form-modal .modal-actions button,
+:root[data-theme="plain"] .media-form-modal .modal-head,
+:root[data-theme="plain"] .media-form-modal .poster-picker,
+:root[data-theme="plain"] .media-form-modal .poster-picker .text-button,
+:root[data-theme="plain"] .media-form-modal input,
+:root[data-theme="plain"] .media-form-modal select,
+:root[data-theme="plain"] .media-form-modal textarea,
+:root[data-theme="plain"] .media-history-modal .modal-actions button,
+:root[data-theme="plain"] .media-history-modal .modal-head,
+:root[data-theme="plain"] .media-history-modal .record-list,
+:root[data-theme="plain"] .media-state,
+:root[data-theme="plain"] .media-state.completed,
+:root[data-theme="plain"] .media-state.in_progress,
+:root[data-theme="plain"] .mine-background-modal .background-blur-control,
+:root[data-theme="plain"] .mine-background-modal .background-fit-option>span,
+:root[data-theme="plain"] .mine-background-modal .background-image-actions button,
+:root[data-theme="plain"] .mine-background-modal .background-preview,
+:root[data-theme="plain"] .mine-background-modal .background-zoom-control,
+:root[data-theme="plain"] .mine-background-modal .modal-actions .save,
+:root[data-theme="plain"] .mine-background-modal .modal-actions button,
+:root[data-theme="plain"] .mine-backup-modal .modal-actions .save,
+:root[data-theme="plain"] .mine-backup-modal .modal-actions button,
+:root[data-theme="plain"] .mine-backup-modal .subtle,
+:root[data-theme="plain"] .mine-backup-modal input,
+:root[data-theme="plain"] .mine-data-modal .data-health-card,
+:root[data-theme="plain"] .mine-data-modal .local-note,
+:root[data-theme="plain"] .mine-data-modal .modal-actions button,
+:root[data-theme="plain"] .mine-data-modal .modal-head,
+:root[data-theme="plain"] .mine-data-modal .settings-modal-list,
+:root[data-theme="plain"] .mine-restore-modal .confirm-line,
+:root[data-theme="plain"] .mine-restore-modal .modal-actions .save,
+:root[data-theme="plain"] .mine-restore-modal .modal-actions button,
+:root[data-theme="plain"] .mine-restore-modal .subtle,
+:root[data-theme="plain"] .mine-restore-modal input,
+:root[data-theme="plain"] .mine-snapshot-confirm-modal .modal-actions .save,
+:root[data-theme="plain"] .mine-snapshot-confirm-modal .modal-actions button,
+:root[data-theme="plain"] .mine-snapshot-confirm-modal>p,
+:root[data-theme="plain"] .mine-snapshot-modal .modal-actions button,
+:root[data-theme="plain"] .mine-snapshot-modal .modal-head,
+:root[data-theme="plain"] .mine-snapshot-modal .snapshot-list>button,
+:root[data-theme="plain"] .mine-view .mine-kpi-row,
+:root[data-theme="plain"] .mine-view::before,
+:root[data-theme="plain"] .modal .modal-actions button,
+:root[data-theme="plain"] .modal.ai-memory-import-modal,
+:root[data-theme="plain"] .modal.ai-settings-modal,
+:root[data-theme="plain"] .modal.ambient-modal,
+:root[data-theme="plain"] .modal.countdown-form-modal,
+:root[data-theme="plain"] .modal.course-edit-modal,
+:root[data-theme="plain"] .modal.focus-history-modal,
+:root[data-theme="plain"] .modal.folder-modal,
+:root[data-theme="plain"] .modal.habit-log-modal,
+:root[data-theme="plain"] .modal.habit-manager-modal,
+:root[data-theme="plain"] .modal.habit-modal,
+:root[data-theme="plain"] .modal.incoming-share-loading-modal,
+:root[data-theme="plain"] .modal.incoming-share-modal,
+:root[data-theme="plain"] .modal.incoming-share-progress-modal,
+:root[data-theme="plain"] .modal.journal-history-modal,
+:root[data-theme="plain"] .modal.media-form-modal,
+:root[data-theme="plain"] .modal.media-history-modal,
+:root[data-theme="plain"] .modal.mine-background-modal,
+:root[data-theme="plain"] .modal.mine-backup-modal,
+:root[data-theme="plain"] .modal.mine-data-modal,
+:root[data-theme="plain"] .modal.mine-restore-modal,
+:root[data-theme="plain"] .modal.mine-snapshot-confirm-modal,
+:root[data-theme="plain"] .modal.mine-snapshot-modal,
+:root[data-theme="plain"] .modal.password-detail-modal,
+:root[data-theme="plain"] .modal.password-entry-modal,
+:root[data-theme="plain"] .modal.password-security-modal,
+:root[data-theme="plain"] .modal.profile-modal,
+:root[data-theme="plain"] .modal.quick-modal #quick-snap-caption,
+:root[data-theme="plain"] .modal.quick-modal .quick-input-field,
+:root[data-theme="plain"] .modal.reminder-modal,
+:root[data-theme="plain"] .modal.snippet-video-modal,
+:root[data-theme="plain"] .modal.taste-detail-modal,
+:root[data-theme="plain"] .modal.taste-form-modal,
+:root[data-theme="plain"] .modal.timer-settings-modal,
+:root[data-theme="plain"] .modal.timetable-editor-modal,
+:root[data-theme="plain"] .modal.timetable-manager-modal,
+:root[data-theme="plain"] .modal.today-cover-crop-dialog,
+:root[data-theme="plain"] .modal.todo-form-modal,
+:root[data-theme="plain"] .modal.todo-manager-modal,
+:root[data-theme="plain"] .modal.vault-decrypting-modal,
+:root[data-theme="plain"] .modal.vault-folder-cover-modal,
+:root[data-theme="plain"] .modal.vault-form-modal,
+:root[data-theme="plain"] .modal.vault-import-mode-modal,
+:root[data-theme="plain"] .modal.vault-import-progress-modal,
+:root[data-theme="plain"] .modal.vault-import-result-modal,
+:root[data-theme="plain"] .modal.vault-item-menu-modal,
+:root[data-theme="plain"] .modal.vault-moment-picker-modal,
+:root[data-theme="plain"] .modal.vault-restore-moment-modal,
+:root[data-theme="plain"] .modal.vault-video-edit-modal,
+:root[data-theme="plain"] .modal.video-frame-picker-modal,
+:root[data-theme="plain"] .modal:has(form) .modal-head,
+:root[data-theme="plain"] .modal:has(form) :is(input:not([type=hidden]):not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]):not([type=color]),textarea,select),
+:root[data-theme="plain"] .modal:has(form) p.subtle,
+:root[data-theme="plain"] .password-entry,
+:root[data-theme="plain"] .password-gate-paper,
+:root[data-theme="plain"] .password-vault-empty,
+:root[data-theme="plain"] .password-vault-header,
+:root[data-theme="plain"] .password-vault-view,
+:root[data-theme="plain"] .password-vault-view .password-entry,
+:root[data-theme="plain"] .password-vault-view .password-entry>div>button,
+:root[data-theme="plain"] .phone-shell:has(.calendar-view) .dock-btn.active,
+:root[data-theme="plain"] .phone-shell:has(.calendar-view) .floating-dock,
+:root[data-theme="plain"] .phone-shell:has(.journal-view) .dock-btn.active,
+:root[data-theme="plain"] .phone-shell:has(.journal-view) .floating-dock,
+:root[data-theme="plain"] .phone-shell:has(.ledger-view) .dock-btn.active,
+:root[data-theme="plain"] .phone-shell:has(.ledger-view) .floating-dock,
+:root[data-theme="plain"] .phone-shell:has(.snippets-view) .dock-btn.active,
+:root[data-theme="plain"] .phone-shell:has(.snippets-view) .floating-dock,
+:root[data-theme="plain"] .phone-shell:has(.today-view) .dock-btn.active,
+:root[data-theme="plain"] .phone-shell:has(.today-view) .floating-dock,
+:root[data-theme="plain"] .private-vault-view,
+:root[data-theme="plain"] .private-vault-view .vault-folder-copy,
+:root[data-theme="plain"] .private-vault-view .vault-folder-cover,
+:root[data-theme="plain"] .private-vault-view .vault-header,
+:root[data-theme="plain"] .private-vault-view .vault-item:not(.vault-video-item),
+:root[data-theme="plain"] .private-vault-view .vault-item:not(.vault-video-item)>div>button,
+:root[data-theme="plain"] .private-vault-view .vault-toolbar>#vault-import-moments,
+:root[data-theme="plain"] .private-vault-view .vault-video-item>div,
+:root[data-theme="plain"] .private-vault-view .vault-view-switch,
+:root[data-theme="plain"] .private-vault-view .vault-view-switch>button,
+:root[data-theme="plain"] .private-vault-view .vault-view-switch>button.active,
+:root[data-theme="plain"] .private-vault-view :is(#vault-fingerprint-settings,#vault-passwordless),
+:root[data-theme="plain"] .profile-modal .avatar-picker,
+:root[data-theme="plain"] .profile-modal .modal-actions .save,
+:root[data-theme="plain"] .profile-modal .modal-actions button,
+:root[data-theme="plain"] .profile-modal>input,
+:root[data-theme="plain"] .quick-hls-panel,
+:root[data-theme="plain"] .quick-hls-panel button,
+:root[data-theme="plain"] .quick-hls-panel input,
+:root[data-theme="plain"] .quick-memo-mic,
+:root[data-theme="plain"] .quick-memo-wrap,
+:root[data-theme="plain"] .quick-modal-close,
+:root[data-theme="plain"] .quick-modal-title-mark,
+:root[data-theme="plain"] .quick-photo-actions button,
+:root[data-theme="plain"] .quick-photo-empty-icon,
+:root[data-theme="plain"] .quick-photo-preview,
+:root[data-theme="plain"] .quick-publish-btn,
+:root[data-theme="plain"] .quick-video-actions button,
+:root[data-theme="plain"] .quick-video-preview-placeholder,
+:root[data-theme="plain"] .reminder-modal #gen-ai-copy,
+:root[data-theme="plain"] .reminder-modal #send-test-notification,
+:root[data-theme="plain"] .reminder-modal .confirm-line,
+:root[data-theme="plain"] .reminder-modal .modal-actions .save,
+:root[data-theme="plain"] .reminder-modal .modal-actions button,
+:root[data-theme="plain"] .reminder-modal .modal-head,
+:root[data-theme="plain"] .reminder-modal .reminder-add,
+:root[data-theme="plain"] .reminder-modal .reminder-ai-box,
+:root[data-theme="plain"] .reminder-modal .reminder-random-box,
+:root[data-theme="plain"] .reminder-modal .reminder-row,
+:root[data-theme="plain"] .reminder-modal .reminder-test-box,
+:root[data-theme="plain"] .reminder-modal input[type=time],
+:root[data-theme="plain"] .reminder-modal select,
+:root[data-theme="plain"] .snippet-hls-paper,
+:root[data-theme="plain"] .snippet-hls-paper button,
+:root[data-theme="plain"] .snippet-hls-paper input,
+:root[data-theme="plain"] .snippet-video-hls-placeholder,
+:root[data-theme="plain"] .snippet-video-poster-preview,
+:root[data-theme="plain"] .snippet-video-segments img,
+:root[data-theme="plain"] .snippet-video-stream-placeholder,
+:root[data-theme="plain"] .snippets-view .moments-corner-note,
+:root[data-theme="plain"] .snippets-view .snippet-add-btn,
+:root[data-theme="plain"] .snippets-view .snippet-cover-frame,
+:root[data-theme="plain"] .snippets-view .snippet-day-header,
+:root[data-theme="plain"] .snippets-view .snippet-filter-pill,
+:root[data-theme="plain"] .snippets-view .snippet-filter-pill.active,
+:root[data-theme="plain"] .snippets-view .snippet-item-card,
+:root[data-theme="plain"] .snippets-view .snippet-kpi-item,
+:root[data-theme="plain"] .snippets-view .snippet-media-card,
+:root[data-theme="plain"] .snippets-view .snippet-memo-card,
+:root[data-theme="plain"] .snippets-view .snippet-search-paper,
+:root[data-theme="plain"] .snippets-view .snippet-tool-btn,
+:root[data-theme="plain"] .snippets-view .snippets-stats-hero,
+:root[data-theme="plain"] .snippets-view .snippets-stream-sheet>.empty-state,
+:root[data-theme="plain"] .snippets-view .stats-streak-badge,
+:root[data-theme="plain"] .snippets-view#screen-snippets,
+:root[data-theme="plain"] .snippets-view#screen-snippets .subpage-header::after,
+:root[data-theme="plain"] .snippets-view#screen-snippets .subpage-header::before,
+:root[data-theme="plain"] .snippets-view#screen-snippets::before,
+:root[data-theme="plain"] .stats-habit-archive,
+:root[data-theme="plain"] .stats-habit-archive-list>button,
+:root[data-theme="plain"] .stats-kpi-sheet,
+:root[data-theme="plain"] .stats-masthead,
+:root[data-theme="plain"] .stats-report-trigger,
+:root[data-theme="plain"] .stats-screen,
+:root[data-theme="plain"] .stats-screen .stats-kpi-sheet,
+:root[data-theme="plain"] .stats-screen .stats-masthead-seal,
+:root[data-theme="plain"] .stats-screen .stats-sheet,
+:root[data-theme="plain"] .stats-sheet,
+:root[data-theme="plain"] .stats-toolbar .segment button,
+:root[data-theme="plain"] .subpage-nav-bar,
+:root[data-theme="plain"] .taste-controls-paper,
+:root[data-theme="plain"] .taste-empty,
+:root[data-theme="plain"] .taste-entry-card,
+:root[data-theme="plain"] .taste-filter-rail button,
+:root[data-theme="plain"] .taste-filter-rail button.active,
+:root[data-theme="plain"] .taste-header,
+:root[data-theme="plain"] .taste-hero-paper,
+:root[data-theme="plain"] .taste-place-card,
+:root[data-theme="plain"] .taste-view,
+:root[data-theme="plain"] .timer-settings-modal .confirm-line,
+:root[data-theme="plain"] .timer-settings-modal .modal-actions .save,
+:root[data-theme="plain"] .timer-settings-modal .modal-actions button,
+:root[data-theme="plain"] .timer-settings-modal .orientation-field,
+:root[data-theme="plain"] .timer-settings-modal .orientation-option input:checked+span,
+:root[data-theme="plain"] .timer-settings-modal .orientation-option>span,
+:root[data-theme="plain"] .timer-settings-modal .pomodoro-settings,
+:root[data-theme="plain"] .timer-settings-modal .subtle,
+:root[data-theme="plain"] .timer-settings-modal input:not([type=checkbox]):not([type=radio]),
+:root[data-theme="plain"] .today-editorial-cover .magazine-header::after,
+:root[data-theme="plain"] .today-editorial-cover::after,
+:root[data-theme="plain"] .today-editorial-cover::before,
+:root[data-theme="plain"] .today-stream-sheet,
+:root[data-theme="plain"] .today-stream-sheet::after,
+:root[data-theme="plain"] .today-view,
+:root[data-theme="plain"] .today-view #countdown-banner,
+:root[data-theme="plain"] .today-view #countdown-banner + .today-bento-grid,
+:root[data-theme="plain"] .today-view .photo-stack-empty,
+:root[data-theme="plain"] .today-view .quick-access-grid,
+:root[data-theme="plain"] .today-view .stack-card,
+:root[data-theme="plain"] .today-view .today-courses,
+:root[data-theme="plain"] .today-view .today-hero-actions,
+:root[data-theme="plain"] .today-view .today-hero-actions::after,
+:root[data-theme="plain"] .today-view .today-life-stream-section,
+:root[data-theme="plain"] .today-view .weather-box,
+:root[data-theme="plain"] .today-view .weather-box::after,
+:root[data-theme="plain"] .todo-form-modal #todo-custom-date,
+:root[data-theme="plain"] .todo-form-modal .modal-actions .danger,
+:root[data-theme="plain"] .todo-form-modal .modal-actions .save,
+:root[data-theme="plain"] .todo-form-modal .modal-actions button,
+:root[data-theme="plain"] .todo-form-modal .todo-custom-date,
+:root[data-theme="plain"] .todo-form-modal .todo-date-field,
+:root[data-theme="plain"] .todo-form-modal .todo-date-field span,
+:root[data-theme="plain"] .todo-form-modal input:checked+span,
+:root[data-theme="plain"] .todo-form-modal>input:not([type=hidden]),
+:root[data-theme="plain"] .todo-manager-modal #new-todo-modal,
+:root[data-theme="plain"] .todo-manager-modal .modal-actions button,
+:root[data-theme="plain"] .todo-manager-modal .modal-head,
+:root[data-theme="plain"] .todo-manager-modal .todo-manage-day,
+:root[data-theme="plain"] .vault-bulk-bar,
+:root[data-theme="plain"] .vault-bulk-bar button,
+:root[data-theme="plain"] .vault-content-head>#vault-select-items,
+:root[data-theme="plain"] .vault-empty,
+:root[data-theme="plain"] .vault-folder-copy,
+:root[data-theme="plain"] .vault-folder-cover-button,
+:root[data-theme="plain"] .vault-folders button,
+:root[data-theme="plain"] .vault-folders button.active,
+:root[data-theme="plain"] .vault-header>#vault-lock,
+:root[data-theme="plain"] .vault-import-mode>button#vault-import-move,
+:root[data-theme="plain"] .vault-import-mode>button:not(.modal-actions button),
+:root[data-theme="plain"] .vault-item,
+:root[data-theme="plain"] .vault-item-menu-actions>button,
+:root[data-theme="plain"] .vault-item-menu-actions>button.danger,
+:root[data-theme="plain"] .vault-lock-paper,
+:root[data-theme="plain"] .vault-lock-paper form>.save,
+:root[data-theme="plain"] .vault-restore-moment .save,
+:root[data-theme="plain"] .vault-security-actions>#vault-passwordless.active,
+:root[data-theme="plain"] .vault-security-actions>button,
+:root[data-theme="plain"] .vault-security-note>#vault-passwordless,
+:root[data-theme="plain"] .vault-security-note>#vault-passwordless.active,
+:root[data-theme="plain"] .vault-toolbar button,
+:root[data-theme="plain"] .vault-toolbar button+button,
+:root[data-theme="plain"] .video-frame-actions button,
+:root[data-theme="plain"] .video-frame-stage,
+:root[data-theme="plain"] .warm-video-controls,
+:root[data-theme="plain"] .warm-video-controls>#warm-video-fullscreen,
+:root[data-theme="plain"] .warm-video-foot,
+:root[data-theme="plain"] .warm-video-foot button,
+:root[data-theme="plain"] .warm-video-player>header,
+:root[data-theme="plain"] .warm-video-player>header>button,
+:root[data-theme="plain"] .warm-video-rates button,
+:root[data-theme="plain"] .warm-video-rates button.active,
+:root[data-theme="plain"] .warm-video-stage,
+:root[data-theme="plain"] :is(#password-vault-setup,#password-vault-unlock,#vault-setup-form,#vault-unlock-form) button.save,
+:root[data-theme="plain"] :is(#password-vault-setup,#password-vault-unlock,#vault-setup-form,#vault-unlock-form) input:not([type=checkbox]):not([type=radio]),
+:root[data-theme="plain"] :is(#subpage-habit-detail,#subpage-media-detail,#subpage-focus-detail,#subpage-ledger-detail) .subpage-nav-bar,
+:root[data-theme="plain"] :is(.focus-main-header,.taste-header,.mine-editorial-header,.vault-header,.password-vault-header),
+:root[data-theme="plain"] body:has(#screen-library) #app,
+:root[data-theme="plain"] body:has(.ai-companion-screen) #app,
+:root[data-theme="plain"] body:has(.focus-screen) #app,
+:root[data-theme="plain"] body:has(.mine-view) #app {
+  background-image: none !important;
+}
+
+/* —— 页面级写死的暖色底 → 画布灰 —— */
+:root[data-theme="plain"] #app:has(.calendar-view),
+:root[data-theme="plain"] #app:has(.journal-view),
+:root[data-theme="plain"] #app:has(.ledger-view),
+:root[data-theme="plain"] #app:has(.snippets-view),
+:root[data-theme="plain"] #app:has(.today-view),
+:root[data-theme="plain"] #app>.private-vault-view,
+:root[data-theme="plain"] #screen-ledger.ledger-view,
+:root[data-theme="plain"] .journal-view .journal-history-link,
+:root[data-theme="plain"] .journal-view .journal-history-title,
+:root[data-theme="plain"] .journal-view .journal-photo-wall-head,
+:root[data-theme="plain"] .journal-view .picker-section-label>span,
+:root[data-theme="plain"] .journal-view#screen-journal,
+:root[data-theme="plain"] .local-gallery-view,
+:root[data-theme="plain"] .mine-view .mine-kpi-row,
+:root[data-theme="plain"] .password-vault-view,
+:root[data-theme="plain"] .private-vault-view,
+:root[data-theme="plain"] .snippets-view .snippet-day-header,
+:root[data-theme="plain"] .snippets-view#screen-snippets,
+:root[data-theme="plain"] .taste-view,
+:root[data-theme="plain"] .today-view,
+:root[data-theme="plain"] .today-view .quick-access-grid,
+:root[data-theme="plain"] body:has(#screen-library) #app,
+:root[data-theme="plain"] body:has(.ai-companion-screen) #app,
+:root[data-theme="plain"] body:has(.focus-screen) #app,
+:root[data-theme="plain"] body:has(.mine-view) #app {
+  background-color: var(--plain-canvas, #f7f9fc) !important;
+}
+
+/* —— 原本靠深色纸衬托浅字的方块 → 深色实底 —— */
+:root[data-theme="plain"] #full-ledger-modal .ledger-category-grid button.active,
+:root[data-theme="plain"] #full-ledger-modal .modal-actions .save,
+:root[data-theme="plain"] #generate-focus-coach,
+:root[data-theme="plain"] #ledger-analysis-ai button,
+:root[data-theme="plain"] #quick-photo-modal .quick-publish-btn,
+:root[data-theme="plain"] #screen-ledger .ledger-budget-box .level-bar>i.orange,
+:root[data-theme="plain"] #screen-ledger .ledger-budget-box .level-bar>i.red,
+:root[data-theme="plain"] #screen-ledger .ledger-quick-cats button.active,
+:root[data-theme="plain"] #screen-library .media-search button,
+:root[data-theme="plain"] #screen-library .media-statuses button.active,
+:root[data-theme="plain"] #screen-library .media-tabs button.active,
+:root[data-theme="plain"] #subpage-habit-detail .habit-achievement-list>div.earned,
+:root[data-theme="plain"] #subpage-habit-detail .habit-detail-switcher>button.active,
+:root[data-theme="plain"] #subpage-habit-detail .habit-heatmap-year-switch button.active,
+:root[data-theme="plain"] #subpage-habit-detail .habit-hero-badge,
+:root[data-theme="plain"] #subpage-journal-reader .journal-reader-edit,
+:root[data-theme="plain"] #timer-settings-form .orientation-option>input:checked+span,
+:root[data-theme="plain"] #vault-fingerprint-unlock,
+:root[data-theme="plain"] .ai-ledger-card button.save,
+:root[data-theme="plain"] .ai-memory-import-modal .modal-actions .save,
+:root[data-theme="plain"] .ai-settings-modal .modal-actions .save,
+:root[data-theme="plain"] .ambient-modal .ambient-option.active,
+:root[data-theme="plain"] .calendar-view .day-summary-card>button,
+:root[data-theme="plain"] .countdown-form-modal .modal-actions .danger,
+:root[data-theme="plain"] .countdown-form-modal .modal-actions .save,
+:root[data-theme="plain"] .course-edit-modal .modal-actions .save,
+:root[data-theme="plain"] .daily-focus-outcome button,
+:root[data-theme="plain"] .daily-focus-starts button,
+:root[data-theme="plain"] .daily-task-start,
+:root[data-theme="plain"] .floating-dock,
+:root[data-theme="plain"] .focus-report-badge,
+:root[data-theme="plain"] .focus-screen .focus-mode-btn.active,
+:root[data-theme="plain"] .focus-screen .focus-timer-actions .play,
+:root[data-theme="plain"] .folder-modal .modal-actions .save,
+:root[data-theme="plain"] .habit-detail-switcher>button.active,
+:root[data-theme="plain"] .habit-focus-entry,
+:root[data-theme="plain"] .habit-hero-badge,
+:root[data-theme="plain"] .habit-log-modal .modal-actions .save,
+:root[data-theme="plain"] .habit-manager-modal .manage-list .round-icon,
+:root[data-theme="plain"] .habit-modal .habit-icon-picker>label>input:checked+span,
+:root[data-theme="plain"] .habit-modal .modal-actions .danger,
+:root[data-theme="plain"] .habit-modal .modal-actions .save,
+:root[data-theme="plain"] .habit-modal :is(.habit-tracking-picker,.habit-goal-picker) input:checked+span,
+:root[data-theme="plain"] .habit-modal input:checked+span,
+:root[data-theme="plain"] .heatmap-year-switch,
+:root[data-theme="plain"] .journal-inline-snippet-apply,
+:root[data-theme="plain"] .journal-inline-snippet-item:has(input:checked),
+:root[data-theme="plain"] .journal-reader-edit,
+:root[data-theme="plain"] .ledger-analysis-status,
+:root[data-theme="plain"] .media-detail-actions .media-detail-btn,
+:root[data-theme="plain"] .media-empty>button,
+:root[data-theme="plain"] .media-form-modal .modal-actions .save,
+:root[data-theme="plain"] .media-state.completed,
+:root[data-theme="plain"] .mine-background-modal .modal-actions .save,
+:root[data-theme="plain"] .mine-backup-modal .modal-actions .save,
+:root[data-theme="plain"] .mine-restore-modal .modal-actions .save,
+:root[data-theme="plain"] .mine-snapshot-confirm-modal .modal-actions .save,
+:root[data-theme="plain"] .modal .modal-actions :is(button.save,button.primary),
+:root[data-theme="plain"] .modal .modal-actions button.danger,
+:root[data-theme="plain"] .phone-shell:has(.calendar-view) .floating-dock,
+:root[data-theme="plain"] .phone-shell:has(.journal-view) .floating-dock,
+:root[data-theme="plain"] .phone-shell:has(.ledger-view) .floating-dock,
+:root[data-theme="plain"] .phone-shell:has(.snippets-view) .floating-dock,
+:root[data-theme="plain"] .phone-shell:has(.today-view) .floating-dock,
+:root[data-theme="plain"] .private-vault-view .vault-toolbar>#vault-import-moments,
+:root[data-theme="plain"] .private-vault-view .vault-view-switch>button.active,
+:root[data-theme="plain"] .profile-modal .modal-actions .save,
+:root[data-theme="plain"] .quick-hls-panel button,
+:root[data-theme="plain"] .quick-publish-btn,
+:root[data-theme="plain"] .reminder-modal .modal-actions .save,
+:root[data-theme="plain"] .snippet-hls-paper button,
+:root[data-theme="plain"] .snippets-view .snippet-day-header,
+:root[data-theme="plain"] .stats-toolbar .segment button.active,
+:root[data-theme="plain"] .taste-filter-rail button.active,
+:root[data-theme="plain"] .timer-settings-modal .modal-actions .save,
+:root[data-theme="plain"] .timer-settings-modal .orientation-option input:checked+span,
+:root[data-theme="plain"] .today-view .today-courses,
+:root[data-theme="plain"] .today-view .weather-box,
+:root[data-theme="plain"] .todo-form-modal .modal-actions .danger,
+:root[data-theme="plain"] .todo-form-modal .modal-actions .save,
+:root[data-theme="plain"] .todo-form-modal input:checked+span,
+:root[data-theme="plain"] .vault-folders button.active,
+:root[data-theme="plain"] .vault-lock-paper form>.save,
+:root[data-theme="plain"] .vault-restore-moment .save,
+:root[data-theme="plain"] .vault-security-actions>#vault-passwordless.active,
+:root[data-theme="plain"] .vault-security-note>#vault-passwordless.active,
+:root[data-theme="plain"] .vault-toolbar button,
+:root[data-theme="plain"] .warm-video-rates button.active,
+:root[data-theme="plain"] :is(#password-vault-setup,#password-vault-unlock,#vault-setup-form,#vault-unlock-form) button.save {
+  background-color: var(--plain-ink-block, #55606c) !important;
+}
+
+/* —— 原本「图片 + 透明底」的元素 → 补一层纯色，避免变成没有底的纸片 —— */
+:root[data-theme="plain"] #background-form :is(.background-zoom-control,.background-blur-control),
+:root[data-theme="plain"] #countdown-banner,
+:root[data-theme="plain"] #countdown-banner + .today-bento-grid,
+:root[data-theme="plain"] #full-ledger-modal,
+:root[data-theme="plain"] #full-ledger-modal .ledger-amount-main,
+:root[data-theme="plain"] #full-ledger-modal .ledger-category-grid button,
+:root[data-theme="plain"] #full-ledger-modal .ledger-form-budget,
+:root[data-theme="plain"] #full-ledger-modal .ledger-photo-actions button,
+:root[data-theme="plain"] #full-ledger-modal .ledger-photo-picker,
+:root[data-theme="plain"] #full-ledger-modal .ledger-type-toggle,
+:root[data-theme="plain"] #full-ledger-modal .modal-actions button,
+:root[data-theme="plain"] #full-ledger-modal input:not([type=hidden]),
+:root[data-theme="plain"] #full-ledger-modal select,
+:root[data-theme="plain"] #launch-overlay,
+:root[data-theme="plain"] #ledger-analysis-ai,
+:root[data-theme="plain"] #ledger-transfer-fields,
+:root[data-theme="plain"] #quick-photo-modal .quick-modal-title-mark,
+:root[data-theme="plain"] #screen-ledger .account-mini-card,
+:root[data-theme="plain"] #screen-ledger .account-mini-card.featured,
+:root[data-theme="plain"] #screen-ledger .ledger-accounts-all,
+:root[data-theme="plain"] #screen-ledger .ledger-accounts-head .soft-button,
+:root[data-theme="plain"] #screen-ledger .ledger-accounts-section,
+:root[data-theme="plain"] #screen-ledger .ledger-budget-box,
+:root[data-theme="plain"] #screen-ledger .ledger-budget-box .level-bar,
+:root[data-theme="plain"] #screen-ledger .ledger-corner-note,
+:root[data-theme="plain"] #screen-ledger .ledger-overview-card,
+:root[data-theme="plain"] #screen-ledger .ledger-quick-account-wrap,
+:root[data-theme="plain"] #screen-ledger .ledger-quick-amount-main,
+:root[data-theme="plain"] #screen-ledger .ledger-quick-card,
+:root[data-theme="plain"] #screen-ledger .ledger-quick-cats button,
+:root[data-theme="plain"] #screen-ledger .ledger-quick-note-wrap,
+:root[data-theme="plain"] #screen-ledger .ledger-quick-type,
+:root[data-theme="plain"] #screen-ledger .ledger-row,
+:root[data-theme="plain"] #screen-ledger .ledger-row.calibrate,
+:root[data-theme="plain"] #screen-ledger .ledger-stream-sheet,
+:root[data-theme="plain"] #screen-ledger .ledger-sub-stats>span,
+:root[data-theme="plain"] #screen-ledger .ledger-toolbar>.soft-button,
+:root[data-theme="plain"] #screen-library .library-controls-paper,
+:root[data-theme="plain"] #screen-library .library-media-card .media-cover,
+:root[data-theme="plain"] #screen-library .library-stream-sheet,
+:root[data-theme="plain"] #screen-library .media-empty-icon,
+:root[data-theme="plain"] #screen-library .media-focus-link,
+:root[data-theme="plain"] #screen-library .media-search,
+:root[data-theme="plain"] #screen-library .media-statuses button,
+:root[data-theme="plain"] #screen-library .media-tabs button,
+:root[data-theme="plain"] #subpage-focus-detail,
+:root[data-theme="plain"] #subpage-focus-detail .subpage-nav-bar,
+:root[data-theme="plain"] #subpage-habit-detail,
+:root[data-theme="plain"] #subpage-habit-detail .habit-achievement-list>div,
+:root[data-theme="plain"] #subpage-habit-detail .habit-detail-nav,
+:root[data-theme="plain"] #subpage-habit-detail .habit-detail-switcher,
+:root[data-theme="plain"] #subpage-habit-detail .habit-detail-switcher>button,
+:root[data-theme="plain"] #subpage-habit-detail .habit-heatmap-year-switch button,
+:root[data-theme="plain"] #subpage-habit-detail .subpage-nav-bar,
+:root[data-theme="plain"] #subpage-habit-detail :is(.habit-hero-card,.habit-heatmap-card,.habit-achievement-card),
+:root[data-theme="plain"] #subpage-journal-reader,
+:root[data-theme="plain"] #subpage-journal-reader .journal-reader-page .subpage-nav-bar,
+:root[data-theme="plain"] #subpage-journal-reader .journal-reader-quote,
+:root[data-theme="plain"] #subpage-journal-reader .subpage-nav-bar,
+:root[data-theme="plain"] #subpage-journal-reader :is(.journal-reader-hero,.journal-reader-paper),
+:root[data-theme="plain"] #subpage-ledger-detail,
+:root[data-theme="plain"] #subpage-ledger-detail .subpage-nav-bar,
+:root[data-theme="plain"] #subpage-media-detail,
+:root[data-theme="plain"] #subpage-media-detail .subpage-nav-bar,
+:root[data-theme="plain"] #subpage-timetable,
+:root[data-theme="plain"] #subpage-timetable .course-agenda,
+:root[data-theme="plain"] #subpage-timetable .course-day-tab,
+:root[data-theme="plain"] #subpage-timetable .course-manage-bar button,
+:root[data-theme="plain"] #subpage-timetable .course-nav-settings,
+:root[data-theme="plain"] #subpage-timetable .course-row,
+:root[data-theme="plain"] #subpage-timetable .course-training,
+:root[data-theme="plain"] #subpage-timetable .subpage-back-btn,
+:root[data-theme="plain"] #subpage-timetable .subpage-nav-bar,
+:root[data-theme="plain"] #timer-settings-form .orientation-option>span,
+:root[data-theme="plain"] .ai-bubble .ai-ledger-card,
+:root[data-theme="plain"] .ai-capsule,
+:root[data-theme="plain"] .ai-card-action,
+:root[data-theme="plain"] .ai-chat-page.is-immersive,
+:root[data-theme="plain"] .ai-chat-page.is-immersive .ai-chat-header,
+:root[data-theme="plain"] .ai-companion-bubble,
+:root[data-theme="plain"] .ai-companion-screen,
+:root[data-theme="plain"] .ai-composer,
+:root[data-theme="plain"] .ai-greet-setup,
+:root[data-theme="plain"] .ai-insight-action,
+:root[data-theme="plain"] .ai-ledger-card :is(input:not([type=checkbox]):not([type=radio]),select),
+:root[data-theme="plain"] .ai-ledger-card button,
+:root[data-theme="plain"] .ai-memory-import-modal #import-memory-json,
+:root[data-theme="plain"] .ai-memory-import-modal .modal-actions button,
+:root[data-theme="plain"] .ai-memory-import-modal .modal-head,
+:root[data-theme="plain"] .ai-memory-import-modal textarea,
+:root[data-theme="plain"] .ai-msg.assistant .ai-bubble,
+:root[data-theme="plain"] .ai-msg.user .ai-bubble,
+:root[data-theme="plain"] .ai-quick button,
+:root[data-theme="plain"] .ai-report-card,
+:root[data-theme="plain"] .ai-report-section,
+:root[data-theme="plain"] .ai-report-track,
+:root[data-theme="plain"] .ai-semantic-scope,
+:root[data-theme="plain"] .ai-settings-modal .ai-care-block,
+:root[data-theme="plain"] .ai-settings-modal .confirm-line,
+:root[data-theme="plain"] .ai-settings-modal .modal-actions button,
+:root[data-theme="plain"] .ai-settings-modal .subtle,
+:root[data-theme="plain"] .ai-settings-modal input:not([type=checkbox]),
+:root[data-theme="plain"] .ai-settings-modal select,
+:root[data-theme="plain"] .ai-tabs.segmented-control,
+:root[data-theme="plain"] .ambient-modal .ambient-list,
+:root[data-theme="plain"] .ambient-modal .ambient-volume,
+:root[data-theme="plain"] .ambient-modal .modal-actions button,
+:root[data-theme="plain"] .ambient-modal .modal-head,
+:root[data-theme="plain"] .calendar-view .cal-archive-paper,
+:root[data-theme="plain"] .calendar-view .cal-day-sheet,
+:root[data-theme="plain"] .calendar-view .cal-edit-journal-btn,
+:root[data-theme="plain"] .calendar-view .cal-journal-card,
+:root[data-theme="plain"] .calendar-view .cal-kpi-strip,
+:root[data-theme="plain"] .calendar-view .cal-photo-paper,
+:root[data-theme="plain"] .calendar-view .cal-tool-btn,
+:root[data-theme="plain"] .calendar-view .calendar-month-paper,
+:root[data-theme="plain"] .calendar-view .day-photo-thumb,
+:root[data-theme="plain"] .calendar-view .day-summary-action,
+:root[data-theme="plain"] .calendar-view .day-summary-card,
+:root[data-theme="plain"] .calendar-view .journal-empty-button,
+:root[data-theme="plain"] .calendar-view.cal-screen .cal-corner-note,
+:root[data-theme="plain"] .calendar-view.cal-screen .cal-kpi-cell,
+:root[data-theme="plain"] .countdown-form-modal #countdown-image-preview,
+:root[data-theme="plain"] .countdown-form-modal .confirm-line,
+:root[data-theme="plain"] .countdown-form-modal .countdown-image-picker,
+:root[data-theme="plain"] .countdown-form-modal .countdown-image-picker button,
+:root[data-theme="plain"] .countdown-form-modal .modal-actions button,
+:root[data-theme="plain"] .countdown-form-modal>input:not([type=hidden]),
+:root[data-theme="plain"] .course-edit-modal .course-edit-meta,
+:root[data-theme="plain"] .course-edit-modal .modal-actions button,
+:root[data-theme="plain"] .course-edit-modal .modal-head,
+:root[data-theme="plain"] .course-edit-modal input,
+:root[data-theme="plain"] .daily-focus-outcome,
+:root[data-theme="plain"] .daily-focus-sheet,
+:root[data-theme="plain"] .daily-focus-sheet input,
+:root[data-theme="plain"] .dock-btn.active,
+:root[data-theme="plain"] .focus-history-modal .modal-actions button,
+:root[data-theme="plain"] .focus-history-modal .modal-head,
+:root[data-theme="plain"] .focus-history-modal .record-list,
+:root[data-theme="plain"] .focus-history-modal .session-card,
+:root[data-theme="plain"] .focus-report-card,
+:root[data-theme="plain"] .focus-report-coach,
+:root[data-theme="plain"] .focus-report-empty,
+:root[data-theme="plain"] .focus-report-hero,
+:root[data-theme="plain"] .focus-screen .duration-chip.active,
+:root[data-theme="plain"] .focus-screen .focus-category-picker,
+:root[data-theme="plain"] .focus-screen .focus-context-actions button,
+:root[data-theme="plain"] .focus-screen .focus-main-header,
+:root[data-theme="plain"] .focus-screen .focus-main-panel,
+:root[data-theme="plain"] .focus-screen .focus-mode-selector,
+:root[data-theme="plain"] .focus-screen .focus-single-ambient,
+:root[data-theme="plain"] .focus-screen .focus-stream-sheet,
+:root[data-theme="plain"] .focus-screen .focus-timer-actions .timer-action-screensaver,
+:root[data-theme="plain"] .focus-screen .focus-timer-actions button,
+:root[data-theme="plain"] .focus-view .focus-stream-sheet:not([open]),
+:root[data-theme="plain"] .folder-modal .modal-actions button,
+:root[data-theme="plain"] .folder-modal input,
+:root[data-theme="plain"] .folder-modal select,
+:root[data-theme="plain"] .habit-achievement-card,
+:root[data-theme="plain"] .habit-detail-switcher,
+:root[data-theme="plain"] .habit-detail-switcher>button,
+:root[data-theme="plain"] .habit-heatmap-card,
+:root[data-theme="plain"] .habit-hero-card,
+:root[data-theme="plain"] .habit-log-modal #habit-amount-form,
+:root[data-theme="plain"] .habit-log-modal .habit-amount-input,
+:root[data-theme="plain"] .habit-log-modal .habit-log-actions button,
+:root[data-theme="plain"] .habit-log-modal .habit-log-head,
+:root[data-theme="plain"] .habit-log-modal .habit-log-progress,
+:root[data-theme="plain"] .habit-log-modal .habit-quick-log button,
+:root[data-theme="plain"] .habit-log-modal .habit-total-input,
+:root[data-theme="plain"] .habit-log-modal .modal-actions button,
+:root[data-theme="plain"] .habit-manager-modal #new-habit,
+:root[data-theme="plain"] .habit-manager-modal .manage-list>button,
+:root[data-theme="plain"] .habit-manager-modal .modal-actions button,
+:root[data-theme="plain"] .habit-manager-modal .modal-head,
+:root[data-theme="plain"] .habit-modal .form-grid input,
+:root[data-theme="plain"] .habit-modal .habit-goal-picker span,
+:root[data-theme="plain"] .habit-modal .habit-icon-picker>label>span,
+:root[data-theme="plain"] .habit-modal .habit-tracking-picker span,
+:root[data-theme="plain"] .habit-modal .modal-actions button,
+:root[data-theme="plain"] .habit-modal :is(.habit-tracking-picker,.habit-goal-picker)>label>span,
+:root[data-theme="plain"] .habit-modal fieldset,
+:root[data-theme="plain"] .habit-modal>input,
+:root[data-theme="plain"] .habit-starter-choices button,
+:root[data-theme="plain"] .journal-date-control,
+:root[data-theme="plain"] .journal-history-modal #journal-search,
+:root[data-theme="plain"] .journal-history-modal .journal-history>button,
+:root[data-theme="plain"] .journal-inline-snippet-item,
+:root[data-theme="plain"] .journal-inline-snippet-picker,
+:root[data-theme="plain"] .journal-modal-draft-status,
+:root[data-theme="plain"] .journal-reader-figure,
+:root[data-theme="plain"] .journal-reader-gallery,
+:root[data-theme="plain"] .journal-reader-hero,
+:root[data-theme="plain"] .journal-reader-page .subpage-nav-bar,
+:root[data-theme="plain"] .journal-reader-paper,
+:root[data-theme="plain"] .journal-reader-quote,
+:root[data-theme="plain"] .journal-view .creative-tool-btn,
+:root[data-theme="plain"] .journal-view .journal-add-polaroid-btn,
+:root[data-theme="plain"] .journal-view .journal-canvas-card,
+:root[data-theme="plain"] .journal-view .journal-canvas-card #journal-title-input,
+:root[data-theme="plain"] .journal-view .journal-corner-note,
+:root[data-theme="plain"] .journal-view .journal-magazine-hero-box,
+:root[data-theme="plain"] .journal-view .journal-photo-wall,
+:root[data-theme="plain"] .journal-view .journal-polaroid-frame,
+:root[data-theme="plain"] .journal-view .journal-preview-empty,
+:root[data-theme="plain"] .journal-view .journal-preview-row,
+:root[data-theme="plain"] .journal-view .mood-pick-item,
+:root[data-theme="plain"] .journal-view .mood-pick-item.active,
+:root[data-theme="plain"] .journal-view .weather-pick-item,
+:root[data-theme="plain"] .journal-view .weather-pick-item.active,
+:root[data-theme="plain"] .launch-film-fallback,
+:root[data-theme="plain"] .ledger-analysis-card,
+:root[data-theme="plain"] .ledger-analysis-overview,
+:root[data-theme="plain"] .ledger-merchant-rule-form-modal,
+:root[data-theme="plain"] .ledger-merchant-rules-modal,
+:root[data-theme="plain"] .media-detail-actions button,
+:root[data-theme="plain"] .media-detail-focus-card,
+:root[data-theme="plain"] .media-detail-hero-card,
+:root[data-theme="plain"] .media-detail-note-card,
+:root[data-theme="plain"] .media-detail-page :is(.media-detail-hero-card,.media-detail-quote-card,.media-detail-note-card,.media-detail-focus-card),
+:root[data-theme="plain"] .media-detail-quote-card,
+:root[data-theme="plain"] .media-form-modal .modal-actions button,
+:root[data-theme="plain"] .media-form-modal .modal-head,
+:root[data-theme="plain"] .media-form-modal .poster-picker,
+:root[data-theme="plain"] .media-form-modal .poster-picker .text-button,
+:root[data-theme="plain"] .media-form-modal input,
+:root[data-theme="plain"] .media-form-modal select,
+:root[data-theme="plain"] .media-form-modal textarea,
+:root[data-theme="plain"] .media-history-modal .modal-actions button,
+:root[data-theme="plain"] .media-history-modal .modal-head,
+:root[data-theme="plain"] .media-history-modal .record-list,
+:root[data-theme="plain"] .media-state,
+:root[data-theme="plain"] .media-state.in_progress,
+:root[data-theme="plain"] .mine-background-modal .background-blur-control,
+:root[data-theme="plain"] .mine-background-modal .background-fit-option>span,
+:root[data-theme="plain"] .mine-background-modal .background-image-actions button,
+:root[data-theme="plain"] .mine-background-modal .background-preview,
+:root[data-theme="plain"] .mine-background-modal .background-zoom-control,
+:root[data-theme="plain"] .mine-background-modal .modal-actions button,
+:root[data-theme="plain"] .mine-backup-modal .modal-actions button,
+:root[data-theme="plain"] .mine-backup-modal .subtle,
+:root[data-theme="plain"] .mine-backup-modal input,
+:root[data-theme="plain"] .mine-data-modal .data-health-card,
+:root[data-theme="plain"] .mine-data-modal .local-note,
+:root[data-theme="plain"] .mine-data-modal .modal-actions button,
+:root[data-theme="plain"] .mine-data-modal .modal-head,
+:root[data-theme="plain"] .mine-data-modal .settings-modal-list,
+:root[data-theme="plain"] .mine-restore-modal .confirm-line,
+:root[data-theme="plain"] .mine-restore-modal .modal-actions button,
+:root[data-theme="plain"] .mine-restore-modal .subtle,
+:root[data-theme="plain"] .mine-restore-modal input,
+:root[data-theme="plain"] .mine-snapshot-confirm-modal .modal-actions button,
+:root[data-theme="plain"] .mine-snapshot-confirm-modal>p,
+:root[data-theme="plain"] .mine-snapshot-modal .modal-actions button,
+:root[data-theme="plain"] .mine-snapshot-modal .modal-head,
+:root[data-theme="plain"] .mine-snapshot-modal .snapshot-list>button,
+:root[data-theme="plain"] .modal .modal-actions button,
+:root[data-theme="plain"] .modal.ai-memory-import-modal,
+:root[data-theme="plain"] .modal.ai-settings-modal,
+:root[data-theme="plain"] .modal.ambient-modal,
+:root[data-theme="plain"] .modal.countdown-form-modal,
+:root[data-theme="plain"] .modal.course-edit-modal,
+:root[data-theme="plain"] .modal.focus-history-modal,
+:root[data-theme="plain"] .modal.folder-modal,
+:root[data-theme="plain"] .modal.habit-log-modal,
+:root[data-theme="plain"] .modal.habit-manager-modal,
+:root[data-theme="plain"] .modal.habit-modal,
+:root[data-theme="plain"] .modal.incoming-share-loading-modal,
+:root[data-theme="plain"] .modal.incoming-share-modal,
+:root[data-theme="plain"] .modal.incoming-share-progress-modal,
+:root[data-theme="plain"] .modal.journal-history-modal,
+:root[data-theme="plain"] .modal.media-form-modal,
+:root[data-theme="plain"] .modal.media-history-modal,
+:root[data-theme="plain"] .modal.mine-background-modal,
+:root[data-theme="plain"] .modal.mine-backup-modal,
+:root[data-theme="plain"] .modal.mine-data-modal,
+:root[data-theme="plain"] .modal.mine-restore-modal,
+:root[data-theme="plain"] .modal.mine-snapshot-confirm-modal,
+:root[data-theme="plain"] .modal.mine-snapshot-modal,
+:root[data-theme="plain"] .modal.password-detail-modal,
+:root[data-theme="plain"] .modal.password-entry-modal,
+:root[data-theme="plain"] .modal.password-security-modal,
+:root[data-theme="plain"] .modal.profile-modal,
+:root[data-theme="plain"] .modal.quick-modal #quick-snap-caption,
+:root[data-theme="plain"] .modal.quick-modal .quick-input-field,
+:root[data-theme="plain"] .modal.reminder-modal,
+:root[data-theme="plain"] .modal.snippet-video-modal,
+:root[data-theme="plain"] .modal.taste-detail-modal,
+:root[data-theme="plain"] .modal.taste-form-modal,
+:root[data-theme="plain"] .modal.timer-settings-modal,
+:root[data-theme="plain"] .modal.timetable-editor-modal,
+:root[data-theme="plain"] .modal.timetable-manager-modal,
+:root[data-theme="plain"] .modal.today-cover-crop-dialog,
+:root[data-theme="plain"] .modal.todo-form-modal,
+:root[data-theme="plain"] .modal.todo-manager-modal,
+:root[data-theme="plain"] .modal.vault-decrypting-modal,
+:root[data-theme="plain"] .modal.vault-folder-cover-modal,
+:root[data-theme="plain"] .modal.vault-form-modal,
+:root[data-theme="plain"] .modal.vault-import-mode-modal,
+:root[data-theme="plain"] .modal.vault-import-progress-modal,
+:root[data-theme="plain"] .modal.vault-import-result-modal,
+:root[data-theme="plain"] .modal.vault-item-menu-modal,
+:root[data-theme="plain"] .modal.vault-moment-picker-modal,
+:root[data-theme="plain"] .modal.vault-restore-moment-modal,
+:root[data-theme="plain"] .modal.vault-video-edit-modal,
+:root[data-theme="plain"] .modal.video-frame-picker-modal,
+:root[data-theme="plain"] .modal:has(form) .modal-head,
+:root[data-theme="plain"] .modal:has(form) :is(input:not([type=hidden]):not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]):not([type=color]),textarea,select),
+:root[data-theme="plain"] .modal:has(form) p.subtle,
+:root[data-theme="plain"] .password-entry,
+:root[data-theme="plain"] .password-gate-paper,
+:root[data-theme="plain"] .password-vault-empty,
+:root[data-theme="plain"] .password-vault-header,
+:root[data-theme="plain"] .password-vault-view .password-entry,
+:root[data-theme="plain"] .password-vault-view .password-entry>div>button,
+:root[data-theme="plain"] .phone-shell:has(.calendar-view) .dock-btn.active,
+:root[data-theme="plain"] .phone-shell:has(.journal-view) .dock-btn.active,
+:root[data-theme="plain"] .phone-shell:has(.ledger-view) .dock-btn.active,
+:root[data-theme="plain"] .phone-shell:has(.snippets-view) .dock-btn.active,
+:root[data-theme="plain"] .phone-shell:has(.today-view) .dock-btn.active,
+:root[data-theme="plain"] .private-vault-view .vault-folder-copy,
+:root[data-theme="plain"] .private-vault-view .vault-folder-cover,
+:root[data-theme="plain"] .private-vault-view .vault-item:not(.vault-video-item),
+:root[data-theme="plain"] .private-vault-view .vault-item:not(.vault-video-item)>div>button,
+:root[data-theme="plain"] .private-vault-view .vault-video-item>div,
+:root[data-theme="plain"] .private-vault-view .vault-view-switch,
+:root[data-theme="plain"] .private-vault-view .vault-view-switch>button,
+:root[data-theme="plain"] .private-vault-view :is(#vault-fingerprint-settings,#vault-passwordless),
+:root[data-theme="plain"] .profile-modal .avatar-picker,
+:root[data-theme="plain"] .profile-modal .modal-actions button,
+:root[data-theme="plain"] .profile-modal>input,
+:root[data-theme="plain"] .quick-hls-panel,
+:root[data-theme="plain"] .quick-hls-panel input,
+:root[data-theme="plain"] .quick-memo-wrap,
+:root[data-theme="plain"] .quick-photo-actions button,
+:root[data-theme="plain"] .quick-photo-preview,
+:root[data-theme="plain"] .quick-video-actions button,
+:root[data-theme="plain"] .reminder-modal #gen-ai-copy,
+:root[data-theme="plain"] .reminder-modal #send-test-notification,
+:root[data-theme="plain"] .reminder-modal .confirm-line,
+:root[data-theme="plain"] .reminder-modal .modal-actions button,
+:root[data-theme="plain"] .reminder-modal .modal-head,
+:root[data-theme="plain"] .reminder-modal .reminder-add,
+:root[data-theme="plain"] .reminder-modal .reminder-ai-box,
+:root[data-theme="plain"] .reminder-modal .reminder-random-box,
+:root[data-theme="plain"] .reminder-modal .reminder-row,
+:root[data-theme="plain"] .reminder-modal .reminder-test-box,
+:root[data-theme="plain"] .reminder-modal input[type=time],
+:root[data-theme="plain"] .reminder-modal select,
+:root[data-theme="plain"] .snippet-hls-paper,
+:root[data-theme="plain"] .snippet-hls-paper input,
+:root[data-theme="plain"] .snippets-view .moments-corner-note,
+:root[data-theme="plain"] .snippets-view .snippet-filter-pill,
+:root[data-theme="plain"] .snippets-view .snippet-item-card,
+:root[data-theme="plain"] .snippets-view .snippet-kpi-item,
+:root[data-theme="plain"] .snippets-view .snippet-media-card,
+:root[data-theme="plain"] .snippets-view .snippet-memo-card,
+:root[data-theme="plain"] .snippets-view .snippet-search-paper,
+:root[data-theme="plain"] .snippets-view .snippet-tool-btn,
+:root[data-theme="plain"] .snippets-view .snippets-stats-hero,
+:root[data-theme="plain"] .snippets-view .snippets-stream-sheet>.empty-state,
+:root[data-theme="plain"] .snippets-view .stats-streak-badge,
+:root[data-theme="plain"] .stats-habit-archive,
+:root[data-theme="plain"] .stats-habit-archive-list>button,
+:root[data-theme="plain"] .stats-kpi-sheet,
+:root[data-theme="plain"] .stats-report-trigger,
+:root[data-theme="plain"] .stats-screen .stats-kpi-sheet,
+:root[data-theme="plain"] .stats-screen .stats-sheet,
+:root[data-theme="plain"] .stats-sheet,
+:root[data-theme="plain"] .subpage-nav-bar,
+:root[data-theme="plain"] .taste-controls-paper,
+:root[data-theme="plain"] .taste-empty,
+:root[data-theme="plain"] .taste-entry-card,
+:root[data-theme="plain"] .taste-filter-rail button,
+:root[data-theme="plain"] .taste-header,
+:root[data-theme="plain"] .taste-hero-paper,
+:root[data-theme="plain"] .taste-place-card,
+:root[data-theme="plain"] .timer-settings-modal .confirm-line,
+:root[data-theme="plain"] .timer-settings-modal .modal-actions button,
+:root[data-theme="plain"] .timer-settings-modal .orientation-field,
+:root[data-theme="plain"] .timer-settings-modal .orientation-option>span,
+:root[data-theme="plain"] .timer-settings-modal .pomodoro-settings,
+:root[data-theme="plain"] .timer-settings-modal .subtle,
+:root[data-theme="plain"] .timer-settings-modal input:not([type=checkbox]):not([type=radio]),
+:root[data-theme="plain"] .today-stream-sheet,
+:root[data-theme="plain"] .today-view #countdown-banner,
+:root[data-theme="plain"] .today-view #countdown-banner + .today-bento-grid,
+:root[data-theme="plain"] .today-view .photo-stack-empty,
+:root[data-theme="plain"] .today-view .stack-card,
+:root[data-theme="plain"] .today-view .today-hero-actions,
+:root[data-theme="plain"] .today-view .today-life-stream-section,
+:root[data-theme="plain"] .todo-form-modal #todo-custom-date,
+:root[data-theme="plain"] .todo-form-modal .modal-actions button,
+:root[data-theme="plain"] .todo-form-modal .todo-custom-date,
+:root[data-theme="plain"] .todo-form-modal .todo-date-field,
+:root[data-theme="plain"] .todo-form-modal .todo-date-field span,
+:root[data-theme="plain"] .todo-form-modal>input:not([type=hidden]),
+:root[data-theme="plain"] .todo-manager-modal #new-todo-modal,
+:root[data-theme="plain"] .todo-manager-modal .modal-actions button,
+:root[data-theme="plain"] .todo-manager-modal .modal-head,
+:root[data-theme="plain"] .todo-manager-modal .todo-manage-day,
+:root[data-theme="plain"] .vault-bulk-bar button,
+:root[data-theme="plain"] .vault-content-head>#vault-select-items,
+:root[data-theme="plain"] .vault-empty,
+:root[data-theme="plain"] .vault-folder-copy,
+:root[data-theme="plain"] .vault-folder-cover-button,
+:root[data-theme="plain"] .vault-folders button,
+:root[data-theme="plain"] .vault-header>#vault-lock,
+:root[data-theme="plain"] .vault-import-mode>button#vault-import-move,
+:root[data-theme="plain"] .vault-import-mode>button:not(.modal-actions button),
+:root[data-theme="plain"] .vault-item,
+:root[data-theme="plain"] .vault-item-menu-actions>button,
+:root[data-theme="plain"] .vault-item-menu-actions>button.danger,
+:root[data-theme="plain"] .vault-lock-paper,
+:root[data-theme="plain"] .vault-security-actions>button,
+:root[data-theme="plain"] .vault-security-note>#vault-passwordless,
+:root[data-theme="plain"] .vault-toolbar button+button,
+:root[data-theme="plain"] .video-frame-actions button,
+:root[data-theme="plain"] .video-frame-stage,
+:root[data-theme="plain"] .warm-video-controls,
+:root[data-theme="plain"] .warm-video-controls>#warm-video-fullscreen,
+:root[data-theme="plain"] .warm-video-foot,
+:root[data-theme="plain"] .warm-video-foot button,
+:root[data-theme="plain"] .warm-video-player>header,
+:root[data-theme="plain"] .warm-video-player>header>button,
+:root[data-theme="plain"] .warm-video-rates button,
+:root[data-theme="plain"] .warm-video-stage,
+:root[data-theme="plain"] :is(#password-vault-setup,#password-vault-unlock,#vault-setup-form,#vault-unlock-form) input:not([type=checkbox]):not([type=radio]),
+:root[data-theme="plain"] :is(#subpage-habit-detail,#subpage-media-detail,#subpage-focus-detail,#subpage-ledger-detail) .subpage-nav-bar,
+:root[data-theme="plain"] :is(.focus-main-header,.taste-header,.mine-editorial-header,.vault-header,.password-vault-header) {
+  background-color: var(--plain-surface, #ffffff) !important;
+}
+
+/* —— 同一条规则里另有写死的底色：撤图后原样留住（否则会被更宽泛的补白底压掉）—— */
+:root[data-theme="plain"] #screen-ledger .ledger-accounts-mark {
+  background-color: #dce7d8 !important;
+}
+
+:root[data-theme="plain"] #app:has(.calendar-view),
+:root[data-theme="plain"] #app:has(.journal-view),
+:root[data-theme="plain"] #app:has(.ledger-view),
+:root[data-theme="plain"] #app:has(.snippets-view),
+:root[data-theme="plain"] #app:has(.today-view),
+:root[data-theme="plain"] #app>.private-vault-view,
+:root[data-theme="plain"] .journal-view .journal-history-link,
+:root[data-theme="plain"] .journal-view#screen-journal,
+:root[data-theme="plain"] .local-gallery-view,
+:root[data-theme="plain"] .password-vault-view,
+:root[data-theme="plain"] .private-vault-view,
+:root[data-theme="plain"] .taste-view,
+:root[data-theme="plain"] body:has(#screen-library) #app,
+:root[data-theme="plain"] body:has(.ai-companion-screen) #app,
+:root[data-theme="plain"] body:has(.focus-screen) #app,
+:root[data-theme="plain"] body:has(.mine-view) #app {
+  background-color: var(--plain-canvas, #f7f9fc) !important;
+}
+
+:root[data-theme="plain"] .journal-view .journal-history-title,
+:root[data-theme="plain"] .journal-view .journal-photo-wall-head,
+:root[data-theme="plain"] .journal-view .picker-section-label>span,
+:root[data-theme="plain"] .snippet-video-poster-preview,
+:root[data-theme="plain"] .snippet-video-segments img,
+:root[data-theme="plain"] .snippets-view .snippet-cover-frame,
+:root[data-theme="plain"] .snippets-view .snippet-day-header,
+:root[data-theme="plain"] .today-view .photo-stack-empty {
+  background-color: var(--plain-ink-block, #55606c) !important;
+}
+
+:root[data-theme="plain"] #screen-ledger .ledger-add-btn,
+:root[data-theme="plain"] #screen-ledger .ledger-quick-save,
+:root[data-theme="plain"] #screen-ledger .ledger-quick-type button.active,
+:root[data-theme="plain"] #screen-ledger .ledger-tabs button.active,
+:root[data-theme="plain"] #subpage-timetable .course-day-tab.active,
+:root[data-theme="plain"] #subpage-timetable .course-hero,
+:root[data-theme="plain"] .calendar-view.cal-screen .cal-cell.active,
+:root[data-theme="plain"] .calendar-view.cal-screen .cal-cell.today.active,
+:root[data-theme="plain"] .journal-view .journal-save-btn,
+:root[data-theme="plain"] .quick-video-preview-placeholder,
+:root[data-theme="plain"] .snippet-video-hls-placeholder,
+:root[data-theme="plain"] .snippet-video-stream-placeholder,
+:root[data-theme="plain"] .snippets-view .snippet-add-btn,
+:root[data-theme="plain"] .snippets-view .snippet-filter-pill.active,
+:root[data-theme="plain"] .stats-masthead,
+:root[data-theme="plain"] .vault-bulk-bar {
+  background-color: var(--plain-sage-block, #4f76bd) !important;
+}
+
+:root[data-theme="plain"] #countdown-banner,
+:root[data-theme="plain"] #countdown-banner + .today-bento-grid,
+:root[data-theme="plain"] #full-ledger-modal,
+:root[data-theme="plain"] #launch-overlay,
+:root[data-theme="plain"] #screen-ledger .ledger-stream-sheet,
+:root[data-theme="plain"] #subpage-focus-detail,
+:root[data-theme="plain"] #subpage-habit-detail,
+:root[data-theme="plain"] #subpage-journal-reader,
+:root[data-theme="plain"] #subpage-ledger-detail,
+:root[data-theme="plain"] #subpage-media-detail,
+:root[data-theme="plain"] #subpage-timetable,
+:root[data-theme="plain"] .ai-chat-page.is-immersive,
+:root[data-theme="plain"] .ai-companion-screen,
+:root[data-theme="plain"] .launch-film-fallback,
+:root[data-theme="plain"] .modal.ai-memory-import-modal,
+:root[data-theme="plain"] .modal.ai-settings-modal,
+:root[data-theme="plain"] .modal.ambient-modal,
+:root[data-theme="plain"] .modal.countdown-form-modal,
+:root[data-theme="plain"] .modal.course-edit-modal,
+:root[data-theme="plain"] .modal.focus-history-modal,
+:root[data-theme="plain"] .modal.folder-modal,
+:root[data-theme="plain"] .modal.habit-log-modal,
+:root[data-theme="plain"] .modal.habit-manager-modal,
+:root[data-theme="plain"] .modal.habit-modal,
+:root[data-theme="plain"] .modal.incoming-share-loading-modal,
+:root[data-theme="plain"] .modal.incoming-share-modal,
+:root[data-theme="plain"] .modal.incoming-share-progress-modal,
+:root[data-theme="plain"] .modal.media-form-modal,
+:root[data-theme="plain"] .modal.media-history-modal,
+:root[data-theme="plain"] .modal.mine-background-modal,
+:root[data-theme="plain"] .modal.mine-backup-modal,
+:root[data-theme="plain"] .modal.mine-data-modal,
+:root[data-theme="plain"] .modal.mine-restore-modal,
+:root[data-theme="plain"] .modal.mine-snapshot-confirm-modal,
+:root[data-theme="plain"] .modal.mine-snapshot-modal,
+:root[data-theme="plain"] .modal.password-detail-modal,
+:root[data-theme="plain"] .modal.password-entry-modal,
+:root[data-theme="plain"] .modal.password-security-modal,
+:root[data-theme="plain"] .modal.profile-modal,
+:root[data-theme="plain"] .modal.reminder-modal,
+:root[data-theme="plain"] .modal.snippet-video-modal,
+:root[data-theme="plain"] .modal.taste-detail-modal,
+:root[data-theme="plain"] .modal.taste-form-modal,
+:root[data-theme="plain"] .modal.timer-settings-modal,
+:root[data-theme="plain"] .modal.timetable-editor-modal,
+:root[data-theme="plain"] .modal.timetable-manager-modal,
+:root[data-theme="plain"] .modal.today-cover-crop-dialog,
+:root[data-theme="plain"] .modal.todo-form-modal,
+:root[data-theme="plain"] .modal.todo-manager-modal,
+:root[data-theme="plain"] .modal.vault-decrypting-modal,
+:root[data-theme="plain"] .modal.vault-folder-cover-modal,
+:root[data-theme="plain"] .modal.vault-form-modal,
+:root[data-theme="plain"] .modal.vault-import-mode-modal,
+:root[data-theme="plain"] .modal.vault-import-progress-modal,
+:root[data-theme="plain"] .modal.vault-import-result-modal,
+:root[data-theme="plain"] .modal.vault-item-menu-modal,
+:root[data-theme="plain"] .modal.vault-moment-picker-modal,
+:root[data-theme="plain"] .modal.vault-restore-moment-modal,
+:root[data-theme="plain"] .modal.vault-video-edit-modal,
+:root[data-theme="plain"] .modal.video-frame-picker-modal,
+:root[data-theme="plain"] .taste-entry-card,
+:root[data-theme="plain"] .taste-hero-paper {
+  background-color: var(--plain-surface, #ffffff) !important;
+}
+
+/* —— 以 <img> 直接贴在图里的装饰插图：清简主题下收起 —— */
+:root[data-theme="plain"] .quick-paper-art,
+:root[data-theme="plain"] .weather-art {
+  display: none !important;
+}
+
+
+/* ==========================================================================
+   浅色化 + 美化层（ themes-plain-light.css 由脚本拼接到此 ）
+   源文件 themes-plain-light.css 可手改；本文件由脚本生成，改完重跑即可。
+   ========================================================================== */
+/* ============================================================================
+   清简 · 静蓝 —— 浅色化 + 深度美化   themes-plain-light.css
+   加载顺序：fonts → performance → styles → themes → themes-plain → **本文件**
+
+   为什么单独一层：
+   · themes-plain.css 由 scripts/gen-plain-theme.mjs 自动生成、不能手改；
+   · 它用 `background-color: var(--plain-ink-block) !important` 把 94 个选择器
+     刷成了深色块（底栏、天气卡、课程卡、日期条、各种选中态、弹窗主按钮）。
+     在浅色界面里，这些是一块块"黑洞"。
+   · 要压过它，最稳的不是拼权重，而是**排在它后面加载**。
+
+   这一层做两件事：
+   一、浅色化：深色块 → 白卡 / 浅蓝卡；配套把里面的浅字改成深字（否则会看不见）。
+   二、美化：统一圆角、淡蓝描边、双层柔和阴影、按下微下沉，让浅色卡有层次。
+   ============================================================================ */
+
+:root[data-theme="plain"] {
+  /* 本层专用调色板（--pl-* 前缀，与生成器消费的 --plain-* 分开，互不干扰） */
+  --pl-blue: #4F76BD;
+  --pl-blue-deep: #3D5F9E;
+  --pl-blue-soft: #EDF1FA;
+  --pl-blue-tint: #E2EAF8;
+  --pl-blue-line: rgba(79, 118, 189, 0.22);
+  --pl-line: rgba(85, 96, 108, 0.10);
+  --pl-card-shadow: 0 1px 2px rgba(46, 52, 59, 0.04), 0 8px 20px rgba(46, 52, 59, 0.06);
+  --pl-card-shadow-hover: 0 2px 6px rgba(46, 52, 59, 0.06), 0 14px 32px rgba(46, 52, 59, 0.10);
+  --pl-blue-glow: 0 4px 14px rgba(79, 118, 189, 0.28);
+  --pl-danger: #B4564F;
+  --pl-danger-soft: #FBEEEC;
+}
+
+/* ---------------------------------------------------------------------------
+   一 · 深色容器块 → 白色卡片
+   .floating-dock / 天气卡 / 今日课程 / 日期条 / 各种徽章与状态条
+   --------------------------------------------------------------------------- */
+:root[data-theme="plain"] .floating-dock,
+:root[data-theme="plain"] .phone-shell:has(.today-view) .floating-dock,
+:root[data-theme="plain"] .phone-shell:has(.calendar-view) .floating-dock,
+:root[data-theme="plain"] .phone-shell:has(.snippets-view) .floating-dock,
+:root[data-theme="plain"] .phone-shell:has(.journal-view) .floating-dock,
+:root[data-theme="plain"] .phone-shell:has(.ledger-view) .floating-dock,
+:root[data-theme="plain"] .today-view .weather-box,
+:root[data-theme="plain"] .today-view .today-courses,
+:root[data-theme="plain"] .snippets-view .snippet-day-header,
+:root[data-theme="plain"] .ledger-analysis-status,
+:root[data-theme="plain"] .focus-report-badge,
+:root[data-theme="plain"] .habit-hero-badge,
+:root[data-theme="plain"] #subpage-habit-detail .habit-hero-badge,
+:root[data-theme="plain"] .habit-focus-entry,
+:root[data-theme="plain"] .heatmap-year-switch,
+:root[data-theme="plain"] .journal-reader-edit,
+:root[data-theme="plain"] #subpage-journal-reader .journal-reader-edit,
+:root[data-theme="plain"] #vault-fingerprint-unlock,
+:root[data-theme="plain"] .media-state.completed {
+  background: #FFFFFF !important;
+  border: 1px solid var(--pl-line) !important;
+  border-radius: 20px !important;
+  box-shadow: var(--pl-card-shadow) !important;
+  color: var(--ink) !important;
+  backdrop-filter: blur(14px) saturate(1.1);
+  -webkit-backdrop-filter: blur(14px) saturate(1.1);
+}
+
+/* 里面的浅字（原本为深底写的 #fff / 米白）一律继承深墨色，保证读得出来 */
+:root[data-theme="plain"] :is(.floating-dock,
+.today-view .weather-box,
+.today-view .today-courses,
+.snippets-view .snippet-day-header,
+.ledger-analysis-status,
+.focus-report-badge,
+.habit-hero-badge,
+.habit-focus-entry,
+.heatmap-year-switch,
+.journal-reader-edit,
+#vault-fingerprint-unlock) :is(span, small, strong, b, em, i, p, label, h1, h2, h3, h4, .material-symbols-outlined) {
+  color: inherit;
+}
+/* 但选中态的强调色要留住（底栏当前页仍用主题蓝） */
+:root[data-theme="plain"] .floating-dock .dock-btn.active,
+:root[data-theme="plain"] .floating-dock .dock-btn.active small,
+:root[data-theme="plain"] .floating-dock .dock-btn.active .material-symbols-outlined {
+  color: var(--pl-blue) !important;
+}
+:root[data-theme="plain"] .floating-dock .dock-btn { color: #6B7480 !important; }
+
+/* 底栏做成真正的"浮起白卡"：胶囊内缩、加内高光，和进度条那张卡同一套语言 */
+:root[data-theme="plain"] .floating-dock {
+  border-radius: 24px !important;
+  box-shadow: 0 2px 6px rgba(46, 52, 59, 0.05),
+              0 16px 36px rgba(46, 52, 59, 0.12),
+              inset 0 1px 0 rgba(255, 255, 255, 0.95) !important;
+}
+:root[data-theme="plain"] .floating-dock .dock-btn.active {
+  background: var(--pl-blue-soft) !important;
+  border-radius: 16px !important;
+}
+
+/* 天气卡 / 课程卡：左侧一条主题蓝竖线做"锚点"，比整块深色更轻 */
+:root[data-theme="plain"] .today-view .weather-box,
+:root[data-theme="plain"] .today-view .today-courses {
+  background: linear-gradient(135deg, #FFFFFF 0%, #F6F9FE 100%) !important;
+  border-left: 3px solid var(--pl-blue) !important;
+  padding-left: 13px;
+}
+/* 日期条：浅蓝底 + 蓝色日期字 */
+:root[data-theme="plain"] .snippets-view .snippet-day-header {
+  background: var(--pl-blue-soft) !important;
+  border-color: var(--pl-blue-line) !important;
+  color: var(--pl-blue-deep) !important;
+}
+:root[data-theme="plain"] .snippets-view .snippet-day-header :is(span, small, strong, b) { color: inherit !important; }
+
+/* 徽章 / 状态条：浅蓝胶囊 */
+:root[data-theme="plain"] .habit-hero-badge,
+:root[data-theme="plain"] #subpage-habit-detail .habit-hero-badge,
+:root[data-theme="plain"] .focus-report-badge,
+:root[data-theme="plain"] .ledger-analysis-status,
+:root[data-theme="plain"] .heatmap-year-switch,
+:root[data-theme="plain"] .habit-focus-entry {
+  background: var(--pl-blue-soft) !important;
+  border-color: var(--pl-blue-line) !important;
+  border-radius: 14px !important;
+  box-shadow: none !important;
+}
+:root[data-theme="plain"] .ledger-analysis-status :is(span, small, strong) { color: var(--pl-blue-deep) !important; }
+
+/* 账本预算进度条的两段（原本写死橙/红）→ 主题蓝的两档 */
+:root[data-theme="plain"] #screen-ledger .ledger-budget-box .level-bar > i.orange { background-color: var(--pl-blue) !important; }
+:root[data-theme="plain"] #screen-ledger .ledger-budget-box .level-bar > i.red { background-color: var(--pl-blue-deep) !important; }
+
+/* ---------------------------------------------------------------------------
+   二 · 选中 / 勾选态 → 浅蓝底 + 蓝字 + 蓝描边
+   （未选中是白卡，选中是浅蓝卡，靠颜色区分而不是靠"变黑"）
+   --------------------------------------------------------------------------- */
+:root[data-theme="plain"] #full-ledger-modal .ledger-category-grid button.active,
+:root[data-theme="plain"] #screen-ledger .ledger-quick-cats button.active,
+:root[data-theme="plain"] #screen-library .media-statuses button.active,
+:root[data-theme="plain"] #screen-library .media-tabs button.active,
+:root[data-theme="plain"] .habit-detail-switcher > button.active,
+:root[data-theme="plain"] #subpage-habit-detail .habit-detail-switcher > button.active,
+:root[data-theme="plain"] .habit-heatmap-year-switch button.active,
+:root[data-theme="plain"] #subpage-habit-detail .habit-heatmap-year-switch button.active,
+:root[data-theme="plain"] .ambient-modal .ambient-option.active,
+:root[data-theme="plain"] .focus-screen .focus-mode-btn.active,
+:root[data-theme="plain"] .private-vault-view .vault-view-switch > button.active,
+:root[data-theme="plain"] .stats-toolbar .segment button.active,
+:root[data-theme="plain"] .taste-filter-rail button.active,
+:root[data-theme="plain"] .vault-folders button.active,
+:root[data-theme="plain"] .vault-security-actions > #vault-passwordless.active,
+:root[data-theme="plain"] .vault-security-note > #vault-passwordless.active,
+:root[data-theme="plain"] .warm-video-rates button.active,
+:root[data-theme="plain"] #subpage-habit-detail .habit-achievement-list > div.earned,
+:root[data-theme="plain"] .journal-inline-snippet-item:has(input:checked) {
+  background: var(--pl-blue-soft) !important;
+  border: 1px solid var(--pl-blue-line) !important;
+  color: var(--pl-blue-deep) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 2px 8px rgba(79, 118, 189, 0.12) !important;
+}
+:root[data-theme="plain"] :is(.habit-detail-switcher > button.active,
+.stats-toolbar .segment button.active,
+.taste-filter-rail button.active,
+.vault-folders button.active,
+.warm-video-rates button.active,
+#screen-ledger .ledger-quick-cats button.active,
+#full-ledger-modal .ledger-category-grid button.active,
+#screen-library .media-tabs button.active,
+#screen-library .media-statuses button.active,
+#subpage-habit-detail .habit-achievement-list > div.earned) :is(span, small, strong, .material-symbols-outlined) {
+  color: inherit !important;
+}
+
+/* 勾选型选项（图标选择器 / 待办 / 计时方向）：选中 = 浅蓝圈 + 蓝勾 */
+:root[data-theme="plain"] .habit-modal input:checked + span,
+:root[data-theme="plain"] .habit-modal :is(.habit-tracking-picker, .habit-goal-picker) input:checked + span,
+:root[data-theme="plain"] .todo-form-modal input:checked + span,
+:root[data-theme="plain"] #timer-settings-form .orientation-option > input:checked + span,
+:root[data-theme="plain"] .timer-settings-modal .orientation-option input:checked + span {
+  background: var(--pl-blue-soft) !important;
+  border: 1px solid var(--pl-blue-line) !important;
+  color: var(--pl-blue-deep) !important;
+}
+
+/* ---------------------------------------------------------------------------
+   三 · 主操作按钮 → 实心主题蓝（白字仍然成立，不是"变黑了"）
+   危险操作 → 柔和红，保持语义
+   --------------------------------------------------------------------------- */
+:root[data-theme="plain"] .modal .modal-actions :is(button.save, button.primary),
+:root[data-theme="plain"] #full-ledger-modal .modal-actions .save,
+:root[data-theme="plain"] .ai-ledger-card button.save,
+:root[data-theme="plain"] .ai-memory-import-modal .modal-actions .save,
+:root[data-theme="plain"] .ai-settings-modal .modal-actions .save,
+:root[data-theme="plain"] .countdown-form-modal .modal-actions .save,
+:root[data-theme="plain"] .course-edit-modal .modal-actions .save,
+:root[data-theme="plain"] .folder-modal .modal-actions .save,
+:root[data-theme="plain"] .habit-log-modal .modal-actions .save,
+:root[data-theme="plain"] .habit-modal .modal-actions .save,
+:root[data-theme="plain"] .media-form-modal .modal-actions .save,
+:root[data-theme="plain"] .mine-background-modal .modal-actions .save,
+:root[data-theme="plain"] .mine-backup-modal .modal-actions .save,
+:root[data-theme="plain"] .mine-restore-modal .modal-actions .save,
+:root[data-theme="plain"] .mine-snapshot-confirm-modal .modal-actions .save,
+:root[data-theme="plain"] .profile-modal .modal-actions .save,
+:root[data-theme="plain"] .reminder-modal .modal-actions .save,
+:root[data-theme="plain"] .timer-settings-modal .modal-actions .save,
+:root[data-theme="plain"] :is(#password-vault-setup, #password-vault-unlock, #vault-setup-form, #vault-unlock-form) button.save,
+:root[data-theme="plain"] .vault-lock-paper form > .save,
+:root[data-theme="plain"] .vault-restore-moment .save,
+:root[data-theme="plain"] .quick-publish-btn,
+:root[data-theme="plain"] #quick-photo-modal .quick-publish-btn,
+:root[data-theme="plain"] .journal-inline-snippet-apply,
+:root[data-theme="plain"] .quick-hls-panel button,
+:root[data-theme="plain"] .snippet-hls-paper button {
+  background: linear-gradient(135deg, var(--pl-blue), var(--pl-blue-deep)) !important;
+  border: 0 !important;
+  color: #FFFFFF !important;
+  box-shadow: var(--pl-blue-glow) !important;
+}
+:root[data-theme="plain"] :is(.quick-publish-btn, .journal-inline-snippet-apply, .modal .modal-actions .save) :is(span, strong, small, .material-symbols-outlined) {
+  color: #FFFFFF !important;
+}
+:root[data-theme="plain"] :is(.quick-publish-btn, .journal-inline-snippet-apply, .modal .modal-actions .save):active {
+  transform: translateY(1px) scale(0.995);
+}
+
+/* 专注页开始键 / 今日行动键 / 资料库动作键：同样是"实心蓝" */
+:root[data-theme="plain"] .focus-screen .focus-timer-actions .play,
+:root[data-theme="plain"] .daily-focus-outcome button,
+:root[data-theme="plain"] .daily-focus-starts button,
+:root[data-theme="plain"] .daily-task-start,
+:root[data-theme="plain"] #generate-focus-coach,
+:root[data-theme="plain"] #ledger-analysis-ai button,
+:root[data-theme="plain"] #screen-library .media-search button,
+:root[data-theme="plain"] .media-empty > button,
+:root[data-theme="plain"] .media-detail-actions .media-detail-btn,
+:root[data-theme="plain"] .private-vault-view .vault-toolbar > #vault-import-moments,
+:root[data-theme="plain"] .vault-toolbar button {
+  background: linear-gradient(135deg, var(--pl-blue), var(--pl-blue-deep)) !important;
+  border: 0 !important;
+  color: #FFFFFF !important;
+  box-shadow: var(--pl-blue-glow) !important;
+}
+:root[data-theme="plain"] :is(.focus-screen .focus-timer-actions .play,
+.daily-task-start,
+.media-detail-actions .media-detail-btn,
+.vault-toolbar button) :is(span, small, strong, .material-symbols-outlined) {
+  color: #FFFFFF !important;
+}
+
+/* 危险操作：柔和红，不再是黑块 */
+:root[data-theme="plain"] .modal .modal-actions button.danger,
+:root[data-theme="plain"] .countdown-form-modal .modal-actions .danger,
+:root[data-theme="plain"] .habit-modal .modal-actions .danger,
+:root[data-theme="plain"] .todo-form-modal .modal-actions .danger {
+  background: var(--pl-danger-soft) !important;
+  border: 1px solid rgba(180, 86, 79, 0.28) !important;
+  color: var(--pl-danger) !important;
+  box-shadow: none !important;
+}
+:root[data-theme="plain"] :is(.modal .modal-actions button.danger,
+.countdown-form-modal .modal-actions .danger,
+.habit-modal .modal-actions .danger,
+.todo-form-modal .modal-actions .danger) :is(span, small, strong, .material-symbols-outlined) {
+  color: inherit !important;
+}
+
+/* 小图标圆底（管理列表里的圆形图标）：浅蓝 */
+:root[data-theme="plain"] .habit-manager-modal .manage-list .round-icon {
+  background: var(--pl-blue-soft) !important;
+  color: var(--pl-blue) !important;
+}
+
+/* ---------------------------------------------------------------------------
+   四 · 美化：统一浅色卡的语言（描边 / 圆角 / 悬浮 / 聚焦）
+   --------------------------------------------------------------------------- */
+
+/* 表单控件：白底 + 淡蓝描边；聚焦时蓝色光环（与进度条同一套蓝） */
+:root[data-theme="plain"] input:not([type="checkbox"]):not([type="radio"]),
+:root[data-theme="plain"] textarea,
+:root[data-theme="plain"] select {
+  background: #FFFFFF;
+  border: 1px solid var(--pl-line);
+  border-radius: 14px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+:root[data-theme="plain"] input:not([type="checkbox"]):not([type="radio"]):focus,
+:root[data-theme="plain"] textarea:focus,
+:root[data-theme="plain"] select:focus {
+  border-color: var(--pl-blue);
+  box-shadow: 0 0 0 3px var(--pl-blue-soft);
+}
+
+/* 弹窗：白卡 + 淡蓝描边 + 大投影，和进度条那张卡同一族 */
+:root[data-theme="plain"] .modal {
+  border: 1px solid var(--pl-line);
+  box-shadow: 0 24px 64px rgba(46, 52, 59, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+/* 列表行 / 设置行：悬浮时淡淡铺一层蓝，不是灰 */
+:root[data-theme="plain"] .settings-row:hover,
+:root[data-theme="plain"] .setting-item-row:hover {
+  background: var(--pl-blue-soft);
+}
+
+/* 滚动条：极淡的蓝灰 */
+:root[data-theme="plain"] * {
+  scrollbar-color: rgba(79, 118, 189, 0.28) transparent;
+}
+
+/* 分割线统一成极淡的冷灰，避免暖褐线在浅底上显脏 */
+:root[data-theme="plain"] :is(.setting-item-row, .settings-row) {
+  border-color: var(--pl-line);
+}
+
+/* 顶部渐隐：更轻，别把浅色页压出一层灰 */
+:root[data-theme="plain"] .library-view {
+  background: linear-gradient(180deg, rgba(237, 242, 250, 0.72), transparent 300px);
+}
+:root[data-theme="plain"] .snippets-view {
+  background: linear-gradient(180deg, rgba(237, 242, 250, 0.78), transparent 340px);
+}
+
+/* ---------------------------------------------------------------------------
+   五 · 其它被"就近调色板"染深的整条块
+   ⚠️ 日历的 --cal-red / --cal-green 是**双用**的：既当文字色，也当整条背景色。
+      当文字用的时候蓝色没问题；当背景用（档案条）就会变成一整条深色。
+      这类只能点对点覆盖。
+   --------------------------------------------------------------------------- */
+
+/* 日历「X月X日 · 星期X档案」标题条 → 浅蓝条 + 深蓝标题 */
+:root[data-theme="plain"] .calendar-view .cal-detail-head {
+  background-color: var(--pl-blue-soft) !important;
+  box-shadow: none !important;
+  border: 1px solid var(--pl-blue-line) !important;
+  border-radius: 16px !important;
+}
+:root[data-theme="plain"] .calendar-view .cal-detail-head .sheet-title {
+  color: var(--pl-blue-deep) !important;
+}
+/* 右侧「写日记 / 编辑日记」小胶囊：白底蓝字 */
+:root[data-theme="plain"] .calendar-view .cal-edit-journal-btn {
+  background: #FFFFFF !important;
+  border: 1px solid var(--pl-blue-line) !important;
+  border-radius: 999px !important;
+  color: var(--pl-blue) !important;
+  box-shadow: 0 1px 3px rgba(79, 118, 189, 0.14) !important;
+}
+:root[data-theme="plain"] .calendar-view .cal-edit-journal-btn :is(span, .material-symbols-outlined) {
+  color: var(--pl-blue) !important;
+}
+
+/* AI 当日小结里的「重新生成 / 更新中」按钮：浅蓝胶囊 */
+:root[data-theme="plain"] .calendar-view .day-summary-card > button {
+  background: var(--pl-blue-soft) !important;
+  border: 1px solid var(--pl-blue-line) !important;
+  border-radius: 999px !important;
+  color: var(--pl-blue-deep) !important;
+  box-shadow: none !important;
+}
+:root[data-theme="plain"] .calendar-view .day-summary-card > button :is(span, .material-symbols-outlined) {
+  color: inherit !important;
+}
+
+/* ---------------------------------------------------------------------------
+   六 · 生成器「保留原底色」通道里的深块
+   这些不是走"深色块改底"，而是"同一条规则里另有写死的底色 → 原样留住"，
+   所以它们的深色来自 --plain-ink-block / --plain-sage-block 两个令牌。
+   石板灰蓝的亮度约 0.37，肉眼就是一条深条 —— 一并收回浅色。
+   --------------------------------------------------------------------------- */
+
+/* 日记页三条章节条（这一天的心情与能量 / 天候与环境氛围 / Visual Moments /
+   过往篇章）→ 浅蓝条 + 深蓝小标题，和其它页的眉题同一种处理 */
+:root[data-theme="plain"] .journal-view .picker-section-label > span,
+:root[data-theme="plain"] .journal-view .journal-photo-wall-head,
+:root[data-theme="plain"] .journal-view .journal-history-title,
+:root[data-theme="plain"] .timetable-manager-modal .picker-section-label > span {
+  background: var(--pl-blue-soft) !important;
+  border: 1px solid var(--pl-blue-line) !important;
+  border-radius: 12px !important;
+  color: var(--pl-blue-deep) !important;
+  box-shadow: none !important;
+}
+:root[data-theme="plain"] :is(.journal-view .picker-section-label > span,
+.journal-view .journal-photo-wall-head,
+.journal-view .journal-history-title) :is(span, small, strong, b, em, .material-symbols-outlined) {
+  color: inherit !important;
+}
+
+/* 视频/照片的占位块与相框：深色 → 浅冷灰（图片本身不受影响） */
+:root[data-theme="plain"] .snippet-video-poster-preview,
+:root[data-theme="plain"] .snippet-video-segments img,
+:root[data-theme="plain"] .snippets-view .snippet-cover-frame,
+:root[data-theme="plain"] .quick-video-preview-placeholder,
+:root[data-theme="plain"] .snippet-video-hls-placeholder,
+:root[data-theme="plain"] .snippet-video-stream-placeholder,
+:root[data-theme="plain"] .today-view .photo-stack-empty {
+  background: #E7EDF6 !important;
+  color: var(--ink-muted) !important;
+  border-color: var(--pl-line) !important;
+}
+
+/* 统计页头图 / 课程表头卡：整块实心蓝太重 → 浅蓝卡 + 深字 */
+:root[data-theme="plain"] .stats-masthead,
+:root[data-theme="plain"] #subpage-timetable .course-hero {
+  background: linear-gradient(135deg, var(--pl-blue-soft) 0%, #F6F9FE 100%) !important;
+  border: 1px solid var(--pl-blue-line) !important;
+  color: var(--ink) !important;
+  box-shadow: var(--pl-card-shadow) !important;
+}
+:root[data-theme="plain"] :is(.stats-masthead, #subpage-timetable .course-hero) :is(span, small, strong, b, h1, h2, h3, p, .material-symbols-outlined) {
+  color: inherit !important;
+}
+:root[data-theme="plain"] :is(.stats-masthead, #subpage-timetable .course-hero) :is(em, b) { color: var(--pl-blue-deep) !important; }
+
+/* ---------------------------------------------------------------------------
+   七 · 收口：变浅的块内部，文字一律继承深色
+   ⚠️ 这是最关键的一条。源 CSS 给这些块写死了浅色文字（#fff / 米白 / 奶油色），
+      因为它们的底色原本是深的。底色一变浅，浅字就集体消失
+      （"Visual Moments" 是个写死 #FFF0D8 的 h3，就吃过这个亏）。
+      与其逐个补，不如统一收口：块 → 深墨，块里的一切 → 继承。
+   ⚠️ 底栏单独处理（它需要保留当前页的蓝色），所以不在这个名单里。
+   --------------------------------------------------------------------------- */
+:root[data-theme="plain"] :is(.today-view .weather-box,
+.today-view .today-courses,
+.snippets-view .snippet-day-header,
+.ledger-analysis-status,
+.focus-report-badge,
+.habit-hero-badge,
+.habit-focus-entry,
+.heatmap-year-switch,
+.journal-reader-edit,
+#vault-fingerprint-unlock,
+.media-state.completed,
+.calendar-view .cal-detail-head,
+.calendar-view .day-summary-card > button,
+.journal-view .picker-section-label > span,
+.journal-view .journal-photo-wall-head,
+.journal-view .journal-history-title,
+.stats-masthead,
+#subpage-timetable .course-hero,
+.snippet-video-poster-preview,
+.snippets-view .snippet-cover-frame,
+.today-view .photo-stack-empty,
+.quick-video-preview-placeholder,
+.snippet-video-hls-placeholder,
+.snippet-video-stream-placeholder) * {
+  color: inherit !important;
+}
+
+/* 底栏：文字颜色单独给（不影响"当前页高亮"） */
+:root[data-theme="plain"] .floating-dock .dock-btn,
+:root[data-theme="plain"] .floating-dock .dock-btn * {
+  color: #6B7480 !important;
+}
+:root[data-theme="plain"] .floating-dock .dock-btn.active,
+:root[data-theme="plain"] .floating-dock .dock-btn.active * {
+  color: var(--pl-blue) !important;
+}
+
+/* 收口之后要补回来的"强调色"（上面那条 * 会把它们也压平） */
+:root[data-theme="plain"] .calendar-view .cal-detail-head .sheet-title { color: var(--pl-blue-deep) !important; }
+:root[data-theme="plain"] .calendar-view .cal-edit-journal-btn * { color: var(--pl-blue) !important; }
+:root[data-theme="plain"] .calendar-view .day-summary-card > button { color: var(--pl-blue-deep) !important; }
+:root[data-theme="plain"] :is(.journal-view .picker-section-label > span,
+.journal-view .journal-photo-wall-head,
+.journal-view .journal-history-title) { color: var(--pl-blue-deep) !important; }
+:root[data-theme="plain"] :is(.stats-masthead, #subpage-timetable .course-hero) :is(em, b, strong) { color: var(--pl-blue-deep) !important; }
+:root[data-theme="plain"] .snippets-view .snippet-day-header { color: var(--pl-blue-deep) !important; }
+
+/* 日记页章节条右侧那个「重选」小字：深绿 → 中性灰 */
+:root[data-theme="plain"] .journal-view .picker-section-label > small { color: var(--ink-muted) !important; }
+:root[data-theme="plain"] .journal-view .picker-section-label { color: var(--ink) !important; }
+
+/* ---------------------------------------------------------------------------
+   八 · 彩色事件色板 / 内联写死的图标色
+   --------------------------------------------------------------------------- */
+
+/* 日历「事件档案」的 type 色板（原苔绿/陶土/赭黄/铜金/暖褐）→ 同族六档蓝。
+   和首页时间流同一套思路：类型区分靠深浅，不靠色相。 */
+:root[data-theme="plain"] .cal-archive-event { --event-accent: #7C8794; --event-pale: #EFF3F8; }
+:root[data-theme="plain"] .cal-archive-event.tone-sage { --event-accent: #4F76BD; --event-pale: #EDF1FA; }
+:root[data-theme="plain"] .cal-archive-event.tone-terracotta { --event-accent: #3D5F9E; --event-pale: #E9EFF9; }
+:root[data-theme="plain"] .cal-archive-event.tone-ochre { --event-accent: #6E93D1; --event-pale: #F0F4FC; }
+:root[data-theme="plain"] .cal-archive-event.tone-gold { --event-accent: #8FA9DC; --event-pale: #F3F6FD; }
+:root[data-theme="plain"] .cal-archive-event.tone-brown { --event-accent: #55606C; --event-pale: #EEF2F8; }
+:root[data-theme="plain"] .cal-archive-event.tone-neutral { --event-accent: #7C8794; --event-pale: #EFF3F8; }
+:root[data-theme="plain"] .cal-archive-meta > .material-symbols-outlined { color: var(--ink-muted); }
+
+/* 日历页眉的报头小字（砖红）→ 主题蓝；两个快捷入口的说明小字（暖褐灰）→ 冷灰 */
+:root[data-theme="plain"] .calendar-view .cal-issue-mark { color: #4F76BD; }
+:root[data-theme="plain"] .calendar-view .cal-tool-btn small { color: var(--ink-muted); }
+
+/* 首页照片堆：切换提示（砖红）→ 主题蓝；拍立得时间戳（暖褐）→ 冷灰 */
+:root[data-theme="plain"] .today-view #photo-stack-hint { color: #4F76BD; }
+:root[data-theme="plain"] .today-view .polaroid-time { color: rgba(46, 52, 59, 0.6); }
+
+/* 首页四个「快捷入口」图标：颜色是行内写死的（四色），普通选择器压不住，
+   必须 !important 才能盖过行内样式。改成四档同族蓝，靠深浅区分。 */
+:root[data-theme="plain"] .today-view .qa-card:nth-child(1) > .material-symbols-outlined { color: #3D5F9E !important; }
+:root[data-theme="plain"] .today-view .qa-card:nth-child(2) > .material-symbols-outlined { color: #5C86C9 !important; }
+:root[data-theme="plain"] .today-view .qa-card:nth-child(3) > .material-symbols-outlined { color: #4F76BD !important; }
+:root[data-theme="plain"] .today-view .qa-card:nth-child(4) > .material-symbols-outlined { color: #6E93D1 !important; }
+
+/* 账本「收入 / 支出 / 外借」三个图标底（铜金 / 暖红 / 暖米）→ 三档蓝。
+   金额的语义靠文案和图标字形表达，不靠色相，所以换色不丢信息。 */
+:root[data-theme="plain"] #screen-ledger .ledger-sub-stats > span > i { background: #EDF1FA !important; color: #4F76BD !important; }
+:root[data-theme="plain"] #screen-ledger .ledger-sub-stats > span:nth-child(2) > i { background: #E7EEF9 !important; color: #3D5F9E !important; }
+:root[data-theme="plain"] #screen-ledger .ledger-sub-stats > span:nth-child(3) > i { background: #F0F4FC !important; color: #5C86C9 !important; }
+
+/* ---------------------------------------------------------------------------
+   十 · 底栏「Today」那一格的图标（回归修复）
+   ⚠️ 这一格的图标**不是字体图标，是一张羽毛 PNG**：
+      styles.css `#dock-btn-today .material-symbols-outlined` 写的是
+      `background:url(assets/today-dock-feather.png)` + `color:transparent; font-size:0`，
+      也就是把字体字形彻底隐藏、只显示那张图。
+      而 gen-plain-theme.mjs 把它当"装饰图底"收进了撤图名单（background-image:none），
+      结果图没了、字形也是 0 号 —— 整格只剩「Today」两个字，看起来像坏了。
+   修法：把字体字形放回来，跟其他四格统一（原本 DOCK_TABS 给的图标就是 draw）。
+   --------------------------------------------------------------------------- */
+:root[data-theme="plain"] #dock-btn-today .material-symbols-outlined {
+  width: auto !important;
+  height: auto !important;
+  font-size: 21px !important;
+  line-height: 1 !important;
+  filter: none !important;
+  margin-bottom: 2px;
+}
+
+/* ---------------------------------------------------------------------------
+   十一 · 底栏「当前页」高亮胶囊（修正优先级）
+   ⚠️ 生成器的「补纯色底」把 `.phone-shell:has(.xxx-view) .dock-btn.active` 刷成了
+      `background-color: var(--plain-surface) !important`（= 白），权重 (0,6,0)，
+      比前面用 `.floating-dock .dock-btn.active`（(0,4,0)）高 —— 结果选中格是白的，
+      只剩文字和图标是蓝的，"当前在哪一页"几乎看不出来。
+      这里改用 id 选择器把权重拉到 id 级，一次压过所有 .phone-shell:has(...) 变体。
+   --------------------------------------------------------------------------- */
+:root[data-theme="plain"] #floating-dock .dock-btn.active {
+  background: var(--pl-blue-soft) !important;
+  border-radius: 16px !important;
+  box-shadow: none !important;
+}
+:root[data-theme="plain"] #floating-dock .dock-btn.active,
+:root[data-theme="plain"] #floating-dock .dock-btn.active * {
+  color: var(--pl-blue) !important;
+}
+/* 未选中的四格：中性冷灰（同样用 id 压过生成器的白色实底） */
+:root[data-theme="plain"] #floating-dock .dock-btn,
+:root[data-theme="plain"] #floating-dock .dock-btn * {
+  color: #6B7480 !important;
+}
+:root[data-theme="plain"] #floating-dock .dock-btn {
+  background: transparent !important;
+}
+
+/* ---------------------------------------------------------------------------
+   十二 · 倒数日（countdown 页）
+   ⚠️ 这一页当时漏了：体检脚本里那一步用的入口是「还没有倒数日」时才存在的按钮，
+      一旦真的建了倒数日，入口就没了，脚本静默跳过 → 一直以为它是好的。
+      卡片本体是整块深色渐变 + 白字，在浅色主题里就是三块大深色，非常跳。
+      分工：没配图的做成白卡 + 蓝色大数字；配了图的保留照片（照片上白字仍然最清楚）。
+   --------------------------------------------------------------------------- */
+/* 文字部分：深底白字 → 白底深字 */
+:root[data-theme="plain"] .countdown-card {
+  background: linear-gradient(145deg, #FFFFFF 0%, #F5F8FE 100%) !important;
+  color: var(--ink) !important;
+  border: 1px solid var(--pl-line) !important;
+  box-shadow: var(--pl-card-shadow) !important;
+  border-radius: 22px !important;
+}
+:root[data-theme="plain"] .countdown-card .countdown-title,
+:root[data-theme="plain"] .countdown-card .countdown-number,
+:root[data-theme="plain"] .countdown-card .countdown-card-bottom {
+  color: var(--ink) !important;
+  text-shadow: none !important;
+}
+:root[data-theme="plain"] .countdown-card .countdown-number b { color: var(--pl-blue) !important; }
+:root[data-theme="plain"] .countdown-card .countdown-number small,
+:root[data-theme="plain"] .countdown-card .countdown-card-bottom time,
+:root[data-theme="plain"] .countdown-card .countdown-card-bottom p {
+  color: var(--ink-secondary) !important;
+  opacity: 1 !important;
+}
+/* 那块压暗用的蒙层在白卡上只会显脏 —— 没有照片就不需要它 */
+:root[data-theme="plain"] .countdown-card:not(.has-image) .countdown-shade { display: none !important; }
+:root[data-theme="plain"] .countdown-card .countdown-flag {
+  background: var(--pl-blue-soft) !important;
+  color: var(--pl-blue-deep) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+:root[data-theme="plain"] .countdown-card .countdown-pin { color: var(--pl-blue) !important; }
+:root[data-theme="plain"] .countdown-intro p { color: var(--ink-secondary) !important; }
+:root[data-theme="plain"] .countdown-intro .eyebrow { color: var(--pl-blue) !important; }
+
+/* 有背景图的卡片：照片留着，蒙层换成冷调，文字继续用白色（照片上白字最清楚） */
+:root[data-theme="plain"] .countdown-card.has-image {
+  background: #E7EDF6 !important;
+  border-color: transparent !important;
+  box-shadow: var(--pl-card-shadow-hover) !important;
+}
+:root[data-theme="plain"] .countdown-card.has-image .countdown-shade {
+  display: block !important;
+  /* 三档而不是两档：遇到很亮的照片时，中段也不会让白字糊掉 */
+  background: linear-gradient(180deg, rgba(26, 32, 42, 0.20) 0%, rgba(26, 32, 42, 0.44) 45%, rgba(26, 32, 42, 0.74) 100%) !important;
+}
+:root[data-theme="plain"] .countdown-card.has-image :is(.countdown-title, .countdown-number, .countdown-number b, .countdown-card-bottom, .countdown-card-bottom time, .countdown-card-bottom p) {
+  color: #FFFFFF !important;
+  text-shadow: 0 1px 10px rgba(0, 0, 0, 0.4) !important;
+}
+:root[data-theme="plain"] .countdown-card.has-image .countdown-number b { color: #FFFFFF !important; }
+:root[data-theme="plain"] .countdown-card.has-image .countdown-flag {
+  background: rgba(255, 255, 255, 0.26) !important;
+  color: #FFFFFF !important;
+}
+:root[data-theme="plain"] .countdown-card.has-image .countdown-pin { color: #FFFFFF !important; }
+/* 已过去的日子：白卡上靠透明度表达"淡出"会更脏，改成降低一点饱和 */
+:root[data-theme="plain"] .countdown-card.past { opacity: 1 !important; }
+:root[data-theme="plain"] .countdown-card.past .countdown-number b { color: var(--ink-muted) !important; }
+
+/* 空状态 */
+:root[data-theme="plain"] .countdown-empty {
+  background: #FFFFFF !important;
+  border: 1px solid var(--pl-line) !important;
+  box-shadow: var(--pl-card-shadow) !important;
+}
+:root[data-theme="plain"] .countdown-empty > .material-symbols-outlined { color: var(--pl-blue) !important; }
+:root[data-theme="plain"] .countdown-empty strong { color: var(--ink) !important; }
+
+/* ---------------------------------------------------------------------------
+   九 · 装饰性手写体（Collect Ordinary Moments / 角落小注）
+   原本是暖褐色，在冷色主题里显脏 → 冷灰。
+   ⚠️ 这一节曾经在执行异常里整个丢掉过一次（当时没发现，靠逐节核对才找回来）。
+      以后往这个文件追加内容后，跑一遍 tests/theme-skins.test.mjs 里的"小节齐全"断言。
+   --------------------------------------------------------------------------- */
+:root[data-theme="plain"] .journal-view .journal-corner-note,
+:root[data-theme="plain"] .calendar-view .cal-photo-script,
+:root[data-theme="plain"] .snippets-view .moments-corner-note,
+:root[data-theme="plain"] .journal-view .journal-env-meta i {
+  color: #A9B2BF !important;
+}
+
+/* ---------------------------------------------------------------------------
+   十三 · 今日页倒数日横幅 + 评分星星
+   ⚠️ 这条横幅是"纸质票券"风格：外层撤掉纸纹图后，由内部 .countdown-banner-shade
+      填一层奶油色 rgba(247,239,223,.78)，文字是暖褐 —— 在冷色主题里就是一块米黄。
+      只查"暖色文字"是发现不了它的（底色是暖的、字是深的），
+      所以 tests/audit-plain-blocks.mjs 新增了「暖色浅底块」这一类检查。
+   --------------------------------------------------------------------------- */
+:root[data-theme="plain"] .today-view #countdown-banner {
+  background: var(--pl-blue-soft) !important;
+  border: 1px solid var(--pl-blue-line) !important;
+  border-radius: 14px !important;
+  box-shadow: none !important;
+}
+:root[data-theme="plain"] .today-view #countdown-banner .countdown-banner-shade {
+  background: transparent !important;
+}
+:root[data-theme="plain"] .today-view #countdown-banner :is(.countdown-banner-copy strong, .countdown-banner-days small, .countdown-empty-copy strong, .countdown-empty-copy small) {
+  color: var(--ink) !important;
+  text-shadow: none !important;
+}
+:root[data-theme="plain"] .today-view #countdown-banner :is(.countdown-banner-copy span, .countdown-banner-days b, .countdown-empty-chevron) {
+  color: var(--pl-blue-deep) !important;
+}
+:root[data-theme="plain"] .today-view #countdown-banner .countdown-banner-days b { color: var(--pl-blue) !important; }
+:root[data-theme="plain"] .today-view #countdown-banner .countdown-empty-ticket { color: var(--ink) !important; }
+
+/* 书影音评分星星：铜金 → 主题蓝（分数本身由星星颗数表达，不靠色相） */
+:root[data-theme="plain"] .snippets-view .snippet-rating { color: var(--pl-blue) !important; }
+:root[data-theme="plain"] .snippets-view .snippet-rating .material-symbols-outlined { color: inherit !important; }
+
+/* 「这一天还没有照片或视频」这类空状态底：暖米 → 冷雾 */
+:root[data-theme="plain"] .calendar-view .cal-no-photo {
+  background: #F1F4FA !important;
+  color: var(--ink-muted) !important;
+  border-radius: 14px !important;
+}
+
+/* ---------------------------------------------------------------------------
+   十四 · 柔化棱角：把"撤图后变成硬边白方块"的区块补回圆角
+   ⚠️ 这些区块原本靠**纸边图案**（border-image）或**整张纸底图**撑出柔和边缘，
+      生成器把图撤掉之后，它们就成了一块块直角白方块 —— 用户说的"棱角太僵硬死板"。
+      清单是用 tests/audit-plain-roundness.mjs 量出来的（76 个），不是凭感觉挑的。
+   --------------------------------------------------------------------------- */
+
+/* ① 大容器 / 页面卡片 → 20px。这类块面积大，圆角太小会更显硬 */
+:root[data-theme="plain"] :is(.today-bento-grid,
+.today-life-stream-section,
+.today-hero-actions,
+.focus-main-panel,
+.focus-intro.focus-main-header,
+.daily-focus-sheet,
+.focus-stream-sheet,
+.stats-kpi-sheet,
+.stats-sheet,
+.media-toolbar,
+.stream-sheet,
+.snippets-stats-hero,
+.snippet-item-card,
+.snippet-media-card,
+.snippet-visual-wrap,
+.snippet-photo-mosaic,
+.snippet-photo-tile,
+.journal-magazine-hero-box,
+.journal-photo-wall,
+.journal-canvas-card,
+.calendar-month-paper,
+.cal-kpi-strip,
+.cal-photo-paper,
+.cal-activity-section,
+.cal-archive-paper,
+.day-summary-action,
+.journal-empty-button,
+.ledger-overview-card,
+.ledger-quick-card,
+.ledger-budget-box,
+.ledger-accounts-section,
+.ledger-stream-sheet,
+.ledger-row,
+.mine-editorial-header,
+.profile-hero-card,
+.subpage-nav-bar,
+.habit-hero-card,
+.habit-heatmap-card,
+.habit-achievement-card,
+.habit-detail-switcher,
+.course-agenda,
+.stack-card) {
+  border-radius: 20px !important;
+}
+
+/* ② 中等块（小卡、小面板）→ 16px */
+:root[data-theme="plain"] :is(.cal-kpi-cell,
+.day-photo-thumb,
+.ledger-quick-type,
+.focus-mode-selector,
+.subpage-header,
+.timer-preference-row,
+.sound-track-row,
+.heatmap-legend,
+.cal-habit-summary) {
+  border-radius: 16px !important;
+}
+
+/* ③ 按钮 / 胶囊 / 输入框 → 全圆角或 14px。这类"小直角"最扎眼 */
+:root[data-theme="plain"] :is(.focus-mode-btn,
+.focus-category-picker,
+.duration-chip,
+.timer-action-secondary,
+.timer-action-screensaver,
+.cal-tool-btn,
+.creative-tool-btn,
+.journal-add-polaroid-btn,
+.journal-save-btn,
+.ledger-add-btn,
+.course-day-tab,
+#course-add,
+#course-periods,
+#course-practice,
+.stats-toolbar .segment button,
+.taste-filter-rail button,
+.vault-folders button,
+.warm-video-rates button,
+.segment button) {
+  border-radius: 999px !important;
+}
+:root[data-theme="plain"] :is(.media-search,
+.snippet-search-paper,
+.journal-date-control,
+.journal-title-input,
+.ledger-quick-amount-main,
+.ledger-quick-account-wrap,
+.ledger-quick-note-wrap,
+.timer-settings-modal input,
+.timer-settings-modal select) {
+  border-radius: 14px !important;
+}
+
+/* ---------------------------------------------------------------------------
+   十五 · 静态效果：用"下沉 / 浮起"两级做出层次，而不是一片死平的白
+   ⚠️ 全部用纯 CSS 渐变与阴影实现，不引入任何图片素材
+      （清简主题的大前提就是"没有素材"，用图会被素材体检脚本抓出来）。
+   --------------------------------------------------------------------------- */
+
+/* 装卡片的"底托"：比卡片低一档的冷雾色 + 下沉，里面的白卡自然浮起来 */
+:root[data-theme="plain"] :is(.today-bento-grid,
+.today-life-stream-section,
+.cal-activity-section,
+.ledger-accounts-section,
+.ledger-stream-sheet,
+.stream-sheet,
+.focus-main-panel,
+.course-agenda,
+.journal-photo-wall) {
+  background-color: #F2F6FC !important;
+  box-shadow: inset 0 1px 2px rgba(46, 52, 59, 0.035) !important;
+}
+
+/* 白卡：加一道顶部内高光，像纸被光斜照到的那一条边 —— 一眼就有"厚度" */
+:root[data-theme="plain"] :is(.stats-kpi-sheet,
+.stats-sheet,
+.snippets-stats-hero,
+.snippet-item-card,
+.snippet-media-card,
+.journal-magazine-hero-box,
+.journal-canvas-card,
+.calendar-month-paper,
+.cal-photo-paper,
+.ledger-overview-card,
+.ledger-quick-card,
+.ledger-row,
+.profile-hero-card,
+.habit-hero-card,
+.habit-heatmap-card,
+.habit-achievement-card,
+.daily-focus-sheet,
+.course-agenda,
+.stack-card) {
+  background-image: linear-gradient(180deg, #FFFFFF 0%, #FBFDFF 100%) !important;
+  box-shadow: 0 1px 2px rgba(46, 52, 59, 0.035),
+              0 8px 20px rgba(46, 52, 59, 0.055),
+              inset 0 1px 0 rgba(255, 255, 255, 0.95) !important;
+}
+
+/* 页面顶部一层极淡的蓝色光晕：让"顶"有光，而不是从头到脚一个色 */
+:root[data-theme="plain"] .view,
+:root[data-theme="plain"] #app {
+  background-image: radial-gradient(120% 46% at 50% 0%, rgba(79, 118, 189, 0.075) 0%, rgba(79, 118, 189, 0) 62%) !important;
+  background-repeat: no-repeat !important;
+}
+
+/* ---------------------------------------------------------------------------
+   十六 · 天气卡 / 课程卡的主次表达（试错留痕）
+   ⚠️ 一开始给这两张卡加了条左侧蓝竖杠。用 border-left 做，它遇到圆角会"跟着拐弯"，
+      在卡片外侧变成一道弧；换成 inset 阴影，又会在左上角绕出一个钩。
+      在卡片这个尺度上都太重。它们已经靠"蓝色图标 + 蓝色标题 + 坐在浅蓝底托上"
+      表达了主次，竖杠是多余的 —— 改成一层极淡的斜向蓝渐变，安静但仍有区分。
+   --------------------------------------------------------------------------- */
+:root[data-theme="plain"] .today-view .weather-box,
+:root[data-theme="plain"] .today-view .today-courses {
+  border-left-width: 1px !important;
+  border-left-color: var(--pl-line) !important;
+  padding-left: 15px;
+  background-image: linear-gradient(135deg, #FFFFFF 0%, #F2F7FE 100%) !important;
+  box-shadow: var(--pl-card-shadow) !important;
+}
+
+/* ---------------------------------------------------------------------------
+   十七 · 旧苔绿残留（#315b49 / #27382f / #e9ece3）
+   ⚠️ 这批是硬编码的墨绿，不走主题令牌，所以换肤时全都没被收走。
+      在浅蓝底上它们的对比度只有 1.68（体检脚本报出来的），又暗又脏。
+   --------------------------------------------------------------------------- */
+:root[data-theme="plain"] :is(#screen-ledger .ledger-budget-percent,
+#screen-ledger .ledger-budget-head > button:last-child,
+#full-ledger-modal #manage-ledger-categories,
+.ledger-transfer-intro,
+#full-ledger-modal .ledger-photo-actions button,
+#full-ledger-modal .modal-actions button,
+.journal-view .creative-tool-btn .material-symbols-outlined) {
+  color: var(--pl-blue-deep) !important;
+}
+/* 随手拍列表行的三个操作按钮：暖灰底 + 墨绿字 → 浅蓝底 + 深蓝字 */
+:root[data-theme="plain"] .snippets-view .snippet-item-actions button {
+  background: var(--pl-blue-soft) !important;
+  color: var(--pl-blue-deep) !important;
+  box-shadow: none !important;
+}
+:root[data-theme="plain"] .snippets-view .snippet-item-actions button :is(span, .material-symbols-outlined) {
+  color: inherit !important;
+}
+/* 其中"删除"保留柔红，跟弹窗里的危险操作同一套 */
+:root[data-theme="plain"] .snippets-view .snippet-item-actions button.danger,
+:root[data-theme="plain"] .snippet-item-actions button.danger {
+  background: var(--pl-danger-soft) !important;
+  color: var(--pl-danger) !important;
+}
+
+/* ---------------------------------------------------------------------------
+   十八 · 剩下的小直角（按体检结果逐个收）
+   --------------------------------------------------------------------------- */
+/* 胶囊类：筛选、心情/天气格、工具按钮 —— 这一类"小直角"最扎眼 */
+:root[data-theme="plain"] :is(.snippet-filter-pill,
+.mood-pick-item,
+.weather-pick-item,
+.snippet-add-btn,
+.journal-history-link,
+.ledger-accounts-all,
+#toggle-ledger-accounts,
+#strip-btn-expense,
+#strip-btn-income,
+.profile-edit-pill,
+#edit-profile,
+#task-change,
+#custom-duration,
+#focus-settings-open,
+#focus-report-open,
+#ambient-change,
+.focus-single-ambient,
+.media-tabs button,
+.timer-action-secondary,
+.timer-action-screensaver,
+.snippet-item-actions button,
+button.danger) {
+  border-radius: 999px !important;
+}
+/* 小卡片类：账户小卡、封面、KPI 小格、日记卡 */
+:root[data-theme="plain"] :is(.account-mini-card,
+.media-cover,
+.snippet-kpi-item,
+.cal-journal-card,
+.mine-kpi-row,
+.mine-kpi-card,
+.journal-preview-empty) {
+  border-radius: 16px !important;
+}
+/* 设置分组卡：整块白卡 */
+:root[data-theme="plain"] :is(.settings-group-card,
+.settings-card,
+.setting-card) {
+  border-radius: 20px !important;
+}
+/* 该"浮起来"的卡片补阴影（其余保持平，工具栏/导航条本来就该是平的） */
+:root[data-theme="plain"] :is(.cal-archive-paper,
+.day-summary-action,
+.ledger-budget-box,
+.focus-intro.focus-main-header,
+.snippet-visual-wrap,
+.media-toolbar,
+.cal-journal-card,
+.settings-group-card,
+.account-mini-card,
+.snippet-kpi-item) {
+  box-shadow: var(--pl-card-shadow) !important;
+}
+
+/* ---------------------------------------------------------------------------
+   十九 · 二级页的圆角（要拼权重）
+   ⚠️ 源码里有一组 `border-radius: 0 !important` 带 **ID 选择器**：
+        #subpage-habit-detail :is(.habit-hero-card, .habit-heatmap-card, .habit-achievement-card)
+      权重是 (1,2,0)，普通 class 链（(0,3,0)）压不过 —— 所以前一节的规则在这几个元素上
+      **静默失效**了（体检脚本把它们重新报成"直角块"才发现）。
+      凡是源码用了 ID 的地方，覆盖也必须用 ID，否则写了等于没写。
+   --------------------------------------------------------------------------- */
+:root[data-theme="plain"] :is(#subpage-habit-detail,
+#subpage-timetable,
+#subpage-journal-reader,
+#subpage-ledger-detail,
+#subpage-focus-detail,
+#subpage-media-detail) :is(.habit-hero-card,
+.habit-heatmap-card,
+.habit-achievement-card,
+.subpage-nav-bar,
+.course-hero) {
+  border-radius: 20px !important;
+}
+/* 日记标题输入框同理：源码用 #journal-title-input 把圆角锁成 0 */
+:root[data-theme="plain"] #journal-title-input,
+:root[data-theme="plain"] .journal-view #journal-title-input {
+  border-radius: 14px !important;
+}
+/* 课程表顶栏那条（源码里是 ID 级的 0） */
+:root[data-theme="plain"] #subpage-timetable .subpage-nav-bar,
+:root[data-theme="plain"] #subpage-timetable .course-hero {
+  border-radius: 20px !important;
+}
+
+/* 剩下的小元素：习惯行、连续打卡徽章、习惯切换胶囊、返回键、设置键 */
+:root[data-theme="plain"] :is(.bento-item-mini,
+.habit-mini-row,
+.stats-streak-badge,
+.habit-switch-chip,
+.subpage-back-btn,
+.course-nav-settings,
+.ledger-quick-save,
+.bento-card-footer,
+.journal-preview-empty) {
+  border-radius: 999px !important;
+}
+:root[data-theme="plain"] #subpage-timetable .course-nav-settings,
+:root[data-theme="plain"] #subpage-timetable .subpage-back-btn {
+  border-radius: 999px !important;
+}
+
+/* ---------------------------------------------------------------------------
+   二十 · 私密空间「项目菜单」里几处写死的墨绿
+   ⚠️ 这些颜色不走主题令牌（#304b3e / #315b49 / #786b5b / #75695a），
+      换肤时全都没被收走。顺手一起收。
+      **警告块的琥珀色与删除的柔红刻意保留** —— 它们是语义色，不属于主题色。
+   --------------------------------------------------------------------------- */
+:root[data-theme="plain"] :is(.vault-item-menu-sheet > h2,
+.vault-export-sheet > h2) {
+  color: var(--ink) !important;
+}
+:root[data-theme="plain"] :is(.vault-item-menu-sheet > small,
+.vault-item-menu-actions > button,
+.vault-item-menu-actions small) {
+  color: var(--ink-secondary) !important;
+}
+:root[data-theme="plain"] .vault-item-menu-actions > button.danger { color: var(--pl-danger) !important; }
+:root[data-theme="plain"] .vault-export-meta { background: var(--pl-blue-soft) !important; }
+
+/* 私密空间项目菜单的按钮：原来的象牙纸底被撤掉后变成全透明，看着像悬空的文字。
+   补一层浅底 + 描边，恢复到"这是一排按钮"的观感。 */
+:root[data-theme="plain"] .vault-item-menu-actions > button {
+  background-color: #FFFFFF !important;
+  background-image: linear-gradient(180deg, #FFFFFF 0%, #F7FAFE 100%) !important;
+  border: 1px solid var(--pl-line) !important;
+  border-radius: 16px !important;
+  box-shadow: 0 1px 2px rgba(46, 52, 59, 0.035) !important;
+}
+:root[data-theme="plain"] .vault-item-menu-actions > button.danger {
+  background-color: var(--pl-danger-soft) !important;
+  background-image: none !important;
+  border-color: rgba(178, 88, 88, 0.20) !important;
+}
+
+/* 私密空间项目菜单的按钮：原来的象牙纸底被撤掉后变成全透明，看着像悬空的文字。
+   补一层浅底 + 描边，恢复到"这是一排按钮"的观感。 */
+:root[data-theme="plain"] .vault-item-menu-actions > button {
+  background-color: #FFFFFF !important;
+  background-image: linear-gradient(180deg, #FFFFFF 0%, #F7FAFE 100%) !important;
+  border: 1px solid var(--pl-line) !important;
+  border-radius: 16px !important;
+  box-shadow: 0 1px 2px rgba(46, 52, 59, 0.035) !important;
+}
+:root[data-theme="plain"] .vault-item-menu-actions > button.danger {
+  background-color: var(--pl-danger-soft) !important;
+  background-image: none !important;

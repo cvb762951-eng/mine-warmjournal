@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="plain">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>清简主题 · 书卷气极简 · 预览</title>
+<link rel="stylesheet" href="www/css/fonts.css">
+<link rel="stylesheet" href="www/css/styles.css">
+<link rel="stylesheet" href="www/css/themes.css">
+<link rel="stylesheet" href="www/css/themes-plain.css">
+<link rel="stylesheet" href="www/css/performance.css">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: '霞鹜文楷', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: var(--canvas);
+    color: var(--ink);
+    min-height: 100vh;
+    padding: 40px 20px;
+  }
+  .preview-container {
+    max-width: 420px;
+    margin: 0 auto;
+  }
+  .preview-header {
+    text-align: center;
+    margin-bottom: 48px;
+    padding: 32px 24px;
+    background: var(--sheet);
+    border-radius: 20px;
+    box-shadow: var(--shadow-elevated);
+  }
+  .preview-header h1 {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--ink);
+    margin-bottom: 8px;
+    letter-spacing: -0.5px;
+  }
+  .preview-header p {
+    font-size: 15px;
+    color: var(--ink-secondary);
+    line-height: 1.6;
+  }
+  .preview-badge {
+    display: inline-block;
+    margin-top: 16px;
+    padding: 6px 16px;
+    background: var(--sage-green-light);
+    color: var(--sage-green-dark);
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  .section-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--sage-green-dark);
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    margin-bottom: 16px;
+    padding-left: 4px;
+  }
+
+  /* 色板展示 */
+  .color-palette {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 12px;
+    margin-bottom: 40px;
+  }
+  .color-swatch {
+    aspect-ratio: 1;
+    border-radius: 14px;
+    box-shadow: var(--shadow-ambient);
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    padding: 8px 4px;
+    transition: transform 0.2s ease;
+  }
+  .color-swatch:hover {
+    transform: scale(1.08);
+  }
+  .color-swatch span {
+    font-size: 10px;
+    font-weight: 600;
+    color: #fff;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.3);
+    text-align: center;
+  }
+
+  /* 模拟手机界面 */
+  .phone-frame {
+    background: var(--sheet);
+    border-radius: 36px;
+    box-shadow: var(--shadow-floating);
+    overflow: hidden;
+    margin-bottom: 32px;
+  }
+  .phone-notch {
+    height: 44px;
+    background: var(--sheet);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .phone-notch::after {
+    content: '';
+    width: 100px;
+    height: 28px;
+    background: var(--ink);
+    border-radius: 20px;
+    opacity: 0.06;
+  }
+
+  /* 首页模拟 */
+  .mock-home {
+    padding: 0 20px 24px;
+  }
+  .home-date {
+    padding: 20px 0 16px;
+  }
+  .home-date .date-day {
+    font-size: 42px;
+    font-weight: 800;
+    color: var(--ink);
+    line-height: 1;
+  }
+  .home-date .date-month {
+    font-size: 15px;
+    color: var(--ink-muted);
+    font-weight: 500;
+    margin-top: 4px;
+  }
+  .weather-box {
+    background: var(--plain-ink-block);
+    border-radius: 18px;
+    padding: 18px 20px;
+    margin-bottom: 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .weather-info { color: #fff; }
+  .weather-temp { font-size: 36px; font-weight: 700; }
+  .weather-desc { font-size: 13px; opacity: 0.75; }
+  .weather-icon { font-size: 48px; color: #e0bb63; }
+
+  .bento-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .bento-card {
+    background: var(--sheet-card);
+    border-radius: 18px;
+    padding: 18px;
+    box-shadow: var(--shadow-ambient);
+    border: var(--card-border);
+  }
+  .bento-card.full { grid-column: span 2; }
+  .bento-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--sage-green-dark);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 8px;
+  }
+  .bento-value {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--ink);
+  }
+  .bento-sub {
+    font-size: 12px;
+    color: var(--ink-muted);
+    margin-top: 4px;
+  }
+
+  /* 底部导航 */
+  .dock {
+    display: flex;
+    justify-content: space-around;
+    padding: 12px 20px 28px;
+    background: var(--dock-bg);
+    backdrop-filter: blur(20px);
+    border-top: 1px solid var(--glass-border);
+  }
+  .dock-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+    transition: transform 0.15s ease;
+  }
+  .dock-item:hover { transform: scale(1.1); }
+  .dock-item.active .dock-icon { color: var(--sage-green-dark); }
+  .dock-icon {
+    font-size: 24px;
+    color: var(--ink-muted);
+    font-family: 'Material Symbols Outlined';
+  }
+  .dock-label {
+    font-size: 10px;
+    color: var(--ink-muted);
+    font-weight: 500;
+  }
+  .dock-item.active .dock-label { color: var(--sage-green-dark); font-weight: 600; }
+
+  /* 卡片组件 */
+  .component-showcase {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin-bottom: 40px;
+  }
+  .showcase-card {
+    background: var(--sheet);
+    border-radius: 18px;
+    padding: 20px;
+    box-shadow: var(--shadow-ambient);
+    border: var(--card-border);
+  }
+  .showcase-row {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .btn {
+    padding: 10px 20px;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 600;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  .btn-primary {
+    background: var(--sage-green);
+    color: #fff;
+  }
+  .btn-primary:hover { background: var(--sage-green-dark); transform: translateY(-1px); }
+  .btn-secondary {
+    background: var(--warm-beige);
+    color: var(--ink);
+  }
+  .btn-secondary:hover { background: var(--warm-taupe); }
+  .btn-ghost {
+    background: transparent;
+    color: var(--sage-green-dark);
+    border: 1.5px solid var(--sage-green);
+  }
+
+  .tag-group { display: flex; gap: 8px; flex-wrap: wrap; }
+  .tag {
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 500;
+    background: var(--warm-beige);
+    color: var(--ink-secondary);
+  }
+  .tag.active {
+    background: var(--plain-sage-block);
+    color: #fff;
+  }
+
+  /* 输入框 */
+  .input-field {
+    width: 100%;
+    padding: 14px 16px;
+    border-radius: 12px;
+    border: 1.5px solid var(--border-cool);
+    background: var(--sheet);
+    font-size: 15px;
+    color: var(--ink);
+    outline: none;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  }
+  .input-field:focus {
+    border-color: var(--sage-green);
+    box-shadow: 0 0 0 3px var(--sage-green-light);
+  }
+  .input-field::placeholder { color: var(--ink-muted); }
+
+  /* 对比区 */
+  .compare-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 40px;
+  }
+  .compare-card {
+    background: var(--sheet);
+    border-radius: 18px;
+    overflow: hidden;
+    box-shadow: var(--shadow-ambient);
+  }
+  .compare-label {
+    padding: 12px 16px;
+    font-size: 12px;
+    font-weight: 600;
+    text-align: center;
+    letter-spacing: 0.5px;
+  }
+  .compare-old .compare-label { background: #f0e6d8; color: #8B7355; }
+  .compare-new .compare-label { background: var(--sage-green-light); color: var(--sage-green-dark); }
+  .compare-body {
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .compare-swatch {
+    height: 60px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  .footer-note {
+    text-align: center;
+    padding: 32px 20px;
+    color: var(--ink-muted);
+    font-size: 13px;
+    line-height: 1.8;
+  }
+  .footer-note strong { color: var(--ink-secondary); }
+</style>
+</head>
+<body>
+<div class="preview-container">
+
+  <!-- 标题区 -->
+  <div class="preview-header">
+    <h1>书卷气极简</h1>
+    <p>不是 iOS 式的冰冷工业极简<br>而像一本装帧精良的书</p>
+    <span class="preview-badge">清简主题 v2 · Literary Minimalism</span>
+  </div>
+
+  <!-- 色板 -->
+  <div class="section-title">配色系统</div>
+  <div class="color-palette">
+    <div class="color-swatch" style="background: #F7F8F9;" title="画布"><span>画布</span></div>
+    <div class="color-swatch" style="background: #FFFFFF; border: 1px solid rgba(30,42,58,0.07);" title="纸面"><span style="color:#555;">纸面</span></div>
+    <div class="color-swatch" style="background: #1A1F26;" title="墨色"><span>墨色</span></div>
+    <div class="color-swatch" style="background: #34A883;" title="翠玉"><span>翠玉</span></div>
+    <div class="color-swatch" style="background: #3E4F5F;" title="靛青"><span>靛青</span></div>
+    <div class="color-swatch" style="background: #C4705E;" title="赭石"><span>赭石</span></div>
+    <div class="color-swatch" style="background: #B8925C;" title="哑光金"><span>金</span></div>
+    <div class="color-swatch" style="background: #5C6570; border: 1px solid rgba(255,255,255,0.1);" title="辅文"><span style="color:#ddd;">辅文</span></div>
+    <div class="color-swatch" style="background: #9098A0; border: 1px solid rgba(255,255,255,0.15);" title="弱文"><span style="color:#333;">弱文</span></div>
+    <div class="color-swatch" style="background: #EEF0F3;" title="浅底"><span style="color:#666;">浅底</span></div>
+  </div>
+
+  <!-- 手机界面模拟：首页 -->
+  <div class="section-title">首页预览</div>
+  <div class="phone-frame">
+    <div class="phone-notch"></div>
+    <div class="mock-home">
+      <div class="home-date">
+        <div class="date-day">9</div>
+        <div class="date-month">2026 年 10 月 · 星期四</div>
+      </div>
+
+      <div class="weather-box">
+        <div class="weather-info">
+          <div class="weather-temp">22°</div>
+          <div class="weather-desc">多云 · 宜记录生活</div>
+        </div>
+        <div class="weather-icon">⛅</div>
+      </div>
+
+      <div class="bento-grid">
+        <div class="bento-card">
+          <div class="bento-label">今日习惯</div>
+          <div class="bento-value">3/5</div>
+          <div class="bento-sub">还剩 2 个待完成</div>
+        </div>
+        <div class="bento-card">
+          <div class="bento-label">本周日记</div>
+          <div class="bento-value">4</div>
+          <div class="bento-sub">篇 · 连续 3 天</div>
+        </div>
+        <div class="bento-card full">
+          <div class="bento-label">今日花销</div>
+          <div class="bento-value">¥ 128.50</div>
+          <div class="bento-sub">预算剩余 ¥ 871.50 · 本月第 12 笔</div>
+        </div>
+      </div>
+    </div>
+    <div class="dock">
+      <div class="dock-item active">
+        <span class="dock-icon">home</span>
+        <span class="dock-label">今天</span>
+      </div>
+      <div class="dock-item">
+        <span class="dock-icon">calendar_month</span>
+        <span class="dock-label">日历</span>
+      </div>
+      <div class="dock-item">
+        <span class="dock-icon">camera_alt</span>
+        <span class="dock-label">随手拍</span>
+      </div>
+      <div class="dock-item">
+        <span class="dock-icon">edit_note</span>
+        <span class="dock-label">日记</span>
+      </div>
+      <div class="dock-item">
+        <span class="dock-icon">account_balance_wallet</span>
+        <span class="dock-label">账本</span>
+      </div>
+      <div class="dock-item">
+        <span class="dock-icon">person</span>
+        <span class="dock-label">我的</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 组件展示 -->
+  <div class="section-title">组件风格</div>
+  <div class="component-showcase">
+    <div class="showcase-card">
+      <div class="bento-label" style="margin-bottom: 14px;">按钮</div>
+      <div class="showcase-row">
+        <button class="btn btn-primary">主要操作</button>
+        <button class="btn btn-secondary">次要操作</button>
+        <button class="btn btn-ghost">文字按钮</button>
+      </div>
+    </div>
+
+    <div class="showcase-card">
+      <div class="bento-label" style="margin-bottom: 14px;">筛选标签</div>
+      <div class="tag-group">
+        <span class="tag active">全部</span>
+        <span class="tag">照片</span>
+        <span class="tag">视频</span>
+        <span class="tag">备忘</span>
+      </div>
+    </div>
+
+    <div class="showcase-card">
+      <div class="bento-label" style="margin-bottom: 14px;">输入框</div>
+      <input type="text" class="input-field" placeholder="写下今天的想法...">
+    </div>
+  </div>
+
+  <!-- 新旧对比 -->
+  <div class="section-title">新旧对比</div>
+  <div class="compare-grid">
+    <div class="compare-card compare-old">
+      <div class="compare-label">旧版 · 功能性去黑</div>
+      <div class="compare-body">
+        <div class="compare-swatch" style="background: #55606c;">深色块 #55606c</div>
+        <div class="compare-swatch" style="background: #4f9a7a;">主色绿 #4f9a7a</div>
+        <div class="compare-swatch" style="background: #2e343b;">文字色 #2e343b</div>
+      </div>
+    </div>
+    <div class="compare-card compare-new">
+      <div class="compare-label">新版 · 书卷气极简</div>
+      <div class="compare-body">
+        <div class="compare-swatch" style="background: #3E4F5F;">深色块 #3E4F5F</div>
+        <div class="compare-swatch" style="background: #34A883;">主色翠玉 #34A883</div>
+        <div class="compare-swatch" style="background: #1A1F26;">墨色 #1A1F26</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 设计理念 -->
+  <div class="footer-note">
+    <strong>设计理念</strong><br>
+    宣纸白的底 · 墨色的字 · 翠玉的主色 · 靛青的深块<br>
+    有温度但不暖 · 有个性但不张扬 · 有品质感但不炫耀
+  </div>
+
+</div>
+</body>
+</html>

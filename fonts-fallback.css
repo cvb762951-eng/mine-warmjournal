@@ -1,0 +1,57 @@
+/* 中文兜底字体（Noto Sans SC / Noto Serif SC）—— 首屏之后才挂载
+ *
+ * ⚠️ 这个文件**不在 index.html 的样式表清单里**，由 app.js 在首屏渲染完成后才插入。
+ *
+ * 为什么（2026-10-10 实测）：
+ *   下面三条 src 指向的文件各约 4MB、合计 8MB。只要它们在首屏参与，浏览器就要
+ *   下载 + 解压 + 解析，实测会把「第一帧出现内容」推迟约 176ms ——
+ *   正是用户感知到的「打开 App 先卡一下」。
+ *
+ * 它们的作用只是「霞鹜文楷没覆盖到这个字时兜底」，晚几百毫秒到位不影响观感：
+ * 真机（Android WebView）系统自带的中文字形与这里本就一致，即使发生替换也看不出来。
+ *
+ * 路径说明：src 相对**本文件**（www/ 根目录）解析，与 fonts.css 同级，写法保持一致。
+ */
+
+@font-face {
+  font-family: 'Noto Sans SC';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('assets/fonts/noto-sc-400.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Noto Sans SC';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('assets/fonts/noto-sc-500.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Noto Sans SC';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('assets/fonts/noto-sc-600.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Noto Serif SC';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('assets/fonts/noto-sc-400.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Noto Serif SC';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('assets/fonts/noto-sc-500.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Noto Serif SC';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('assets/fonts/noto-sc-600.woff2') format('woff2');
+}

@@ -1,0 +1,842 @@
+/* ============================================================================
+   主题皮肤 · Theme skins （2026-10-08 新增）
+
+   【机制】
+   <html data-theme="..."> 切换主题；core.js 的 applyTheme() 负责写入这个属性。
+   每个主题只覆盖一组 CSS 变量 —— 不改任何结构、逻辑与数据。
+
+   【为什么用 :root[data-theme=x] 而不是 [data-theme=x]】
+   styles.css 的 :root 与普通属性选择器权重相同，靠"后加载"决胜。
+   这里显式抬高一档权重（伪类 + 属性选择器），避免将来调整加载顺序时静默失效。
+
+   【新增一个主题要改三处】
+     1. model.js 的 APP_THEMES 加 id、THEME_META 加展示信息
+     2. 本文件加 :root[data-theme="新id"] { ... } 覆盖块
+     3. 无需改 UI —— views/mine.js 的外观弹窗直接读 THEME_META 渲染
+
+   【只覆盖"色彩与质感"，不覆盖尺寸】
+   圆角、间距、动效、安全区等与主题无关的变量一律不动，
+   以保证任何主题下的排版都完全一致。
+   ========================================================================== */
+
+/* ---------------------------------------------------------------------------
+   暖阳 sunny
+   奶油暖黄底 + 暖褐文字 + 偏暖的草木绿强调。
+   主色刻意保留「绿」而不是换成橙：项目里绿色承载「达标 / 完成」的语义
+   （habit 达成、目标进度、成功态），换成橙色会让这些状态失去辨识度，
+   所以只把它调暖，与暖底和谐共处。
+   --------------------------------------------------------------------------- */
+:root[data-theme="sunny"] {
+  color-scheme: light;
+
+  /* —— 背景层：冷米白 → 奶油暖黄 —— */
+  --canvas: #fbf3e4;
+  --canvas-gradient: radial-gradient(ellipse at 50% 0%, #fffcf2 0%, #f4e8cf 100%);
+  --sheet: #fffcf5;
+  --sheet-gradient: linear-gradient(180deg, #fffdf8 0%, #fdf8ee 100%);
+  --sheet-card: #fffdf8;
+
+  /* —— 文字：冷黑 → 暖褐（对比度仍满足正文可读）—— */
+  --ink: #3b2e1e;
+  --ink-secondary: #6b5b47;
+  --ink-muted: #9c8563;
+
+  /* —— 主色：草木绿调暖（保留「绿 = 达标」语义）—— */
+  --sage-green: #8aa06b;
+  --sage-green-dark: #5d7a43;
+  --sage-green-light: #f2f5e4;
+
+  /* —— 暖色底：更黄更暖 —— */
+  --warm-beige: #f0e4ce;
+  --warm-beige-light: #faf3e6;
+  --warm-taupe: #e8dcc4;
+
+  /* —— 强调色：陶土 / 暖金 —— */
+  --terracotta: #c97a4e;
+  --terracotta-dark: #a05a31;
+  --terracotta-light: #fdf2e8;
+  --gold-accent: #d0a04a;
+  --gold-dark: #a2782c;
+  --gold-light: #fdf6e6;
+
+  /* —— 浮层与玻璃：暖白，避免在暖底上发冷 —— */
+  --dock-bg: rgba(255, 252, 245, 0.92);
+  --dock-border: rgba(255, 255, 255, 0.95);
+  --panel: rgba(255, 252, 246, 0.72);
+  --glass-bg: rgba(255, 252, 245, 0.72);
+  --glass-bg-main: rgba(255, 253, 248, 0.62);
+  --glass-bg-sub: rgba(255, 253, 248, 0.70);
+  --glass-bg-sm: rgba(255, 252, 245, 0.76);
+  --glass-border: rgba(255, 255, 255, 0.90);
+
+  /* —— 描边与分隔线：冷灰 → 暖褐 —— */
+  --card-border: 1px solid rgba(223, 206, 175, 0.72);
+  --card-border-subtle: 1px solid rgba(236, 223, 198, 0.90);
+  --line: rgba(59, 46, 30, 0.085);
+  --border-cool: rgba(223, 206, 175, 0.72);
+
+  /* —— 阴影：冷黑 → 暖褐，保持同样的层次强度 —— */
+  --shadow-ambient: 0 2px 10px rgba(96, 74, 40, 0.04), 0 10px 28px rgba(96, 74, 40, 0.052);
+  --shadow-elevated: 0 4px 18px rgba(96, 74, 40, 0.055), 0 20px 44px rgba(96, 74, 40, 0.082);
+  --shadow-floating: 0 18px 48px rgba(96, 74, 40, 0.145), 0 2px 8px rgba(0, 0, 0, 0.03);
+  --inner-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.95), inset 0 -1px 0 rgba(96, 74, 40, 0.018);
+
+  /* —— 第二套令牌 --warm-*（定义在 performance.css 的独立 :root 里，styles.css 没有）——
+     这批变量是「App 外壳」的实际控制者：html/body 底色、.phone-shell、.subpage-layer
+     （二级页容器）、.modal、.floating-dock（底部导航）、.app-header。
+     只覆盖上面那套的话，换肤只生效一半 —— 页面本体变了、外壳还是旧色，
+     表现为「背景和文字对不上」（2026-10-08 用户反馈）。必须两套同时覆盖。 */
+  --warm-canvas: #fbf3e4;
+  --warm-sheet: #fffcf5;
+  --warm-ink: #3b2e1e;
+  --warm-ink-secondary: #6b5b47;
+  --warm-ink-muted: #9c8563;
+  --warm-sage: #8aa06b;
+  --warm-sage-strong: #5d7a43;
+  --warm-terracotta: #c97a4e;
+  --warm-card-border: 1px solid rgba(223, 206, 175, 0.72);
+  --warm-inner-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.95), inset 0 -1px 0 rgba(96, 74, 40, 0.018);
+  --warm-shadow-ambient: 0 2px 10px rgba(96, 74, 40, 0.04), 0 10px 28px rgba(96, 74, 40, 0.052);
+  --warm-shadow-floating: 0 18px 48px rgba(96, 74, 40, 0.145), 0 2px 8px rgba(0, 0, 0, 0.03);
+  --warm-dock-background: rgba(255, 252, 245, 0.92);
+  /* --warm-glass-blur 是模糊半径，与色温无关，刻意不动。 */
+}
+
+/* 语义别名（--bg / --card / --primary …）全部写成 var(--canvas) 这类引用，
+   CSS 变量在取值时动态解析，所以覆盖上面的权威 token 后别名会自动跟随，
+   这里不需要重复声明。详见 styles.css 的 :root 注释。 */
+
+/* ---------------------------------------------------------------------------
+   硬编码色值的主题化补丁
+   以下色值在 styles.css / performance.css 里是直接写死的（未经变量），
+   属于「结构性大面积色块」，不处理会在暖底上露出冷色块。
+   只挑选确实影响观感的高频项，逐条给出等价暖色。
+   --------------------------------------------------------------------------- */
+
+/* 计时页：模式切换器底色与选中态（styles.css 直接写死 #ebe5dc / #fff） */
+:root[data-theme="sunny"] .focus-screen .focus-mode-selector { background: #efe4cd; }
+:root[data-theme="sunny"] .focus-screen .focus-mode-btn { color: #6e5f4a; }
+:root[data-theme="sunny"] .focus-screen .focus-mode-btn.active { background: #fffdf8; }
+:root[data-theme="sunny"] .focus-screen .focus-category-picker { background: #fffdf8; }
+:root[data-theme="sunny"] .focus-screen .timer-track { stroke: #eadfc7; }
+:root[data-theme="sunny"] .focus-screen .duration-chip.active {
+  background: var(--sage-green-light);
+  border-color: rgba(93, 122, 67, 0.34);
+  color: var(--sage-green-dark);
+  box-shadow: 0 2px 8px rgba(93, 122, 67, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.82);
+}
+
+/* 冷蓝灰残留（performance.css 的 R6 时期配色）——在暖底上会发灰发冷 */
+:root[data-theme="sunny"] .today-progress-card b { color: var(--gold-dark); }
+:root[data-theme="sunny"] .habit-copy strong em { background: #f6ecd2; color: #8a6a2e; }
+:root[data-theme="sunny"] .library-counts b { color: var(--ink-secondary); }
+
+/* ---------------------------------------------------------------------------
+   照片「深色相框」垫底
+   原设计用墨绿（#19342a / #101a16 / #1b2f27 / #172a23）当相框与竖图两侧垫底，
+   在米白底上是刻意的深色衬托，但换到暖黄底就与整体撞色（2026-10-08 用户反馈
+   「日记浏览出现背景和文字对不上」）。
+   这里把垫底整体换成暖褐，保留「深色衬托照片」的设计意图，只把色温调暖。
+   —— 注意：全屏看图（.photo-viewer / .vault-photo-viewer，底色 #050807/#020504）
+   属于沉浸式暗环境，是刻意设计，**不在此列**。
+   --------------------------------------------------------------------------- */
+
+/* 日记画报阅读：照片外框 + 竖图两侧垫底 */
+:root[data-theme="sunny"] .journal-reader-gallery button { background: #2e2418; }
+:root[data-theme="sunny"] .journal-reader-gallery img { background: #1f1810; }
+:root[data-theme="sunny"] .journal-reader-gallery>header { color: var(--sage-green-dark); }
+:root[data-theme="sunny"] .journal-reader-gallery>header small { color: var(--ink-muted); }
+
+/* ---------------------------------------------------------------------------
+   日记画报阅读页整体接入主题
+   这个页面原本有一整套自己的固定配色（纸张底 #f3ead9、墨绿文字 #315b49/#253e34、
+   正文 #36322e 等），完全不跟随主题 —— 换肤后会出现「页面还是旧的暖纸+墨绿、
+   但外壳已经变了」的脱节感（2026-10-08 用户反馈「背景和文字对不上」）。
+   这里把它作为一个整体重新上暖色：保留纸张纹理与画刊版式，只换色。
+   --------------------------------------------------------------------------- */
+
+/* 纸张底：保留纹理图片，只把底色调到与暖阳画布同源 */
+:root[data-theme="sunny"] .journal-reader-page { background-color: #fdf5e3; }
+/* 顶栏：墨绿文字 → 主题主色 */
+:root[data-theme="sunny"] .journal-reader-page .subpage-back-btn { color: var(--sage-green-dark); }
+:root[data-theme="sunny"] .journal-reader-page .subpage-nav-title { color: var(--ink); }
+/* 正文与引文：冷调深灰 → 暖调深褐（明度保持接近，可读性不变） */
+:root[data-theme="sunny"] .drop-cap-p,
+:root[data-theme="sunny"] .journal-reader-section p { color: #463726; }
+:root[data-theme="sunny"] .journal-reader-quote { color: #4a3d2c; }
+:root[data-theme="sunny"] .journal-reader-footprints span { background: var(--warm-beige-light); color: var(--ink-muted); }
+
+/* 随手拍影集：网格间隙 + 单个格子 + 格内图片垫底 */
+:root[data-theme="sunny"] .snippets-view .snippet-visual-wrap { background: #2e2418; }
+:root[data-theme="sunny"] .snippet-photo-mosaic { background: #2e2418; }
+:root[data-theme="sunny"] .snippet-photo-tile { background: #2e2418; }
+:root[data-theme="sunny"] .snippet-photo-tile img { background: #1f1810; }
+
+/* ---------------------------------------------------------------------------
+   页面级固定渐变背景
+   这几处是各页的整屏底色，写死了冷灰系，不处理会在暖阳下露出灰调（页面一片冷灰）。
+   保留原有的渐变结构与明暗走向，只换成暖色同源值。
+   --------------------------------------------------------------------------- */
+
+/* 计时页整屏底色 */
+:root[data-theme="sunny"] .focus-view {
+  background: linear-gradient(160deg, #fdf6e8 0%, #f5ead3 58%, #eeddbe 100%);
+}
+/* 资料库 / 随手拍：顶部渐隐遮罩 */
+:root[data-theme="sunny"] .library-view {
+  background: linear-gradient(180deg, rgba(238, 228, 206, 0.54), transparent 320px);
+}
+:root[data-theme="sunny"] .snippets-view {
+  background: linear-gradient(180deg, rgba(240, 230, 208, 0.62), transparent 360px);
+}
+
+/* ============================================================================
+   主题选择卡片（「外观」弹窗内）
+   刻意全部用变量书写：换肤时卡片自身也跟着变色，用户能当场看到反馈。
+   ========================================================================== */
+.theme-picker { margin: 0 0 18px; }
+.theme-picker-title {
+  display: block;
+  margin-bottom: 9px;
+  color: var(--ink-muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .05em;
+}
+.theme-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.theme-option {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 12px 12px 11px;
+  border: 1.5px solid var(--border-cool);
+  border-radius: var(--radius-sm);
+  background: var(--sheet-card);
+  box-shadow: var(--shadow-ambient);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color .18s var(--ease-spring), transform .18s var(--ease-spring), box-shadow .18s var(--ease-spring);
+}
+.theme-option:active { transform: scale(.975); }
+.theme-option.active {
+  border-color: var(--sage-green-dark);
+  /* 选中态用「描边 + 轻微内高光」表达，不用 color-mix（旧版 WebView 不支持） */
+  box-shadow: var(--shadow-elevated), inset 0 0 0 1px var(--sage-green-light);
+  background: linear-gradient(180deg, var(--sage-green-light) 0%, var(--sheet-card) 62%);
+}
+.theme-option strong {
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: .01em;
+}
+.theme-option small {
+  color: var(--ink-muted);
+  font-size: 10px;
+  line-height: 1.45;
+}
+/* 三色色板：主背景 / 卡片 / 强调 */
+.theme-swatch {
+  display: flex;
+  gap: 0;
+  height: 26px;
+  border: 1px solid var(--card-border-subtle);
+  border-radius: 7px;
+  overflow: hidden;
+}
+.theme-swatch > i { flex: 1; }
+.theme-option-check {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  color: var(--sage-green-dark);
+  font-size: 17px;
+}
+.theme-picker-hint {
+  display: block;
+  margin-top: 8px;
+  color: var(--ink-muted);
+  font-size: 10px;
+}
+
+/* 主题选择也是画报纸签；色板只表达实际主题，不再用圆角渐变卡。 */
+.theme-option{border:8px solid transparent;border-image:url('assets/secondary-content-paper-v1.png') 84 96 84 96 fill / 8px / 0 stretch;border-radius:0;background:none;box-shadow:none;padding:10px}
+.theme-option.active{border-image-source:url('assets/quick-control-sage-v1.png');border-image-slice:204 110 202 110 fill;border-color:transparent;background:none;box-shadow:none}
+.theme-option.active :is(strong,small,.theme-option-check){color:var(--warm-sheet)}
+.theme-swatch{border-radius:0}
+
+/* ---------------------------------------------------------------------------
+   清简 plain · 静蓝（2026-10-09 v6，由 v5「晨曦微光」改为蓝色系）
+   用户要求：整套主题全面对齐「随手拍进度条」的那个蓝。
+
+   设计理念：「静蓝」—— 冷雾白底 + 主题蓝强调，安静、干净、不暖不脏。
+   不是换成深蓝页面，而是把浅色系统全部换到蓝的色温上。
+
+   核心技法：
+   - 冷雾白底：#EAF0F8 的冷调米白，衬得蓝更干净
+   - 主题蓝：#4F76BD（取自随手拍进度条的填充色），深浅两级 + 10% 浅底
+   - 石板灰蓝深块：#55606C —— 深色块不再是黑，和蓝同族
+   - 5层冷调阴影：用深灰蓝而不是黑，避免发灰发脏
+   - 微交互：悬浮蓝线、柔和渐变、入场动画
+
+   ⚠️ 这个主题还差一半：把"图片质感"整体撤掉的部分**不在这里**，
+      而在 themes-plain.css（由 scripts/gen-plain-theme.mjs 从源 CSS 自动生成）。
+      只覆盖颜色的话，纸纹与纸边会留在浅色底上 —— 又暖又脏。
+      改了 styles.css 之后记得重跑那个脚本。
+   --------------------------------------------------------------------------- */
+:root[data-theme="plain"] {
+  color-scheme: light;
+
+  /* 供 themes-plain.css 的「补纯色底」引用：图片撤掉后垫在下面的一层纸面色 */
+  --plain-surface: #FFFFFF;
+  /* 页面底：冷雾蓝。
+     注意别调回接近纯白（#F7F9FC 那种）—— 和白色卡片只差 3%，整片糊成一张白纸，
+     用户会直接说"太白了"。留出这一档才有卡片的层次（2026-10-10 用户反馈）。 */
+  --plain-canvas: #EAF0F8;
+  /* 深色强调块：石板灰蓝（不是黑）。蓝灰同族，和主题蓝放一起不打架。
+     用于：底栏、子页顶栏、天气块、今日课程、大批按钮、toast 提示。 */
+  --plain-ink-block: #55606C;
+  /* 强调块：主题蓝（与「随手拍进度条」同一个蓝）。
+     用于原本深色/暖色的块：日历选中格、随手拍筛选、账本按钮、KPI 数值。 */
+  --plain-sage-block: #4F76BD;
+
+  /* —— 背景层：冷雾白系统 —— */
+  --canvas: #EAF0F8;
+  --canvas-gradient: #EAF0F8;
+  --sheet: #FFFFFF;
+  --sheet-gradient: #FFFFFF;
+  --sheet-card: #FFFFFF;
+
+  /* —— 文字层：冷墨色系统（冷调深灰，和蓝同族，阅读更干净）—— */
+  --ink: #2E343B;
+  --ink-secondary: #5A6572;
+  --ink-muted: #98A1AD;
+
+  /* —— 主色：主题蓝（取自随手拍进度条 #4F76BD）—— */
+  --sage-green: #4F76BD;
+  --sage-green-dark: #3D5F9E;
+  --sage-green-light: rgba(79, 118, 189, 0.10);
+
+  /* —— 中性辅助底（冷灰阶）—— */
+  --warm-beige: #EFF3F8;
+  --warm-beige-light: #EAF0F8;
+  --warm-taupe: #E1E7EF;
+
+  /* —— 次强调：浅一档的蓝（原来是青瓷+胭脂的暖色，在浅底上显脏）—— */
+  --terracotta: #6E93D1;
+  --terracotta-dark: #4F76BD;
+  --terracotta-light: rgba(110, 147, 209, 0.10);
+  --gold-accent: #6E93D1;
+  --gold-dark: #4F76BD;
+  --gold-light: rgba(110, 147, 209, 0.10);
+
+  /* —— 浮层与玻璃：纯白半透明 —— */
+  --dock-bg: rgba(255, 255, 255, 0.92);
+  --dock-border: rgba(255, 255, 255, 0.95);
+  --panel: rgba(255, 255, 255, 0.78);
+  --glass-bg: rgba(255, 255, 255, 0.75);
+  --glass-bg-main: rgba(255, 255, 255, 0.65);
+  --glass-bg-sub: rgba(255, 255, 255, 0.72);
+  --glass-bg-sm: rgba(255, 255, 255, 0.78);
+  --glass-border: rgba(255, 255, 255, 0.92);
+
+  /* —— 描边与分隔线：极淡的石板灰蓝（与深色块同族）—— */
+  --card-border: 1px solid rgba(85, 96, 108, 0.08);
+  --card-border-subtle: 1px solid rgba(85, 96, 108, 0.06);
+  --line: rgba(85, 96, 108, 0.08);
+  --border-cool: rgba(85, 96, 108, 0.14);
+
+  /* —— 阴影：冷调 5 层系统，用深灰蓝而不是黑，避免发灰发脏 —— */
+  --shadow-xs: 0 1px 2px rgba(46, 52, 59, 0.04);
+  --shadow-sm: 0 2px 6px rgba(46, 52, 59, 0.05), 0 1px 2px rgba(46, 52, 59, 0.03);
+  --shadow-ambient: 0 1px 2px rgba(46, 52, 59, 0.04), 0 4px 12px rgba(46, 52, 59, 0.05);
+  --shadow-md: 0 4px 16px rgba(46, 52, 59, 0.06), 0 2px 4px rgba(46, 52, 59, 0.04);
+  --shadow-elevated: 0 2px 6px rgba(46, 52, 59, 0.05), 0 10px 28px rgba(46, 52, 59, 0.06);
+  --shadow-lg: 0 8px 32px rgba(46, 52, 59, 0.07), 0 4px 8px rgba(46, 52, 59, 0.05);
+  --shadow-floating: 0 10px 32px rgba(46, 52, 59, 0.09);
+  --shadow-xl: 0 16px 48px rgba(46, 52, 59, 0.09), 0 8px 16px rgba(46, 52, 59, 0.05);
+  --shadow-glass: 0 8px 32px rgba(46, 52, 59, 0.07), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  --shadow-glow-gold: 0 0 24px rgba(79, 118, 189, 0.20);
+  --inner-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.9), inset 0 -1px 0 rgba(85, 96, 108, 0.03);
+
+  /* —— 第二套令牌 --warm-*：App 外壳的实际控制者（html/body、.phone-shell、
+        .subpage-layer、.modal、.floating-dock、.app-header）。缺一个就"半新半旧"。 */
+  --warm-canvas: #EAF0F8;
+  --warm-sheet: #FFFFFF;
+  --warm-ink: #2E343B;
+  --warm-ink-secondary: #5A6572;
+  --warm-ink-muted: #98A1AD;
+  --warm-sage: #4F76BD;
+  --warm-sage-strong: #3D5F9E;
+  --warm-terracotta: #6E93D1;
+  --warm-card-border: 1px solid rgba(85, 96, 108, 0.08);
+  --warm-inner-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.9), inset 0 -1px 0 rgba(85, 96, 108, 0.03);
+  --warm-shadow-ambient: 0 1px 2px rgba(46, 52, 59, 0.04), 0 4px 12px rgba(46, 52, 59, 0.05);
+  --warm-shadow-floating: 0 10px 32px rgba(46, 52, 59, 0.09);
+  --warm-dock-background: rgba(255, 255, 255, 0.92);
+  /* --warm-glass-blur 是模糊半径，与色温无关，刻意不动。 */
+}
+
+
+/* ---------------------------------------------------------------------------
+   静蓝 · 全局增强（新拟态 + 微交互 + 蓝线点缀）
+   这些规则让清简主题真正"高级"起来。
+   --------------------------------------------------------------------------- */
+
+/* 所有卡片：新拟态效果 */
+:root[data-theme="plain"] .card,
+:root[data-theme="plain"] .bento-item,
+:root[data-theme="plain"] .stats-card,
+:root[data-theme="plain"] .settings-group-card,
+:root[data-theme="plain"] .ledger-account-card,
+:root[data-theme="plain"] .journal-card {
+  background: var(--sheet);
+  border: var(--card-border);
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1),
+              box-shadow 0.3s cubic-bezier(0.22, 1, 0.36, 1),
+              border-color 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+  position: relative;
+}
+
+/* 卡片顶部蓝线（悬浮时出现） */
+:root[data-theme="plain"] .card::before,
+:root[data-theme="plain"] .bento-item::before,
+:root[data-theme="plain"] .stats-card::before,
+:root[data-theme="plain"] .settings-group-card::before,
+:root[data-theme="plain"] .ledger-account-card::before,
+:root[data-theme="plain"] .journal-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--sage-green), var(--gold-accent));
+  opacity: 0;
+  transition: opacity 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* 卡片悬浮：浮起 + 阴影加深 + 蓝线出现 */
+:root[data-theme="plain"] .card:hover,
+:root[data-theme="plain"] .bento-item:hover,
+:root[data-theme="plain"] .stats-card:hover,
+:root[data-theme="plain"] .settings-group-card:hover,
+:root[data-theme="plain"] .ledger-account-card:hover,
+:root[data-theme="plain"] .journal-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--border-cool);
+}
+
+:root[data-theme="plain"] .card:hover::before,
+:root[data-theme="plain"] .bento-item:hover::before,
+:root[data-theme="plain"] .stats-card:hover::before,
+:root[data-theme="plain"] .settings-group-card:hover::before,
+:root[data-theme="plain"] .ledger-account-card:hover::before,
+:root[data-theme="plain"] .journal-card:hover::before {
+  opacity: 1;
+}
+
+/* 卡片点击：轻微下沉 */
+:root[data-theme="plain"] .card:active,
+:root[data-theme="plain"] .bento-item:active,
+:root[data-theme="plain"] .stats-card:active,
+:root[data-theme="plain"] .settings-group-card:active,
+:root[data-theme="plain"] .ledger-account-card:active,
+:root[data-theme="plain"] .journal-card:active {
+  transform: translateY(0) scale(0.99);
+  transition-duration: 0.1s;
+}
+
+/* 底部导航：悬浮纸感 */
+:root[data-theme="plain"] .floating-dock,
+:root[data-theme="plain"] .app-header {
+  background: var(--sheet);
+  border: var(--card-border);
+  box-shadow: var(--shadow-lg);
+}
+
+/* 模态框：纸感
+   ⚠️ 必须排除"沉浸式"弹窗（全屏看图 / 私密看视频）—— 它们本来就是深色底，
+      这里是「统一白底」，一旦盖上去，打开大图时会先看到一整屏白（用户报的"白屏闪一下"）。
+      而且这条权重是 (0,3,0) > 源码 .modal.photo-modal 的 (0,2,0)，**不加 :not() 就必然压过它**。
+      新增沉浸式弹窗时，记得也加进这个排除名单（2026-10-10 已加 .video-editor-modal 剪辑器）。 */
+:root[data-theme="plain"] .modal:not(.photo-modal):not(.vault-photo-modal):not(.vault-feed-modal):not(.video-editor-modal) {
+  background: var(--sheet);
+  border: var(--card-border);
+}
+
+/* 按钮：微交互 + 主题蓝光晕 */
+:root[data-theme="plain"] .btn-primary,
+:root[data-theme="plain"] button[type="submit"] {
+  position: relative;
+  overflow: hidden;
+  transition: all 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+  box-shadow: 0 4px 16px var(--shadow-glow-gold);
+}
+
+:root[data-theme="plain"] .btn-primary::before,
+:root[data-theme="plain"] button[type="submit"]::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  transition: width 0.4s, height 0.4s;
+}
+
+:root[data-theme="plain"] .btn-primary:active::before,
+:root[data-theme="plain"] button[type="submit"]:active::before {
+  width: 200px;
+  height: 200px;
+}
+
+:root[data-theme="plain"] .btn-primary:hover,
+:root[data-theme="plain"] button[type="submit"]:hover {
+  box-shadow: 0 6px 24px var(--shadow-glow-gold);
+  transform: translateY(-2px);
+}
+
+/* 输入框：聚焦发光 */
+:root[data-theme="plain"] input:focus,
+:root[data-theme="plain"] textarea:focus,
+:root[data-theme="plain"] select:focus {
+  border-color: var(--sage-green);
+  box-shadow: 0 0 0 3px var(--sage-green-light);
+  outline: none;
+}
+
+/* 标签/胶囊：主题蓝选中态 */
+:root[data-theme="plain"] .snippet-filter-pill,
+:root[data-theme="plain"] .ledger-tabs button {
+  background: var(--sheet);
+  border: var(--card-border);
+  transition: all 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+:root[data-theme="plain"] .snippet-filter-pill.active,
+:root[data-theme="plain"] .ledger-tabs button.active {
+  background: var(--sage-green);
+  border-color: var(--sage-green);
+  box-shadow: 0 2px 8px var(--shadow-glow-gold);
+  color: #FFFFFF;
+}
+
+/* 进度条：柔和渐变 */
+:root[data-theme="plain"] .progress-track,
+:root[data-theme="plain"] .habit-progress-bar {
+  position: relative;
+  overflow: hidden;
+  background: var(--warm-beige);
+}
+
+:root[data-theme="plain"] .progress-fill,
+:root[data-theme="plain"] .habit-progress-fill {
+  background: linear-gradient(90deg, var(--sage-green), var(--gold-accent));
+}
+
+/* 页面入场动画 */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+:root[data-theme="plain"] .screen > * {
+  animation: fadeInUp 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+:root[data-theme="plain"] .screen > *:nth-child(1) { animation-delay: 0.05s; }
+:root[data-theme="plain"] .screen > *:nth-child(2) { animation-delay: 0.1s; }
+:root[data-theme="plain"] .screen > *:nth-child(3) { animation-delay: 0.15s; }
+:root[data-theme="plain"] .screen > *:nth-child(4) { animation-delay: 0.2s; }
+:root[data-theme="plain"] .screen > *:nth-child(5) { animation-delay: 0.25s; }
+/* ---------------------------------------------------------------------------
+   清简主题下的「页面级固定配色」
+   以下几处是写死色值的整屏底色与相框色，不跟变量走 ——
+   不处理会在这里露出原来的暖纸色或深墨绿。
+   ⚠️ v6 修正：v4「暗夜琉璃」留下的 #12121A / #22222F 深色页是**残留**，
+      和 v5 的浅色系统并存会变成"一半亮一半黑"。这里全部收回冷雾白 + 蓝。
+   --------------------------------------------------------------------------- */
+
+/* 日记画报阅读：纸底换成冷雾白（纹理已由 themes-plain.css 撤掉） */
+:root[data-theme="plain"] .journal-reader-page { background-color: #FFFFFF; }
+
+/* 计时页 / 资料库 / 随手拍：整屏与顶部渐隐遮罩，用冷雾蓝渐变 */
+:root[data-theme="plain"] .focus-view {
+  background: linear-gradient(165deg, #F8FAFE 0%, #EDF2FA 60%, #E6EDF7 100%);
+}
+:root[data-theme="plain"] .library-view {
+  background: linear-gradient(180deg, rgba(232, 239, 249, 0.88), transparent 320px);
+}
+:root[data-theme="plain"] .snippets-view {
+  background: linear-gradient(180deg, rgba(232, 239, 249, 0.94), transparent 360px);
+}
+
+/* 照片相框：浅冷灰衬托（原本是 #22222F 深色，在浅色页面上像一块洞） */
+:root[data-theme="plain"] .journal-reader-gallery button,
+:root[data-theme="plain"] .journal-reader-gallery img { background: #E7EDF6; }
+:root[data-theme="plain"] .snippets-view .snippet-visual-wrap,
+:root[data-theme="plain"] .snippet-photo-mosaic,
+:root[data-theme="plain"] .snippet-photo-tile { background: #E7EDF6; }
+/* 主题卡片自身的纸边在清简下也撤掉，换成细线（themes-plain.css 会清掉图片边框，
+   这里补回一条可见的描边，否则选中的卡片会"看不出是个框"）。 */
+:root[data-theme="plain"] .theme-option {
+  border: 1px solid var(--border-cool);
+  background: var(--sheet-card);
+}
+:root[data-theme="plain"] .theme-option.active {
+  border-color: var(--sage-green-dark);
+  box-shadow: var(--shadow-elevated), inset 0 0 0 1px var(--sage-green-light);
+}
+:root[data-theme="plain"] .theme-option.active :is(strong, small, .theme-option-check) { color: var(--ink); }
+
+/* ---------------------------------------------------------------------------
+   日常页面里「写死的近黑底 / 暖米底」：清简下一律收敛
+   这些底色不经过图片，生成器（themes-plain.css）扫不到，只能点对点补。
+   ⚠️ 沉浸式暗环境刻意保留深色、不在此列：全屏看图（.photo-viewer /
+      .vault-photo-viewer / .journal-reader-gallery）、看视频（.warm-video-*）、
+      私密空间（.vault-*）、专注全屏时钟（.immersive-clock-screen）。
+   --------------------------------------------------------------------------- */
+
+/* 随手拍筛选胶囊：未选中是纸感、选中是主题蓝 */
+:root[data-theme="plain"] .snippet-filter-pill { background: var(--sheet); color: var(--ink-secondary); }
+:root[data-theme="plain"] .snippet-filter-pill .material-symbols-outlined { color: var(--ink-muted); }
+:root[data-theme="plain"] .snippet-filter-pill.active { background: var(--plain-sage-block); color: #FFFFFF; }
+:root[data-theme="plain"] .snippet-filter-pill.active .material-symbols-outlined { color: #FFFFFF; }
+
+/* 账本分类页签：未选中是纸感；选中是主题蓝。
+   选中态必须单独写一条：源规则 #screen-ledger .ledger-tabs button.active
+   权重比这里的未选中规则高，不重写的话会出现"深底 + 深灰字"读不出来。 */
+:root[data-theme="plain"] #screen-ledger .ledger-tabs button { background: var(--sheet); color: var(--ink-secondary); }
+:root[data-theme="plain"] #screen-ledger .ledger-tabs button.active { background: var(--plain-sage-block); color: #FFFFFF; }
+
+/* 首页习惯图标圆底：主题蓝（达标语义不变） */
+:root[data-theme="plain"] .today-view .bento-item-icon { background: var(--sage-green-dark); }
+
+/* 提示浮层：石板灰蓝 */
+:root[data-theme="plain"] .toast { background: var(--plain-ink-block); }
+
+/* 首页天气块里的图标色是写死的铜金（不跟 --editorial-brass 走）。
+   这块底在清简主题下是浅色，暖铜金压不住 → 换成主题蓝。 */
+:root[data-theme="plain"] .today-view .weather-icon-glow { color: #4F76BD; }
+
+/* 「还没有照片」的空照片堆：底是浅灰（原本是深蓝纸），
+   里面的相机图标却是写死的暖褐 —— 浅底叠深图标等于看不见。
+   换成深灰，跟浅底拉开对比。 */
+:root[data-theme="plain"] .today-view .photo-stack-empty,
+:root[data-theme="plain"] .today-view .photo-stack-empty :is(span, .material-symbols-outlined),
+:root[data-theme="plain"] .today-view #photo-stack > span.material-symbols-outlined { color: var(--ink-muted); }
+
+/* ---------------------------------------------------------------------------
+   ⚠️ 变量「就近定义」陷阱
+   下面这两套色板不是定义在 :root 上，而是定义在元素自己身上 ——
+     --editorial-* → .today-view
+     --cal-*       → .calendar-view.cal-screen
+   在 :root 上写同名变量**完全没有用**：元素自己的声明会遮蔽它（继承值只在元素
+   没有声明时才生效）。所以必须直接指向那个元素，而且权重要比原规则高一档。
+   --------------------------------------------------------------------------- */
+
+/* 首页「画报」：石板灰蓝深块 + 主题蓝点缀。
+   块仍是深块（上面的浅色文字照样看得清），但和蓝同族，不再是黑。 */
+:root[data-theme="plain"] .today-view {
+  --editorial-ink: #55606C;
+  --editorial-green: #4F76BD;
+  --editorial-red: #2E343B;
+  --editorial-blue: #5A6572;
+  --editorial-brass: #98A1AD;
+}
+
+/* 日历「画报」：石板灰蓝标题条；主题蓝选中格。 */
+:root[data-theme="plain"] .calendar-view.cal-screen {
+  --cal-red: #2E343B;
+  --cal-green: #4F76BD;
+  --cal-paper: #FFFFFF;
+}
+/* 「这一天还没有照片或视频」原本垫了一层暖米色 —— 换成冷雾灰 */
+:root[data-theme="plain"] .calendar-view .cal-no-photo { background: #EFF3F8; }
+/* 手写体装饰文案（Collect Ordinary Moments）原本是暖褐 */
+:root[data-theme="plain"] .calendar-view .cal-photo-script,
+:root[data-theme="plain"] .snippets-view .moments-corner-note { color: var(--ink-muted); }
+
+/* ---------------------------------------------------------------------------
+   各页顶部的「眉题小字」：砖红 → 主题蓝
+   —— 五个页面（日历 / 随手拍 / 日记 / 账本 / 我的）原本各自在"家门口"写了一份
+      暖红色板（--moments-red / --journal-red / --ledger-paper-red 或直接写死），
+      全都只用来染这一行小字。清简下统一成主题蓝，页面顶部的色相就一致了。
+   --------------------------------------------------------------------------- */
+:root[data-theme="plain"] .calendar-view.cal-screen .cal-screen-subtitle { color: var(--sage-green-dark); }
+:root[data-theme="plain"] .snippets-view#screen-snippets { --moments-red: var(--sage-green-dark); }
+:root[data-theme="plain"] .journal-view#screen-journal { --journal-red: var(--sage-green-dark); }
+:root[data-theme="plain"] #screen-ledger.ledger-view { --ledger-paper-red: var(--sage-green-dark); }
+:root[data-theme="plain"] .mine-view .subpage-subtitle { color: var(--sage-green-dark); }
+/* 我的页眉题两侧的小横线 */
+:root[data-theme="plain"] .mine-view .subpage-subtitle::before,
+:root[data-theme="plain"] .mine-view .subpage-subtitle::after { background: rgba(85, 96, 108, 0.15); }
+
+/* 日历表头「日一二三四五六」与上下月的日期：暖褐灰 → 中性灰 */
+:root[data-theme="plain"] .calendar-view .cal-col-head { color: var(--ink-muted); }
+:root[data-theme="plain"] .calendar-view .cal-cell.out { color: var(--ink-muted); }
+
+/* 说明性小字（"还没有重要倒数日" / "未配置 AI" / "心情、天气…都可以加" / 专注页副标题）
+   原本是暖褐，在纯色底上显脏 → 中性灰。 */
+:root[data-theme="plain"] #open-countdown-banner .countdown-empty-copy strong { color: var(--ink-secondary); }
+:root[data-theme="plain"] #write-empty small { color: var(--ink-muted); }
+:root[data-theme="plain"] .focus-screen .focus-main-header .subpage-subtitle { color: var(--ink-muted); }
+
+/* ---------------------------------------------------------------------------
+   浅底上其余的暖色文字 / 图标：统一到主题色系
+   眉题与辅助小字走中性灰；可点行动与选中态走主题蓝。
+   ⚠️ 日历「未配置 AI 去设置」那两条源规则自带 !important，必须同样带上。
+   --------------------------------------------------------------------------- */
+
+/* —— 可点行动 / 选中态 → 主题蓝 —— */
+:root[data-theme="plain"] .dock-btn.active .material-symbols-outlined { color: var(--sage-green-dark); }
+:root[data-theme="plain"] .calendar-view .cal-tool-btn:last-child .material-symbols-outlined { color: var(--sage-green-dark); }
+:root[data-theme="plain"] .calendar-view .day-summary-action strong,
+:root[data-theme="plain"] .calendar-view .day-summary-card strong { color: var(--sage-green-dark) !important; }
+:root[data-theme="plain"] .calendar-view .day-summary-action > span:first-child,
+:root[data-theme="plain"] .calendar-view .day-summary-card .pill-left > .material-symbols-outlined { color: var(--sage-green-dark) !important; }
+:root[data-theme="plain"] #write :is(span, .material-symbols-outlined) { color: var(--sage-green-dark); }
+:root[data-theme="plain"] .timetable-editor-modal .eyebrow,
+:root[data-theme="plain"] .timetable-manager-modal .eyebrow { color: var(--sage-green-dark); }
+:root[data-theme="plain"] .snippet-kpi-val { color: var(--sage-green-dark); }
+
+/* —— 眉题 / 辅助小字 / 装饰图标 → 中性灰 —— */
+:root[data-theme="plain"] .today-photo-feature-head { color: var(--ink-muted); }
+:root[data-theme="plain"] .today-view .section-layer-more { color: var(--ink-muted); }
+:root[data-theme="plain"] .journal-view .journal-env-meta i { color: var(--ink-muted); }
+:root[data-theme="plain"] .calendar-view .cal-kpi-cell:nth-child(2) > .material-symbols-outlined { color: var(--ink-muted); }
+:root[data-theme="plain"] .countdown-empty-chevron { color: var(--ink-muted); }
+:root[data-theme="plain"] .journal-view .journal-footprint-strip span {
+  color: var(--ink-secondary);
+  border-color: rgba(85, 95, 108, 0.16);
+}
+:root[data-theme="plain"] #screen-ledger .ledger-local-note { color: var(--ink-muted); }
+:root[data-theme="plain"] .snippets-view .snippets-stream-sheet > .empty-state .material-symbols-outlined { color: var(--ink-muted); }
+
+/* 随手拍四个 KPI 数值原本各用一色（绿/砖红/棕/蓝）—— 清简下统一成主色绿 */
+:root[data-theme="plain"] .snippets-view .snippet-kpi-val { color: var(--sage-green-dark) !important; }
+/* 日记页的「AI 帮手」图标原本是暖金 */
+:root[data-theme="plain"] .journal-view .creative-tool-btn.ai-glow-btn .material-symbols-outlined { color: var(--sage-green-dark); }
+
+/* —— 账本 / 日记里其余的暖色文字与图标 —— */
+/* 「10月生活预算」标题原本是砖红 → 主题蓝；下面那行说明 → 中性灰 */
+:root[data-theme="plain"] #ledger-budget-analysis strong { color: var(--sage-green-dark) !important; }
+:root[data-theme="plain"] #ledger-budget-analysis small { color: var(--ink-muted); }
+:root[data-theme="plain"] #screen-ledger .ledger-quick-note-wrap .material-symbols-outlined,
+:root[data-theme="plain"] #screen-ledger #toggle-ledger-accounts .material-symbols-outlined,
+:root[data-theme="plain"] #screen-ledger .ledger-groups .empty-state .material-symbols-outlined { color: var(--ink-muted); }
+:root[data-theme="plain"] #screen-ledger .ledger-quick-type #strip-btn-income { color: var(--ink-secondary); }
+/* 日记历史列表里的日期（10-08）原本是砖红 → 主题蓝 */
+:root[data-theme="plain"] .journal-view .journal-preview-date b { color: var(--sage-green-dark); }
+
+
+/* ---------------------------------------------------------------------------
+   静蓝 v6 补充：上一版（晨曦微光）留下的「暖色/墨绿」点对点残留
+   这些颜色不经过图片、也不是"很深的深色块"，生成器扫不到，只能逐条覆盖。
+   规则：可点/选中/数值 → 主题蓝；正文与标题 → 冷墨；辅助小字 → 中性灰。
+   --------------------------------------------------------------------------- */
+
+/* —— 「我的」页：眉题、章节标题条、数值、图标底 —— */
+:root[data-theme="plain"] .mine-header-kicker { color: #4F76BD; }
+:root[data-theme="plain"] .mine-view .mine-editorial-header .subpage-title { color: #2E343B; }
+:root[data-theme="plain"] .profile-record-label { color: #4F76BD; }
+:root[data-theme="plain"] .mine-view .profile-user-motto { color: #5A6572; }
+/* 四个 KPI 数值原本各用一色（墨绿 / 铜金 / 灰蓝 / 砖红）→ 统一主题蓝 */
+:root[data-theme="plain"] .mine-view .mine-kpi-card.tone-sage .mine-kpi-num,
+:root[data-theme="plain"] .mine-view .mine-kpi-card.tone-gold .mine-kpi-num,
+:root[data-theme="plain"] .mine-view .mine-kpi-card.tone-blue .mine-kpi-num,
+:root[data-theme="plain"] .mine-view .mine-kpi-card.tone-red .mine-kpi-num { color: #4F76BD; }
+:root[data-theme="plain"] .mine-view .mine-kpi-label { color: #5A6572; }
+/* 章节标题左侧那条砖红竖杠 + 眉题 + 深绿标题 */
+:root[data-theme="plain"] .mine-view .mine-section-heading { border-left-color: #4F76BD; }
+:root[data-theme="plain"] .mine-view .mine-section-heading small { color: #4F76BD; }
+:root[data-theme="plain"] .mine-view .mine-section-heading h2 { color: #2E343B; }
+/* 头像圆底与相机小徽章：墨绿 + 砖红 → 主题蓝 */
+:root[data-theme="plain"] .mine-view .profile-avatar-box { border-color: #4F76BD; background: #EDF1FA; color: #3D5F9E; }
+:root[data-theme="plain"] .mine-view .avatar-camera-badge { border-color: #EDF1FA; background: #4F76BD; }
+/* 列表图标底：米黄/浅绿 → 浅蓝 */
+:root[data-theme="plain"] .mine-view .setting-icon-box { border-color: rgba(79, 118, 189, 0.16); background: #EDF1FA; color: #4F76BD; }
+:root[data-theme="plain"] .mine-view .setting-icon-box.tone-gold { background: #E9EFF9; color: #3D5F9E; }
+:root[data-theme="plain"] .taste-archive-entry .setting-icon-box { background: #EDF1FA !important; color: #4F76BD !important; }
+/* 说明性小字与右侧动作文字：暖褐灰 → 中性冷灰 */
+:root[data-theme="plain"] .mine-view .setting-row-subtitle { color: #5A6572; }
+:root[data-theme="plain"] .mine-view .setting-row-right { color: #98A1AD; }
+
+/* —— 首页「时间流」：六种 tone 各自一色（苔绿/陶土/赭黄/铜金/暖褐）→ 蓝色阶梯 ——
+   保留"每一类记录有自己一档颜色"的信息，但全部落在蓝色family 里。 */
+:root[data-theme="plain"] #today-timeline-stream .life-stream-node { --stream-accent: #7C8794; --stream-soft: #EFF3F8; }
+:root[data-theme="plain"] #today-timeline-stream .tone-sage { --stream-accent: #4F76BD; --stream-soft: #EDF1FA; }
+:root[data-theme="plain"] #today-timeline-stream .tone-terracotta { --stream-accent: #3D5F9E; --stream-soft: #E9EFF9; }
+:root[data-theme="plain"] #today-timeline-stream .tone-ochre { --stream-accent: #6E93D1; --stream-soft: #F0F4FC; }
+:root[data-theme="plain"] #today-timeline-stream .tone-gold { --stream-accent: #8FA9DC; --stream-soft: #F3F6FD; }
+:root[data-theme="plain"] #today-timeline-stream .tone-brown { --stream-accent: #55606C; --stream-soft: #EEF2F8; }
+:root[data-theme="plain"] #today-timeline-stream .tone-neutral { --stream-accent: #7C8794; --stream-soft: #EFF3F8; }
+:root[data-theme="plain"] #today-timeline-stream .life-stream-chevron { color: #98A1AD; }
+:root[data-theme="plain"] #today-timeline-stream .life-stream-card { border-color: rgba(85, 96, 108, 0.10); }
+
+/* —— 账本「我的账户」图标底：浅绿 + 墨绿 → 浅蓝 + 主题蓝 —— */
+:root[data-theme="plain"] #screen-ledger .account-icon-badge { background: #EDF1FA; color: #4F76BD; }
+
+/* ---------------------------------------------------------------------------
+   静蓝 v6 补充：上一版（晨曦微光）留下的「暖色/墨绿」点对点残留
+   这些颜色不经过图片、也不是"很深的深色块"，生成器扫不到，只能逐条覆盖。
+   规则：可点/选中/数值 → 主题蓝；正文与标题 → 冷墨；辅助小字 → 中性灰。
+   --------------------------------------------------------------------------- */
+
+/* —— 「我的」页：眉题、章节标题条、数值、图标底 —— */
+:root[data-theme="plain"] .mine-header-kicker { color: #4F76BD; }
+:root[data-theme="plain"] .mine-view .mine-editorial-header .subpage-title { color: #2E343B; }
+:root[data-theme="plain"] .profile-record-label { color: #4F76BD; }
+:root[data-theme="plain"] .mine-view .profile-user-motto { color: #5A6572; }
+/* 四个 KPI 数值原本各用一色（墨绿 / 铜金 / 灰蓝 / 砖红）→ 统一主题蓝 */
+:root[data-theme="plain"] .mine-view .mine-kpi-card.tone-sage .mine-kpi-num,
+:root[data-theme="plain"] .mine-view .mine-kpi-card.tone-gold .mine-kpi-num,
+:root[data-theme="plain"] .mine-view .mine-kpi-card.tone-blue .mine-kpi-num,
+:root[data-theme="plain"] .mine-view .mine-kpi-card.tone-red .mine-kpi-num { color: #4F76BD; }
+:root[data-theme="plain"] .mine-view .mine-kpi-label { color: #5A6572; }
+/* 章节标题左侧那条砖红竖杠 + 眉题 + 深绿标题 */
+:root[data-theme="plain"] .mine-view .mine-section-heading { border-left-color: #4F76BD; }
+:root[data-theme="plain"] .mine-view .mine-section-heading small { color: #4F76BD; }
+:root[data-theme="plain"] .mine-view .mine-section-heading h2 { color: #2E343B; }
+/* 头像圆底与相机小徽章：墨绿 + 砖红 → 主题蓝 */
+:root[data-theme="plain"] .mine-view .profile-avatar-box { border-color: #4F76BD; background: #EDF1FA; color: #3D5F9E; }
+:root[data-theme="plain"] .mine-view .avatar-camera-badge { border-color: #EDF1FA; background: #4F76BD; }
+/* 列表图标底：米黄/浅绿 → 浅蓝 */
+:root[data-theme="plain"] .mine-view .setting-icon-box { border-color: rgba(79, 118, 189, 0.16); background: #EDF1FA; color: #4F76BD; }
+:root[data-theme="plain"] .mine-view .setting-icon-box.tone-gold { background: #E9EFF9; color: #3D5F9E; }
+:root[data-theme="plain"] .taste-archive-entry .setting-icon-box { background: #EDF1FA !important; color: #4F76BD !important; }
+/* 说明性小字与右侧动作文字：暖褐灰 → 中性冷灰 */
+:root[data-theme="plain"] .mine-view .setting-row-subtitle { color: #5A6572; }
+:root[data-theme="plain"] .mine-view .setting-row-right { color: #98A1AD; }
+
+/* —— 首页「时间流」：六种 tone 各自一色（苔绿/陶土/赭黄/铜金/暖褐）→ 蓝色阶梯 ——
+   保留"每一类记录有自己一档颜色"的信息，但全部落在蓝色family 里。 */
+:root[data-theme="plain"] #today-timeline-stream .life-stream-node { --stream-accent: #7C8794; --stream-soft: #EFF3F8; }
+:root[data-theme="plain"] #today-timeline-stream .tone-sage { --stream-accent: #4F76BD; --stream-soft: #EDF1FA; }
+:root[data-theme="plain"] #today-timeline-stream .tone-terracotta { --stream-accent: #3D5F9E; --stream-soft: #E9EFF9; }
+:root[data-theme="plain"] #today-timeline-stream .tone-ochre { --stream-accent: #6E93D1; --stream-soft: #F0F4FC; }
+:root[data-theme="plain"] #today-timeline-stream .tone-gold { --stream-accent: #8FA9DC; --stream-soft: #F3F6FD; }
+:root[data-theme="plain"] #today-timeline-stream .tone-brown { --stream-accent: #55606C; --stream-soft: #EEF2F8; }
+:root[data-theme="plain"] #today-timeline-stream .tone-neutral { --stream-accent: #7C8794; --stream-soft: #EFF3F8; }
+:root[data-theme="plain"] #today-timeline-stream .life-stream-chevron { color: #98A1AD; }
+:root[data-theme="plain"] #today-timeline-stream .life-stream-card { border-color: rgba(85, 96, 108, 0.10); }
+
+/* —— 账本「我的账户」图标底：浅绿 + 墨绿 → 浅蓝 + 主题蓝 —— */
+:root[data-theme="plain"] #screen-ledger .account-icon-badge { background: #EDF1FA; color: #4F76BD; }

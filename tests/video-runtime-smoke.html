@@ -1,0 +1,41 @@
+<!doctype html>
+<meta charset="utf-8">
+<pre id="result">running</pre>
+<script type="module">
+import { captureDecodedVideoFrame } from '../video-poster.js';
+
+const result = document.querySelector('#result');
+try {
+  const response = await fetch('../assets/launch-ink-logo-v1.webm');
+  const blob = await response.blob();
+  const poster = await captureDecodedVideoFrame(new File([blob], 'runtime.webm', { type: blob.type || 'video/webm' }));
+  const image = new Image();
+  image.src = poster;
+  await image.decode();
+  const canvas = document.createElement('canvas');
+  canvas.width = image.naturalWidth;
+  canvas.height = image.naturalHeight;
+  const context = canvas.getContext('2d');
+  context.drawImage(image, 0, 0);
+  const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
+  let light = 0;
+  for (let index = 0; index < pixels.length; index += 4) light += pixels[index] + pixels[index + 1] + pixels[index + 2];
+  const averageLight = light / Math.max(1, pixels.length / 4) / 3;
+
+  const video = document.createElement('video');
+  video.muted = true;
+  video.playsInline = true;
+  video.src = URL.createObjectURL(blob);
+  document.body.append(video);
+  await video.play();
+  await new Promise(resolve => setTimeout(resolve, 350));
+  const currentTime = video.currentTime;
+  URL.revokeObjectURL(video.src);
+  if (!poster.startsWith('data:image/jpeg;base64,') || averageLight <= 1 || currentTime <= .05) throw new Error('封面或播放进度不正常');
+  result.dataset.status = 'pass';
+  result.textContent = JSON.stringify({ posterBytes: poster.length, averageLight: Number(averageLight.toFixed(2)), currentTime: Number(currentTime.toFixed(3)) });
+} catch (error) {
+  result.dataset.status = 'fail';
+  result.textContent = error.stack || error.message;
+}
+</script>

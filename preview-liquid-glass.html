@@ -1,0 +1,1033 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>清简 · 液态玻璃 — 高级感主题</title>
+<style>
+/* ============================================================
+   清简 · 液态玻璃
+   「一眼高级」—— 毛玻璃 + 液态光效 + 精致光影
+   ============================================================ */
+
+:root {
+  /* 基础 */
+  --canvas: #F2F4F6;
+  --paper: rgba(255, 255, 255, 0.72);
+  --paper-solid: #FFFFFF;
+  --ink: #1A1D21;
+  --ink-soft: #5A6068;
+  --ink-muted: #9BA0A8;
+
+  /* 主色：翡翠 */
+  --jade: #10B981;
+  --jade-deep: #059669;
+  --jade-light: rgba(16, 185, 129, 0.08);
+  --jade-glow: rgba(16, 185, 129, 0.2);
+
+  /* 深色：曜岩 */
+  --obsidian: #1F2937;
+  --obsidian-deep: #111827;
+
+  /* 强调 */
+  --amber: #F59E0B;
+  --rose: #F43F5E;
+
+  /* 玻璃系统 */
+  --glass-bg: rgba(255, 255, 255, 0.65);
+  --glass-bg-strong: rgba(255, 255, 255, 0.82);
+  --glass-bg-subtle: rgba(255, 255, 255, 0.45);
+  --glass-border: rgba(255, 255, 255, 0.6);
+  --glass-blur: 20px;
+  --glass-blur-strong: 32px;
+
+  /* 阴影：柔和但深邃 */
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.06), 0 2px 4px rgba(0, 0, 0, 0.03);
+  --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.08), 0 4px 8px rgba(0, 0, 0, 0.04);
+  --shadow-xl: 0 24px 64px rgba(0, 0, 0, 0.12), 0 8px 16px rgba(0, 0, 0, 0.06);
+  --shadow-glass: 0 8px 32px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  --shadow-glow-jade: 0 0 32px rgba(16, 185, 129, 0.24);
+
+  /* 圆角 */
+  --radius-sm: 12px;
+  --radius-md: 16px;
+  --radius-lg: 24px;
+  --radius-xl: 32px;
+  --radius-full: 999px;
+
+  /* 动画 */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+  --duration-fast: 200ms;
+  --duration-normal: 400ms;
+  --duration-slow: 800ms;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html {
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  font-family: -apple-system, "PingFang SC", "Noto Sans SC", sans-serif;
+  background: var(--canvas);
+  color: var(--ink);
+  line-height: 1.6;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ============================================================
+   液态背景（纯 CSS 动态渐变）
+   ============================================================ */
+.liquid-bg {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+}
+
+.liquid-bg::before {
+  content: '';
+  position: absolute;
+  width: 200%;
+  height: 200%;
+  top: -50%;
+  left: -50%;
+  background:
+    radial-gradient(ellipse at 20% 30%, rgba(16, 185, 129, 0.06) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 70%, rgba(245, 158, 11, 0.04) 0%, transparent 50%),
+    radial-gradient(ellipse at 50% 50%, rgba(31, 41, 55, 0.03) 0%, transparent 60%);
+  animation: liquidFloat 20s ease-in-out infinite;
+}
+
+.liquid-bg::after {
+  content: '';
+  position: absolute;
+  width: 150%;
+  height: 150%;
+  bottom: -50%;
+  right: -25%;
+  background:
+    radial-gradient(ellipse at 60% 40%, rgba(16, 185, 129, 0.04) 0%, transparent 40%);
+  animation: liquidFloat 15s ease-in-out infinite reverse;
+}
+
+@keyframes liquidFloat {
+  0%, 100% { transform: translate(0, 0) rotate(0deg); }
+  25% { transform: translate(2%, 3%) rotate(1deg); }
+  50% { transform: translate(-1%, 2%) rotate(-1deg); }
+  75% { transform: translate(1%, -2%) rotate(0.5deg); }
+}
+
+/* ============================================================
+   容器
+   ============================================================ */
+.container {
+  max-width: 420px;
+  margin: 0 auto;
+  padding: 24px 20px;
+  position: relative;
+}
+
+/* ============================================================
+   头部
+   ============================================================ */
+.header {
+  text-align: center;
+  padding: 48px 0 40px;
+  position: relative;
+}
+
+.header-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 16px;
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border-radius: var(--radius-full);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--shadow-glass);
+  font-size: 12px;
+  color: var(--jade);
+  font-weight: 500;
+  margin-bottom: 20px;
+}
+
+.header-badge::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  background: var(--jade);
+  border-radius: 50%;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(0.9); }
+}
+
+.header h1 {
+  font-size: 42px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin-bottom: 12px;
+  background: linear-gradient(135deg, var(--ink) 0%, var(--obsidian) 50%, var(--jade) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.header-sub {
+  font-size: 15px;
+  color: var(--ink-soft);
+  letter-spacing: 0.02em;
+}
+
+/* ============================================================
+   玻璃卡片（核心组件）
+   ============================================================ */
+.glass-card {
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--shadow-glass);
+  padding: 24px;
+  position: relative;
+  overflow: hidden;
+  transition: all var(--duration-normal) var(--ease-out);
+}
+
+.glass-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.8), transparent);
+}
+
+.glass-card::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.1) 0%, transparent 40%);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--duration-normal);
+}
+
+.glass-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-xl);
+}
+
+.glass-card:hover::after {
+  opacity: 1;
+}
+
+.glass-card:active {
+  transform: translateY(-1px) scale(0.99);
+  transition-duration: var(--duration-fast);
+}
+
+/* ============================================================
+   手机模拟器
+   ============================================================ */
+.phone {
+  background: linear-gradient(145deg, #2a2a2a, #1a1a1a);
+  border-radius: 40px;
+  padding: 12px;
+  box-shadow:
+    0 0 0 2px rgba(255, 255, 255, 0.1),
+    0 24px 64px rgba(0, 0, 0, 0.3),
+    0 8px 16px rgba(0, 0, 0, 0.2);
+}
+
+.phone-screen {
+  background: var(--canvas);
+  border-radius: 32px;
+  overflow: hidden;
+  min-height: 700px;
+  position: relative;
+}
+
+/* ============================================================
+   状态栏
+   ============================================================ */
+.statusbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 24px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.statusbar-icons {
+  display: flex;
+  gap: 6px;
+}
+
+/* ============================================================
+   大标题区域
+   ============================================================ */
+.hero {
+  padding: 20px 24px;
+}
+
+.hero-date {
+  font-size: 64px;
+  font-weight: 200;
+  line-height: 1;
+  letter-spacing: -0.04em;
+  color: var(--ink);
+}
+
+.hero-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.hero-month {
+  font-size: 15px;
+  color: var(--ink-soft);
+  font-weight: 500;
+}
+
+.hero-tag {
+  padding: 4px 12px;
+  background: var(--jade-light);
+  color: var(--jade);
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: var(--radius-full);
+}
+
+/* ============================================================
+   天气卡片 — 深色玻璃
+   ============================================================ */
+.weather-card {
+  margin: 20px 24px;
+  padding: 28px;
+  background: linear-gradient(135deg, var(--obsidian) 0%, var(--obsidian-deep) 100%);
+  border-radius: var(--radius-lg);
+  color: white;
+  position: relative;
+  overflow: hidden;
+  box-shadow: var(--shadow-lg);
+}
+
+.weather-card::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  right: -30%;
+  width: 300px;
+  height: 300px;
+  background: radial-gradient(circle, rgba(245, 158, 11, 0.15) 0%, transparent 60%);
+  animation: float 8s ease-in-out infinite;
+}
+
+.weather-card::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+}
+
+@keyframes float {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(-20px, 10px); }
+}
+
+.weather-icon {
+  width: 56px;
+  height: 56px;
+  background: linear-gradient(135deg, #FCD34D, #F59E0B);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  margin-bottom: 16px;
+  box-shadow: 0 8px 24px rgba(245, 158, 11, 0.4);
+}
+
+.weather-temp {
+  font-size: 48px;
+  font-weight: 200;
+  line-height: 1;
+}
+
+.weather-desc {
+  font-size: 15px;
+  opacity: 0.9;
+  margin-top: 8px;
+}
+
+.weather-meta {
+  display: flex;
+  gap: 16px;
+  margin-top: 16px;
+  font-size: 13px;
+  opacity: 0.7;
+}
+
+/* ============================================================
+   功能卡片 — 玻璃拟态
+   ============================================================ */
+.cards {
+  padding: 0 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.feature-card {
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border-radius: var(--radius-md);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--shadow-md);
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  transition: all var(--duration-fast) var(--ease-out);
+  cursor: pointer;
+}
+
+.feature-card:hover {
+  transform: translateX(4px);
+  box-shadow: var(--shadow-lg);
+  background: var(--glass-bg-strong);
+}
+
+.feature-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  flex-shrink: 0;
+}
+
+.feature-icon.jade {
+  background: var(--jade-light);
+  color: var(--jade);
+  box-shadow: 0 4px 16px var(--jade-glow);
+}
+
+.feature-icon.amber {
+  background: rgba(245, 158, 11, 0.1);
+  color: var(--amber);
+}
+
+.feature-icon.rose {
+  background: rgba(244, 63, 94, 0.1);
+  color: var(--rose);
+}
+
+.feature-content {
+  flex: 1;
+}
+
+.feature-title {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.feature-desc {
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+.feature-arrow {
+  color: var(--ink-muted);
+  font-size: 20px;
+  transition: transform var(--duration-fast);
+}
+
+.feature-card:hover .feature-arrow {
+  transform: translateX(4px);
+  color: var(--jade);
+}
+
+/* ============================================================
+   进度条 — 液态流动
+   ============================================================ */
+.progress-section {
+  margin: 24px;
+  padding: 24px;
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border-radius: var(--radius-md);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--shadow-md);
+}
+
+.progress-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.progress-title {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.progress-value {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--jade);
+}
+
+.progress-track {
+  height: 8px;
+  background: rgba(0, 0, 0, 0.06);
+  border-radius: 4px;
+  overflow: hidden;
+  position: relative;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--jade), var(--jade-deep));
+  border-radius: 4px;
+  position: relative;
+  width: 67%;
+}
+
+.progress-fill::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 30px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4));
+  animation: shimmer 2s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(-30px); opacity: 0; }
+  50% { opacity: 1; }
+  100% { transform: translateX(200px); opacity: 0; }
+}
+
+/* ============================================================
+   底部导航 — 悬浮玻璃
+   ============================================================ */
+.bottom-nav {
+  position: absolute;
+  bottom: 24px;
+  left: 24px;
+  right: 24px;
+  background: var(--glass-bg-strong);
+  backdrop-filter: blur(var(--glass-blur-strong));
+  -webkit-backdrop-filter: blur(var(--glass-blur-strong));
+  border-radius: var(--radius-full);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--shadow-lg);
+  padding: 12px 24px;
+  display: flex;
+  justify-content: space-around;
+}
+
+.nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 16px;
+  border-radius: var(--radius-full);
+  transition: all var(--duration-fast) var(--ease-out);
+  cursor: pointer;
+  position: relative;
+}
+
+.nav-item.active {
+  color: var(--jade);
+}
+
+.nav-item.active::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--jade-light);
+  border-radius: var(--radius-full);
+  z-index: -1;
+}
+
+.nav-item:not(.active) {
+  color: var(--ink-muted);
+}
+
+.nav-item:hover:not(.active) {
+  color: var(--ink-soft);
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.nav-icon { font-size: 22px; }
+.nav-label { font-size: 10px; font-weight: 500; }
+
+/* ============================================================
+   按钮组
+   ============================================================ */
+.buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 0 24px;
+}
+
+.btn {
+  padding: 16px 24px;
+  border-radius: var(--radius-md);
+  font-size: 15px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-out);
+  position: relative;
+  overflow: hidden;
+}
+
+.btn::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  transition: width var(--duration-normal), height var(--duration-normal);
+}
+
+.btn:active::before {
+  width: 300px;
+  height: 300px;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--jade), var(--jade-deep));
+  color: white;
+  box-shadow: 0 4px 16px var(--jade-glow);
+}
+
+.btn-primary:hover {
+  box-shadow: 0 8px 24px var(--jade-glow);
+  transform: translateY(-2px);
+}
+
+.btn-glass {
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  color: var(--ink);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--shadow-sm);
+}
+
+.btn-glass:hover {
+  background: var(--glass-bg-strong);
+  box-shadow: var(--shadow-md);
+}
+
+/* ============================================================
+   标签
+   ============================================================ */
+.tags {
+  display: flex;
+  gap: 8px;
+  padding: 0 24px;
+  flex-wrap: wrap;
+}
+
+.tag {
+  padding: 8px 16px;
+  border-radius: var(--radius-full);
+  font-size: 13px;
+  font-weight: 500;
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
+  color: var(--ink-soft);
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-out);
+}
+
+.tag:hover {
+  background: var(--glass-bg-strong);
+  border-color: var(--jade);
+  color: var(--jade);
+}
+
+.tag.active {
+  background: var(--jade);
+  color: white;
+  border-color: var(--jade);
+  box-shadow: 0 4px 16px var(--jade-glow);
+}
+
+/* ============================================================
+   输入框
+   ============================================================ */
+.input-section {
+  padding: 0 24px;
+}
+
+.input-field {
+  width: 100%;
+  padding: 16px 20px;
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  font-size: 15px;
+  color: var(--ink);
+  transition: all var(--duration-fast) var(--ease-out);
+  outline: none;
+}
+
+.input-field::placeholder {
+  color: var(--ink-muted);
+}
+
+.input-field:focus {
+  border-color: var(--jade);
+  box-shadow: 0 0 0 4px var(--jade-glow);
+  background: var(--glass-bg-strong);
+}
+
+/* ============================================================
+   特性网格
+   ============================================================ */
+.features-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+.feature-box {
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border-radius: var(--radius-md);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--shadow-sm);
+  padding: 24px;
+  text-align: center;
+  transition: all var(--duration-fast) var(--ease-out);
+}
+
+.feature-box:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-md);
+}
+
+.feature-box-icon {
+  width: 56px;
+  height: 56px;
+  margin: 0 auto 16px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  background: var(--jade-light);
+  color: var(--jade);
+}
+
+.feature-box-title {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.feature-box-desc {
+  font-size: 12px;
+  color: var(--ink-muted);
+}
+
+/* ============================================================
+   分隔
+   ============================================================ */
+.section {
+  margin-bottom: 40px;
+}
+
+.section-title {
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.section-title::before {
+  content: '';
+  width: 4px;
+  height: 24px;
+  background: linear-gradient(180deg, var(--jade), var(--jade-deep));
+  border-radius: 2px;
+}
+
+/* ============================================================
+   入场动画
+   ============================================================ */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-fade-up {
+  animation: fadeInUp 0.8s var(--ease-out) forwards;
+}
+
+.animate-scale-in {
+  animation: scaleIn 0.6s var(--ease-out) forwards;
+}
+
+.delay-1 { animation-delay: 0.1s; opacity: 0; }
+.delay-2 { animation-delay: 0.2s; opacity: 0; }
+.delay-3 { animation-delay: 0.3s; opacity: 0; }
+.delay-4 { animation-delay: 0.4s; opacity: 0; }
+.delay-5 { animation-delay: 0.5s; opacity: 0; }
+
+/* ============================================================
+   页脚
+   ============================================================ */
+.footer {
+  text-align: center;
+  padding: 48px 0 32px;
+  color: var(--ink-muted);
+  font-size: 13px;
+}
+
+.footer-logo {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--ink-soft);
+  margin-bottom: 8px;
+}
+</style>
+</head>
+<body>
+
+<div class="liquid-bg"></div>
+
+<div class="container">
+
+  <!-- 头部 -->
+  <header class="header animate-fade-up">
+    <div class="header-badge">Liquid Glass</div>
+    <h1>清简 · 液态玻璃</h1>
+    <p class="header-sub">一眼惊艳的高级感</p>
+  </header>
+
+  <!-- 手机模拟器 -->
+  <section class="section animate-scale-in delay-1">
+    <div class="phone">
+      <div class="phone-screen">
+        <!-- 状态栏 -->
+        <div class="statusbar">
+          <span>9:41</span>
+          <div class="statusbar-icons">
+            <span>📶</span>
+            <span>🔋</span>
+          </div>
+        </div>
+
+        <!-- 大标题 -->
+        <div class="hero">
+          <div class="hero-date">9</div>
+          <div class="hero-meta">
+            <span class="hero-month">2026年10月</span>
+            <span class="hero-tag">寒露</span>
+          </div>
+        </div>
+
+        <!-- 天气卡片 -->
+        <div class="weather-card">
+          <div class="weather-icon">☀️</div>
+          <div class="weather-temp">23°</div>
+          <div class="weather-desc">晴 · 微风</div>
+          <div class="weather-meta">
+            <span>📍 郑州</span>
+            <span>💨 空气优</span>
+          </div>
+        </div>
+
+        <!-- 进度 -->
+        <div class="progress-section">
+          <div class="progress-header">
+            <span class="progress-title">今日习惯</span>
+            <span class="progress-value">4/6</span>
+          </div>
+          <div class="progress-track">
+            <div class="progress-fill"></div>
+          </div>
+        </div>
+
+        <!-- 功能卡片 -->
+        <div class="cards">
+          <div class="feature-card">
+            <div class="feature-icon jade">📖</div>
+            <div class="feature-content">
+              <div class="feature-title">日记</div>
+              <div class="feature-desc">记录此刻的想法</div>
+            </div>
+            <span class="feature-arrow">→</span>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon amber">💰</div>
+            <div class="feature-content">
+              <div class="feature-title">账本</div>
+              <div class="feature-desc">本月支出 ¥2,847</div>
+            </div>
+            <span class="feature-arrow">→</span>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon rose">📷</div>
+            <div class="feature-content">
+              <div class="feature-title">随手拍</div>
+              <div class="feature-desc">12 张照片待整理</div>
+            </div>
+            <span class="feature-arrow">→</span>
+          </div>
+        </div>
+
+        <!-- 底部导航 -->
+        <nav class="bottom-nav">
+          <div class="nav-item active">
+            <span class="nav-icon">🏠</span>
+            <span class="nav-label">首页</span>
+          </div>
+          <div class="nav-item">
+            <span class="nav-icon">📊</span>
+            <span class="nav-label">统计</span>
+          </div>
+          <div class="nav-item">
+            <span class="nav-icon">📷</span>
+            <span class="nav-label">随手拍</span>
+          </div>
+          <div class="nav-item">
+            <span class="nav-icon">📚</span>
+            <span class="nav-label">资料库</span>
+          </div>
+          <div class="nav-item">
+            <span class="nav-icon">⚙️</span>
+            <span class="nav-label">我的</span>
+          </div>
+        </nav>
+      </div>
+    </div>
+  </section>
+
+  <!-- 组件展示 -->
+  <section class="section animate-fade-up delay-2">
+    <h2 class="section-title">组件风格</h2>
+
+    <div class="buttons" style="margin-bottom: 24px;">
+      <button class="btn btn-primary">主要按钮</button>
+      <button class="btn btn-glass">玻璃按钮</button>
+    </div>
+
+    <div class="tags" style="margin-bottom: 24px;">
+      <span class="tag">全部</span>
+      <span class="tag active">照片</span>
+      <span class="tag">视频</span>
+      <span class="tag">文字</span>
+    </div>
+
+    <div class="input-section">
+      <input type="text" class="input-field" placeholder="搜索日记、账本、随手拍…">
+    </div>
+  </section>
+
+  <!-- 特性 -->
+  <section class="section animate-fade-up delay-3">
+    <h2 class="section-title">高级感来自</h2>
+    <div class="features-grid">
+      <div class="feature-box">
+        <div class="feature-box-icon">🔮</div>
+        <div class="feature-box-title">毛玻璃</div>
+        <div class="feature-box-desc">20px 背景模糊</div>
+      </div>
+      <div class="feature-box">
+        <div class="feature-box-icon">✨</div>
+        <div class="feature-box-title">液态光效</div>
+        <div class="feature-box-desc">动态渐变背景</div>
+      </div>
+      <div class="feature-box">
+        <div class="feature-box-icon">📐</div>
+        <div class="feature-box-title">5 层阴影</div>
+        <div class="feature-box-desc">细腻深度系统</div>
+      </div>
+      <div class="feature-box">
+        <div class="feature-box-icon">🎭</div>
+        <div class="feature-box-title">微交互</div>
+        <div class="feature-box-desc">悬浮、涟漪、发光</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 页脚 -->
+  <footer class="footer animate-fade-up delay-4">
+    <div class="footer-logo">清简 · 液态玻璃</div>
+    <p>暖色生活志 · 高级感主题设计</p>
+  </footer>
+
+</div>
+
+</body>
+</html>

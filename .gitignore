@@ -1,0 +1,47 @@
+node_modules/
+android/app/mine-update.keystore
+www/
+.build-staging/
+.toolchains/
+.gradle/
+.idea/
+android/.gradle/
+android/local.properties
+android/app/build/
+*.apk
+.phone-preview-profile*/
+
+# 本地工作数据（WorkBuddy 的 memory/skills 缓存，不随代码提交）
+.workbuddy/
+
+# 调试截图
+layout-fix-*.png
+
+# 临时调试输出
+tmp/
+.tmp-*/
+.build-staging-*/
+releases/
+evidence/
+
+# 浏览器自动化运行时产生的 profile（体积可达 GB，不入库）
+*chrome*/
+*ActorSafetyLists*/
+*optimization_guide_model_store*/
+
+# ---- 对接发布相关（2026-10-11 新增：避免泄露本机信息与臃肿）----
+# 发布站目录记录文件（含本机绝对路径）
+.wbapp_*.genie
+*.genie
+
+# 仓库完整备份包
+*.bundle
+
+# 安装包分片（体积巨大，改走 GitHub Releases）
+*.apk.*
+Mine-*.apk.0*
+
+# 构建/调试产物
+*.log
+.DS_Store
+Thumbs.db

@@ -1,0 +1,370 @@
+import { Capacitor, registerPlugin } from '@capacitor/core';
+import { Directory, Filesystem } from '@capacitor/filesystem';
+
+/* ---------------------------------------------------------------------------
+   应用内更新（2026-10-09 新增）
+
+   设计原则：**只在用户显式点击时联网**。
+   本模块不注册任何自动检查、不在启动时拉取版本清单 —— 这与项目
+   「零自动联网，只有用户显式操作才请求」的一贯原则保持一致。
+
+   更新源是一份静态 JSON（version.json），与安装包放在同一个位置。
+   发布新版本时把这两样一起更新即可，App 侧不需要改代码。
+
+   安全约束：
+   · 只接受 https 地址（原生侧还有二次校验）；
+   · 下载走原生，落到应用缓存目录，不落公共存储；
+   · 安装必须经过 Android 系统安装器的确认页，App 无法静默安装；
+   · 如果清单里给了 sha256，下载后会核对，不一致就拒绝安装。
+   --------------------------------------------------------------------------- */
+
+const AppUpdater = registerPlugin('AppUpdater');
+
+/* 渲染时用的版本常量（设置页要同步显示，不能等异步）。
+   ⚠️ 必须与 android/app/build.gradle 的 versionName / versionCode 严格一致，
+   tests/app-version.test.mjs 会核对，不同步会直接失败。
+   真正做「有没有新版」判断时改用 currentVersion()，它以系统记录为准。 */
+export const APP_VERSION_NAME = '1.1.6';
+export const APP_VERSION_CODE = 107;
+
+let cachedVersion = null;
+
+/** 从系统读取当前版本。比常量准（以实际安装的包为准），失败时回退到常量。 */
+export async function currentVersion() {
+  if (cachedVersion) return cachedVersion;
+  if (!isUpdateSupported()) {
+    cachedVersion = { versionName: APP_VERSION_NAME, versionCode: APP_VERSION_CODE };
+    return cachedVersion;
+  }
+  try {
+    const result = await AppUpdater.getVersion();
+    cachedVersion = {
+      versionName: String(result?.versionName || APP_VERSION_NAME),
+      versionCode: Number(result?.versionCode) || APP_VERSION_CODE
+    };
+  } catch {
+    cachedVersion = { versionName: APP_VERSION_NAME, versionCode: APP_VERSION_CODE };
+  }
+  return cachedVersion;
+}
+
+/* ---------------------------------------------------------------------------
+   资源热更新（2026-10-09）
+
+   目标：更新时**只下载真的变了的文件**，而不是重下整个安装包。
+
+   做法：
+   1. 发布端为每个资源文件生成 sha256 清单（scripts/make-resource-manifest.mjs）
+   2. 客户端拿清单与本地「已应用清单」比对，算出差异
+   3. 只把差异文件交给原生下载（原生不受跨域限制，且能写私有目录）
+   4. 全部成功才更新本地清单 —— 有失败就保持旧清单，下次继续补齐
+
+   资源读到哪：原生侧 HotAssetWebViewClient 优先从 filesDir/hot 读，
+   那里没有的走装机自带资源 —— 所以热更新失败最多是「还是旧版本」，不会白屏。
+   --------------------------------------------------------------------------- */
+
+const HOT_MANIFEST_PATH = 'hot/manifest.json';
+const HOT_VERSION_PATH = 'hot/version.json';
+// 装机自带的资源指纹（由 scripts/build-web.mjs 生成，与 index.html 同源）。
+// 它**不参与热更新** —— 必须保持「装机那一刻」的样子，才能当比对基线。
+const BUILTIN_MANIFEST_URL = 'resource-manifest.json';
+
+/* 热更新只替换网页资源，装机包的 versionCode 不会变。
+   若不单独记下「已应用到的资源版本」，检查更新就会永远显示「有新版本」。
+   所以每次成功应用资源后，额外落一个小文件记录版本号。 */
+async function readAppliedVersion() {
+  try {
+    const result = await Filesystem.readFile({ path: HOT_VERSION_PATH, directory: Directory.Data, encoding: 'utf8' });
+    const text = typeof result?.data === 'string' ? result.data : '';
+    const parsed = JSON.parse(text);
+    return Number(parsed?.versionCode) || 0;
+  } catch {
+    return 0;
+  }
+}
+
+async function writeAppliedVersion(versionCode, versionName) {
+  try {
+    await Filesystem.writeFile({
+      path: HOT_VERSION_PATH,
+      directory: Directory.Data,
+      data: JSON.stringify({ versionCode: Number(versionCode) || 0, versionName: String(versionName || '') }),
+      encoding: 'utf8',
+      recursive: true
+    });
+  } catch { /* 记不上只是下次仍提示更新，不影响已生效的资源 */ }
+}
+
+/** 已应用到的资源版本号（含装机版本兜底）。 */
+export async function appliedResourceVersionCode() {
+  return readAppliedVersion();
+}
+
+/** 读取本地已应用的热更新清单（文件路径 → sha256）。没有则回落到装机自带指纹。 */
+async function readAppliedResources() {
+  // 1) 热更新过的清单最权威
+  try {
+    const result = await Filesystem.readFile({ path: HOT_MANIFEST_PATH, directory: Directory.Data, encoding: 'utf8' });
+    const text = typeof result?.data === 'string' ? result.data : '';
+    const parsed = JSON.parse(text);
+    if (parsed && typeof parsed === 'object' && Object.keys(parsed).length) return parsed;
+  } catch {
+    // 还没热更新过，走下面的装机指纹
+  }
+  // 2) 装机自带的 resource-manifest.json —— 由 scripts/build-web.mjs 在打包时生成。
+  //    没有它的话，首次热更新会因为「本地没有任何记录」而把所有文件都当成变化项，
+  //    等于把整份资源下一遍，与整包更新无异。
+  try {
+    const response = await fetch(BUILTIN_MANIFEST_URL, { cache: 'no-store' });
+    if (response.ok) {
+      const payload = await response.json();
+      if (Array.isArray(payload?.files) && payload.files.length) {
+        return Object.fromEntries(payload.files.map(file => [file.path, file.sha256]));
+      }
+    }
+  } catch {
+    // 读不到就退回空对象：会多下一些文件，但不会出错
+  }
+  return {};
+}
+
+async function writeAppliedResources(map) {
+  try {
+    await Filesystem.writeFile({
+      path: HOT_MANIFEST_PATH,
+      directory: Directory.Data,
+      data: JSON.stringify(map),
+      encoding: 'utf8',
+      recursive: true
+    });
+    return true;
+  } catch {
+    // 清单写失败不影响本次已下载的文件，下次会重新比对（最坏情况是重复下一次）
+    return false;
+  }
+}
+
+/** 拉取资源清单（与版本清单分开，只有要热更新时才请求）。 */
+export async function fetchResourceManifest(versionManifest) {
+  const url = String(versionManifest?.resourceManifestUrl || '');
+  if (!url.startsWith('https://')) return null;
+  const text = await fetchUpdateText(url);
+  let payload;
+  try {
+    payload = JSON.parse(text);
+  } catch {
+    throw new Error('资源清单格式不正确');
+  }
+  if (!Array.isArray(payload?.files) || !payload.files.length) throw new Error('资源清单是空的');
+  return payload;
+}
+
+/**
+ * 应用资源更新：比对差异后只下载变化的文件。
+ * onProgress(done, total, failed) 用于显示进度。
+ */
+export async function applyResourceUpdate(resourceManifest, onProgress) {
+  if (!isUpdateSupported()) throw new Error('仅 Android 版支持资源热更新');
+  const baseUrl = String(resourceManifest?.baseUrl || '').replace(/\/+$/, '');
+  if (!baseUrl.startsWith('https://')) throw new Error('资源地址必须是 https');
+
+  const applied = await readAppliedResources();
+  const files = resourceManifest.files.filter(file => file && typeof file.path === 'string' && file.path);
+  const changed = files.filter(file => applied[file.path] !== file.sha256);
+  const removed = Object.keys(applied).filter(path => !files.some(file => file.path === path));
+
+  if (!changed.length && !removed.length) {
+    return { downloaded: 0, failed: 0, total: 0, upToDate: true };
+  }
+
+  let listener = null;
+  if (typeof onProgress === 'function') {
+    listener = await AppUpdater.addListener('resourceProgress', payload => {
+      onProgress(Number(payload?.done) || 0, Number(payload?.total) || changed.length, Number(payload?.failed) || 0);
+    });
+  }
+
+  try {
+    const result = await AppUpdater.syncResources({
+      files: changed.map(file => ({
+        path: file.path,
+        url: `${baseUrl}/${file.path}`,
+        sha256: String(file.sha256 || '')
+      }))
+    });
+    const failed = Number(result?.failed) || 0;
+    // 只有全部成功才写清单：有失败就保持旧清单，下次会重新比对并补齐
+    if (!failed) {
+      const next = {};
+      for (const file of files) next[file.path] = file.sha256;
+      await writeAppliedResources(next);
+      // 同时记下已应用到的版本，否则「检查更新」会一直提示有新版
+      await writeAppliedVersion(resourceManifest.versionCode, resourceManifest.versionName);
+    }
+    return {
+      downloaded: Number(result?.downloaded) || 0,
+      failed,
+      failedPaths: Array.isArray(result?.failedPaths) ? result.failedPaths : [],
+      total: changed.length,
+      upToDate: false
+    };
+  } finally {
+    listener?.remove?.();
+  }
+}
+
+// 默认更新源。用户可在「我的 → 检查更新」里改（存 settings.updateManifestUrl）。
+// ⚠️ 换发布位置时，记得把 version.json 和安装包放在同一目录下。
+export const DEFAULT_UPDATE_MANIFEST = 'https://warm-journal-apk.app.workbuddy.host/version.json';
+
+const DOWNLOAD_FILE_NAME = 'warmjournal-update.apk';
+const MANIFEST_TIMEOUT_MS = 15000;
+
+export const updateManifestUrl = settings => String(settings?.updateManifestUrl || '').trim() || DEFAULT_UPDATE_MANIFEST;
+
+export function isUpdateSupported() {
+  return Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android';
+}
+
+/** 拉取版本清单。清单很小，原生平台走原生请求（见 fetchUpdateText 的说明）。 */
+export async function fetchUpdateManifest(url = DEFAULT_UPDATE_MANIFEST) {
+  const endpoint = String(url || '').trim();
+  if (!endpoint.startsWith('https://')) throw new Error('更新地址必须是 https');
+  const text = await fetchUpdateText(endpoint);
+  let payload;
+  try {
+    payload = JSON.parse(text);
+  } catch {
+    throw new Error('版本信息格式不正确，请稍后再试');
+  }
+  const versionCode = Number(payload?.versionCode) || 0;
+  const apkUrl = String(payload?.apkUrl || '');
+  if (!versionCode || !apkUrl.startsWith('https://')) throw new Error('版本信息不完整或地址不是 https');
+  return {
+    versionName: String(payload?.versionName || ''),
+    versionCode,
+    apkUrl,
+    sizeBytes: Number(payload?.sizeBytes) || 0,
+    sha256: String(payload?.sha256 || '').toLowerCase(),
+    notes: String(payload?.notes || ''),
+    publishedAt: String(payload?.publishedAt || ''),
+    // 有它就能走「只下载变化的文件」；没有则退回完整安装包
+    resourceManifestUrl: String(payload?.resourceManifestUrl || '')
+  };
+}
+
+/**
+ * 读取版本清单的文本内容。
+ *
+ * ⚠️ 原生平台必须走 AppUpdater.fetchText，不能直接用 fetch：
+ * App 内页面的 origin 是 https://localhost，请求外部域名属于跨域；
+ * 服务器没返回 CORS 头时浏览器会直接拦下，JS 侧只能收到一个
+ * 没有任何信息量的 "Failed to fetch"（2026-10-09 用户实际撞到这个问题）。
+ * 原生 HTTP 请求不受同源策略约束。
+ *
+ * 网页预览（非原生）仍用 fetch，方便本地调试。
+ */
+async function fetchUpdateText(endpoint) {
+  if (isUpdateSupported()) {
+    try {
+      const result = await AppUpdater.fetchText({ url: endpoint });
+      const text = String(result?.text || '');
+      if (!text) throw new Error('更新服务器没有返回内容');
+      return text;
+    } catch (error) {
+      const message = String(error?.message || '');
+      // 把底层网络错误翻译成用户看得懂的话
+      if (/Unable to resolve host|Connection refused|timed out|timeout|UnknownHost|ECONN/i.test(message)) {
+        throw new Error('连不上更新服务器，请检查网络后重试');
+      }
+      throw error;
+    }
+  }
+  const controller = typeof AbortController === 'function' ? new AbortController() : null;
+  const timer = controller ? setTimeout(() => controller.abort(), MANIFEST_TIMEOUT_MS) : null;
+  try {
+    const response = await fetch(endpoint, { cache: 'no-store', signal: controller?.signal });
+    if (!response.ok) throw new Error(`读取版本信息失败（${response.status}）`);
+    return await response.text();
+  } catch (error) {
+    if (error?.name === 'AbortError') throw new Error('读取版本信息超时，请检查网络');
+    if (/failed to fetch/i.test(String(error?.message || ''))) {
+      throw new Error('连不上更新服务器，请检查网络后重试');
+    }
+    throw error;
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+/** 判断清单里的版本是否比当前新。用 versionCode 比，避免 1.0.10 与 1.0.9 这类字符串陷阱。 */
+export function hasNewerVersion(manifest, currentVersionCode) {
+  const remote = Number(manifest?.versionCode) || 0;
+  const current = Number(currentVersionCode) || 0;
+  return remote > current;
+}
+
+/** 下载更新包，onProgress 会收到 0~1 的比例（总量未知时为 null）。 */
+export async function downloadUpdate(manifest, onProgress) {
+  if (!isUpdateSupported()) throw new Error('仅 Android 版支持应用内更新');
+  let listener = null;
+  if (typeof onProgress === 'function') {
+    listener = await AppUpdater.addListener('downloadProgress', payload => {
+      const received = Number(payload?.received) || 0;
+      const total = Number(payload?.total) || 0;
+      onProgress(total > 0 ? Math.min(1, received / total) : null, received, total);
+    });
+  }
+  try {
+    const result = await AppUpdater.download({ url: manifest.apkUrl, fileName: DOWNLOAD_FILE_NAME });
+    const path = String(result?.path || '');
+    const size = Number(result?.size) || 0;
+    if (!path) throw new Error('下载完成但没有拿到安装包位置');
+    // 清单里给了校验值就核对一次；不一致说明下载被截断或被替换，绝不能拿去安装。
+    if (manifest.sha256) {
+      const actual = await sha256OfFile(path).catch(() => '');
+      if (actual && actual !== manifest.sha256) {
+        await clearDownload();
+        throw new Error('安装包校验不通过，已丢弃，请重新下载');
+      }
+    }
+    return { path, size };
+  } finally {
+    listener?.remove?.();
+  }
+}
+
+/** 核对下载文件的 sha256（原生侧读文件再算，避免把 160MB 读进 JS 内存）。 */
+async function sha256OfFile(path) {
+  const result = await AppUpdater.sha256({ path });
+  return String(result?.sha256 || '').toLowerCase();
+}
+
+export async function canInstall() {
+  if (!isUpdateSupported()) return { allowed: false, supported: false };
+  try {
+    const result = await AppUpdater.canInstall();
+    return { allowed: Boolean(result?.allowed), supported: true };
+  } catch {
+    return { allowed: false, supported: false };
+  }
+}
+
+export async function openInstallSettings() {
+  await AppUpdater.openInstallSettings();
+}
+
+export async function installUpdate(path) {
+  await AppUpdater.install({ path });
+}
+
+export async function clearDownload() {
+  try { await AppUpdater.clearDownload({ fileName: DOWNLOAD_FILE_NAME }); } catch { /* 清理失败无需打扰用户 */ }
+}
+
+export function formatBytes(bytes) {
+  const value = Number(bytes) || 0;
+  if (!value) return '';
+  if (value < 1024 * 1024) return `${(value / 1024).toFixed(0)} KB`;
+  return `${(value / (1024 * 1024)).toFixed(1)} MB`;
+}

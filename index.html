@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover,user-scalable=no">
+  <meta name="theme-color" content="#f5f1e8">
+  <title>暖色生活志</title>
+  <script>
+    (() => {
+      const isLocalPreview = location.hostname === '127.0.0.1' || location.hostname === 'localhost';
+      if (isLocalPreview && 'serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(registrations => Promise.all(registrations.map(registration => registration.unregister()))).catch(() => {});
+        globalThis.caches?.keys().then(keys => Promise.all(keys.filter(key => key.startsWith('mine-warmjournal-')).map(key => caches.delete(key)))).catch(() => {});
+      }
+    })();
+  </script>
+  <link rel="stylesheet" href="fonts.css?v=1.1.6">
+  <link rel="stylesheet" href="performance.css?v=1.1.6">
+  <link rel="stylesheet" href="styles.css?v=1.1.6">
+  <!-- 主题皮肤必须最后加载：靠后加载 + 抬高的选择器权重覆盖 styles.css 的 :root -->
+  <link rel="stylesheet" href="themes.css?v=1.1.6">
+  <!-- 清简主题的质感重置（撤掉图片素材），必须排在 themes.css 之后；
+       文件里已由 gen-plain-theme.mjs 把「浅色化 + 美化」层拼在末尾，
+       所以这里只引这一个文件 —— 少一个 <link> 就少一个"送不到设备上"的风险。
+       ⚠️ 默认 disabled：它含近 2000 条选择器，主题不是清简时全部匹配失败，
+          却照样参与启动时的样式计算（2026-10-10 实测约 230ms，占整个样式处理近三成）。
+          下面这段在**解析期**就决定要不要它，所以不会出现"先渲染再换皮"的闪烁。 -->
+  <link id="plain-theme-sheet" rel="stylesheet" href="themes-plain.css?v=1.1.6" disabled>
+  <script>
+    (() => {
+      // 取值来源：最近一次用过的主题（一个短键，读得很快）；没有就退回状态下找一次
+      // （首次安装）。注意只做一次正则查找，绝不解析整份状态 —— 那是几 MB 的字符串。
+      let theme = '';
+      try { theme = localStorage.getItem('mine-warmjournal-theme') || ''; } catch { /* 隐私模式下不可用 */ }
+      if (!theme) {
+        try {
+          const raw = localStorage.getItem('mine-warmjournal-state-v1') || '';
+          const matched = raw.match(/"theme"\s*:\s*"([a-z]+)"/);
+          if (matched) theme = matched[1];
+        } catch { /* 同上 */ }
+      }
+      if (theme !== 'plain') return;
+      const sheet = document.getElementById('plain-theme-sheet');
+      if (sheet) sheet.disabled = false;
+    })();
+  </script>
+</head>
+<body>
+  <div class="phone-shell">
+    <header class="app-header" id="app-header" hidden></header>
+    <main id="app" tabindex="-1"></main>
+    <nav class="floating-dock" id="floating-dock" aria-label="主导航"></nav>
+    <div class="subpage-layer" id="subpage-journal-reader"></div>
+    <div class="subpage-layer" id="subpage-ledger-detail"></div>
+    <div class="subpage-layer" id="subpage-habit-detail"></div>
+    <div class="subpage-layer" id="subpage-focus-detail"></div>
+    <div class="subpage-layer" id="subpage-media-detail"></div>
+  </div>
+  <div class="modal-layer" id="modal-layer"></div>
+  <div class="toast" id="toast" role="status"></div>
+  <script defer src="app.js?v=1.1.6"></script>
+</body>
+</html>
