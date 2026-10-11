@@ -135,7 +135,7 @@ export function mineView() {
   const watched = state.media.filter(entry => entry.type === 'movie' && entry.status === 'completed').length;
   const read = state.media.filter(entry => entry.type === 'book' && entry.status === 'completed').length;
   const focusText = totalMinutes >= 60 ? `${Number((totalMinutes / 60).toFixed(totalMinutes >= 6000 ? 0 : 1))}h` : `${totalMinutes}m`;
-  const reminderCount = state.settings?.notificationsEnabled === false ? 0 : (state.settings?.dailyReminders || []).length;
+  const reminderCount = (state.settings?.dailyReminders || []).length;
   const aiConfigured = Boolean(state.settings?.aiEnabled && state.settings?.aiApiKey);
   const clarity = 100 - Math.max(0, Math.min(100, Number(state.settings?.backgroundOverlayOpacity) || 0));
   const themeLabel = (THEME_META[state.settings?.theme] || THEME_META.classic).label;

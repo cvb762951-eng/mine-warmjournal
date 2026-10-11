@@ -179,7 +179,7 @@ await evaluate(`frames[0].document.querySelector('#finish').click()`);
 await new Promise(resolve => setTimeout(resolve, 120));
 assert.deepEqual(await evaluate(`(() => { const t=frames[0].__mineTest.snapshot().timer; return [t.mode,t.phase,t.round,t.duration,t.running]; })()`), ['pomodoro','shortBreak',1,300,false]);
 
-await evaluate(`(() => { const w=frames[0],s=w.__mineTest.snapshot(); s.settings.notificationsEnabled=true; s.timer={...s.timer,mode:'pomodoro',phase:'shortBreak',round:1,duration:1,left:1,running:true,startedAt:Date.now()-1000,endAt:Date.now()-20}; w.__mineTest.setState(s); })()`);
+await evaluate(`(() => { const w=frames[0],s=w.__mineTest.snapshot(); s.settings.focusAlarmSoundEnabled=true; s.timer={...s.timer,mode:'pomodoro',phase:'shortBreak',round:1,duration:1,left:1,running:true,startedAt:Date.now()-1000,endAt:Date.now()-20}; w.__mineTest.setState(s); })()`);
 await new Promise(resolve => setTimeout(resolve, 180));
 assert.equal(await evaluate(`frames[0].document.querySelector('.alarm-modal h2').textContent`), '短休息结束');
 assert.ok((await evaluate(`frames[0].document.querySelector('.alarm-modal').innerText`)).includes('直到你手动停止'));
