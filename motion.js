@@ -61,7 +61,24 @@ function safely(run) {
  *
  * 实现要点：面**按目标尺寸摆好，只做 transform**。
  * 因为面是纯色、里面没有内容，缩放它不会把任何东西拉变形 —— 这正是可以用 transform 的前提。
+ *
+ * 浅纸 / 纯白不能垫这块面：它从点击处长出来，三个主题看起来都是白块。
+ * 渐变纸面的 background-color 算出来是透明，同样不能垫，也不能把面板先藏起来。
  */
+
+/** 不透明、又浅得像纸或白的颜色。这种颜色从点击处长出来就是白块。 */
+function isNearWhite(color) {
+  const match = String(color || '').match(/rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)(?:[,\s/]+([\d.]+))?\s*\)/i);
+  if (!match) return false;
+  const red = Number(match[1]);
+  const green = Number(match[2]);
+  const blue = Number(match[3]);
+  const alpha = match[4] === undefined ? 1 : Number(match[4]);
+  if (!(alpha > 0.45)) return false;
+  const luminance = (0.2126 * red + 0.7152 * green + 0.0722 * blue) / 255;
+  return luminance >= 0.82;
+}
+
 export function morphFrom(trigger, panel, { duration = DURATION.morph } = {}) {
   if (!canAnimate() || !trigger || !panel) return null;
   // 私密视频的准备层和播放器都是深色全屏。垫一块取自弹窗背景的"面"会从点击处长出来，
@@ -84,22 +101,23 @@ export function morphFrom(trigger, panel, { duration = DURATION.morph } = {}) {
     const styles = getComputedStyle(panel);
     const panelBackground = styles.backgroundColor;
     const transparentPanel = panelBackground === 'rgba(0, 0, 0, 0)' || panelBackground === 'transparent';
+    /* ③ 透明或浅纸色都不垫面，也不要把面板先藏起来。
+       渐变底读出来是透明；清简是纯白，经典/暖阳是浅纸。
+       垫出来的那一块，以及"面板先消失"露出的底，在 WebView 里都是点击位置的白块。 */
+    if (transparentPanel || isNearWhite(panelBackground)) return null;
 
-    let surface = null;
-    if (!transparentPanel) {
-      surface = document.createElement('div');
-      surface.className = 'morph-surface';
-      surface.style.cssText = [
-        'position:fixed',
-        `left:${to.left}px`,
-        `top:${to.top}px`,
-        `width:${to.width}px`,
-        `height:${to.height}px`,
-        `border-radius:${styles.borderRadius}`,
-        `background:${panelBackground}`,
-      ].join(';');
-      document.body.appendChild(surface);
-    }
+    const surface = document.createElement('div');
+    surface.className = 'morph-surface';
+    surface.style.cssText = [
+      'position:fixed',
+      `left:${to.left}px`,
+      `top:${to.top}px`,
+      `width:${to.width}px`,
+      `height:${to.height}px`,
+      `border-radius:${styles.borderRadius}`,
+      `background:${panelBackground}`,
+    ].join(';');
+    document.body.appendChild(surface);
 
     const scaleX = from.width / to.width;
     const scaleY = from.height / to.height;
@@ -111,8 +129,6 @@ export function morphFrom(trigger, panel, { duration = DURATION.morph } = {}) {
       [{ opacity: 0 }, { opacity: 0, offset: 0.55 }, { opacity: 1 }],
       { duration, easing: EASE.fluid, fill: 'backwards' }
     ).finished.catch(() => {});
-
-    if (!surface) return null;
 
     return surface.animate(
       [
@@ -142,8 +158,21 @@ export function morphFrom(trigger, panel, { duration = DURATION.morph } = {}) {
  */
 const nextShareName = () => `share-hero-${Math.random().toString(36).slice(2, 8)}`;
 
+/* 每次转场的名字都是随机的，静态样式表里的 share-hero 选择器对不上。
+   默认的 plus-lighter 会把两张浅色快照加在一起，重叠处直接爆成纯白 ——
+   那就是点击位置的白块。这里按真实名字把混合模式钉成 normal。 */
+function mountShareBlend(name, duration) {
+  const style = document.createElement('style');
+  style.setAttribute('data-share-transition', name);
+  style.textContent = `::view-transition-group(${name}){animation-duration:${duration}ms;animation-timing-function:var(--spring-entrance,cubic-bezier(0.22,1,0.36,1))}::view-transition-old(${name}),::view-transition-new(${name}){animation-duration:${duration}ms;mix-blend-mode:normal}`;
+  document.head.appendChild(style);
+  return () => style.remove();
+}
+
 export function withSharedTransition(sourceEl, update, { targetSelector = '', duration = DURATION.shared, fallbackTargetSelector = '' } = {}) {
   const supported = typeof document !== 'undefined' && typeof document.startViewTransition === 'function';
+  // <video> 在首帧前是原生白底。给它挂共享元素，抠走的就是一块白。
+  if (sourceEl?.tagName === 'VIDEO') { update?.(); return null; }
   if (!canAnimate() || !supported || !sourceEl || !update) {
     // 没有 View Transitions：用两段式 FLIP 顶上
     if (!canAnimate() || !sourceEl) { update?.(); return null; }
@@ -154,26 +183,40 @@ export function withSharedTransition(sourceEl, update, { targetSelector = '', du
   }
   return safely(() => {
     const name = nextShareName();
-    const cleanup = [];
+    const removeStyle = mountShareBlend(name, duration);
+    const cleanup = [removeStyle];
     sourceEl.style.viewTransitionName = name;
     cleanup.push(() => { sourceEl.style.viewTransitionName = ''; });
 
-    const transition = document.startViewTransition(() => {
-      const done = update();
-      // update 可能是异步的（比如要先解密）；返回 Promise 时浏览器会等它
-      return Promise.resolve(done).then(async () => {
-        const target = targetSelector ? document.querySelector(targetSelector) : null;
-        if (!target) return;
-        /* ⚠️ 等图片解码完再让浏览器拍"新状态"快照。
-           不等的话，快照里的图还是空白 —— 观感就是"打开大图时闪一下"。
-           这是 View Transitions 配大图时的标准做法（update 回调支持 await，就是为这个）。 */
-        if (target.tagName === 'IMG' && !target.complete) {
-          await target.decode?.().catch(() => {});
-        }
-        target.style.viewTransitionName = name;
-        cleanup.push(() => { target.style.viewTransitionName = ''; });
+    let transition;
+    try {
+      transition = document.startViewTransition(() => {
+        const done = update();
+        // update 可能是异步的（比如要先解密）；返回 Promise 时浏览器会等它
+        return Promise.resolve(done).then(async () => {
+          const target = targetSelector ? document.querySelector(targetSelector) : null;
+          /* 没有落点，或落点是视频：旧快照里这个元素已经被抠走，
+             Android WebView 的转场底是白的，抠空处就是点击位置的白块。
+             清掉名字并跳过动画，照片落点仍然照常放大。 */
+          if (!target || target.tagName === 'VIDEO') {
+            sourceEl.style.viewTransitionName = '';
+            transition?.skipTransition?.();
+            return;
+          }
+          /* ⚠️ 等图片解码完再让浏览器拍"新状态"快照。
+             不等的话，快照里的图还是空白 —— 观感就是"打开大图时闪一下"。
+             这是 View Transitions 配大图时的标准做法（update 回调支持 await，就是为这个）。 */
+          if (target.tagName === 'IMG' && !target.complete) {
+            await target.decode?.().catch(() => {});
+          }
+          target.style.viewTransitionName = name;
+          cleanup.push(() => { target.style.viewTransitionName = ''; });
+        });
       });
-    });
+    } catch (error) {
+      cleanup.forEach(fn => safely(fn));
+      throw error;
+    }
     transition.finished.catch(() => {}).then(() => cleanup.forEach(fn => safely(fn)));
     return transition;
   });
@@ -315,6 +358,44 @@ export const PRESS_SELECTOR = `${PRESS_SOLID},${PRESS_LIGHT}`;
 
 let pressInstalled = false;
 
+/* <video> 在第一帧画出来之前，Android WebView 会铺一块原生白，而且盖在 CSS 背景上。
+   新插入的视频先藏起来，有画面（或确定失败）再露出来。照片共享元素不走这里。 */
+function revealVideoFrame(video) {
+  video.classList.remove('is-awaiting-frame');
+}
+
+function armVideoFrame(video) {
+  if (!video || video.localName !== 'video' || video.readyState >= 2) return;
+  video.classList.add('is-awaiting-frame');
+}
+
+function installVideoFrameGuard() {
+  const reveal = event => {
+    const video = event.target;
+    if (video?.localName === 'video') revealVideoFrame(video);
+  };
+  document.addEventListener('loadeddata', reveal, true);
+  document.addEventListener('canplay', reveal, true);
+  document.addEventListener('playing', reveal, true);
+  document.addEventListener('error', reveal, true);
+
+  const armTree = node => {
+    if (!node || node.nodeType !== 1) return;
+    if (node.localName === 'video') armVideoFrame(node);
+    const videos = node.getElementsByTagName?.('video');
+    if (!videos) return;
+    for (let index = 0; index < videos.length; index += 1) armVideoFrame(videos[index]);
+  };
+
+  const observer = new MutationObserver(records => {
+    for (const record of records) {
+      for (const node of record.addedNodes) armTree(node);
+    }
+  });
+  observer.observe(document.documentElement, { childList: true, subtree: true });
+  armTree(document.documentElement);
+}
+
 /** 给所有可按压元素打上标记。必须在"按下之前"完成，否则状态切换不会触发过渡。 */
 export function markPressables(root = document) {
   if (!root?.querySelectorAll) return;
@@ -330,6 +411,7 @@ export function markPressables(root = document) {
 export function installPressFeedback() {
   if (pressInstalled || typeof document === 'undefined') return;
   pressInstalled = true;
+  installVideoFrameGuard();
 
   const findTarget = node => {
     const element = node instanceof Element ? node : null;

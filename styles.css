@@ -331,7 +331,7 @@ select {
 }
 
 body {
-  -webkit-tap-highlight-color: transparent;
+  -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
   text-rendering: optimizeLegibility;
 }
 
@@ -344,7 +344,9 @@ select { color: inherit; font: inherit; }
 button {
   padding: 0;
   border: 0;
-  background: transparent;
+  /* 全透明在 Android WebView 里会被当成「没有背景」。按下缩放提升图层时，那一帧清成白色。
+     不到 1% 的黑眼看不出来，但足够让合成层不要垫白。各组件自己的背景仍会盖过这里。 */
+  background: rgba(0, 0, 0, 0.004);
   appearance: none;
   touch-action: manipulation;
 }
@@ -475,9 +477,8 @@ select:focus-visible,
 #app.nav-transition > .view { animation: pageSpringEnter 0.36s var(--ease-spring) both; }
 
 @keyframes pageSpringEnter {
-  0% { opacity: 0; transform: translateY(12px) scale(0.985); filter: blur(2px); }
-  70% { filter: blur(0); }
-  100% { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+  from { opacity: 0; transform: translateY(12px) scale(0.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 /* Prototype Dock｜相对 App 视口固定，不参与正文滚动 */
@@ -517,7 +518,7 @@ select:focus-visible,
   align-items: center;
   justify-content: center;
   gap: 3px;
-  background: transparent;
+  background: rgba(0, 0, 0, 0.004);
   color: #726b60;
   cursor: pointer;
   transition: color 0.25s var(--ease-spring), background 0.25s var(--ease-spring), transform 0.25s var(--ease-spring), box-shadow 0.25s var(--ease-spring);
@@ -1311,7 +1312,7 @@ body.subpage-active .floating-dock {
 .modal button,
 .modal input,
 .modal textarea,
-.modal select { -webkit-tap-highlight-color: transparent; }
+.modal select { -webkit-tap-highlight-color: rgba(0, 0, 0, 0); }
 
 .modal button { font: inherit; appearance: none; }
 
@@ -7637,6 +7638,7 @@ body.video-landscape-fullscreen{background:#050807!important}
 
 .warm-video-viewport{position:relative;width:100%;aspect-ratio:16/9;margin:auto;overflow:hidden;background:#101813}
 .warm-video-canvas{position:absolute;inset:0;overflow:hidden;background:#050807}.warm-video-canvas>video{width:100%;height:100%;max-height:none;aspect-ratio:auto;display:block;object-fit:contain;background:#050807}.warm-video-canvas>video.is-awaiting-frame{opacity:0}
+video.is-awaiting-frame{opacity:0}
 .warm-video-viewport:fullscreen,.warm-video-viewport:-webkit-full-screen{width:100vw!important;height:100vh!important;max-width:none!important;max-height:none!important;aspect-ratio:auto!important;margin:0!important;padding:0!important;background:#050807!important}
 .warm-video-viewport:fullscreen>video,.warm-video-viewport:-webkit-full-screen>video{max-width:none!important;max-height:none!important}
 .warm-video-viewport video::-webkit-media-controls-fullscreen-button{display:none!important}
@@ -8840,3 +8842,9 @@ body:has(.mine-view) #app{
 .release-notes-bullets li::before { content:''; position:absolute; left:4px; top:15px; width:6px; height:6px; border-radius:50%; background:#65889a; opacity:.75; }
 .release-notes-shots { display:grid; gap:12px; margin-bottom:12px; }
 .release-notes-shot { display:block; width:100%; border-radius:16px; border:1px solid rgba(220,212,198,.7); box-shadow:0 10px 26px rgba(35,28,18,.08); background:var(--canvas); }
+
+/* Android WebView 的点击高亮默认是一块浅白，而且写在 body 上的 transparent 关键字经常不生效。
+   权重压过 button/a 的单元素规则，卡片、列表、底栏、不是按钮的可点区域都盖住。 */
+html body * {
+  -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
+}
