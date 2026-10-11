@@ -38,6 +38,16 @@ test('异步保存期间的编辑不能删除已落库引用或新加入的媒�
   assert.ok(protectedRefs.includes('mine-media://snapshot.jpg'));
 });
 
+test('密钥跳过时保存成功、照常清理媒体，并安排重试提示', async () => {
+  let cleaned = 0;
+  let noted = null;
+  const context = vm.createContext({ state: {}, saveQueue: Promise.resolve(), structuredClone, $: () => ({}), show: () => {}, externalizeStateMedia: async () => {}, persistState: async () => 'key-skipped', protectedSnapshotMediaReferences: async () => [], stateMediaReferences: () => [], removeUnusedMedia: async () => { cleaned++; }, notifyPersistedKeySeal: result => { noted = result; } });
+  vm.runInContext(coreSource.match(/export const save = \(\) => \{[\s\S]*?\n\};/)[0].replace('export const save', 'globalThis.save'), context);
+  await context.save();
+  assert.equal(cleaned, 1);
+  assert.equal(noted, 'key-skipped');
+});
+
 test('数据库已提交后清理失败不冒充保存失败', async () => {
   const notices = [];
   const context = vm.createContext({ state: {}, saveQueue: Promise.resolve(), structuredClone, console: { warn() {} }, $: () => ({}), show: message => notices.push(message), externalizeStateMedia: async () => {}, persistState: async () => true, protectedSnapshotMediaReferences: async () => { throw new Error('快照读取失败'); }, stateMediaReferences: () => [], removeUnusedMedia: async () => assert.fail('无法读取保护引用时不应清理') });
@@ -50,9 +60,9 @@ function storageHarness({ native = true } = {}) {
   const rows = new Map();
   let pending, failEncryption = false, failWrite = false, seals = 0;
   const database = { open: async () => {}, execute: async sql => { assert.ok(!sql.includes('DELETE FROM state_sections'), '不能先清空原库'); }, query: async () => ({ values: [] }), beginTransaction: async () => { pending = new Map(rows); }, run: async (sql, params) => { if (sql.startsWith('INSERT INTO state_sections')) { if (failWrite) throw new Error('磁盘写入失败'); pending.set(params[0], params[1]); } }, commitTransaction: async () => { rows.clear(); for (const [k, v] of pending) rows.set(k, v); }, rollbackTransaction: async () => { pending = null; } };
-  const context = vm.createContext({ Capacitor: { isNativePlatform: () => native, getPlatform: () => 'android' }, CapacitorSQLite: {}, SQLiteConnection: class { async checkConnectionsConsistency() { return { result: false }; } async isConnection() { return { result: false }; } async createConnection() { return database; } }, migrateState, SCHEMA_VERSION, rebuildActivityLog, structuredClone, console: { warn() {} }, localStorage: { getItem: () => null, setItem: (_, value) => rows.set('browser', value) }, sealApiKey: async key => { seals++; if (failEncryption) throw new Error('插件不可用'); return `encrypted:${key}`; }, openApiKey: async key => key, isEncryptedKey: key => String(key).startsWith('encrypted:') });
+  const context = vm.createContext({ Capacitor: { isNativePlatform: () => native, getPlatform: () => 'android' }, CapacitorSQLite: {}, SQLiteConnection: class { async checkConnectionsConsistency() { return { result: false }; } async isConnection() { return { result: false }; } async createConnection() { return database; } }, migrateState, SCHEMA_VERSION, rebuildActivityLog, structuredClone, console: { warn() {} }, localStorage: { getItem: () => rows.get('browser') ?? null, setItem: (_, value) => rows.set('browser', value) }, sealApiKey: async key => { seals++; if (failEncryption) throw new Error('插件不可用'); return `encrypted:${key}`; }, openApiKey: async key => key, isEncryptedKey: key => String(key).startsWith('encrypted:') });
   runModule(storageSource, context, ['initializeStorage', 'persistState', 'replaceState', 'blockStorageWrites']);
-  return { context, rows, failEncryption: () => { failEncryption = true; }, failWrite: () => { failWrite = true; }, seals: () => seals };
+  return { context, rows, failEncryption: value => { failEncryption = value !== false; }, failWrite: () => { failWrite = true; }, seals: () => seals };
 }
 
 test('Android 数据库未就绪时禁止退回浏览器存储', async () => {
@@ -70,18 +80,75 @@ test('启动加载失败后保护模式禁止继续写入已有数据库', async
   assert.deepEqual([...h.rows], before);
 });
 
-test('加密失败或事务写入失败时，恢复不能清空原始记录', async () => {
-  for (const failure of ['failEncryption', 'failWrite']) {
-    const h = storageHarness();
-    await h.context.initializeStorage(makeDefaultState());
-    const before = [...h.rows];
-    const next = makeDefaultState();
-    next.journals['2026-10-08'] = { content: '新记录', photos: [] };
-    if (failure === 'failEncryption') next.settings.aiApiKey = 'secret-key';
-    h[failure]();
-    await assert.rejects(h.context.replaceState(next), /密钥加密失败|磁盘写入失败/);
-    assert.deepEqual([...h.rows], before);
-  }
+test('事务写入失败时，恢复不能清空原始记录', async () => {
+  const h = storageHarness();
+  await h.context.initializeStorage(makeDefaultState());
+  const before = [...h.rows];
+  const next = makeDefaultState();
+  next.journals['2026-10-08'] = { content: '新记录', photos: [] };
+  h.failWrite();
+  await assert.rejects(h.context.replaceState(next), /磁盘写入失败/);
+  assert.deepEqual([...h.rows], before);
+});
+
+test('密钥加密失败时仍保存日记账本速记，保留已有密文且不写入明文', async () => {
+  const h = storageHarness();
+  await h.context.initializeStorage(makeDefaultState());
+  const seeded = makeDefaultState();
+  seeded.settings.aiApiKey = 'old-secret';
+  seeded.journals['2026-10-01'] = { content: '旧日记', photos: [] };
+  assert.equal(await h.context.persistState(seeded), true);
+  const habitsBefore = h.rows.get('habits');
+  h.failEncryption();
+  const next = makeDefaultState();
+  next.settings.aiApiKey = 'new-secret';
+  next.journals['2026-10-01'] = { content: '旧日记', photos: [] };
+  next.journals['2026-10-11'] = { content: '新日记', photos: [] };
+  next.snippets = [{ id: 's1', text: '速记还在' }];
+  next.transactions = [{ id: 't1', amount: 12 }];
+  assert.equal(await h.context.replaceState(next), 'key-skipped');
+  assert.equal(JSON.parse(h.rows.get('journals'))['2026-10-11'].content, '新日记');
+  assert.equal(JSON.parse(h.rows.get('journals'))['2026-10-01'].content, '旧日记');
+  assert.equal(JSON.parse(h.rows.get('snippets'))[0].text, '速记还在');
+  assert.equal(JSON.parse(h.rows.get('transactions'))[0].amount, 12);
+  assert.equal(h.rows.get('habits'), habitsBefore);
+  assert.equal(JSON.parse(h.rows.get('settings')).aiApiKey, 'encrypted:old-secret');
+  assert.equal(JSON.stringify([...h.rows]).includes('new-secret'), false);
+  assert.equal(next.settings.aiApiKey, 'new-secret');
+  h.failEncryption(false);
+  assert.equal(await h.context.persistState(next), true);
+  assert.equal(JSON.parse(h.rows.get('settings')).aiApiKey, 'encrypted:new-secret');
+});
+
+test('没有旧密文时加密失败会跳过密钥再保存内容', async () => {
+  const h = storageHarness();
+  await h.context.initializeStorage(makeDefaultState());
+  h.failEncryption();
+  const next = makeDefaultState();
+  next.settings.aiApiKey = 'plain-secret';
+  next.journals['2026-10-11'] = { content: '仍应保存', photos: [] };
+  assert.equal(await h.context.persistState(next), 'key-skipped');
+  const settings = JSON.parse(h.rows.get('settings'));
+  assert.equal(settings.aiApiKey, undefined);
+  assert.equal(JSON.parse(h.rows.get('journals'))['2026-10-11'].content, '仍应保存');
+  assert.equal(JSON.stringify([...h.rows]).includes('plain-secret'), false);
+  assert.equal(next.settings.aiApiKey, 'plain-secret');
+});
+
+test('浏览器密钥加密失败仍保存内容，且不把明文写入 localStorage', async () => {
+  const h = storageHarness({ native: false });
+  const state = makeDefaultState();
+  state.settings.aiApiKey = 'secret-key';
+  state.journals['2026-10-11'] = { content: '日记还在', photos: [] };
+  state.transactions = [{ id: 't1', amount: 8 }];
+  h.failEncryption();
+  assert.equal(await h.context.persistState(state), 'key-skipped');
+  const saved = JSON.parse(h.rows.get('browser'));
+  assert.equal(saved.journals['2026-10-11'].content, '日记还在');
+  assert.equal(saved.transactions[0].amount, 8);
+  assert.equal(saved.settings.aiApiKey, undefined);
+  assert.equal(JSON.stringify(saved).includes('secret-key'), false);
+  assert.equal(state.settings.aiApiKey, 'secret-key');
 });
 
 test('浏览器保存密钥只加密一次，存储内容没有明文密钥', async () => {

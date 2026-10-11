@@ -1,6 +1,6 @@
 import { Capacitor, registerPlugin } from '@capacitor/core';
 import { Directory, Encoding, Filesystem } from '@capacitor/filesystem';
-import { persistState, protectedSnapshotMediaReferences } from './storage.js';
+import { persistState, protectedSnapshotMediaReferences, PERSIST_KEY_SKIPPED, KEY_SEAL_SKIPPED_NOTICE } from './storage.js';
 import { CATEGORIES, dateKey, makeDefaultState, makeDefaultNavTabs, DEFAULT_NAV_ROUTES, ledgerSummary, calibrateLedgerAccount, habitHeatmapData, previousCompleteWeekRange, calculateFlowScore } from './model.js';
 import { externalizeStateMedia, mediaSource, removeUnusedMedia, stateMediaReferences } from './media-store.js';
 import { liquidGlass, isLiquidGlassEnabled } from './liquid-glass.js';
@@ -128,15 +128,16 @@ export const save = () => {
     // 异步写入期间页面仍可能编辑状态；清理必须保护本次实际提交的引用。
     const savedState = structuredClone(state);
     const persisted = await persistState(savedState);
-    // ⚠️ 只有确认数据库已与内存一致（persisted !== false）才清理未引用的媒体。
-    // 落库被跳过时（例如 AI 密钥加密失败），内存里的新媒体引用还没进数据库；
+    // ⚠️ 只有确认内容已落库（persisted !== false）才清理未引用的媒体。
+    // 整份落库被跳过时，内存里的新媒体引用还没进数据库；
     // 若此刻清理，会删掉「数据库不认、清理又删掉」的孤儿文件，重启后引用断裂 ——
     // 这正是 2026-10-08 用户反馈的「导入的视频丢失」根因。
-    // 保留文件不会占用额外风险：下一次保存成功时自然会把这批未引用文件清理掉。
-    if (persisted === false) throw new Error('密钥加密失败，数据尚未保存。请保持 App 打开，检查 AI 密钥配置后重试。');
+    // 密钥单独跳过时日记/账本/速记已经落库，清理是安全的，也不能把这次保存判失败。
+    if (persisted === false) throw new Error('数据尚未保存。请保持 App 打开后重试。');
     // 保存已经提交；清理失败不能反过来让调用方撤销内存中的成功记录。
     try { await removeUnusedMedia(savedState, [...await protectedSnapshotMediaReferences(), ...stateMediaReferences(state), ...(state.privateVault?.assetRefs || [])]); }
     catch (error) { console.warn('数据已保存，媒体清理暂未执行', error); }
+    if (persisted === 'key-skipped') notifyPersistedKeySeal(persisted);
   }).catch(error => {
     const failure = new Error(`保存失败：${error?.message || '本机存储不可用'}`);
     if ($('#toast')) show(failure.message);
@@ -145,6 +146,12 @@ export const save = () => {
   saveQueue = operation.catch(() => {});
   return operation;
 };
+
+// 放在保存承诺兑现之后再提示，避免被紧接着的「已保存」盖掉。
+export function notifyPersistedKeySeal(result) {
+  if (result !== PERSIST_KEY_SKIPPED || !$('#toast')) return;
+  setTimeout(() => show(KEY_SEAL_SKIPPED_NOTICE), 0);
+}
 
 export function show(message) {
   $('#toast').textContent = message;

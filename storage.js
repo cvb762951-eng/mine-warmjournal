@@ -65,7 +65,7 @@ export async function initializeStorage(defaultState) {
   if (!rows.values?.length) {
     serializedSections.clear();
     const legacy = migrateState(loadBrowser(defaultState), defaultState);
-    if (await persistState(legacy) === false) throw new Error('密钥加密失败，初始数据尚未保存');
+    if (await persistState(legacy) === false) throw new Error('初始数据尚未保存');
     await ensureDailySnapshot(legacy).catch(console.warn);
     return legacy;
   }
@@ -81,13 +81,17 @@ export async function initializeStorage(defaultState) {
   const migrated = migrateState(state, defaultState);
   // 读库后把 Keystore 密文还原成内存明文；此时 state.settings.aiApiKey 尚未落库，明文只活在内存。
   await hydrateAiKey(migrated);
-  if (await persistState(migrated) === false) throw new Error('密钥加密失败，升级后的数据尚未保存');
+  if (await persistState(migrated) === false) throw new Error('升级后的数据尚未保存');
   await ensureDailySnapshot(migrated).catch(console.warn);
   return migrated;
 }
 
+// 内容已落库，但本次 AI 密钥没能加密，明文没有写入。下次保存会自动重试。
+export const PERSIST_KEY_SKIPPED = 'key-skipped';
+export const KEY_SEAL_SKIPPED_NOTICE = '日记、账本和速记已保存。AI 密钥这次没能加密，已跳过密钥，下次保存会自动重试。';
+
 // 落库前把 AI Key 从明文换成 Keystore 密文。只克隆 settings 一个分区，避免整份 state 深拷贝的内存开销。
-// 加密是异步的（Web Crypto / 原生插件都是 Promise），故整份 state 走同一次异步分片。
+// 加密是异步的（Web Crypto / 原生插件都是 Promise）。失败时由 sectionsForWrite 跳过密钥，不中断其它分区。
 async function sectionForWrite(section, value) {
   if (section !== 'settings' || !value || typeof value !== 'object') return value;
   const key = value.aiApiKey;
@@ -95,40 +99,88 @@ async function sectionForWrite(section, value) {
   return { ...value, aiApiKey: await sealApiKey(key) };
 }
 
-// 返回本次真正要落库的分区；settings 加密失败时整份 state 都跳过写入，宁可这次不保存，
-// 也绝不能让明文 Key 进入数据库。
-async function sectionsForWrite(state) {
+function keyFromPayload(payload) {
+  if (!payload) return '';
   try {
-    return await Promise.all(SECTIONS.map(async section => [section, JSON.stringify(await sectionForWrite(section, state[section]))]));
-  } catch (error) {
-    console.warn('AI 密钥加密失败，本次跳过落库以避免明文泄漏', error);
-    return null;
+    const key = JSON.parse(payload)?.aiApiKey;
+    return typeof key === 'string' ? key : '';
+  } catch {
+    return '';
   }
 }
 
-// 返回值：true = 数据库已与内存一致；false = 本次完全没有落库。
+// 只沿用目标库里已经成功加密的密钥。新的明文绝不写入；也不得把浏览器遗留明文抄进 SQLite。
+function previouslySealedApiKey() {
+  const fromSection = keyFromPayload(serializedSections.get('settings'));
+  if (isEncryptedKey(fromSection)) return fromSection;
+  if (isNativeAndroid()) return '';
+  try {
+    const saved = JSON.parse(localStorage.getItem(LEGACY_KEY) || '{}');
+    const key = saved?.settings?.aiApiKey;
+    return isEncryptedKey(key) ? key : '';
+  } catch {
+    return '';
+  }
+}
+
+// 加密失败时保留已有密文（若有），并去掉本次明文。浅拷贝，不改内存里的 settings。
+function settingsSkippingPlainKey(settings) {
+  const next = { ...(settings && typeof settings === 'object' ? settings : {}) };
+  const previous = previouslySealedApiKey();
+  if (previous) next.aiApiKey = previous;
+  else delete next.aiApiKey;
+  return next;
+}
+
+// 日记、账本、速记等分区与密钥加密拆开：密钥失败只跳过密钥，其余照常落库。
+async function sectionsForWrite(state) {
+  let keySkipped = false;
+  const sections = [];
+  for (const section of SECTIONS) {
+    let value = state[section];
+    if (section === 'settings') {
+      try {
+        value = await sectionForWrite(section, value);
+      } catch (error) {
+        console.warn('AI 密钥加密失败，本次跳过密钥，其余内容仍会保存', error);
+        value = settingsSkippingPlainKey(value);
+        keySkipped = true;
+      }
+    }
+    sections.push([section, JSON.stringify(value)]);
+  }
+  return { sections, keySkipped };
+}
+
+// 返回值：
+//   true = 数据库已与内存一致（含密钥）
+//   PERSIST_KEY_SKIPPED = 内容已落库，密钥加密失败，明文未写入，下次保存会重试
+//   false = 本次完全没有落库
 //
-// ⚠️ 调用方必须检查返回值再决定是否清理媒体文件：
-// 落库被跳过时（如 AI 密钥加密失败），内存里的新媒体引用尚未写进数据库，
+// ⚠️ 调用方必须把 false 当成「媒体引用还没进库」：
 // 此刻若执行「删除未被引用的媒体」，磁盘上会留下「数据库不认、清理又删掉」的
 // 孤儿文件，重启后引用断裂 —— 这就是 2026-10-08 用户反馈的「导入的视频丢失」根因。
+// 密钥单独跳过时内容已经落库，可以照常清理媒体。
 export async function persistState(state) {
   if (writesBlocked) throw new Error('本机数据加载失败，已停止保存以保护已有记录');
   state.events = rebuildActivityLog(state);
-  const sections = await sectionsForWrite(state);
+  const prepared = await sectionsForWrite(state);
+  const sections = prepared?.sections;
   if (!sections) return false;
+  const outcome = prepared.keySkipped ? PERSIST_KEY_SKIPPED : true;
   if (isNativeAndroid() && !database) throw new Error('本机数据库尚未就绪，请重新打开 App');
   if (!isNativeAndroid()) {
     // 浏览器预览：整份 state 写 localStorage，但用密文替换 settings 里的 Key。
     // 复用本次已加密的分区，不再进行第二次可能失败的密钥加密。
     const settings = JSON.parse(sections.find(([section]) => section === 'settings')[1]);
     localStorage.setItem(LEGACY_KEY, JSON.stringify(settings === state.settings ? state : { ...state, settings }));
-    return true;
+    return outcome;
   }
   const now = Date.now();
   const changes = sections.filter(([section, payload]) => serializedSections.get(section) !== payload);
   // 没有变化 = 数据库本来就与内存一致，属于「已落库」，可以安全清理媒体。
-  if (!changes.length) return true;
+  // 仅密钥没能更新时仍返回 PERSIST_KEY_SKIPPED，方便提示重试，不代表内容没写上。
+  if (!changes.length) return outcome;
   await database.beginTransaction();
   try {
     for (const [section, payload] of changes) {
@@ -146,7 +198,7 @@ export async function persistState(state) {
     await database.rollbackTransaction().catch(() => {});
     throw error;
   }
-  return true;
+  return outcome;
 }
 
 export function blockStorageWrites() { writesBlocked = true; }
@@ -167,8 +219,11 @@ export async function hydrateAiKey(state) {
 }
 
 export async function replaceState(nextState) {
-  // 所有白名单分区在同一事务内替换。先删旧库会在加密/写入失败时丢掉原数据。
-  if (await persistState(nextState) === false) throw new Error('密钥加密失败，原数据未被替换');
+  // 所有白名单分区在同一事务内替换。先删旧库会在写入失败时丢掉原数据。
+  // 密钥加密失败不再整单作废：内容会落库，明文密钥不会写入。
+  const persisted = await persistState(nextState);
+  if (persisted === false) throw new Error('数据尚未写入，原记录未被替换');
+  return persisted;
 }
 
 // 快照与备份都要落到数据库，必须先把内存明文 Key 换成密文。

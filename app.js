@@ -1,7 +1,7 @@
 ﻿import { initializeStorage, persistState, blockStorageWrites } from './storage.js';
 import { APP_VERSION_NAME } from './app-updater.js';
 import { Capacitor, registerPlugin } from '@capacitor/core';
-import { $, $$, state, cursor, selected, setState, setCursor, setSelected, defaults, render, go, goBack, save, show, confirmDelete, closeModal, getSubmitHandler, registerBinder, registerHelper, registerOnRender, callHelper, pushBackState, applyTheme, primeThemeFromNativeMirror } from './core.js';
+import { $, $$, state, cursor, selected, setState, setCursor, setSelected, defaults, render, go, goBack, save, show, confirmDelete, closeModal, getSubmitHandler, registerBinder, registerHelper, registerOnRender, callHelper, pushBackState, applyTheme, primeThemeFromNativeMirror, notifyPersistedKeySeal } from './core.js';
 import { installPressFeedback } from './motion.js';
 import { migrateState, dateKey } from './model.js';
 import { externalizeStateMedia } from './media-store.js';
@@ -252,7 +252,9 @@ async function boot() {
     callHelper('setAiHistory', [...(state.aiHistory || [])]);
     const migratedMedia = await externalizeStateMedia(state);
     // 浏览器媒体外置后用短引用覆盖 localStorage；Android 重复持久化由分区差异检查跳过。
-    if (await persistState(state) === false) throw new Error('密钥加密失败，启动数据尚未保存');
+    const persisted = await persistState(state);
+    if (persisted === false) throw new Error('启动数据尚未保存。请重新打开 App 再试。');
+    notifyPersistedKeySeal(persisted);
     booted = true;
     if (autoSummaryLaunch) {
       try {

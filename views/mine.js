@@ -1,4 +1,4 @@
-import { $, $$, esc, state, save, render, modal, closeModal, show, confirmDelete, imgSrc, emptyState, go, formatMinutes, setState, defaults, registerView, registerBinder, registerSubmitHandler, callHelper, NAV_TABS, renderNav, pushBackState, applyTheme } from '../core.js';
+import { $, $$, esc, state, save, render, modal, closeModal, show, confirmDelete, imgSrc, emptyState, go, formatMinutes, setState, defaults, registerView, registerBinder, registerSubmitHandler, callHelper, NAV_TABS, renderNav, pushBackState, applyTheme, notifyPersistedKeySeal } from '../core.js';
 import { journalEntries, migrateState, makeDefaultNavTabs, APP_THEMES, THEME_META, formatShanghaiDateTime } from '../model.js';
 import { exportEncryptedBackup, importEncryptedBackup, finalizeImportedBackup, rollbackImportedBackup, verifyEncryptedBackup } from '../backup.js';
 import { createSafetySnapshot, listSafetySnapshots, readSafetySnapshot, storageHealth, replaceState } from '../storage.js';
@@ -544,10 +544,11 @@ function confirmSnapshotRestore(id) {
       await createLocalSnapshot('恢复快照前');
       setState(migrateState(restored, defaults));
       await externalizeStateMedia(state);
-      await replaceState(state);
+      const persisted = await replaceState(state);
       callHelper('setAiHistory', [...(state.aiHistory || [])]);
       clearJournalDraftCache();
       closeModal(); render(); show('安全快照已恢复');
+      notifyPersistedKeySeal(persisted);
     } catch (error) { setState(previousState); show(error.message); }
   };
 }
@@ -929,10 +930,11 @@ registerSubmitHandler('restore-form', async (data, form) => {
     const restored = await importEncryptedBackup(data.get('password'), { onProgress: event => updateBackupReadProgress(form, event, '恢复') });
     setState(migrateState(restored, defaults));
     await externalizeStateMedia(state);
-    await replaceState(state);
+    const persisted = await replaceState(state);
     await finalizeImportedBackup();
     clearJournalDraftCache();
     closeModal(); render(); show('数据恢复完成');
+    notifyPersistedKeySeal(persisted);
   } catch (error) {
     await rollbackImportedBackup().catch(() => {});
     setState(previousState);
