@@ -15,10 +15,17 @@ export const esc = value => String(value ?? '').replace(/[&<>'"]/g, character =>
 
 // ---- 常量 ----
 export const defaults = makeDefaultState();
-// 单条记录允许成为小型相册；总量由设备存储空间决定。
+// 单条记录允许成为小型相册；总量由设备存储空间决定。张数上限保留，体积不再卡死。
 export const JOURNAL_PHOTO_LIMIT = 60;
 export const PHOTO_IMPORT_BATCH_LIMIT = 100;
-export const JOURNAL_PHOTO_MAX_BYTES = 480 * 1024;
+// 日记照片优先原样外置保存。只有边长或像素会把解码内存顶满时才缩小，
+// 缩小用的画布上限仍远高于旧的 1280 / 480KB。
+export const JOURNAL_PHOTO_KEEP_MAX_SIDE = 16384;
+export const JOURNAL_PHOTO_KEEP_MAX_PIXELS = 40 * 1024 * 1024;
+export const JOURNAL_PHOTO_MAX_SIDE = 8192;
+export const JOURNAL_PHOTO_MAX_PIXELS = 18 * 1024 * 1024;
+export const JOURNAL_PHOTO_QUALITY = 0.92;
+export const JOURNAL_PHOTO_MEMORY_BYTES = 48 * 1024 * 1024;
 export const SUPPORTED_JOURNAL_PHOTO_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 // 随手拍高清晰度参数：最长边 1920px / 质量约 0.9 / 单张上限 2MB（真机以文件存储，不内嵌 SQLite）。
 export const SNIPPET_PHOTO_MAX_SIDE = 1920;

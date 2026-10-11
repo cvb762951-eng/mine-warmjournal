@@ -2,7 +2,7 @@ import { Capacitor } from '@capacitor/core';
 import { NativeMediaStore } from '../native-media-store.js';
 import { PasswordVaultNative } from '../password-vault-native.js';
 import { $, $$, esc, state, save, render, modal, closeModal, show, confirmDelete, goBack, registerView, registerBinder, registerOnRender, registerSubmitHandler, callHelper } from '../core.js';
-import { compressSnippetPhoto, captureVideoFrame, saveMotionFromMediaRef } from '../photo-utils.js';
+import { compressSnippetPhoto, captureVideoFrame, saveMotionFromMediaRef, clampStillTransform, measureLongStill } from '../photo-utils.js';
 import { livePhotoMarkHtml } from '../motion-photo.js';
 import { privateVaultConfigured, privateVaultUnlocked, privateVaultContent, privateVaultKey, privateVaultKeyBase64, setupPrivateVault, unlockPrivateVault, unlockPrivateVaultWithKey, persistPrivateVault, lockPrivateVault, vaultPlayableDuration, vaultItemEdited, vaultItemOrientation } from '../private-vault.js';
 import { encryptVaultFile, encryptVaultPoster, encryptExistingVaultMedia, encryptExistingVaultPoster, openVaultAsset, deleteVaultAssets, exportVaultItemToGallery, reencodeVaultItem, cancelVaultReencode } from '../vault-media-store.js';
@@ -826,19 +826,25 @@ function bindVaultPhotoGestures(items, active) {
   if (!stage || !image || !chrome) return;
   const pointers = new Map();
   let scale = 1, x = 0, y = 0, startDistance = 0, startScale = 1, startX = 0, startY = 0, moved = false, lastTap = 0, navigating = false;
+  let longMode = false, baseHeight = 0;
   const scheduleChromeHide = () => {
     clearTimeout(vaultPhotoChromeTimer);
     vaultPhotoChromeTimer = setTimeout(() => { if (chrome.isConnected) chrome.classList.add('hidden'); }, 1100);
   };
   const clampView = () => {
-    if (scale <= 1) { scale = 1; x = 0; y = 0; }
-    else {
-      const rect = stage.getBoundingClientRect();
-      x = Math.max(-rect.width * (scale - 1) / 2, Math.min(rect.width * (scale - 1) / 2, x));
-      y = Math.max(-rect.height * (scale - 1) / 2, Math.min(rect.height * (scale - 1) / 2, y));
-    }
+    const rect = stage.getBoundingClientRect();
+    const next = clampStillTransform({ longMode, baseHeight, scale, x, y, width: rect.width, height: rect.height });
+    scale = next.scale; x = next.x; y = next.y;
     image.style.transform = `translate3d(${x}px,${y}px,0) scale(${scale})`;
     image.classList.toggle('zoomed', scale > 1);
+  };
+  const refreshLongImage = () => {
+    const rect = stage.getBoundingClientRect?.() || { width: 0, height: 0 };
+    const measured = measureLongStill(image, rect.width, rect.height);
+    longMode = measured.long;
+    baseHeight = measured.baseHeight;
+    stage.classList?.toggle?.('is-long-image', longMode);
+    if (longMode) clampView();
   };
   const navigate = async next => {
     if (navigating || items.length <= 1) return;
@@ -867,6 +873,11 @@ function bindVaultPhotoGestures(items, active) {
       const [a, b] = [...pointers.values()];
       scale = Math.max(1, Math.min(5, startScale * Math.hypot(a.x - b.x, a.y - b.y) / Math.max(1, startDistance)));
     } else if (scale > 1) { x += dx; y += dy; }
+    else if (longMode) {
+      const totalX = event.clientX - startX, totalY = event.clientY - startY;
+      if (Math.abs(totalX) > 58 && Math.abs(totalX) > Math.abs(totalY) * 1.15) return;
+      y += dy;
+    }
     clampView();
   };
   const release = event => pointers.delete(event.pointerId);
@@ -878,7 +889,15 @@ function bindVaultPhotoGestures(items, active) {
     const now = Date.now();
     if (now - lastTap < 280) {
       clearTimeout(vaultPhotoChromeTimer);
-      scale = scale > 1 ? 1 : 2.5; clampView(); lastTap = 0;
+      const nextScale = scale > 1 ? 1 : 2.5;
+      if (longMode && baseHeight > 0) {
+        const rect = stage.getBoundingClientRect();
+        const anchor = (-y + rect.height / 2) / Math.max(scale, 1);
+        scale = nextScale;
+        y = rect.height / 2 - anchor * nextScale;
+        x = 0;
+      } else scale = nextScale;
+      clampView(); lastTap = 0;
     } else {
       lastTap = now;
       setTimeout(() => {
@@ -889,7 +908,14 @@ function bindVaultPhotoGestures(items, active) {
     }
   };
   stage.onpointercancel = release;
-  stage.onwheel = event => { event.preventDefault(); scale = Math.max(1, Math.min(5, scale + (event.deltaY < 0 ? .25 : -.25))); clampView(); };
+  stage.onwheel = event => {
+    event.preventDefault();
+    if (longMode && scale <= 1 && !event.ctrlKey && !event.metaKey) { y -= event.deltaY; clampView(); return; }
+    scale = Math.max(1, Math.min(5, scale + (event.deltaY < 0 ? .25 : -.25)));
+    clampView();
+  };
+  if (typeof image.addEventListener === 'function') image.addEventListener('load', refreshLongImage);
+  if (image.complete && image.naturalWidth) refreshLongImage();
   scheduleChromeHide();
 }
 
