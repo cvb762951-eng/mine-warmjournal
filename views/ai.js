@@ -8,7 +8,7 @@ import { dateKey, makeDailySummary, todayCompletion, daysUntil, makeTransaction,
 import { micButtonHtml, bindVoiceInput } from './common.js';
 import { mediaSource } from '../media-store.js';
 import { scheduleDailyReminders, cancelDailyReminders, sendTestNotification, cancelRandomReminders } from '../notifications.js';
-import { compressJournalPhoto, isSupportedJournalPhoto } from '../photo-utils.js';
+import { compressPhoto, isSupportedJournalPhoto } from '../photo-utils.js';
 import { isNativeAndroid } from '../storage.js';
 import { aiKeyStorageMode, clearApiKey } from '../ai-key-vault.js';
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
@@ -1008,7 +1008,7 @@ function pickAiImage() {
       if (!file) return;
       if (file.size > 20 * 1024 * 1024) throw new Error('图片不能超过 20MB');
       if (!isSupportedJournalPhoto(file)) throw new Error('仅支持 JPG、PNG 或 WebP 图片');
-      aiPendingImage = await compressJournalPhoto(file);
+      aiPendingImage = await compressPhoto(file);
       render();
     } catch (error) {
       show(error.message);

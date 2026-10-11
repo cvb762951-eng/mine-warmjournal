@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
 const source = await readFile(new URL('../views/journal.js', import.meta.url), 'utf8');
+const app = await readFile(new URL('../app.js', import.meta.url), 'utf8');
 const css = await readFile(new URL('../styles.css', import.meta.url), 'utf8');
 const main = source.slice(source.indexOf('export function journalView'), source.indexOf('function bindJournalView'));
 
@@ -28,6 +29,17 @@ test('Journal photo wall does not render redundant captions under photos', () =>
   const wall = source.slice(source.indexOf('function journalPhotoWall'), source.indexOf('function journalSnippetPicker'));
   assert.doesNotMatch(wall, /polaroid-mini-cap|Moment \$\{index/);
   assert.match(wall, /aria-label="查看第 \$\{index \+ 1\} 张日记照片"/);
+});
+
+test('past journal entries open the reader or editor instead of the calendar', () => {
+  assert.match(source, /function openPastJournal\(day\)/);
+  assert.match(source, /if \(state\.journals\[normalized\]\.content\?\.trim\(\)\) \{\s*openJournalReader\(normalized\);/s);
+  assert.match(source, /setJournalEditingDay\(normalized\)/);
+  assert.match(source, /go\('journal'\)/);
+  assert.match(source, /registerHelper\('openPastJournal', openPastJournal\)/);
+  assert.match(source, /button\.onclick = onPastJournalClick/);
+  assert.match(app, /callHelper\('openPastJournal', openJournal\.dataset\.openJournal\)/);
+  assert.doesNotMatch(app, /closest\('\[data-open-journal\]'\)[\s\S]{0,280}go\('calendar'/);
 });
 
 test('Journal can edit a selected past date across every write path', () => {
@@ -67,6 +79,18 @@ test('Journal inputs are integrated into paper instead of nested modern cards', 
   assert.match(journalCss, /journal-canvas-card #journal-content-input[^}]*background:transparent/);
   assert.match(journalCss, /journal-canvas-card[^}]*today-bento-paper-thick\.png/);
   assert.doesNotMatch(journalCss, /journal-(?:source|reference|fixture)\.(?:png|jpg|webp)/);
+});
+
+test('Journal mood and weather chips show a pressed state in both themes', async () => {
+  const plain = await readFile(new URL('../themes-plain-light.css', import.meta.url), 'utf8');
+  assert.match(main, /aria-pressed="\$\{journalDraftMood === key \? 'true' : 'false'\}"/);
+  assert.match(main, /aria-pressed="\$\{journalDraftWeather === key \? 'true' : 'false'\}"/);
+  assert.match(source, /function syncJournalPick\(kind\)/);
+  assert.match(source, /button\.setAttribute\('aria-pressed', on \? 'true' : 'false'\)/);
+  assert.match(css, /\.journal-view \.mood-pick-item\.active,\s*\.journal-view \.weather-pick-item\.active\{[^}]*scale:1\.08/);
+  assert.match(css, /\.journal-view \.mood-pick-item\.active::after/);
+  assert.match(plain, /二十二 · 日记页心情 \/ 天气/);
+  assert.match(plain, /\.journal-view :is\(\.mood-pick-item, \.weather-pick-item\)\.active \{[^}]*background: var\(--pl-blue\) !important/);
 });
 
 test('Journal typography icons paper sections and active Dock match the reference system', () => {

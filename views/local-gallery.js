@@ -21,6 +21,7 @@ let inGallery = false;
 let visibleCount = PAGE_SIZE;
 let scanPromise = null;
 let opening = false;
+let permissionChecked = false;
 let activeThumbnailLoads = 0;
 let thumbnailObserver = null;
 let scrollObserver = null;
@@ -249,7 +250,6 @@ function openGalleryVideo(videos, active, feedDirection = '', playlist = null) {
   });
 }
 
-let permissionChecked = false;
 function bindGallery() {
   if (state.route !== 'local-gallery') {
     if (inGallery) {

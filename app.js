@@ -138,7 +138,13 @@ document.addEventListener('click', event => {
   if (editTodo) todoForm(state.todos.find(todo => todo.id === editTodo.dataset.editTodo));
   if (event.target.closest('#new-todo-modal')) todoForm();
   const openJournal = event.target.closest('[data-open-journal]');
-  if (openJournal) { const day = openJournal.dataset.openJournal; closeModal(); go('calendar', day); }
+  // 过往篇章 / 日记历史都用 data-open-journal。这里若再跳日历，会盖掉阅读页和编辑页。
+  // 按钮自己的处理会 preventDefault；没拦住时由这里打开阅读或编辑，而不是日历。
+  if (openJournal && !event.defaultPrevented) {
+    event.preventDefault();
+    closeModal();
+    callHelper('openPastJournal', openJournal.dataset.openJournal);
+  }
 });
 
 document.addEventListener('keydown', event => {

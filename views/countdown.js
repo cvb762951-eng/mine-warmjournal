@@ -1,7 +1,7 @@
 import { $, $$, state, save, render, go, show, modal, confirmDelete, imgSrc, esc, uid, pushBackState, registerView, registerBinder, registerSubmitHandler, callHelper } from '../core.js';
 import { daysUntil, makeCountdown } from '../model.js';
 import { updateCountdownWidget } from '../notifications.js';
-import { compressJournalPhoto, isSupportedJournalPhoto } from '../photo-utils.js';
+import { compressPhoto, isSupportedJournalPhoto } from '../photo-utils.js';
 
 // ---- 倒数日模块本地状态 ----
 let pendingCountdownImage = '';
@@ -63,7 +63,7 @@ function pickCountdownImage() {
         if (!file) return resolve();
         if (file.size > 20 * 1024 * 1024) throw new Error('图片不能超过 20MB');
         if (!isSupportedJournalPhoto(file)) throw new Error('仅支持 JPG、PNG 或 WebP 图片');
-        pendingCountdownImage = await compressJournalPhoto(file);
+        pendingCountdownImage = await compressPhoto(file);
         refreshCountdownImagePreview();
         resolve();
       } catch (error) { reject(error); }

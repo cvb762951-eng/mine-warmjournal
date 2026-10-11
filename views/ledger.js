@@ -5,7 +5,7 @@ import { Camera, CameraDirection, EncodingType } from '@capacitor/camera';
 import { $, $$, esc, uid, state, save, render, modal, closeModal, show, confirmDelete, emptyState, imgSrc, registerView, registerBinder, registerSubmitHandler, callHelper, openSubpage, subpageHeader } from '../core.js';
 import { makeTransaction, makeLedgerAccount, makeLedgerCategory, LEDGER_CATEGORIES, ledgerCategoryMap, ledgerSummary, archiveLedgerAccount, upsertMerchantCategoryRule, dateKey, WEEK_DAYS } from '../model.js';
 import { photoViewer, micButtonHtml, bindVoiceInput } from './common.js';
-import { compressJournalPhoto, isSupportedJournalPhoto } from '../photo-utils.js';
+import { compressPhoto, isSupportedJournalPhoto } from '../photo-utils.js';
 import { offerTasteArchive } from '../ledger-taste-bridge.js';
 
 // ---- 本地状态 ----
@@ -327,7 +327,7 @@ async function pickLedgerPhoto(useCamera = false) {
       if (!response.ok) throw new Error('无法读取刚拍摄的照片');
       const blob = await response.blob();
       const file = new File([blob], `ledger-${Date.now()}.jpg`, { type: blob.type || 'image/jpeg' });
-      pendingTransactionPhoto = await compressJournalPhoto(file);
+      pendingTransactionPhoto = await compressPhoto(file);
       refreshLedgerPhotoPreview();
       return;
     } catch (error) {
@@ -349,7 +349,7 @@ function pickLedgerPhotoWithInput(useCamera = false) {
         if (!file) return resolve();
         if (file.size > 20 * 1024 * 1024) throw new Error('图片不能超过 20MB');
         if (!isSupportedJournalPhoto(file)) throw new Error('仅支持 JPG、PNG 或 WebP 图片');
-        pendingTransactionPhoto = await compressJournalPhoto(file);
+        pendingTransactionPhoto = await compressPhoto(file);
         refreshLedgerPhotoPreview();
         resolve();
       } catch (error) { reject(error); }
