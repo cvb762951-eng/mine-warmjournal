@@ -345,6 +345,7 @@ const PRESS_SOLID = [
   '.journal-add-polaroid-btn', '.journal-save-btn', '.mood-pick-item', '.weather-pick-item',
   '.ledger-add-btn', '.habit-switch-chip', '.subpage-back-btn', '.profile-edit-pill',
   '.modal-actions button', '.vault-item-menu-actions > button', '.bento-card-footer',
+  '.journal-deck-cut', '.journal-deck-open',
 ].join(',');
 
 const PRESS_LIGHT = [
@@ -435,4 +436,604 @@ export function installPressFeedback() {
     const target = findTarget(event.target);
     if (target) target.removeAttribute('data-pressed');
   }, { passive: true, capture: true });
+}
+
+/* ── 5 · 弹簧 ODE、日记牌组、翻滚数字、底栏微磁吸 ───────────────
+ *
+ * 牌组只负责在日子 / 篇章之间做透视倾斜和磁性切牌。
+ * 点开照片仍走原来的 photoViewer：长图的上下滑动留在那个查看器里，
+ * 不在牌面上做纵向平移，避免和全屏长图查看抢手势。
+ * 软阴影是单独一层的 transform，不逐帧改 box-shadow。
+ */
+
+export class SpringODE {
+  constructor({ mass = 1, stiffness = 220, damping = 22, precision = 0.08 } = {}) {
+    this.mass = mass;
+    this.stiffness = stiffness;
+    this.damping = damping;
+    this.precision = precision;
+    this.current = 0;
+    this.target = 0;
+    this.velocity = 0;
+    this.onUpdate = null;
+    this.onSettle = null;
+    this._frame = 0;
+    this._last = null;
+  }
+
+  set(value) {
+    if (this._frame) cancelAnimationFrame(this._frame);
+    this._frame = 0;
+    this._last = null;
+    this.current = value;
+    this.target = value;
+    this.velocity = 0;
+    this.onUpdate?.(this.current, 0);
+  }
+
+  stop() {
+    if (this._frame) cancelAnimationFrame(this._frame);
+    this._frame = 0;
+    this._last = null;
+  }
+
+  /** 手动推进一步。测试里不依赖 requestAnimationFrame。返回是否已经落定。 */
+  advance(now) {
+    if (this._last == null) {
+      this._last = now;
+      return false;
+    }
+    let dt = (now - this._last) / 1000;
+    this._last = now;
+    if (dt > 0.05) dt = 0.05;
+    if (!(dt > 0)) return false;
+    const subDt = dt / 4;
+    for (let step = 0; step < 4; step += 1) {
+      const displacement = this.current - this.target;
+      const acc = (-this.stiffness * displacement - this.damping * this.velocity) / this.mass;
+      this.velocity += acc * subDt;
+      this.current += this.velocity * subDt;
+    }
+    this.onUpdate?.(this.current, this.velocity);
+    const near = Math.abs(this.current - this.target) < this.precision;
+    const slow = Math.abs(this.velocity) < this.precision * 12;
+    if (!near || !slow) return false;
+    this.current = this.target;
+    this.velocity = 0;
+    this._last = null;
+    this.onUpdate?.(this.current, 0);
+    const settle = this.onSettle;
+    this.onSettle = null;
+    settle?.(this.current);
+    return true;
+  }
+
+  to(target, initialVelocity = null) {
+    this.target = target;
+    if (initialVelocity != null && Number.isFinite(initialVelocity)) this.velocity = initialVelocity;
+    if (!canAnimate() || typeof requestAnimationFrame !== 'function') {
+      if (this._frame) cancelAnimationFrame(this._frame);
+      this._frame = 0;
+      this._last = null;
+      this.current = target;
+      this.velocity = 0;
+      this.onUpdate?.(this.current, 0);
+      const settle = this.onSettle;
+      this.onSettle = null;
+      settle?.(this.current);
+      return;
+    }
+    if (this._frame) return;
+    this._last = null;
+    const step = now => {
+      this._frame = 0;
+      if (this.advance(now)) return;
+      this._frame = requestAnimationFrame(step);
+    };
+    this._frame = requestAnimationFrame(step);
+  }
+}
+
+/** 松手时决定吸回、切到下一篇（更早）还是上一篇（更新）。dx 向左为负。 */
+export function deckCutDecision({ dx = 0, width = 1, velocity = 0 } = {}) {
+  const span = Math.max(1, Number(width) || 1);
+  const threshold = Math.max(48, span * 0.22);
+  const flung = Math.abs(velocity) > 700;
+  if (dx <= -threshold || (flung && velocity < 0 && dx < -12)) return 'next';
+  if (dx >= threshold || (flung && velocity > 0 && dx > 12)) return 'prev';
+  return 'stay';
+}
+
+const journalDecks = new WeakMap();
+const liveJournalDecks = new Set();
+
+export function releaseDetachedJournalDecks() {
+  for (const deck of [...liveJournalDecks]) {
+    if (!deck.host?.isConnected) deck.destroy();
+  }
+}
+
+function deckCard(entry, depth) {
+  const card = document.createElement('article');
+  card.className = 'journal-deck-card';
+  card.dataset.depth = String(depth);
+  card.style.zIndex = String(3 - depth);
+  if (depth) {
+    card.style.pointerEvents = 'none';
+    card.setAttribute('aria-hidden', 'true');
+  }
+  const shadow = document.createElement('span');
+  shadow.className = 'journal-deck-shadow';
+  shadow.setAttribute('aria-hidden', 'true');
+  const face = document.createElement('div');
+  face.className = 'journal-deck-face';
+  const kicker = document.createElement('p');
+  kicker.className = 'journal-deck-kicker';
+  kicker.textContent = entry.kicker || '';
+  const title = document.createElement('h3');
+  title.className = 'journal-deck-title';
+  title.textContent = entry.title || '未命名的一天';
+  face.append(kicker, title);
+  if (entry.photoSrc) {
+    const figure = document.createElement('figure');
+    figure.className = 'journal-deck-figure';
+    const photo = document.createElement('button');
+    photo.type = 'button';
+    photo.className = 'journal-deck-photo';
+    photo.dataset.deckPhoto = entry.id || '';
+    photo.setAttribute('aria-label', entry.photoLabel || '查看照片');
+    const pad = document.createElement('img');
+    pad.className = 'journal-deck-pad';
+    pad.alt = '';
+    pad.draggable = false;
+    pad.src = entry.photoSrc;
+    const still = document.createElement('img');
+    still.className = 'journal-deck-still';
+    still.alt = '';
+    still.draggable = false;
+    still.src = entry.photoSrc;
+    photo.append(pad, still);
+    const caption = document.createElement('figcaption');
+    caption.textContent = entry.caption || '';
+    figure.append(photo, caption);
+    face.append(figure);
+  }
+  if (entry.excerpt) {
+    const excerpt = document.createElement('p');
+    excerpt.className = 'journal-deck-excerpt';
+    excerpt.textContent = entry.excerpt;
+    face.append(excerpt);
+  }
+  const meta = document.createElement('p');
+  meta.className = 'journal-deck-meta';
+  meta.textContent = entry.meta || '';
+  face.append(meta);
+  card.append(shadow, face);
+  return card;
+}
+
+/**
+ * 在 host 里挂一组可倾斜、可磁性切牌的日记卡。
+ * onOpen 打开篇章；onPhoto 只表示用户点了照片，由调用方决定去哪个查看器。
+ */
+export function mountJournalDeck(host, entries = [], options = {}) {
+  return safely(() => {
+    if (!host || typeof document === 'undefined') return { destroy() {} };
+    journalDecks.get(host)?.destroy();
+    const list = Array.isArray(entries) ? entries.filter(Boolean) : [];
+    host.replaceChildren();
+    if (!list.length) return { destroy() {} };
+    const abort = new AbortController();
+    const { signal } = abort;
+    let active = true;
+    let index = Math.min(Math.max(0, Number(options.startIndex) || 0), list.length - 1);
+    let cutting = false;
+    let cutToken = 0;
+    let tracking = false;
+    let dragged = false;
+    let vertical = false;
+    let pointerId = null;
+    let startX = 0;
+    let startY = 0;
+    const trail = [];
+    const offset = new SpringODE({ mass: 1, stiffness: 210, damping: 24, precision: 0.6 });
+    const pitch = new SpringODE({ mass: 0.8, stiffness: 240, damping: 20, precision: 0.15 });
+    const yaw = new SpringODE({ mass: 0.8, stiffness: 240, damping: 20, precision: 0.15 });
+    let deckApi = null;
+
+    if (options.heading || options.hint) {
+      const head = document.createElement('div');
+      head.className = 'journal-deck-head';
+      if (options.heading) {
+        const heading = document.createElement('h3');
+        heading.className = 'journal-deck-heading';
+        heading.textContent = options.heading;
+        head.append(heading);
+      }
+      if (options.hint) {
+        const hint = document.createElement('p');
+        hint.className = 'journal-deck-hint';
+        hint.textContent = options.hint;
+        head.append(hint);
+      }
+      host.append(head);
+    }
+    const stage = document.createElement('div');
+    stage.className = 'journal-deck-stage';
+    stage.tabIndex = 0;
+    stage.setAttribute('role', 'group');
+    stage.setAttribute('aria-roledescription', '日记牌组');
+    const controls = document.createElement('div');
+    controls.className = 'journal-deck-controls';
+    const prev = document.createElement('button');
+    prev.type = 'button';
+    prev.className = 'journal-deck-cut';
+    prev.textContent = '上一篇';
+    const count = document.createElement('span');
+    count.className = 'journal-deck-count';
+    const live = document.createElement('span');
+    live.className = 'journal-deck-live';
+    live.setAttribute('aria-live', 'polite');
+    live.setAttribute('aria-atomic', 'true');
+    const next = document.createElement('button');
+    next.type = 'button';
+    next.className = 'journal-deck-cut';
+    next.textContent = '切下一篇';
+    next.setAttribute('aria-label', '下一篇');
+    prev.setAttribute('aria-label', '上一篇');
+    controls.append(prev, count, next, live);
+    const open = document.createElement('button');
+    open.type = 'button';
+    open.className = 'journal-deck-open';
+    open.textContent = '阅读这篇';
+    host.append(stage, controls, open);
+
+    const applyPose = () => {
+      if (!active || !host.isConnected) {
+        deckApi?.destroy();
+        return;
+      }
+      const card = stage.querySelector('[data-depth="0"]');
+      if (!card) return;
+      const x = offset.current;
+      const tiltX = pitch.current;
+      const tiltY = yaw.current;
+      card.style.transform = `translate3d(${x.toFixed(2)}px, 0, 28px) rotateX(${tiltX.toFixed(2)}deg) rotateY(${tiltY.toFixed(2)}deg) rotateZ(${(x * 0.03).toFixed(2)}deg)`;
+      const travel = Math.min(1, Math.abs(x) / stageWidth);
+      const gone = travel < 0.35 ? 0 : (travel - 0.35) / 0.65;
+      const nextOpacity = prefersReducedMotion() || gone < 0.02 ? '' : (1 - gone * 0.45).toFixed(3);
+      if (card.style.opacity !== nextOpacity) card.style.opacity = nextOpacity;
+      const shadow = card.querySelector('.journal-deck-shadow');
+      if (shadow) shadow.style.transform = `translate3d(${(-tiltY * 1.5).toFixed(2)}px, ${(12 - tiltX).toFixed(2)}px, 0)`;
+    };
+    offset.onUpdate = applyPose;
+    pitch.onUpdate = applyPose;
+    yaw.onUpdate = applyPose;
+
+    const pool = new Map();
+    let stageWidth = 1;
+    let voiced = false;
+    const measureStage = () => { stageWidth = Math.max(1, stage.clientWidth || 1); };
+    const placeCard = (card, depth) => {
+      card.dataset.depth = String(depth);
+      card.style.zIndex = String(3 - depth);
+      if (!depth) {
+        card.inert = false;
+        card.removeAttribute('aria-hidden');
+        card.style.pointerEvents = '';
+        card.querySelectorAll('button').forEach(button => { button.tabIndex = 0; });
+        return;
+      }
+      card.inert = true;
+      card.setAttribute('aria-hidden', 'true');
+      card.style.pointerEvents = 'none';
+      card.style.opacity = '';
+      card.style.transform = '';
+      card.querySelectorAll('button').forEach(button => { button.tabIndex = -1; });
+    };
+    const paint = () => {
+      const total = list.length;
+      const visible = Math.min(3, total);
+      const keys = [];
+      for (let depth = 0; depth < visible; depth += 1) {
+        const at = (index + depth) % total;
+        const entry = list[at];
+        const key = entry.id || `i${at}`;
+        keys.push(key);
+        let card = pool.get(key);
+        if (!card) {
+          card = deckCard(entry, depth);
+          pool.set(key, card);
+        }
+        placeCard(card, depth);
+      }
+      for (const [key, card] of [...pool]) {
+        if (!keys.includes(key)) {
+          card.remove();
+          pool.delete(key);
+        }
+      }
+      stage.replaceChildren(...keys.map(key => pool.get(key)).reverse());
+      const entry = list[index];
+      const label = entry ? `${entry.title || '这一篇'}，第 ${index + 1} 篇，共 ${total} 篇` : '';
+      const indexLabel = `${index + 1} / ${total}`;
+      if (count.textContent !== indexLabel) count.textContent = indexLabel;
+      stage.setAttribute('aria-label', label);
+      if (voiced && live.textContent !== label) live.textContent = label;
+      voiced = true;
+      prev.disabled = total < 2;
+      next.disabled = total < 2;
+      measureStage();
+      applyPose();
+    };
+
+    const fly = (direction, velocity = 0) => {
+      if (list.length < 2) {
+        offset.to(0);
+        yaw.to(0);
+        pitch.to(0);
+        return;
+      }
+      if (prefersReducedMotion()) {
+        index = direction === 'next' ? (index + 1) % list.length : (index - 1 + list.length) % list.length;
+        offset.set(0);
+        yaw.set(0);
+        pitch.set(0);
+        paint();
+        return;
+      }
+      if (cutting) return;
+      cutting = true;
+      measureStage();
+      const dir = direction === 'next' ? -1 : 1;
+      const travel = dir * (stageWidth + 72);
+      const token = ++cutToken;
+      offset.onSettle = () => {
+        if (!active || token !== cutToken) {
+          cutting = false;
+          return;
+        }
+        index = direction === 'next' ? (index + 1) % list.length : (index - 1 + list.length) % list.length;
+        const park = -dir * 28;
+        offset.stop();
+        offset.current = park;
+        offset.target = park;
+        offset.velocity = 0;
+        yaw.stop();
+        yaw.current = 0;
+        yaw.target = 0;
+        yaw.velocity = 0;
+        pitch.stop();
+        pitch.current = 0;
+        pitch.target = 0;
+        pitch.velocity = 0;
+        paint();
+        offset.onSettle = () => { cutting = false; };
+        offset.to(0);
+      };
+      offset.to(travel, velocity || dir * 640);
+      yaw.to(dir * -8);
+      pitch.to(0);
+    };
+
+    const onDown = event => {
+      if (event.button !== undefined && event.button > 0) return;
+      cutToken += 1;
+      cutting = false;
+      offset.onSettle = null;
+      offset.stop();
+      tracking = true;
+      dragged = false;
+      vertical = false;
+      stage.classList.remove('is-dragging');
+      measureStage();
+      pointerId = event.pointerId;
+      startX = event.clientX;
+      startY = event.clientY;
+      trail.length = 0;
+      trail.push({ x: event.clientX, t: performance.now() });
+    };
+    const onMove = event => {
+      if (!tracking || event.pointerId !== pointerId) {
+        if (!tracking && !prefersReducedMotion()) {
+          const rect = stage.getBoundingClientRect();
+          if (!rect.width || !rect.height) return;
+          const nx = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+          const ny = ((event.clientY - rect.top) / rect.height) * 2 - 1;
+          pitch.to(Math.max(-12, Math.min(12, -ny * 10)));
+          yaw.to(Math.max(-14, Math.min(14, nx * 12)));
+        }
+        return;
+      }
+      const dx = event.clientX - startX;
+      const dy = event.clientY - startY;
+      trail.push({ x: event.clientX, t: performance.now() });
+      if (trail.length > 6) trail.shift();
+      if (!dragged) {
+        if (Math.hypot(dx, dy) < 8) return;
+        if (Math.abs(dy) > Math.abs(dx)) {
+          vertical = true;
+          tracking = false;
+          return;
+        }
+        dragged = true;
+        stage.classList.add('is-dragging');
+        stage.setPointerCapture?.(event.pointerId);
+      }
+      offset.set(dx);
+      if (!prefersReducedMotion()) {
+        yaw.set(Math.max(-18, Math.min(18, dx / 16)));
+        pitch.set(Math.max(-8, Math.min(8, -dy / 36)));
+      }
+    };
+    const finish = event => {
+      if (event.pointerId !== pointerId) return;
+      const wasDrag = dragged;
+      const wasVertical = vertical;
+      tracking = false;
+      pointerId = null;
+      stage.classList.remove('is-dragging');
+      if (wasVertical || !wasDrag) {
+        offset.to(0);
+        yaw.to(0);
+        pitch.to(0);
+        if (wasVertical || wasDrag) return;
+        const entry = list[index];
+        if (!entry) return;
+        if (event.target?.closest?.('[data-deck-photo]')) options.onPhoto?.(entry);
+        else if (event.target?.closest?.('.journal-deck-face')) options.onOpen?.(entry);
+        return;
+      }
+      let velocity = 0;
+      if (trail.length >= 2) {
+        const oldest = trail[0];
+        const newest = trail[trail.length - 1];
+        const dt = newest.t - oldest.t;
+        if (dt > 8) velocity = ((newest.x - oldest.x) / dt) * 1000;
+      }
+      const decision = deckCutDecision({ dx: offset.current, width: stage.clientWidth || 1, velocity });
+      if (decision === 'stay') {
+        offset.to(0, velocity);
+        yaw.to(0);
+        pitch.to(0);
+        return;
+      }
+      fly(decision, velocity);
+    };
+
+    stage.addEventListener('pointerdown', onDown, { signal });
+    stage.addEventListener('pointermove', onMove, { signal });
+    stage.addEventListener('pointerup', finish, { signal });
+    stage.addEventListener('pointercancel', finish, { signal });
+    stage.addEventListener('pointerleave', () => {
+      if (!tracking) {
+        pitch.to(0);
+        yaw.to(0);
+      }
+    }, { signal });
+    stage.addEventListener('keydown', event => {
+      if (event.target !== stage) return;
+      if (event.key === 'ArrowLeft') { event.preventDefault(); fly('prev'); }
+      else if (event.key === 'ArrowRight') { event.preventDefault(); fly('next'); }
+      else if (event.key === 'Enter') { event.preventDefault(); options.onOpen?.(list[index]); }
+    }, { signal });
+    prev.addEventListener('click', () => fly('prev'), { signal });
+    next.addEventListener('click', () => fly('next'), { signal });
+    open.addEventListener('click', () => options.onOpen?.(list[index]), { signal });
+    paint();
+    markPressables(host);
+    const api = {
+      host,
+      destroy() {
+        if (!active) return;
+        active = false;
+        abort.abort();
+        offset.stop();
+        pitch.stop();
+        yaw.stop();
+        liveJournalDecks.delete(api);
+        if (journalDecks.get(host) === api) journalDecks.delete(host);
+      }
+    };
+    deckApi = api;
+    journalDecks.set(host, api);
+    liveJournalDecks.add(api);
+    releaseDetachedJournalDecks();
+    return api;
+  }) || { destroy() {} };
+}
+
+/** 统计数字从 0 弹簧滚到 data-roll。减弱动效时保持原文。 */
+export function rollNumbers(root = document) {
+  safely(() => {
+    if (!root?.querySelectorAll || !canAnimate()) return;
+    root.querySelectorAll('[data-roll]').forEach(el => {
+      const target = Number(el.dataset.roll);
+      if (!Number.isFinite(target)) return;
+      const spring = new SpringODE({ mass: 1, stiffness: 130, damping: 18, precision: 0.45 });
+      spring.set(0);
+      el.textContent = '0';
+      spring.onUpdate = value => {
+        if (!el.isConnected) { spring.stop(); return; }
+        el.textContent = String(Math.round(value));
+      };
+      spring.to(target, Math.min(90, Math.abs(target) * 0.35));
+    });
+  });
+}
+
+/**
+ * 清简主题底栏：指针靠近时，只把「当前页」那一格平移最多 5px。
+ * 其余格子在清简主题里是透明底，提升图层会在 WebView 里垫出白块，所以不动。
+ * 不另做白胶囊。指针远离、主题不是清简、或系统要求减弱动效时，直接停，不给每颗按钮建弹簧。
+ */
+let magneticDockInstalled = false;
+
+export function installMagneticDock() {
+  if (typeof document === 'undefined' || magneticDockInstalled) return;
+  safely(() => {
+    const springs = new WeakMap();
+    let engaged = false;
+    let dockRect = null;
+    let dockRectAt = 0;
+    let dockNode = null;
+    const springFor = button => {
+      let spring = springs.get(button);
+      if (spring) return spring;
+      spring = new SpringODE({ mass: 0.8, stiffness: 260, damping: 22, precision: 0.05 });
+      spring.onUpdate = value => {
+        if (!button.isConnected) { spring.stop(); return; }
+        if (Math.abs(value) < 0.04) {
+          if (button.style.translate) button.style.translate = '';
+          return;
+        }
+        button.style.translate = `${value.toFixed(2)}px 0`;
+      };
+      springs.set(button, spring);
+      return spring;
+    };
+    const restDock = () => {
+      if (!engaged) return;
+      engaged = false;
+      document.querySelectorAll('.floating-dock .dock-btn.active').forEach(button => {
+        springs.get(button)?.to(0);
+      });
+    };
+    document.addEventListener('pointermove', event => {
+      if (document.documentElement.dataset.theme !== 'plain' || !canAnimate()) {
+        restDock();
+        return;
+      }
+      const dock = document.querySelector('.floating-dock');
+      if (!dock) {
+        restDock();
+        dockNode = null;
+        dockRect = null;
+        return;
+      }
+      const now = performance.now();
+      if (dock !== dockNode || !dockRect || now - dockRectAt > 240) {
+        dockNode = dock;
+        dockRect = dock.getBoundingClientRect();
+        dockRectAt = now;
+      }
+      const rect = dockRect;
+      const near = event.clientY >= rect.top - 28 && event.clientY <= rect.bottom + 36
+        && event.clientX >= rect.left - 24 && event.clientX <= rect.right + 24;
+      if (!near) {
+        restDock();
+        return;
+      }
+      const button = dock.querySelector('.dock-btn.active');
+      if (!button) return;
+      const box = button.getBoundingClientRect();
+      const dx = event.clientX - (box.left + box.width / 2);
+      const pull = Math.abs(dx) < box.width ? Math.max(-5, Math.min(5, dx * 0.18)) : 0;
+      const spring = springFor(button);
+      if (Math.abs(spring.target - pull) < 0.05 && Math.abs(spring.current - pull) < spring.precision) return;
+      engaged = true;
+      spring.to(pull);
+    }, { passive: true });
+    magneticDockInstalled = true;
+  });
 }
