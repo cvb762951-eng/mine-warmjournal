@@ -89,6 +89,13 @@ if (args.notes) {
  * 表面上「更新成功」，实际问题依旧。默认关掉是更安全的取向。 */
 const hotEnabled = args.hot === 'true';
 
+// 北京时间全年 UTC+8。toISOString() 是 UTC 日期，凌晨发布会被记成前一天，而且丢掉时分。
+function shanghaiPublishedAt(date = new Date()) {
+  const shifted = new Date(date.getTime() + 8 * 3600000);
+  const pad = number => String(number).padStart(2, '0');
+  return `${shifted.getUTCFullYear()}-${pad(shifted.getUTCMonth() + 1)}-${pad(shifted.getUTCDate())}T${pad(shifted.getUTCHours())}:${pad(shifted.getUTCMinutes())}:${pad(shifted.getUTCSeconds())}+08:00`;
+}
+
 const manifest = {
   versionName,
   versionCode,
@@ -96,7 +103,7 @@ const manifest = {
   fileName,
   sizeBytes: apkStats.size,
   sha256,
-  publishedAt: new Date().toISOString().slice(0, 10),
+  publishedAt: shanghaiPublishedAt(new Date()),
   // 有它才走「只下载变化的文件」；没有则一律走完整安装包
   ...(hotEnabled ? { resourceManifestUrl: `${baseUrl}/resources.json` } : {}),
   notes

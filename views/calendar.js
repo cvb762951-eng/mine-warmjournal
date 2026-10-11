@@ -1,5 +1,5 @@
 import { $, $$, esc, uid, state, cursor, selected, save, render, modal, closeModal, show, confirmDelete, imgSrc, emptyState, go, formatMinutes, setSelected, setCursor, registerView, registerBinder, registerSubmitHandler, registerHelper, callHelper } from '../core.js';
-import { WEEK_DAYS, dateKey, minutesOnDate, todayCompletion, habitsForDate, habitGoalMet, habitProgressForDate, MOODS, WEATHERS } from '../model.js';
+import { WEEK_DAYS, dateKey, minutesOnDate, todayCompletion, habitsForDate, habitGoalMet, habitProgressForDate, MOODS, WEATHERS, formatShanghaiClock } from '../model.js';
 import { activityForDate } from '../activity-log.js';
 import { withSharedTransition } from '../motion.js';
 import { journalForm } from './journal.js';
@@ -24,7 +24,8 @@ const CALENDAR_EVENT_META = {
   income: { icon: 'payments', tone: 'sage', label: '收入' },
   transfer: { icon: 'swap_horiz', tone: 'brown', label: '转账' },
   calibrate: { icon: 'balance', tone: 'gold', label: '校准' },
-  taste: { icon: 'restaurant_menu', tone: 'ochre', label: '尝鲜' }
+  taste: { icon: 'restaurant_menu', tone: 'ochre', label: '尝鲜' },
+  release: { icon: 'new_releases', tone: 'sage', label: '更新' }
 };
 
 // 当天全部图片与视频保留真实类型；视频不再退化成一张无法播放的普通封面图。
@@ -101,7 +102,7 @@ export function calendarJournalContent(content) {
 
 function calendarArchiveEvent(event) {
   const meta = calendarEventPresentation(event);
-  const time = eventTime(event.timestamp);
+  const time = event.kind === 'release' ? formatShanghaiClock(event.timestamp) : eventTime(event.timestamp);
   const accessibleLabel = [time || '无时间', meta.label, meta.primary, meta.secondary, meta.accent].filter(Boolean).join('，');
   return `<button class="cal-archive-event tone-${meta.tone}" data-calendar-event="${esc(event.id)}" data-event-kind="${esc(event.kind)}" aria-label="${esc(accessibleLabel)}"><span class="cal-archive-time">${time ? `<time>${time}</time>` : '<span aria-hidden="true">—</span>'}</span><span class="cal-archive-axis" aria-hidden="true"><span class="cal-archive-node material-symbols-outlined">${meta.icon}</span></span><span class="cal-archive-paper"><span class="cal-archive-meta"><span class="cal-archive-type">${meta.label}</span>${meta.accent ? `<em>${esc(meta.accent)}</em>` : ''}<span class="material-symbols-outlined">chevron_right</span></span><strong>${esc(meta.primary)}</strong>${meta.secondary ? `<small>${esc(meta.secondary)}</small>` : ''}</span></button>`;
 }
