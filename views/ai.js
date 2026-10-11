@@ -1179,7 +1179,7 @@ async function checkCountdownNodes(force = false) {
 // 旧版本把同一个字段 aiRandomReminders 同时当布尔开关和计划对象用，保存开关会把计划清空。
 async function scheduleTodayRandomReminders() {
   const settings = state?.settings || {};
-  if (settings.aiRandomRemindersEnabled === false) return;
+  if (settings.aiRandomRemindersEnabled !== true) return;
   const today = dateKey();
   const planned = settings.aiRandomReminders;
   if (planned && planned.date === today && Array.isArray(planned.items) && planned.items.length) return;
@@ -1505,12 +1505,9 @@ function randomReminderPlanHint() {
 }
 
 function dailyReminderSettingsForm() {
-  reminderDraft = (state.settings.dailyReminders.length ? state.settings.dailyReminders : [
-    { id: uid(), hour: 10, minute: 0, type: 'photo' },
-    { id: uid(), hour: 15, minute: 0, type: 'random' },
-    { id: uid(), hour: 21, minute: 30, type: 'journal' }
-  ]).map(reminder => ({ ...reminder }));
-  modal(`<div class="modal-head"><div><h2>日常记录提醒</h2><p>一天多次，随手拍和记录日常交替提醒。</p></div></div><div class="reminder-list" id="reminder-list">${reminderRowsHtml()}</div><button type="button" class="reminder-add" id="add-reminder"><span class="material-symbols-outlined">add</span>添加提醒</button><div class="reminder-ai-box"><button type="button" id="gen-ai-copy" ${state.settings.aiApiKey ? '' : 'disabled'}><span class="material-symbols-outlined">auto_awesome</span>AI 生成提醒文案</button><small id="ai-copy-status">${aiCopyStatus()}</small></div><div class="reminder-random-box"><label class="confirm-line"><input id="random-reminders-toggle" type="checkbox" ${state.settings.aiRandomRemindersEnabled !== false ? 'checked' : ''}> AI 随机提醒</label><small class="field-help">每天生成 2-4 条不同的记录邀请，在 8:00-22:00 随机时段提醒（配 AI Key 时结合你的近况生成，未配置时用通用文案）。今天已安排：${randomReminderPlanHint()}</small></div><div class="reminder-test-box"><button type="button" id="send-test-notification" class="reminder-add"><span class="material-symbols-outlined">notifications</span>发送测试通知</button><small class="field-help">立即发一条测试通知，用于排查真机通知链路。</small></div><p class="reminder-hint">「随机」类型会在随手拍和记录日常之间切换，文案每次也不同。点通知会直接跳到对应的拍照或写日记页面。</p><div class="modal-actions"><button type="button" data-close>取消</button><button class="save" id="save-reminders">保存</button></div>`, 'large-modal reminder-modal');
+  // 从未保存过就是空列表。不要预填三条，否则用户一点保存就会把一整天排满。
+  reminderDraft = (Array.isArray(state.settings.dailyReminders) ? state.settings.dailyReminders : []).map(reminder => ({ ...reminder }));
+  modal(`<div class="modal-head"><div><h2>日常记录提醒</h2><p>一天多次，随手拍和记录日常交替提醒。</p></div></div><div class="reminder-list" id="reminder-list">${reminderRowsHtml()}</div><button type="button" class="reminder-add" id="add-reminder"><span class="material-symbols-outlined">add</span>添加提醒</button><div class="reminder-ai-box"><button type="button" id="gen-ai-copy" ${state.settings.aiApiKey ? '' : 'disabled'}><span class="material-symbols-outlined">auto_awesome</span>AI 生成提醒文案</button><small id="ai-copy-status">${aiCopyStatus()}</small></div><div class="reminder-random-box"><label class="confirm-line"><input id="random-reminders-toggle" type="checkbox" ${state.settings.aiRandomRemindersEnabled === true ? 'checked' : ''}> AI 随机提醒</label><small class="field-help">每天生成 2-4 条不同的记录邀请，在 8:00-22:00 随机时段提醒（配 AI Key 时结合你的近况生成，未配置时用通用文案）。今天已安排：${randomReminderPlanHint()}</small></div><div class="reminder-test-box"><button type="button" id="send-test-notification" class="reminder-add"><span class="material-symbols-outlined">notifications</span>发送测试通知</button><small class="field-help">立即发一条测试通知，用于排查真机通知链路。</small></div><p class="reminder-hint">「随机」类型会在随手拍和记录日常之间切换，文案每次也不同。点通知会直接跳到对应的拍照或写日记页面。</p><div class="modal-actions"><button type="button" data-close>取消</button><button class="save" id="save-reminders">保存</button></div>`, 'large-modal reminder-modal');
   bindReminderList();
 }
 
@@ -1561,16 +1558,15 @@ function bindReminderList() {
   $('#save-reminders')?.addEventListener('click', async () => {
     collectReminderDraft();
     state.settings.dailyReminders = reminderDraft;
-    // R7：AI 随机提醒开关（默认开，关闭时当天计划不生成）
     // 开关只写 aiRandomRemindersEnabled；计划对象 aiRandomReminders 由调度器独占维护。
-    // 旧实现把布尔写进 aiRandomReminders，保存一次就把当天的计划整个覆盖掉。
-    state.settings.aiRandomRemindersEnabled = $('#random-reminders-toggle')?.checked !== false;
+    // 未勾选、或开关不在页面上，都写成 false，避免缺省被当成开启。
+    state.settings.aiRandomRemindersEnabled = $('#random-reminders-toggle')?.checked === true;
     await save();
     if (reminderDraft.length) scheduleDailyReminders(reminderDraft, state.settings.reminderAiCopy).catch(() => {});
     else cancelDailyReminders().catch(() => {});
     // 用户刚在设置里开启随机提醒 → 这里才生成并排程，属于「用户显式操作」，
     // 符合「零自动联网」约束（打开 App / 进 AI 页都不会自己联网）。
-    if (state.settings.aiRandomRemindersEnabled !== false) scheduleTodayRandomReminders().catch(() => {});
+    if (state.settings.aiRandomRemindersEnabled === true) scheduleTodayRandomReminders().catch(() => {});
     else cancelRandomReminders().catch(() => {});
     closeModal(); render();
     show(reminderDraft.length ? `已设置 ${reminderDraft.length} 个每日提醒` : '已关闭每日提醒');

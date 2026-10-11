@@ -162,6 +162,9 @@ export function makeDefaultState(now = new Date()) {
       defaultDurationMinutes: 25,
       focusLinkedHabitId: '',
       notificationsEnabled: true,
+      // 专注结束提示音，和日常提醒 / 「我的」提醒状态分开。
+      // 旧安装没有这个字段时，迁移会沿用当时的 notificationsEnabled，避免升级后提示音突然开或关。
+      focusAlarmSoundEnabled: true,
       pomodoroFocusMinutes: 25,
       pomodoroShortBreakMinutes: 5,
       pomodoroLongBreakMinutes: 15,
@@ -203,7 +206,8 @@ export function makeDefaultState(now = new Date()) {
       aiEmotionCare: true,
       ledgerBudget: { total: 0, categories: {}, periods: [] },
       ledgerLastUsed: { accountId: '', category: '', type: 'expense' },
-      aiRandomRemindersEnabled: true,
+      // 只有用户在提醒设置里明确打开并保存后才为 true。缺省关闭，避免一保存就灌进随机提醒。
+      aiRandomRemindersEnabled: false,
       aiRandomReminders: { date: '', items: [] },
       weatherSnapshot: null,
       journalDrafts: {},
@@ -697,6 +701,12 @@ export function migrateState(rawState, defaults = makeDefaultState()) {
   const linkedHabit = (state.habits || []).find(habit => habit.id === state.settings.focusLinkedHabitId);
   state.settings.focusLinkedHabitId = linkedHabit && !linkedHabit.archived && linkedHabit.tracking === 'quantity' && /分钟/.test(linkedHabit.unit || '') ? linkedHabit.id : '';
   state.settings.notificationsEnabled = state.settings.notificationsEnabled !== false;
+  // 专注提示音独立字段。旧数据没有它时，沿用升级前「提示音」实际读的 notificationsEnabled，
+  // 已关闭的安装保持关闭，已开启的保持开启。之后两个开关互不影响。
+  const rawFocusAlarm = raw.settings?.focusAlarmSoundEnabled;
+  state.settings.focusAlarmSoundEnabled = typeof rawFocusAlarm === 'boolean'
+    ? rawFocusAlarm
+    : state.settings.notificationsEnabled;
   state.settings.pomodoroFocusMinutes = clamp(positiveInt(state.settings.pomodoroFocusMinutes, 25), 1, 180);
   state.settings.pomodoroShortBreakMinutes = clamp(positiveInt(state.settings.pomodoroShortBreakMinutes, 5), 1, 60);
   state.settings.pomodoroLongBreakMinutes = clamp(positiveInt(state.settings.pomodoroLongBreakMinutes, 15), 1, 120);
@@ -781,7 +791,8 @@ export function migrateState(rawState, defaults = makeDefaultState()) {
   // 习惯裁掉开头：整数秒，0 ~ HABIT_HEAD_MAX_SECONDS。超出范围或非数字一律当 0（不自动裁），
   // 免得旧数据里塞进来一个巨大值，把每段视频的开头都吃掉。
   state.settings.vaultTrimHeadSeconds = clamp(Math.round(Number(state.settings.vaultTrimHeadSeconds) || 0), 0, HABIT_HEAD_MAX_SECONDS);
-  state.settings.aiRandomRemindersEnabled = state.settings.aiRandomRemindersEnabled !== false;
+  // 缺字段、或任何非 true 的值都视为未开启。已经保存为 true 的用户保持开启，不改他们的计划。
+  state.settings.aiRandomRemindersEnabled = raw.settings?.aiRandomRemindersEnabled === true;
   const rawPlan = state.settings.aiRandomReminders;
   const planDate = /^\d{4}-\d{2}-\d{2}$/.test(String(rawPlan?.date || '')) ? String(rawPlan.date) : '';
   state.settings.aiRandomReminders = {
@@ -1467,10 +1478,12 @@ const makeReminder = (input = {}) => ({
 });
 
 function migrateDailyReminders(rawSettings = {}) {
-  if (Array.isArray(rawSettings.dailyReminders) && rawSettings.dailyReminders.length) {
+  // 数组已经存在（包括用户保存过的空列表）就原样保留，不再塞入默认三条。
+  // 只有从未写过 dailyReminders 的旧数据，才回退到更早的单条提醒开关。
+  if (Array.isArray(rawSettings?.dailyReminders)) {
     return rawSettings.dailyReminders.map(makeReminder);
   }
-  if (rawSettings.dailyReminderEnabled === true) {
+  if (rawSettings?.dailyReminderEnabled === true) {
     return [makeReminder({ hour: rawSettings.dailyReminderHour, minute: rawSettings.dailyReminderMinute, type: 'journal' })];
   }
   return [];

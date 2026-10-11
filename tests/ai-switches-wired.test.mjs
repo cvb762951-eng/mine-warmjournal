@@ -42,7 +42,7 @@ test('random reminder switch and plan live in separate fields', () => {
   assert.match(aiSource, /state\.settings\.aiRandomRemindersEnabled = \$\('#random-reminders-toggle'\)/, '开关应写入 aiRandomRemindersEnabled');
   assert.doesNotMatch(aiSource, /state\.settings\.aiRandomReminders = \$\('#random-reminders-toggle'\)/, '开关不得再写入计划字段 aiRandomReminders');
   // UI 勾选状态读同一个开关字段
-  assert.match(aiSource, /random-reminders-toggle[^>]*aiRandomRemindersEnabled !== false/, '开关勾选状态应读 aiRandomRemindersEnabled');
+  assert.match(aiSource, /random-reminders-toggle[^>]*aiRandomRemindersEnabled === true/, '开关只在明确开启时勾选');
 });
 
 test('daily encouragement has an explicit generation entry instead of silent autogen', () => {
