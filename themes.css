@@ -466,8 +466,8 @@
    ⚠️ 必须排除"沉浸式"弹窗（全屏看图 / 私密看视频）—— 它们本来就是深色底，
       这里是「统一白底」，一旦盖上去，打开大图时会先看到一整屏白（用户报的"白屏闪一下"）。
       而且这条权重是 (0,3,0) > 源码 .modal.photo-modal 的 (0,2,0)，**不加 :not() 就必然压过它**。
-      新增沉浸式弹窗时，记得也加进这个排除名单（2026-10-10 已加 .video-editor-modal 剪辑器）。 */
-:root[data-theme="plain"] .modal:not(.photo-modal):not(.vault-photo-modal):not(.vault-feed-modal):not(.video-editor-modal) {
+      新增沉浸式弹窗时，记得也加进这个排除名单（2026-10-10 已加 .video-editor-modal 剪辑器、.vault-video-preparing 视频准备层）。 */
+:root[data-theme="plain"] .modal:not(.photo-modal):not(.vault-photo-modal):not(.vault-feed-modal):not(.vault-video-preparing):not(.video-editor-modal) {
   background: var(--sheet);
   border: var(--card-border);
 }

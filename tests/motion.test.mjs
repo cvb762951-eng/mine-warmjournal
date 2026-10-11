@@ -9,6 +9,8 @@ const motion = await read('motion.js');
 const core = await read('core.js');
 const appJs = await read('app.js');
 const performance = await read('performance.css');
+const styles = await read('styles.css');
+const plainTheme = await read('themes-plain.css');
 const vaultView = await read('views/private-vault.js');
 const calendarView = await read('views/calendar.js');
 const statsView = await read('views/stats.js');
@@ -195,7 +197,7 @@ test('沉浸式弹窗不许被主题刷白，也不许走容器变形', async ()
   assert.ok(blanket.length > 0, '找不到清简主题的 modal 规则');
   for (const sel of blanket) {
     if (!sel.includes(':not(')) continue;
-    for (const immersive of ['photo-modal', 'vault-photo-modal', 'vault-feed-modal', 'video-editor-modal']) {
+    for (const immersive of ['photo-modal', 'vault-photo-modal', 'vault-feed-modal', 'vault-video-preparing', 'video-editor-modal']) {
       assert.ok(sel.includes(`:not(.${immersive})`), `白底规则必须排除沉浸式弹窗 .${immersive}`);
     }
   }
@@ -206,6 +208,27 @@ test('沉浸式弹窗不许被主题刷白，也不许走容器变形', async ()
   // ③ 背景透明时不许回退成白色
   assert.ok(!motion.includes("'#fff'"), '不许把透明的弹窗背景回退成白色（那会凭空闪一下白）');
   assert.match(motion, /transparentPanel/, '要识别"背景透明"的弹窗并跳过垫面');
+});
+
+/* 打开私密视频时的白块 + 白屏：
+   视频复用了照片的共享元素，但落点 #vault-photo-image 并不存在。
+   封面被从页面快照里抠走，Android WebView 的转场底是白的 —— 抠空处就是点击位置的白块，
+   整页交叉淡化再闪一整屏白。准备弹窗还会从按钮上长出一块浅色面；<video> 在首帧前铺原生白底。 */
+test('打开私密视频停在深色底上，照片仍走共享元素', async () => {
+  const openHandler = vaultView.slice(vaultView.indexOf("$$('[data-open-vault-item]')"), vaultView.indexOf("$$('[data-vault-item-menu]')"));
+  assert.match(openHandler, /item\?\.type === 'video'\) \{ open\(\); return; \}/, '点视频不能走共享元素转场');
+  assert.match(openHandler, /withSharedTransition\(source/, '点照片仍要走共享元素');
+  assert.match(openHandler, /#vault-photo-image/, '照片落点仍是查看器里的那张图');
+  assert.match(vaultView, /vault-decrypting-modal vault-video-preparing/, '视频准备层要单独标成深色全屏');
+  assert.match(motion, /vault-video-preparing'\)\) return null/, '视频弹窗不许从点击处长出一块面');
+  assert.match(styles, /\.modal\.vault-video-preparing\{[^}]*background:#050807!important[^}]*animation:none!important/);
+  assert.match(styles, /\.modal-layer:has\(\.vault-feed-modal\),\.modal-layer:has\(\.vault-video-preparing\)\{[^}]*background:#050807[^}]*animation:none/);
+  assert.match(styles, /\.modal\.vault-feed-modal\{[^}]*animation:none!important/);
+  assert.match(snippetsView, /class="is-awaiting-frame"/, '视频元素第一帧就绪前不能露出来');
+  assert.match(snippetsView, /addEventListener\('loadeddata', revealVideoFrame/);
+  assert.match(styles, /\.warm-video-canvas>video\.is-awaiting-frame\{opacity:0\}/);
+  assert.match(plainTheme, /\.modal\.snippet-video-modal\.vault-feed-modal[\s\S]{0,500}background(?:-color)?: #050807 !important/, '清简主题不能把沉浸播放器刷白');
+  assert.match(plainTheme, /\.modal\.vault-decrypting-modal\.vault-video-preparing[\s\S]{0,500}#050807 !important/);
 });
 
 test('共享元素：拍"新状态"快照前要等图片解码', async () => {
