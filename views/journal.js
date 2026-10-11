@@ -2,11 +2,13 @@ import { $, $$, esc, uid, state, selected, save, render, modal, closeModal, show
 import { MOODS, WEATHERS, dateKey, snippetEntries, journalEntries, makeTodo, WEEK_DAYS, habitsForDate, habitProgressForDate, habitGoalMet, minutesOnDate } from '../model.js';
 import { journalMeta, photoViewer, micButtonHtml, bindVoiceInput } from './common.js';
 import { compressJournalPhoto, importPhotoBatch, isSupportedJournalPhoto } from '../photo-utils.js';
+import { livePhotoMarkHtml, normalizeLivePhotos, photosWithLiveMotion } from '../motion-photo.js';
 import { aiJournalGuide, aiSuggestStructure, applySuggestion } from '../ai.js';
 import { journalDraftFor, recordJournalDraft, clearJournalDraft } from '../journal-drafts.js';
 
 // ---- 本地状态 ----
 let pendingJournalPhotos = [];
+let pendingJournalLive = [];
 let selectedSnippetIds = new Set();
 let pendingJournalStructure = { tags: [], summary: '' };
 let journalSuggestion = null;
@@ -63,7 +65,7 @@ function stageModalJournalDraft(day) {
   const form = $('#journal-form');
   if (!form) return;
   const content = splitJournalContent(form.elements.content?.value || '');
-  stageJournalDraft(day, { ...content, mood: form.elements.mood?.value || '', weather: form.elements.weather?.value || '', photos: [...pendingJournalPhotos], tags: pendingJournalStructure.tags, summary: pendingJournalStructure.summary });
+  stageJournalDraft(day, { ...content, mood: form.elements.mood?.value || '', weather: form.elements.weather?.value || '', photos: [...pendingJournalPhotos], livePhotos: [...pendingJournalLive], tags: pendingJournalStructure.tags, summary: pendingJournalStructure.summary });
 }
 // 沉浸式写日记：body.journal-open 控制底部导航显隐；modal-layer 关闭时只移除 open 类不清 DOM，
 // 因此监听 layer 的 class 变化来收尾移除 body 类（覆盖返回/取消/Esc/保存等所有关闭路径）。
@@ -83,6 +85,7 @@ export function journalForm(day) {
   const journal = state.journals[day];
   const draft = journalDraftFor(state, day);
   pendingJournalPhotos = [...(draft?.photos || journal?.photos || [])];
+  pendingJournalLive = normalizeLivePhotos(draft?.livePhotos || journal?.livePhotos || [], pendingJournalPhotos, JOURNAL_PHOTO_LIMIT);
   pendingJournalStructure = { tags: [...(draft?.tags || journal?.tags || [])], summary: draft?.summary || journal?.summary || '' };
   journalSuggestion = null;
   modal(`<form id="journal-form"><input type="hidden" name="date" value="${day}"><div class="journal-intro"><button type="button" id="journal-back" class="icon-button" aria-label="返回" data-close><span class="material-symbols-outlined">arrow_back</span></button><div><span class="eyebrow">DAILY MOMENT</span><h2>${day} 生活记录</h2></div><div class="journal-intro-actions"><button type="button" id="use-snippets" class="icon-button" aria-label="从随手记选素材"><span class="material-symbols-outlined">collections_bookmark</span></button></div></div><p class="subtle">记录此刻的情绪、天气和值得留下的画面。</p><fieldset class="journal-field"><legend><span>今天心情怎么样？</span><button type="button" data-clear-journal-choice="mood" aria-label="清除心情选择">清除</button></legend><div class="mood-picker">${Object.entries(MOODS).map(([key, item]) => `<label><input type="radio" name="mood" value="${key}" ${journal?.mood === key ? 'checked' : ''}><span><b>${item.symbol}</b><small>${item.label}</small></span></label>`).join('')}</div></fieldset><fieldset class="journal-field"><legend><span>今天的天气</span><button type="button" data-clear-journal-choice="weather" aria-label="清除天气选择">清除</button></legend><div class="weather-picker">${Object.entries(WEATHERS).map(([key, item]) => `<label><input type="radio" name="weather" value="${key}" ${journal?.weather === key ? 'checked' : ''}><span><i class="material-symbols-outlined" aria-hidden="true">${item.icon}</i><small>${item.label}</small></span></label>`).join('')}</div></fieldset><div class="journal-photo-head"><div><strong>照片</strong><small>一次最多 ${PHOTO_IMPORT_BATCH_LIMIT} 张，每篇最多 ${JOURNAL_PHOTO_LIMIT} 张</small></div><button type="button" id="add-journal-photos"><span class="material-symbols-outlined" aria-hidden="true">add_photo_alternate</span>批量添加照片</button></div><div id="journal-photo-editor">${journalPhotoEditor()}</div><div class="journal-write-head"><label>写下今天</label><span class="journal-write-tools">${state.settings.aiApiKey ? `<button type="button" id="ai-journal-guide" class="ai-guide-btn"><span class="material-symbols-outlined">auto_awesome</span>AI 帮我起笔</button>` : ''}${micButtonHtml()}</span></div><textarea name="content" maxlength="4000" placeholder="发生了什么？此刻最想记住什么……">${esc(journal?.content || '')}</textarea>${aiStructureCard(day, journal)}<div class="modal-actions"><button type="button" data-close>取消</button><button class="save">保存日记</button></div></form>`, 'large-modal journal-modal');
@@ -245,7 +248,7 @@ async function adoptJournalStructure(day, { tags = [], todos = [], summary = '' 
 }
 
 function journalPhotoEditor() {
-  return pendingJournalPhotos.length ? `<div class="journal-photo-editor">${pendingJournalPhotos.map((photo, index) => `<div><img src="${imgSrc(photo)}" alt="待保存照片 ${index + 1}"><button type="button" data-remove-journal-photo="${index}" aria-label="删除第 ${index + 1} 张照片"><span class="material-symbols-outlined" aria-hidden="true">close</span></button></div>`).join('')}</div>` : '<div class="journal-photo-empty"><span class="journal-photo-empty-icon"><span class="material-symbols-outlined" aria-hidden="true">photo_library</span></span><strong>还没有添加照片</strong><small>把今天值得记住的画面放在这里</small></div>';
+  return pendingJournalPhotos.length ? `<div class="journal-photo-editor">${pendingJournalPhotos.map((photo, index) => `<div><img src="${imgSrc(photo)}" alt="待保存照片 ${index + 1}">${journalLiveMark(photo, pendingJournalLive)}<button type="button" data-remove-journal-photo="${index}" aria-label="删除第 ${index + 1} 张照片"><span class="material-symbols-outlined" aria-hidden="true">close</span></button></div>`).join('')}</div>` : '<div class="journal-photo-empty"><span class="journal-photo-empty-icon"><span class="material-symbols-outlined" aria-hidden="true">photo_library</span></span><strong>还没有添加照片</strong><small>把今天值得记住的画面放在这里</small></div>';
 }
 
 function bindJournalPhotoEditor() {
@@ -255,7 +258,14 @@ function bindJournalPhotoEditor() {
     addButton.onclick = () => pickJournalPhotos().catch(error => show(error.message));
   }
   $('#use-snippets')?.addEventListener('click', openSnippetPicker);
-  $$('[data-remove-journal-photo]').forEach(button => button.onclick = () => { pendingJournalPhotos.splice(Number(button.dataset.removeJournalPhoto), 1); refreshJournalPhotos(); stageModalJournalDraft($('#journal-form [name="date"]')?.value); });
+  $$('[data-remove-journal-photo]').forEach(button => button.onclick = () => {
+    const index = Number(button.dataset.removeJournalPhoto);
+    const removed = pendingJournalPhotos[index];
+    pendingJournalPhotos.splice(index, 1);
+    pendingJournalLive = pendingJournalLive.filter(item => item.still !== removed);
+    refreshJournalPhotos();
+    stageModalJournalDraft($('#journal-form [name="date"]')?.value);
+  });
   $$('[data-clear-journal-choice]').forEach(button => button.onclick = () => {
     const choice = $(`[name="${button.dataset.clearJournalChoice}"]:checked`, $('#journal-form'));
     if (choice) choice.checked = false;
@@ -276,7 +286,7 @@ function openSnippetPicker() {
   $('#import-snippets').onclick = () => importSnippetsIntoJournal(draft, draftPhotos);
 }
 
-function reopenJournalWithDraft(draft, extraText = '', photos = []) {
+function reopenJournalWithDraft(draft, extraText = '', photos = [], livePhotos = null) {
   const day = draft.get('date');
   journalForm(day);
   const form = $('#journal-form');
@@ -286,6 +296,7 @@ function reopenJournalWithDraft(draft, extraText = '', photos = []) {
   form.elements.content.value = [draft.get('content')?.trim(), extraText].filter(Boolean).join('\n\n');
   form.elements.content.dispatchEvent(new Event('input', { bubbles: true }));
   pendingJournalPhotos = [...photos];
+  if (livePhotos) pendingJournalLive = normalizeLivePhotos(livePhotos, pendingJournalPhotos, JOURNAL_PHOTO_LIMIT);
   refreshJournalPhotos();
 }
 
@@ -295,7 +306,8 @@ function importSnippetsIntoJournal(draft, draftPhotos) {
   const photos = chosen.filter(entry => entry.type === 'photo').flatMap(entry => entry.photos?.length ? entry.photos : (entry.photo ? [entry.photo] : []));
   const uniquePhotos = [...new Set([...draftPhotos, ...photos])];
   if (uniquePhotos.length > JOURNAL_PHOTO_LIMIT) return show(`每篇日记最多 ${JOURNAL_PHOTO_LIMIT} 张照片，本次会达到 ${uniquePhotos.length} 张`);
-  reopenJournalWithDraft(draft, text, uniquePhotos);
+  const livePhotos = normalizeLivePhotos([...(pendingJournalLive || []), ...chosen.flatMap(entry => entry.livePhotos || [])], uniquePhotos, JOURNAL_PHOTO_LIMIT);
+  reopenJournalWithDraft(draft, text, uniquePhotos, livePhotos);
   show(`已加入 ${chosen.length} 条素材`);
 }
 
@@ -319,8 +331,9 @@ function pickJournalPhotos() {
         if (files.some(file => file.size > 20 * 1024 * 1024)) throw new Error('单张图片不能超过 20MB');
         if (files.some(file => !isSupportedJournalPhoto(file))) throw new Error('仅支持 JPG、PNG 或 WebP 图片');
         show(`正在处理 ${files.length} 张照片…`);
-        const compressed = await importPhotoBatch(files, compressJournalPhoto);
-        pendingJournalPhotos.push(...compressed); refreshJournalPhotos(); stageModalJournalDraft($('#journal-form [name="date"]')?.value); show(`已加入 ${compressed.length} 张照片`); resolve();
+        let liveAdded = 0;
+        const compressed = await importPhotoBatch(files, compressJournalPhoto, { onLivePhoto: (still, video) => { pendingJournalLive.push({ still, video }); liveAdded += 1; } });
+        pendingJournalPhotos.push(...compressed); refreshJournalPhotos(); stageModalJournalDraft($('#journal-form [name="date"]')?.value); show(`已加入 ${compressed.length} 张照片${liveAdded ? `，${liveAdded} 张实况仍可播放` : ''}`); resolve();
       } catch (error) { reject(error); }
     };
     input.click();
@@ -341,7 +354,10 @@ function bindJournal() {
   $('#journal-history-mine')?.addEventListener('click', () => journalHistory());
   $$('[data-edit-journal]').forEach(button => button.onclick = () => journalForm(button.dataset.editJournal));
   $$('[data-delete-journal]').forEach(button => button.onclick = () => confirmDelete('删除这篇日记？', async () => { delete state.journals[button.dataset.deleteJournal]; await save(); render(); callHelper('scheduleAiRefresh'); }));
-  $$('[data-view-photo]').forEach(button => button.onclick = () => photoViewer(state.journals[selected]?.photos || [], Number(button.dataset.viewPhoto)));
+  $$('[data-view-photo]').forEach(button => button.onclick = () => {
+    const entry = state.journals[selected];
+    photoViewer(photosWithLiveMotion(entry?.photos || [], entry?.livePhotos), Number(button.dataset.viewPhoto));
+  });
 }
 
 // ---- 表单提交 ----
@@ -354,7 +370,11 @@ registerSubmitHandler('journal-form', async data => {
   const rollbackJournal = () => previousJournal ? state.journals[day] = previousJournal : delete state.journals[day];
   cancelPendingJournalDraftSave();
   try {
-    state.journals[day] = { ...previousJournal, content, mood, weather, photos: [...pendingJournalPhotos], tags: pendingJournalStructure.tags, summary: pendingJournalStructure.summary, updatedAt: Math.max(Date.now(), Number(previousDraft?.updatedAt || 0) + 1) };
+    const photos = [...pendingJournalPhotos];
+    const livePhotos = normalizeLivePhotos(pendingJournalLive, photos, JOURNAL_PHOTO_LIMIT);
+    state.journals[day] = { ...previousJournal, content, mood, weather, photos, tags: pendingJournalStructure.tags, summary: pendingJournalStructure.summary, updatedAt: Math.max(Date.now(), Number(previousDraft?.updatedAt || 0) + 1) };
+    if (livePhotos.length) state.journals[day].livePhotos = livePhotos;
+    else delete state.journals[day].livePhotos;
     clearJournalDraft(state, day, { keepCache: true });
     await save();
   } catch (error) {
@@ -367,6 +387,7 @@ registerSubmitHandler('journal-form', async data => {
   journalVoice?.destroy();
   journalVoice = null;
   pendingJournalPhotos = [];
+  pendingJournalLive = [];
   selectedSnippetIds.clear();
   closeModal(); render(); show('正式日记已保存');
   callHelper('scheduleAiRefresh');
@@ -400,6 +421,7 @@ function stageJournalScreenDraft(day = journalEditingDay) {
   const stored = splitJournalContent(entry?.content || '');
   const previousDraft = journalDraftFor(state, day);
   const photos = previousDraft?.photos || entry?.photos || [];
+  const livePhotos = previousDraft?.livePhotos || entry?.livePhotos || [];
   const tags = previousDraft?.tags || entry?.tags || [];
   const summary = previousDraft?.summary || entry?.summary || '';
   const unchanged = title === stored.title && body === stored.body
@@ -413,7 +435,7 @@ function stageJournalScreenDraft(day = journalEditingDay) {
     scheduleJournalDraftSave();
     return true;
   }
-  return stageJournalDraft(day, { title, body, mood: journalDraftMood, weather: journalDraftWeather, photos, tags, summary });
+  return stageJournalDraft(day, { title, body, mood: journalDraftMood, weather: journalDraftWeather, photos, livePhotos, tags, summary });
 }
 
 function formatJournalText(text) {
@@ -438,18 +460,22 @@ function addPhotosToJournal(day) {
         if (files.some(file => file.size > 20 * 1024 * 1024)) throw new Error('单张图片不能超过 20MB');
         if (files.some(file => !isSupportedJournalPhoto(file))) throw new Error('仅支持 JPG、PNG 或 WebP 图片');
         show(`正在处理 ${files.length} 张照片…`);
-        const compressed = await importPhotoBatch(files, compressJournalPhoto);
+        const livePhotos = [...(draft?.livePhotos || previous?.livePhotos || [])];
+        let liveAdded = 0;
+        const compressed = await importPhotoBatch(files, compressJournalPhoto, { onLivePhoto: (still, video) => { livePhotos.push({ still, video }); liveAdded += 1; } });
+        const photos = [...existingPhotos, ...compressed];
         recordJournalDraft(state, day, {
           title: $('#journal-title-input')?.value || draft?.title || '',
           body: $('#journal-content-input')?.value || draft?.body || '',
           mood: journalDraftMood,
           weather: journalDraftWeather,
-          photos: [...existingPhotos, ...compressed],
+          photos,
+          livePhotos: normalizeLivePhotos(livePhotos, photos, JOURNAL_PHOTO_LIMIT),
           tags: draft?.tags || previous?.tags || [],
           summary: draft?.summary || previous?.summary || ''
         });
         cancelPendingJournalDraftSave();
-        await save(); render(); show(`已加入草稿 ${compressed.length} 张照片`); resolve();
+        await save(); render(); show(`已加入草稿 ${compressed.length} 张照片${liveAdded ? `，${liveAdded} 张实况仍可播放` : ''}`); resolve();
       } catch (error) { reject(error); }
     };
     input.click();
@@ -469,8 +495,12 @@ function romanDate(day) {
   return `${roman(date.getDate())} · ${roman(date.getMonth() + 1)} · ${roman(date.getFullYear())}`;
 }
 
-function journalPhotoWall(photos = [], day = dateKey()) {
-  return `<div class="journal-photo-wall">${photos.map((photo,index) => `<button type="button" class="journal-polaroid-frame" data-view-journal-screen-photo="${index}" aria-label="查看第 ${index + 1} 张日记照片"><img src="${imgSrc(photo)}" alt="${day} 日记照片 ${index + 1}"></button>`).join('')}<button type="button" class="journal-add-polaroid-btn" id="journal-add-screen-photo"><span class="material-symbols-outlined">photo_camera</span><span>添加相片</span></button></div>`;
+function journalLiveMark(still, livePhotos) {
+  return (livePhotos || []).some(item => item?.still === still && item?.video) ? livePhotoMarkHtml() : '';
+}
+
+function journalPhotoWall(photos = [], day = dateKey(), livePhotos = []) {
+  return `<div class="journal-photo-wall">${photos.map((photo,index) => `<button type="button" class="journal-polaroid-frame" data-view-journal-screen-photo="${index}" aria-label="查看第 ${index + 1} 张日记照片"><img src="${imgSrc(photo)}" alt="${day} 日记照片 ${index + 1}">${journalLiveMark(photo, livePhotos)}</button>`).join('')}<button type="button" class="journal-add-polaroid-btn" id="journal-add-screen-photo"><span class="material-symbols-outlined">photo_camera</span><span>添加相片</span></button></div>`;
 }
 
 function journalSnippetPicker(day) {
@@ -496,7 +526,13 @@ async function applyInlineSnippets(day) {
     const previous = state.journals?.[day] ? structuredClone(state.journals[day]) : { content: '', mood: '', weather: '', photos: [], tags: [], summary: '' };
     const existingPhotos = Array.isArray(previous.photos) ? previous.photos : [];
     if (existingPhotos.length + photos.length > JOURNAL_PHOTO_LIMIT) return show(`每篇日记最多添加 ${JOURNAL_PHOTO_LIMIT} 张照片`);
-    state.journals[day] = { ...previous, photos: [...existingPhotos, ...photos], updatedAt: Date.now() };
+    const mergedPhotos = [...existingPhotos, ...photos];
+    const livePhotos = normalizeLivePhotos([...(previous.livePhotos || []), ...entries.flatMap(entry => entry.livePhotos || [])], mergedPhotos, JOURNAL_PHOTO_LIMIT);
+    state.journals[day] = { ...previous, photos: mergedPhotos, updatedAt: Date.now() };
+    if (livePhotos.length) state.journals[day].livePhotos = livePhotos;
+    else delete state.journals[day].livePhotos;
+    const openDraft = journalDraftFor(state, day);
+    if (openDraft) recordJournalDraft(state, day, { ...openDraft, photos: mergedPhotos, livePhotos });
     const title = $('#journal-title-input')?.value || '';
     const body = $('#journal-content-input')?.value || '';
     await save();
@@ -515,7 +551,7 @@ function openJournalReader(day) {
   const paragraphs = body.split(/\n{2,}/).filter(Boolean);
   const footprints = journalFootprints(day);
   const photos = entry.photos || [];
-  const photoHtml = photos.length ? `<section class="journal-reader-gallery"><header><span><strong>这一天的照片</strong><small>${photos.length} 张 · 点击查看完整画面</small></span><span class="material-symbols-outlined" aria-hidden="true">photo_library</span></header><div>${photos.map((photo, index) => `<button type="button" data-view-journal-reader-photo="${index}" aria-label="查看第 ${index + 1} 张照片，共 ${photos.length} 张"><img src="${imgSrc(photo)}" alt="${esc(title)} 配图 ${index + 1}" loading="lazy"></button>`).join('')}</div></section>` : '';
+  const photoHtml = photos.length ? `<section class="journal-reader-gallery"><header><span><strong>这一天的照片</strong><small>${photos.length} 张 · 点击查看完整画面</small></span><span class="material-symbols-outlined" aria-hidden="true">photo_library</span></header><div>${photos.map((photo, index) => `<button type="button" data-view-journal-reader-photo="${index}" aria-label="查看第 ${index + 1} 张照片，共 ${photos.length} 张"><img src="${imgSrc(photo)}" alt="${esc(title)} 配图 ${index + 1}" loading="lazy">${journalLiveMark(photo, entry.livePhotos)}</button>`).join('')}</div></section>` : '';
   const lead = paragraphs[0] || '';
   const rest = paragraphs.slice(1);
   const quoteHtml = entry.summary?.trim() ? `<aside class="journal-reader-quote">${esc(entry.summary.trim())}</aside>` : '';
@@ -544,7 +580,7 @@ function openJournalReader(day) {
   </div>`;
   callHelper('openSubpage', 'subpage-journal-reader', html);
   $('#journal-reader-edit')?.addEventListener('click', () => journalForm(day));
-  $$('[data-view-journal-reader-photo]').forEach(button => button.onclick = () => photoViewer(photos, Number(button.dataset.viewJournalReaderPhoto)));
+  $$('[data-view-journal-reader-photo]').forEach(button => button.onclick = () => photoViewer(photosWithLiveMotion(photos, entry.livePhotos), Number(button.dataset.viewJournalReaderPhoto)));
 }
 
 export function journalView() {
@@ -563,6 +599,7 @@ export function journalView() {
   const journalTitle = restoredDraft?.title ?? stored.title;
   const bodyText = restoredDraft?.body ?? stored.body;
   const currentPhotos = restoredDraft?.photos || journalEntry?.photos || [];
+  const currentLive = restoredDraft?.livePhotos || journalEntry?.livePhotos || [];
   const dayLabel = `${day} · 星期${WEEK_DAYS[new Date(`${day}T12:00:00`).getDay()]}`;
   return `<section class="view journal-view" id="screen-journal">
     <header class="subpage-header"><div class="subpage-title">Mine Journal</div><div class="subpage-subtitle">Daily Moment · 暖色生活手记</div><span class="journal-corner-note" aria-hidden="true">Write<br>A Better<br>Me<br>Everyday.</span></header>
@@ -577,7 +614,7 @@ export function journalView() {
     <div class="stream-sheet journal-stream-sheet">
       <div class="sheet-handle"></div>
       <div class="journal-photo-wall-head"><h3>Visual Moments</h3><small>已附 ${currentPhotos.length} 张相片 · 最多 ${JOURNAL_PHOTO_LIMIT} 张</small></div>
-      ${journalPhotoWall(currentPhotos, day)}
+      ${journalPhotoWall(currentPhotos, day, currentLive)}
        <div class="journal-creative-toolbar">
         <button class="creative-tool-btn" id="journal-format-btn"><span class="material-symbols-outlined">auto_fix_high</span><span>一键排版</span></button>
         <button class="creative-tool-btn ai-glow-btn" id="journal-ai-guide"><span class="material-symbols-outlined">auto_awesome</span><span>AI 帮我起笔</span></button>
@@ -645,7 +682,11 @@ function bindJournalView() {
   $('#journal-inline-snippet-close')?.addEventListener('click', () => { const panel = $('#journal-inline-snippet-picker'); if (panel) panel.hidden = true; });
   $('#journal-inline-snippet-apply')?.addEventListener('click', () => applyInlineSnippets(journalEditingDay).catch(error => show(error.message)));
   $('#journal-add-screen-photo')?.addEventListener('click', () => addPhotosToJournal(journalEditingDay).catch(error => show(error.message)));
-  $$('[data-view-journal-screen-photo]').forEach(button => button.onclick = () => photoViewer(journalDraftFor(state, journalEditingDay)?.photos || state.journals[journalEditingDay]?.photos || [], Number(button.dataset.viewJournalScreenPhoto)));
+  $$('[data-view-journal-screen-photo]').forEach(button => button.onclick = () => {
+    const draft = journalDraftFor(state, journalEditingDay);
+    const entry = state.journals[journalEditingDay];
+    photoViewer(photosWithLiveMotion(draft?.photos || entry?.photos || [], draft?.livePhotos || entry?.livePhotos), Number(button.dataset.viewJournalScreenPhoto));
+  });
   $$('[data-open-journal]').forEach(button => button.onclick = event => { event.preventDefault(); event.stopPropagation(); openJournalReader(button.dataset.openJournal); });
   $('#journal-screen-save')?.addEventListener('click', async () => {
     const button = $('#journal-screen-save');
@@ -662,7 +703,10 @@ function bindJournalView() {
     cancelPendingJournalDraftSave();
     if (button) button.disabled = true;
     try {
+      const livePhotos = normalizeLivePhotos(draft?.livePhotos || previous?.livePhotos || [], photos, JOURNAL_PHOTO_LIMIT);
       state.journals[day] = { ...(previous || {}), content: finalContent, mood: journalDraftMood, weather: journalDraftWeather, photos, tags: draft?.tags || previous?.tags || [], summary: draft?.summary || previous?.summary || '', updatedAt: Math.max(Date.now(), Number(previousDraft?.updatedAt || 0) + 1) };
+      if (livePhotos.length) state.journals[day].livePhotos = livePhotos;
+      else delete state.journals[day].livePhotos;
       clearJournalDraft(state, day, { keepCache: true });
       await save();
     } catch (error) {

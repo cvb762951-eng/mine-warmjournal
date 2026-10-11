@@ -11,7 +11,7 @@ test('Journal reference page remains driven by real journal state and footprints
   assert.match(main, /Object\.entries\(state\.journals\)/);
   assert.match(main, /journalFootprints\(day\)/);
   assert.match(main, /const currentPhotos = restoredDraft\?\.photos \|\| journalEntry\?\.photos \|\| \[\]/);
-  assert.match(main, /journalPhotoWall\(currentPhotos, day\)/);
+  assert.match(main, /journalPhotoWall\(currentPhotos, day, currentLive\)/);
   assert.doesNotMatch(main, /referenceFixture|demoJournal|previewJournal/);
 });
 
@@ -53,7 +53,7 @@ test('Journal history opens a bounded paper archive instead of an unbounded lead
 test('Journal reader shows every photo uncropped and opens the full album', () => {
   assert.match(source, /photos\.map\(\(photo, index\) =>/);
   assert.match(source, /data-view-journal-reader-photo/);
-  assert.match(source, /photoViewer\(photos, Number\(button\.dataset\.viewJournalReaderPhoto\)\)/);
+  assert.match(source, /photoViewer\(photosWithLiveMotion\(photos, entry\.livePhotos\), Number\(button\.dataset\.viewJournalReaderPhoto\)\)/);
   assert.doesNotMatch(source, /imgSrc\(photos\[0\]\)/);
   assert.match(css, /journal-reader-gallery img\{[^}]*object-fit:contain/);
   assert.match(css, /\.modal\.photo-modal\{[^}]*height:100dvh[^}]*background:#05070b/);

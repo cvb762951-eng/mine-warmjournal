@@ -8848,3 +8848,10 @@ body:has(.mine-view) #app{
 html body * {
   -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
 }
+
+/* 实况照片：静帧上的标记，打开后循环播放短视频。 */
+.live-photo-mark{position:absolute;z-index:3;left:8px;bottom:8px;display:inline-flex;align-items:center;gap:2px;padding:2px 7px;border-radius:999px;background:rgba(12,18,16,.72);color:#fff;font-size:10px;font-weight:700;letter-spacing:.04em;pointer-events:none}
+.live-photo-mark .material-symbols-outlined{font-size:13px;font-variation-settings:'FILL' 1}
+.snippet-photo-cell,.snippet-photo-thumb,.journal-photo-editor>div,.journal-polaroid-frame,.journal-reader-gallery button,.vault-media-box{position:relative}
+.photo-viewer-chrome header .live-photo-mark{position:static;margin-left:8px;vertical-align:middle}
+.photo-viewer-stage video.is-live-photo,.vault-photo-stage video.is-live-photo{background:#05070b}

@@ -2,8 +2,9 @@ import { Capacitor } from '@capacitor/core';
 import { $, $$, esc, state, modal, closeModal, show, save, render, registerHelper } from '../core.js';
 import { IncomingShare } from '../incoming-share.js';
 import { makeSnippet, makeDocument, dateKey } from '../model.js';
-import { compressSnippetPhoto, captureVideoFrame } from '../photo-utils.js';
-import { persistImageData, saveNativeMediaSource, deleteMediaReference } from '../media-store.js';
+import { compressSnippetPhoto, captureVideoFrame, saveMotionFromMediaRef } from '../photo-utils.js';
+import { extractMotionVideoFromBlob, pairNamedMotionSidecars } from '../motion-photo.js';
+import { persistImageData, saveMediaFile, saveNativeMediaSource, deleteMediaReference } from '../media-store.js';
 import { deleteDocument, documentType } from '../document-utils.js';
 import { privateVaultConfigured, privateVaultUnlocked, privateVaultContent, privateVaultKey, unlockPrivateVault, persistPrivateVault } from '../private-vault.js';
 import { encryptVaultFile, encryptVaultPoster, deleteVaultAssets } from '../vault-media-store.js';
@@ -103,36 +104,51 @@ async function saveIncomingShare(data) {
       done++; updateProgress(done, total, '文字已整理');
     }
     if (media.length) {
+      const paired = pairNamedMotionSidecars(media);
+      const consumedSidecars = paired.consumed;
+      const sidecarOf = new Map(paired.linked.filter(item => item.sidecar).map(item => [item.file, item.sidecar]));
       if (data.get('mediaDestination') === 'vault') {
         await ensureVault(data);
         const content = privateVaultContent();
         if (!previousVault) previousVault = structuredClone(content);
         const folderId = String(data.get('vaultFolderId') || '');
         for (const file of media) {
+          if (consumedSidecars.has(file)) { done++; continue; }
           updateProgress(done, total, file.name);
           const input = { path: file.path, name: file.name, mimeType: file.mimeType, size: file.size };
           const stored = await encryptVaultFile(input, privateVaultKey());
+          createdVaultRefs.push(stored.assetRef);
           let poster = {};
+          let motionRef = '';
           if (file.kind === 'video') {
             const source = Capacitor.convertFileSrc(file.path);
             const posterData = await captureVideoFrame(source, { maxSide: 720, quality: .84 }).catch(() => '');
             if (posterData) poster = await encryptVaultPoster(posterData, privateVaultKey());
+          } else {
+            const sidecar = sidecarOf.get(file);
+            motionRef = sidecar ? await sharedMotionRef(file, sidecar) : await sharedMotionRef(file, null).catch(() => '');
+            if (!motionRef && stored.assetRef) motionRef = await saveMotionFromMediaRef(stored.assetRef);
           }
-          createdVaultRefs.push(...[stored.assetRef, poster.posterRef].filter(Boolean));
-          content.items.push({ id: crypto.randomUUID(), folderId, type: stored.type, name: stored.name, mime: stored.mime, size: stored.size, assetRef: stored.assetRef, assetIv: stored.assetIv || '', posterRef: poster.posterRef || '', posterIv: poster.posterIv || '', date, note: String(data.get('text') || '').trim().slice(0, 300), createdAt: Date.now() });
+          createdVaultRefs.push(...[poster.posterRef, motionRef].filter(Boolean));
+          content.items.push({ id: crypto.randomUUID(), folderId, type: stored.type, name: stored.name, mime: stored.mime, size: stored.size, assetRef: stored.assetRef, assetIv: stored.assetIv || '', posterRef: poster.posterRef || '', posterIv: poster.posterIv || '', ...(motionRef ? { motionRef } : {}), date, note: String(data.get('text') || '').trim().slice(0, 300), createdAt: Date.now() });
           done++; updateProgress(done, total, file.name);
         }
         await persistPrivateVault(state);
       } else {
         const savedItems = [];
         for (const file of media) {
+          if (consumedSidecars.has(file)) { done++; continue; }
           updateProgress(done, total, file.name);
           if (file.kind === 'photo') {
             const response = await fetch(Capacitor.convertFileSrc(file.path));
             if (!response.ok) throw new Error(`无法读取「${file.name}」`);
             const blob = await response.blob();
-            const compressed = await compressSnippetPhoto(new File([blob], file.name, { type: file.mimeType || blob.type }));
-            const ref = await persistImageData(compressed); savedItems.push({ kind: 'photo', value: ref }); createdMedia.push(ref);
+            const image = new File([blob], file.name, { type: file.mimeType || blob.type });
+            const compressed = await compressSnippetPhoto(image);
+            const ref = await persistImageData(compressed); createdMedia.push(ref);
+            const motionRef = await sharedMotionRef(file, sidecarOf.get(file), image);
+            if (motionRef) createdMedia.push(motionRef);
+            savedItems.push({ kind: 'photo', value: ref, motion: motionRef });
           } else {
             const ref = await saveNativeMediaSource(file.path, { name: file.name, size: file.size }); createdMedia.push(ref);
             const posterData = await captureVideoFrame(Capacitor.convertFileSrc(file.path), { maxSide: 720, quality: .84 }).catch(() => '');
@@ -143,7 +159,8 @@ async function saveIncomingShare(data) {
         }
         for (let start = 0; start < savedItems.length; start += 60) {
           const chunk = savedItems.slice(start, start + 60);
-          state.snippets.unshift(makeSnippet({ type: 'photo', date, text: String(data.get('text') || '').trim().slice(0, 300), photos: chunk.filter(item => item.kind === 'photo').map(item => item.value), videos: chunk.filter(item => item.kind === 'video').map(item => item.value), createdAt: Date.now() + start }));
+          const photos = chunk.filter(item => item.kind === 'photo');
+          state.snippets.unshift(makeSnippet({ type: 'photo', date, text: String(data.get('text') || '').trim().slice(0, 300), photos: photos.map(item => item.value), livePhotos: photos.filter(item => item.motion).map(item => ({ still: item.value, video: item.motion })), videos: chunk.filter(item => item.kind === 'video').map(item => item.value), createdAt: Date.now() + start }));
         }
       }
     }
@@ -171,6 +188,22 @@ export async function cancelIncomingShare() {
   const session = incoming.session; incoming = null;
   await IncomingShare.discard({ session }).catch(() => {});
   closeModal(); show('已取消保存，临时分享文件已清理');
+}
+
+async function sharedMotionRef(file, sidecar, imageFile = null) {
+  if (sidecar?.path) return saveNativeMediaSource(sidecar.path, { name: sidecar.name, size: sidecar.size });
+  const source = imageFile || await fetch(Capacitor.convertFileSrc(file.path)).then(response => response.blob());
+  const motion = await extractMotionVideoFromBlob(source).catch(() => null);
+  if (motion) return saveMediaFile(new File([motion.bytes], motion.name, { type: motion.mime }));
+  // 分享进来的字节比原文件小一截时，多半是系统把末尾视频裁掉了。改从原路径再复制一份来切。
+  const originalSize = Number(file.size) || 0;
+  if (!file.path || !Capacitor.isNativePlatform() || !originalSize || source.size + 32 * 1024 >= originalSize) return '';
+  let fullRef = '';
+  try {
+    fullRef = await saveNativeMediaSource(file.path, { name: file.name, size: originalSize });
+    return await saveMotionFromMediaRef(fullRef);
+  } catch { return ''; }
+  finally { if (fullRef) await deleteMediaReference(fullRef).catch(() => {}); }
 }
 
 registerHelper('checkIncomingShare', checkIncomingShare);

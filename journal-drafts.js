@@ -1,5 +1,7 @@
 // Unsaved journal text stays separate from the published diary. The settings copy is
 // included in SQLite/portable backups; localStorage is an immediate crash fallback.
+import { normalizeLivePhotos } from './motion-photo.js';
+
 const CACHE_KEY = 'mine-warmjournal-journal-drafts-v1';
 const validDay = day => /^\d{4}-\d{2}-\d{2}$/.test(String(day || ''));
 
@@ -13,6 +15,7 @@ function normalizeDraft(value) {
     mood: String(value.mood || '').slice(0, 40),
     weather: String(value.weather || '').slice(0, 40),
     photos: Array.isArray(value.photos) ? value.photos.filter(photo => typeof photo === 'string' && photo).slice(0, 60) : [],
+    livePhotos: normalizeLivePhotos(value.livePhotos, Array.isArray(value.photos) ? value.photos : [], 60),
     tags: Array.isArray(value.tags) ? value.tags.filter(tag => typeof tag === 'string' && tag).slice(0, 8) : [],
     summary: String(value.summary || '').slice(0, 120),
     updatedAt
