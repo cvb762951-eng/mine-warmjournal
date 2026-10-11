@@ -6,6 +6,7 @@ import { installPressFeedback } from './motion.js';
 import { migrateState, dateKey } from './model.js';
 import { externalizeStateMedia } from './media-store.js';
 import { rebuildActivityLog } from './activity-log.js';
+import { openReleaseNotes } from './views/common.js';
 import { ensureReleaseActivities } from './release-activity.js';
 import { initializeNotificationChannel, prepareNotifications, scheduleDailyReminders, restoreRandomReminders, onNotificationAction, isTimerAlarmRinging } from './notifications.js';
 import './orientation.js';
@@ -119,6 +120,7 @@ function openCalendarEvent(id) {
   if (item.kind === 'todo') return todoForm(state.todos.find(todo => todo.id === item.sourceId));
   if (['book', 'movie'].includes(item.kind)) return mediaForm(state.media.find(entry => entry.id === item.sourceId));
   if (item.kind === 'taste') return callHelper('openTasteEntry', item.sourceId);
+  if (item.kind === 'release') return openReleaseNotes(item.sourceId);
   const habit = state.habits.find(entry => entry.id === item.sourceId);
   if (habit) habitLogForm(habit);
 }
@@ -252,7 +254,7 @@ async function boot() {
     autoSummaryLaunch = Boolean(await callHelper('isAutoSummaryLaunch'));
     setState(await initializeStorage(defaults));
     recoverJournalDraftCache(state);
-    // 版本更新动态：升级后首次启动，把错过的版本说明写进当天活动（幂等，见 release-activity.js）。
+    // 版本更新：说明仍整份入库；当天活动只钉刚升级到的这一版（见 release-activity.js）。
     ensureReleaseActivities(state);
     await callHelper('scheduleAutoSummary');
     callHelper('setAiHistory', [...(state.aiHistory || [])]);

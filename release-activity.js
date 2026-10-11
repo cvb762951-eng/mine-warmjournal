@@ -1,6 +1,6 @@
-// 版本更新动态：升级那天打开 App，「当天活动」（Life Stream）里自动出现一条带说明
-// 和演示图的「更新」动态。数据写在 state.releases（持久化分区），时间轴由
-// activity-log.js 的 rebuildActivityLog 统一吐出。
+// 版本更新动态。登记表里的说明整份保存在 state.releases（「我的 → 更新记录」），
+// 不删除、不回放历史版本。当天活动 / 日历只钉用户刚升级到的当前版本，落在升级当天。
+// 时间轴由 activity-log.js 按 settings.timelineRelease* 吐出这一条。
 import { APP_VERSION_CODE } from './app-updater.js';
 import { dateKey, makeRelease } from './model.js';
 import { RELEASE_NOTES } from './release-notes.js';
@@ -18,13 +18,15 @@ export function releaseInstant(notes = {}) {
   return Date.parse(`${date}T${clock}+08:00`) || 0;
 }
 
-// 启动时调用：把登记表里 ≤ 当前版本、还没写过动态的版本各补一条（落在登记表给的
-// 真实发布时刻）；已写过的条目按登记表同步文案，并把时间纠正到登记的时分（幂等）。
-// settings.lastSeenReleaseCode 只作记录，不参与判断。
+// 启动时调用：登记表里 ≤ 当前版本、还没入库的说明仍各存一条（真实发布时刻），
+// 已有条目按登记表同步文案和时分。这些记录只给「更新记录」列表，不进生活流。
+// 生活流只在 lastSeenReleaseCode 落后于当前版本时，钉上刚升级到的这一版（升级当天）。
+// 已看过当前版本的老数据不会被改写成一串历史卡片，已有 releases 一条都不删。
 export function ensureReleaseActivities(state, currentCode = APP_VERSION_CODE, now = Date.now()) {
   state.settings = state.settings || {};
   state.releases = Array.isArray(state.releases) ? state.releases : [];
   const current = Math.max(1, Math.floor(Number(currentCode)) || 0);
+  const previous = Math.max(0, Math.floor(Number(state.settings.lastSeenReleaseCode)) || 0);
   let created = 0;
   for (const key of Object.keys(RELEASE_NOTES)) {
     const code = Number(key);
@@ -63,6 +65,11 @@ export function ensureReleaseActivities(state, currentCode = APP_VERSION_CODE, n
     created++;
   }
   state.releases.sort((a, b) => Number(a.code) - Number(b.code));
-  state.settings.lastSeenReleaseCode = Math.max(Number(state.settings.lastSeenReleaseCode) || 0, current);
+  if (previous < current && RELEASE_NOTES[current]) {
+    state.settings.timelineReleaseCode = current;
+    state.settings.timelineReleaseDate = dateKey(new Date(now));
+    state.settings.timelineReleaseAt = now;
+  }
+  state.settings.lastSeenReleaseCode = Math.max(previous, current);
   return created;
 }
