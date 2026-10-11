@@ -7863,6 +7863,9 @@ video.is-awaiting-frame{opacity:0}
 .vault-photo-stage{position:absolute;inset:0;display:grid;place-items:center;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none}
 .vault-photo-stage img{display:block;width:100%;height:100%;max-width:none;max-height:none;object-fit:contain;border:0;border-radius:0;background:transparent;transform-origin:center;transition:transform .18s ease;will-change:transform}
 .vault-photo-stage img.zoomed{transition:none}
+/* 长图：宽贴齐屏幕，高度按比例展开，手势上下浏览。不改封面相框的 contain。 */
+.vault-photo-stage.is-long-image{display:block;place-items:stretch;overflow:hidden;touch-action:none}
+.vault-photo-stage.is-long-image img{position:absolute;left:0;top:0;width:100%;height:auto;max-width:none;max-height:none;object-fit:contain;object-position:center top;transform-origin:center top}
 .vault-photo-chrome{position:absolute;z-index:3;inset:0;pointer-events:none;opacity:1;transition:opacity .2s ease}
 .vault-photo-chrome.hidden{opacity:0}
 .vault-photo-chrome.hidden header{pointer-events:none}
@@ -7898,6 +7901,9 @@ video.is-awaiting-frame{opacity:0}
 .photo-viewer-stage{position:absolute;inset:0;display:grid;place-items:center;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none}
 .photo-viewer-stage img,.photo-viewer-stage video{display:block;width:100%;height:100%;max-width:none;max-height:none;object-fit:contain;border:0;border-radius:0;background:transparent;transform-origin:center;transition:transform .18s ease;will-change:transform}
 .photo-viewer-stage img.zoomed{transition:none}
+/* 长图：宽贴齐屏幕，高度按比例展开，手势上下浏览。普通照片仍完整居中。 */
+.photo-viewer-stage.is-long-image{display:block;place-items:stretch;overflow:hidden;touch-action:none}
+.photo-viewer-stage.is-long-image img{position:absolute;left:0;top:0;width:100%;height:auto;max-width:none;max-height:none;object-fit:contain;object-position:center top;transform-origin:center top}
 .photo-viewer-chrome{position:absolute;z-index:4;inset:0;pointer-events:none;opacity:1;transition:opacity .2s ease}
 .photo-viewer-chrome.hidden{opacity:0}.photo-viewer-chrome.hidden header,.photo-viewer-chrome.hidden footer{pointer-events:none}
 .photo-viewer-chrome.hidden .photo-viewer-filmstrip{pointer-events:none}

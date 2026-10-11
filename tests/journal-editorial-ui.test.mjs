@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
 const source = await readFile(new URL('../views/journal.js', import.meta.url), 'utf8');
+const app = await readFile(new URL('../app.js', import.meta.url), 'utf8');
 const css = await readFile(new URL('../styles.css', import.meta.url), 'utf8');
 const main = source.slice(source.indexOf('export function journalView'), source.indexOf('function bindJournalView'));
 
@@ -28,6 +29,17 @@ test('Journal photo wall does not render redundant captions under photos', () =>
   const wall = source.slice(source.indexOf('function journalPhotoWall'), source.indexOf('function journalSnippetPicker'));
   assert.doesNotMatch(wall, /polaroid-mini-cap|Moment \$\{index/);
   assert.match(wall, /aria-label="查看第 \$\{index \+ 1\} 张日记照片"/);
+});
+
+test('past journal entries open the reader or editor instead of the calendar', () => {
+  assert.match(source, /function openPastJournal\(day\)/);
+  assert.match(source, /if \(state\.journals\[normalized\]\.content\?\.trim\(\)\) \{\s*openJournalReader\(normalized\);/s);
+  assert.match(source, /setJournalEditingDay\(normalized\)/);
+  assert.match(source, /go\('journal'\)/);
+  assert.match(source, /registerHelper\('openPastJournal', openPastJournal\)/);
+  assert.match(source, /button\.onclick = onPastJournalClick/);
+  assert.match(app, /callHelper\('openPastJournal', openJournal\.dataset\.openJournal\)/);
+  assert.doesNotMatch(app, /closest\('\[data-open-journal\]'\)[\s\S]{0,280}go\('calendar'/);
 });
 
 test('Journal can edit a selected past date across every write path', () => {
