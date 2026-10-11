@@ -60,9 +60,15 @@ const patch = `(() => {
   const KEY = 'mine-warmjournal-state-v1';
   const raw = JSON.parse(w.localStorage.getItem(KEY) || '{}');
   const s = raw.state || raw;
-  s.settings = Object.assign({}, s.settings, { theme: 'classic' });
   const d = new Date(), p = n => String(n).padStart(2, '0');
   const key = d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
+  s.settings = Object.assign({}, s.settings, {
+    theme: 'classic',
+    lastSeenReleaseCode: 999999,
+    timelineReleaseCode: 105,
+    timelineReleaseDate: key,
+    timelineReleaseAt: d.getTime() - 1800e3
+  });
   s.releases = [{
     code: 105, versionName: '1.1.4', title: '更新动态上线',
     summary: '从这版起，每次升级都会在当天的活动里留一条「更新」动态，点开能看完整说明和演示图。',

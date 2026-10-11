@@ -1,5 +1,6 @@
 import { $, $$, esc, state, save, render, modal, closeModal, show, confirmDelete, imgSrc, emptyState, go, formatMinutes, setState, defaults, registerView, registerBinder, registerSubmitHandler, callHelper, NAV_TABS, renderNav, pushBackState, applyTheme, notifyPersistedKeySeal } from '../core.js';
 import { journalEntries, migrateState, makeDefaultNavTabs, APP_THEMES, THEME_META, formatShanghaiDateTime } from '../model.js';
+import { openReleaseNotes } from './common.js';
 import { exportEncryptedBackup, importEncryptedBackup, finalizeImportedBackup, rollbackImportedBackup, verifyEncryptedBackup } from '../backup.js';
 import { createSafetySnapshot, listSafetySnapshots, readSafetySnapshot, storageHealth, replaceState } from '../storage.js';
 import { mediaHealth, externalizeStateMedia } from '../media-store.js';
@@ -127,6 +128,8 @@ export function mineView() {
   const checkCount = Object.values(state.checks).reduce((sum, progress) => sum + Object.entries(progress).filter(([id, count]) => count >= (state.habits.find(habit => habit.id === id)?.target || 1)).length, 0);
   const todoDone = state.todos.filter(todo => todo.completed).length;
   const mediaCount = state.media.filter(entry => ['completed', 'in_progress', 'planned'].includes(entry.status)).length;
+  const documentCount = (state.documents || []).length;
+  const releaseNoteCount = (state.releases || []).length;
   const tasteCount = (state.tasteEntries || []).length;
   const tasteAgainCount = (state.tasteEntries || []).filter(entry => ['favorite', 'again'].includes(entry.verdict)).length;
   const watched = state.media.filter(entry => entry.type === 'movie' && entry.status === 'completed').length;
@@ -164,6 +167,7 @@ export function mineView() {
         <button class="setting-item-row taste-archive-entry" id="open-taste-archive"><span class="setting-row-left"><span class="setting-icon-box"><span class="material-symbols-outlined">restaurant_menu</span></span><span><span class="setting-row-title">味觉档案</span><span class="setting-row-subtitle">${tasteCount ? `${tasteCount} 条记录 · ${tasteAgainCount} 样还想再吃` : '记录吃过的菜、零食和店铺'}</span></span></span><span class="setting-row-right"><span>${tasteCount ? '查看档案' : '去记录'}</span><span class="material-symbols-outlined">chevron_right</span></span></button>
         <button class="setting-item-row" id="open-local-gallery"><span class="setting-row-left"><span class="setting-icon-box"><span class="material-symbols-outlined">perm_media</span></span><span><span class="setting-row-title">本机相册播放器</span><span class="setting-row-subtitle">查看手机照片和视频 · 原件留在相册</span></span></span><span class="setting-row-right"><span>打开</span><span class="material-symbols-outlined">chevron_right</span></span></button>
         <button class="setting-item-row" id="open-media-detail-mine"><span class="setting-row-left"><span class="setting-icon-box"><span class="material-symbols-outlined">auto_stories</span></span><span><span class="setting-row-title">我的书影音与资料流</span><span class="setting-row-subtitle">${mediaCount ? `${watched} 部电影 · ${read} 本书已完成归档` : '暂无记录 · 前往书影音资料库'}</span></span></span><span class="setting-row-right"><span>${mediaCount ? '查看详情' : '去记录'}</span><span class="material-symbols-outlined">chevron_right</span></span></button>
+        <button class="setting-item-row" id="open-documents"><span class="setting-row-left"><span class="setting-icon-box"><span class="material-symbols-outlined">folder</span></span><span><span class="setting-row-title">资料库</span><span class="setting-row-subtitle">${documentCount ? `${documentCount} 个文件 · Word / PDF` : 'Word、PDF，以及分享进来的文件'}</span></span></span><span class="setting-row-right"><span>${documentCount ? '打开' : '去查看'}</span><span class="material-symbols-outlined">chevron_right</span></span></button>
         <button class="setting-item-row" id="open-habit-detail-mine"><span class="setting-row-left"><span class="setting-icon-box"><span class="material-symbols-outlined">track_changes</span></span><span><span class="setting-row-title">习惯与节奏管理</span><span class="setting-row-subtitle">${state.habits.some(habit => !habit.archived) ? '自定义目标量、重复周期与打卡' : '请先创建习惯'}</span></span></span><span class="setting-row-right"><span>管理</span><span class="material-symbols-outlined">chevron_right</span></span></button>
       </div></section>
       <section class="mine-settings-section mine-smart-section"><header class="mine-section-heading"><span class="mine-section-index" aria-hidden="true">02</span><h2>智能与提醒</h2><small>SMART ROUTINES</small></header>
@@ -188,6 +192,7 @@ export function mineView() {
       <section class="mine-settings-section mine-update-section"><header class="mine-section-heading"><span class="mine-section-index" aria-hidden="true">05</span><h2>应用更新</h2><small>APP UPDATE</small></header>
       <div class="settings-group-card">
         <button class="setting-item-row" id="settings-update"><span class="setting-row-left"><span class="setting-icon-box"><span class="material-symbols-outlined">system_update</span></span><span><span class="setting-row-title">检查更新</span><span class="setting-row-subtitle">当前 ${esc(APP_VERSION_NAME)} · 只在你点击时才联网</span></span></span><span class="setting-row-right"><span id="update-status">检查</span><span class="material-symbols-outlined">chevron_right</span></span></button>
+        <button class="setting-item-row" id="open-release-history"><span class="setting-row-left"><span class="setting-icon-box"><span class="material-symbols-outlined">new_releases</span></span><span><span class="setting-row-title">更新记录</span><span class="setting-row-subtitle">${releaseNoteCount ? `已保存 ${releaseNoteCount} 条版本说明` : '版本说明保存在这里，不刷当天活动'}</span></span></span><span class="setting-row-right"><span>查看</span><span class="material-symbols-outlined">chevron_right</span></span></button>
       </div></section>
       <footer class="mine-privacy-note"><span class="material-symbols-outlined">lock</span><p>数据默认保存在本机。仅在用户明确触发 AI 功能，以及已授权的凌晨日结任务执行时联网。</p><small>暖色生活志 · v${esc(version)}</small></footer>
     </div>
@@ -709,6 +714,20 @@ function openRestoreModal() { modal(`<form id="restore-form"><h2>从备份恢复
    安装不是静默的：Android 会弹自己的确认页，用户必须亲自点「安装」。
    --------------------------------------------------------------------------- */
 
+function showReleaseHistory() {
+  const releases = [...(state.releases || [])].sort((a, b) => Number(b.code) - Number(a.code));
+  if (!releases.length) {
+    show('还没有保存的更新说明');
+    return;
+  }
+  const rows = releases.map(release => {
+    const when = formatShanghaiDateTime(release.createdAt) || release.date || '';
+    return `<button type="button" class="release-history-row" data-release-history="${Number(release.code) || ''}"><span class="material-symbols-outlined" aria-hidden="true">new_releases</span><span class="release-history-copy"><strong>${esc(release.title || `更新到 ${release.versionName}`)}</strong><small>v${esc(release.versionName)}${when ? ` · ${esc(when)}` : ''}</small></span><span class="material-symbols-outlined" aria-hidden="true">chevron_right</span></button>`;
+  }).join('');
+  modal(`<div class="release-history"><div class="release-notes-head"><span class="release-notes-badge"><span class="material-symbols-outlined" aria-hidden="true">history</span></span><div class="release-notes-head-copy"><span class="eyebrow">UPDATE ARCHIVE</span><h2>更新记录</h2><p>历史版本说明都留在这里。当天活动只显示你刚升级到的那一版。</p></div></div><div class="release-history-list">${rows}</div><div class="modal-actions"><button type="button" data-close>关闭</button></div></div>`, 'release-history-modal');
+  $$('[data-release-history]').forEach(button => button.onclick = () => openReleaseNotes(button.dataset.releaseHistory));
+}
+
 async function checkForUpdate() {
   const status = $('#update-status');
   if (!isUpdateSupported()) {
@@ -834,6 +853,8 @@ function bindMine() {
   $('#settings-verify-backup')?.addEventListener('click', openVerifyBackupModal);
   $('#settings-restore')?.addEventListener('click', openRestoreModal);
   $('#open-media-detail-mine')?.addEventListener('click', openMineMediaEntry);
+  $('#open-documents')?.addEventListener('click', () => { pushBackState(); go('documents'); });
+  $('#open-release-history')?.addEventListener('click', showReleaseHistory);
   $('#open-taste-archive')?.addEventListener('click', () => go('taste'));
   $('#open-local-gallery')?.addEventListener('click', () => go('local-gallery'));
   $('#open-habit-detail-mine')?.addEventListener('click', openMineHabitDetail);

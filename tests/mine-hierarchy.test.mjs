@@ -21,7 +21,7 @@ test('Mine uses the shared editorial paper hierarchy and four product groups', (
 });
 
 test('Mine keeps every existing entry once and removes the duplicate settings menu', () => {
-  for (const id of ['open-taste-archive', 'open-media-detail-mine', 'open-habit-detail-mine', 'settings-ai', 'settings-reminder', 'settings-background', 'settings-password-vault', 'settings-data', 'settings-snapshot', 'settings-snapshot-list', 'settings-backup', 'settings-verify-backup', 'settings-restore']) {
+  for (const id of ['open-taste-archive', 'open-documents', 'open-media-detail-mine', 'open-habit-detail-mine', 'settings-ai', 'settings-reminder', 'settings-background', 'settings-password-vault', 'settings-data', 'settings-snapshot', 'settings-snapshot-list', 'settings-backup', 'settings-verify-backup', 'settings-restore', 'open-release-history']) {
     assert.equal(mine.match(new RegExp(`id="${id}"`, 'g'))?.length, 1, id);
   }
   const health = mine.slice(mine.indexOf('function showSettingsAndData'), mine.indexOf('async function createLocalSnapshot'));

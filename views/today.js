@@ -1,6 +1,6 @@
 import { $, $$, esc, state, save, render, modal, closeModal, emptyState, go, avatarContent, imgSrc, registerView, registerBinder, callHelper, pushBackState, pad, show } from '../core.js';
-import { habitsForDate, todosForDate, todayCompletion, activeStreak, dateKey, WEEK_DAYS, habitProgressForDate, habitGoalMet, formatShanghaiClock, formatShanghaiDateTime } from '../model.js';
-import { recentActivity } from './common.js';
+import { habitsForDate, todosForDate, todayCompletion, activeStreak, dateKey, WEEK_DAYS, habitProgressForDate, habitGoalMet, formatShanghaiClock } from '../model.js';
+import { recentActivity, openReleaseNotes } from './common.js';
 import { countdownBanner } from './countdown.js';
 import { isSupportedJournalPhoto } from '../photo-utils.js';
 
@@ -195,16 +195,6 @@ function releaseNode(item) {
   const dateTime = timeText === '--:--' ? item.date : `${item.date}T${timeText}+08:00`;
   const shot = release.screenshots?.[0] || '';
   return `<div class="timeline-node life-stream-node tone-sage life-stream-release"><button type="button" class="life-stream-card life-stream-release-card${shot ? ' has-shot' : ''}" data-release-code="${Number(release.code) || ''}" aria-label="查看 ${esc(release.versionName)} 更新说明：${esc(release.title)}"><span class="life-stream-icon"><span class="life-stream-glyph material-symbols-outlined" aria-hidden="true">new_releases</span></span><span class="life-stream-copy"><strong>${esc(release.title)}</strong><small>更新到 ${esc(release.versionName)} · ${esc(release.summary)}</small></span>${shot ? `<img class="life-stream-release-shot" src="${imgSrc(shot)}" alt="" loading="lazy">` : ''}<time class="life-stream-time" datetime="${dateTime}">${timeText}</time><span class="life-stream-chevron material-symbols-outlined" aria-hidden="true">chevron_right</span></button></div>`;
-}
-
-// 版本说明弹层：徽标 + 版本号大标题 + 改动清单 + 全部演示图（对齐 App 弹层设计语言）。
-function openReleaseNotes(code) {
-  const release = (state.releases || []).find(entry => Number(entry.code) === Number(code));
-  if (!release) return;
-  const bullets = (release.bullets || []).map(entry => `<li>${esc(entry)}</li>`).join('');
-  const shots = (release.screenshots || []).map(entry => `<img class="release-notes-shot" src="${imgSrc(entry)}" alt="${esc(release.title)} 演示图" loading="lazy">`).join('');
-  const when = formatShanghaiDateTime(release.createdAt) || release.date || '';
-  modal(`<div class="release-notes-modal"><div class="release-notes-head"><span class="release-notes-badge"><span class="material-symbols-outlined" aria-hidden="true">new_releases</span></span><div class="release-notes-head-copy"><span class="eyebrow">RELEASE NOTES</span><h2>${esc(release.title)}</h2><p>更新到 ${esc(release.versionName)} · ${esc(when)}</p></div><span class="release-notes-pill">v${esc(release.versionName)}</span></div><p class="release-notes-summary">${esc(release.summary)}</p>${bullets ? `<ul class="release-notes-bullets">${bullets}</ul>` : ''}${shots ? `<div class="release-notes-shots">${shots}</div>` : ''}<div class="modal-actions"><button type="button" class="save" data-close>知道了</button></div></div>`, 'release-notes-modal-dialog');
 }
 
 async function updateTodayCover(file) {

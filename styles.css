@@ -8884,6 +8884,12 @@ body:has(.mine-view) #app{
 .release-notes-bullets li::before { content:''; position:absolute; left:4px; top:15px; width:6px; height:6px; border-radius:50%; background:#65889a; opacity:.75; }
 .release-notes-shots { display:grid; gap:12px; margin-bottom:12px; }
 .release-notes-shot { display:block; width:100%; border-radius:16px; border:1px solid rgba(220,212,198,.7); box-shadow:0 10px 26px rgba(35,28,18,.08); background:var(--canvas); }
+.release-history-list { display:flex; flex-direction:column; gap:8px; max-height:60vh; overflow:auto; margin-top:12px; }
+.release-history-row { display:flex; align-items:center; gap:10px; width:100%; text-align:left; padding:10px 12px; border:0; border-radius:14px; background:rgba(101,136,154,.08); color:inherit; }
+.release-history-copy { flex:1; min-width:0; }
+.release-history-row strong { display:block; font-size:13px; }
+.release-history-row small { display:block; margin-top:2px; color:var(--ink-muted); font-size:11px; }
+.release-history-row .material-symbols-outlined { flex:none; }
 
 /* Android WebView 的点击高亮默认是一块浅白，而且写在 body 上的 transparent 关键字经常不生效。
    权重压过 button/a 的单元素规则，卡片、列表、底栏、不是按钮的可点区域都盖住。 */
