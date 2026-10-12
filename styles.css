@@ -9131,3 +9131,41 @@ img:is(.photo-blur-pad,.snippet-photo-blur,.snippet-cover-blur,.vault-cover-blur
 .journal-deck-card.is-active-drag{will-change:transform}
 .journal-deck-stage,.journal-deck-card{touch-action:pan-y}
 .journal-deck-photo,.photo-blur-frame{contain:paint}
+
+/* ── 牌组「摊开」：全部复用牌组现有组件（纸面卡 .journal-deck-face + 胶带、月份标签 = 「翻阅篇章」胶带标题、
+   按钮 = 牌组墨绿纸签 / 描边、照片 = 共用照片框、字体同牌组），这里只补布局，不新增颜色、圆角和字体。 */
+.journal-deck-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
+button.journal-deck-cut.journal-deck-spread-toggle{display:inline-flex;align-items:center;gap:4px;min-height:32px;padding:4px 12px}
+.journal-deck-spread-toggle .material-symbols-outlined,.journal-deck-spread-tools .material-symbols-outlined{font-size:17px}
+.is-spread-hidden{display:none!important}
+.journal-deck-spread[hidden]{display:none}
+.journal-deck-spread{display:flex;flex-direction:column;gap:8px}
+.journal-deck-spread-bar{position:sticky;top:0;z-index:3;display:flex;flex-direction:column;gap:6px;padding:4px 0 6px;background:inherit}
+.journal-deck-spread-months{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding:2px 2px 4px}
+.journal-deck-spread-months::-webkit-scrollbar{display:none}
+button.journal-deck-cut.journal-deck-spread-chip{flex:none;min-height:30px;padding:3px 10px;font-size:12px}
+button.journal-deck-cut.journal-deck-spread-chip.is-current{background-color:#174536;color:#fff0d8}
+:root[data-theme="plain"] button.journal-deck-cut.journal-deck-spread-chip.is-current{background:var(--pl-blue)!important;color:#fff!important}
+.journal-deck-spread-tools{display:flex;justify-content:flex-end;gap:8px}
+.journal-deck-spread-tools button{display:inline-flex;align-items:center;gap:4px;width:auto!important;min-height:34px;margin:0!important;white-space:nowrap}
+.journal-deck-spread-scroll{position:relative;max-height:min(70dvh,620px);overflow-y:auto;overscroll-behavior:contain;padding:0 2px 12px}
+.journal-deck-spread-month{padding-top:4px}
+.journal-deck-heading.journal-deck-spread-label{position:sticky;top:0;z-index:2;margin:10px 0 10px}
+.journal-deck-spread-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px 12px}
+.journal-deck-face.journal-deck-mini{position:relative;height:auto;padding:12px 10px 8px;overflow:visible;contain:layout paint style}
+.journal-deck-mini.is-current{outline:2px solid #174536;outline-offset:2px}
+:root[data-theme="plain"] .journal-deck-mini.is-current{outline-color:var(--pl-blue)}
+.journal-deck-mini-pick{display:flex;flex-direction:column;width:100%;padding:0;border:0;background:none;color:inherit;text-align:left;font:inherit}
+.journal-deck-mini .journal-deck-kicker{font-size:11px}
+.journal-deck-mini .journal-deck-title{margin:2px 28px 6px 0;font-size:15px}
+.journal-deck-photo.journal-deck-mini-photo{height:84px!important;margin-bottom:6px}
+.journal-deck-mini .journal-deck-meta{margin-top:0;font-size:11px}
+button.journal-deck-cut.journal-deck-mini-more{position:absolute;top:8px;right:6px;min-height:26px;width:26px;padding:0;display:grid;place-items:center;border:0;box-shadow:none}
+.journal-deck-mini-more .material-symbols-outlined{font-size:18px}
+.journal-deck-face.journal-deck-mini-menu{position:absolute;z-index:4;top:36px;right:6px;height:auto;padding:6px;display:flex;flex-direction:column;gap:4px}
+.journal-deck-mini-menu::before{display:none!important}
+.journal-deck-mini-menu[hidden]{display:none}
+.journal-deck-mini-menu button{min-height:30px;padding:3px 14px;font-size:12px}
+.journal-deck-mini.is-flying{z-index:5}
+.journal-deck-spread.is-collapsing .journal-deck-mini:not(.is-flying){opacity:0;transition:opacity 200ms ease}
+@media (prefers-reduced-motion: reduce){.journal-deck-mini{transition:none!important}}

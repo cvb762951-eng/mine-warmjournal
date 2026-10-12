@@ -528,6 +528,7 @@ function mountDeckHost(host, list, options = {}) {
     hint: options.hint,
     startIndex: options.startIndex,
     onOpen: options.onOpen,
+    spread: options.spread,
     onPhoto: model => openDeckPhoto(model.id)
   });
 }
@@ -660,6 +661,26 @@ function openPastJournal(day) {
   else go('journal');
 }
 
+// 摊开小卡的「编辑」：直接进这一天的编辑页（与 openPastJournal 无正文时同一条路径，先把当前输入收成草稿）。
+function editPastJournal(day) {
+  const normalized = String(day || '');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(normalized) || !state.journals?.[normalized]) return;
+  if (state.route === 'journal' && normalized === journalEditingDay) { render(); return; }
+  if (state.route === 'journal' && !stageJournalScreenDraft(journalEditingDay)) {
+    show('草稿还未安全暂存，请先保存后再打开其他日期');
+    return;
+  }
+  setJournalEditingDay(normalized);
+  if (state.route === 'journal') render();
+  else go('journal');
+}
+
+// 摊开小卡的「删除」：与日记页 / 日历里 data-delete-journal 同一段删除逻辑，带确认。
+function deletePastJournal(day) {
+  if (!state.journals?.[day]) return;
+  confirmDelete('删除这篇日记？', async () => { delete state.journals[day]; await save(); render(); callHelper('scheduleAiRefresh'); });
+}
+
 function onPastJournalClick(event) {
   event.preventDefault();
   event.stopPropagation();
@@ -714,9 +735,7 @@ export function journalView() {
       </div>
       <div class="journal-save-row"><button type="button" class="journal-save-btn" id="journal-screen-save"><span class="material-symbols-outlined">edit_document</span><span>保存生活日记</span></button></div>
       <div class="journal-deck-host" id="journal-past-deck"></div>
-      <h3 class="sheet-title journal-history-title">过往篇章</h3>
-      ${entries.length ? entries.map(entry => `<button type="button" class="journal-preview-row" data-open-journal="${entry.date}"><span class="journal-preview-date"><b>${entry.date.slice(5, 7)}-</b><b>${entry.date.slice(8, 10)}</b></span><span class="journal-preview-copy"><strong>${entry.title ? esc(entry.title) : entry.content ? esc(entry.content.slice(0, 30)) : `${entry.photos?.length || 0} 张照片`}</strong><small>${entry.mood ? esc(MOODS[entry.mood]?.label || entry.mood) : '无心情标注'}</small></span><i class="material-symbols-outlined">chevron_right</i></button>`).join('') : `<p class="journal-preview-empty">还没有写过日记，写下第一篇吧。</p>`}
-      <button class="journal-history-link" id="journal-history"><span class="material-symbols-outlined">history</span>浏览全部日记</button>
+      ${entries.length ? '' : `<p class="journal-preview-empty">还没有写过日记，写下第一篇吧。</p>`}
     </div>
   </section>`;
 }
@@ -745,9 +764,16 @@ function syncJournalPick(kind) {
 
 function bindJournalView() {
   releaseDetachedJournalDecks();
-  mountDeckHost($('#journal-past-deck'), journalDeckSource(journalEditingDay).slice(0, 12), {
+  // 「过往篇章」列表已并入牌组的「摊开」：打开 / 编辑 / 删除 / 搜索都复用原有路径，不新增数据通道。
+  mountDeckHost($('#journal-past-deck'), journalDeckSource(journalEditingDay), {
     heading: '翻阅篇章',
-    onOpen: model => openPastJournal(model.id)
+    onOpen: model => openPastJournal(model.id),
+    spread: {
+      onOpen: model => openPastJournal(model.id),
+      onEdit: model => editPastJournal(model.id),
+      onDelete: model => deletePastJournal(model.id),
+      onSearch: () => journalHistory()
+    }
   });
   $('#journal-date-input')?.addEventListener('change', event => {
     const nextDay = event.target.value;
