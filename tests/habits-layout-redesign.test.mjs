@@ -132,7 +132,11 @@ test('Check button uses one-tap fill/undo, only writes today, celebrates only on
   assert.match(habits, /habitOneTapValue\(habit, todayValue, habitProgressForDate\(state, habit, day\)/);
   assert.match(habits, /habitOneTapPrior/);
   assert.match(habits, /const day = dateKey\(\);/);
-  assert.match(habits, /if \(next > Number\(previous\[habitId\] \|\| 0\)\) pendingHabitCelebrateId = habitId/);
+  assert.match(habits, /const increased = next > Number\(previous\[habitId\] \|\| 0\)/);
+  assert.match(habits, /refreshHabitCardDom/);
+  assert.match(habits, /celebrateHabitCheck\(updated\.tick\)/);
+  assert.match(habits, /pendingHabitCelebrateId = habitId/);
+  assert.match(habits, /skipStagger:\s*true/);
   assert.match(today, /点勾补满/);
 });
 

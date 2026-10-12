@@ -67,7 +67,7 @@ test('共享元素：详情是异步打开的，所以必须两段式交接', as
   assert.match(motion, /return targetEl => \{/, '要返回一个"交接"函数');
   assert.match(motion, /cloneNode\(true\)/, '飞过去的应该是克隆体，不能动原节点');
   // 落点要有兜底：找不到目标就安静放弃
-  assert.match(motion, /if \(!targetEl\) return;/, '没有目标时不能报错');
+  assert.match(motion, /if \(!targetEl\) \{/, '没有目标时要安静放弃并收回源淡出');
 });
 
 test('共享元素：优先用浏览器原生 View Transitions，且至少有 4 个真实落点', async () => {
@@ -273,4 +273,28 @@ test('共享元素：拍"新状态"快照前要等图片解码', async () => {
   assert.match(motion, /target\.decode\?\.\(\)/, '要等图片解码完再让浏览器拍快照');
   // complete 不等于已解码：一律 decode，并设上限避免卡住
   assert.match(motion, /Promise\.race\(\[target\.decode/, '解码等待要有上限');
+});
+
+
+test('P0 照片弹窗关掉 modalSlideUp；FLIP 等比 + 交接后取消源淡出', () => {
+  assert.match(styles, /\.modal\.photo-modal[^{]*\{[^}]*animation:\s*none/, 'photo-modal 不许再滑入');
+  assert.match(styles, /\.modal\.vault-photo-modal[^{]*\{[^}]*animation:\s*none/, 'vault-photo-modal 不许再滑入');
+  assert.match(performance, /\.modal:not\(\.photo-modal\):not\(\.vault-photo-modal\)/, 'modalSlideUp 排除照片弹窗');
+  const shared = motion.slice(motion.indexOf('export function beginSharedElement'), motion.indexOf('export function staggerIn'));
+  assert.match(motion, /function containPaintedRect/, 'FLIP 用 contain 内接矩形');
+  assert.match(shared, /scale\(\$\{scale\}\)/, 'FLIP 只做等比 scale');
+  assert.doesNotMatch(shared, /scale\(\$\{[^}]+\},\s*\$\{/, '不许非等比 scaleX/scaleY');
+  assert.doesNotMatch(shared, /borderRadius:/, '关键帧不许动画 border-radius');
+  assert.match(shared, /cancelSourceFade|sourceFade\.cancel/, '交接后要取消源图 fill:forwards 淡出');
+  assert.match(motion, /target\.tagName === 'VIDEO'/, '目标是视频时跳过共享过渡');
+});
+
+test('P0 翻牌：同方向排队、升牌起点用 CSS depth 字符串', () => {
+  assert.match(motion, /queuedCut/, '飞出超过阈值后同方向只排队');
+  assert.match(motion, /DEPTH_POSE/, '升牌起点与 CSS depth 字符串一致');
+  assert.doesNotMatch(
+    motion.slice(motion.indexOf('const depthPoseOf'), motion.indexOf('const fly =')),
+    /getComputedStyle/,
+    '升牌起点不用 getComputedStyle matrix'
+  );
 });
