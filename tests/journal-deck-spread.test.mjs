@@ -23,7 +23,7 @@ test('「过往篇章」并入牌组摊开：打开走 openPastJournal，不跳�
   assert.doesNotMatch(app, /closest\('\[data-open-journal\]'\)[\s\S]{0,280}go\('calendar'/);
   // 摊开：月份快速跳转、懒加载缩略图、共用照片框、减少动态
   assert.match(motion, /journal-deck-spread-months/);
-  assert.match(motion, /scroller\.scrollTo\(\{ top: section\.offsetTop/);
+  assert.match(motion, /section\?\.scrollIntoView\(\{ block: 'start'/);
   assert.match(motion, /new IntersectionObserver/);
   assert.match(motion, /photoFrameLayers\(/);
   assert.match(motion, /const fanOut = deckRect => \{\n    if \(reduced\(\) \|\| !deckRect\?\.width\) return;/);

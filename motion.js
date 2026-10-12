@@ -550,7 +550,7 @@ export function deckCutDecision({ dx = 0, width = 1, velocity = 0 } = {}) {
    打开时一次性读取牌组和可见小卡的位置（一批读、一批写，不交替），之后只写 transform。
    点小卡 → 那张小卡飞回牌组位置，牌组跳到这一篇；「收起」原样收回。⋯ 菜单：打开 / 编辑 / 删除（调用方提供，复用原有路径）。 */
 const SPREAD_EASE = 'var(--ease-spring, cubic-bezier(.34,1.56,.64,1))';
-function createDeckSpread({ host, stage, controls, open, list, options, signal, currentIndex, jumpTo }) {
+function createDeckSpread({ host, stage, controls, open, list, options, signal, toggleButton, searchButton, currentIndex, jumpTo }) {
   const cfg = options.spread || {};
   let panel = null;
   let observer = null;
@@ -576,25 +576,11 @@ function createDeckSpread({ host, stage, controls, open, list, options, signal, 
     chips.className = 'journal-deck-spread-months';
     chips.setAttribute('role', 'tablist');
     chips.setAttribute('aria-label', '按月份跳转');
-    const tools = document.createElement('div');
-    tools.className = 'journal-deck-spread-tools';
-    if (cfg.onSearch) {
-      const search = document.createElement('button');
-      search.type = 'button';
-      search.className = 'journal-deck-cut journal-deck-spread-search';
-      search.innerHTML = '<span class="material-symbols-outlined" aria-hidden="true">search</span><span>搜索</span>';
-      search.addEventListener('click', () => cfg.onSearch(), { signal });
-      tools.append(search);
-    }
-    const close = document.createElement('button');
-    close.type = 'button';
-    close.className = 'journal-deck-open journal-deck-spread-close';
-    close.innerHTML = '<span class="material-symbols-outlined" aria-hidden="true">unfold_less</span><span>收起</span>';
-    close.addEventListener('click', () => collapse(-1), { signal });
-    tools.append(close);
-    bar.append(chips, tools);
+    if (cfg.onSearch && searchButton) searchButton.addEventListener('click', () => cfg.onSearch(), { signal });
+    bar.append(chips);
+    // 不再套内层滚动框：网格随页面自然滚动
     const scroller = document.createElement('div');
-    scroller.className = 'journal-deck-spread-scroll';
+    scroller.className = 'journal-deck-spread-body';
     const groups = new Map();
     list.forEach((model, at) => {
       const key = monthOf(model);
@@ -626,7 +612,7 @@ function createDeckSpread({ host, stage, controls, open, list, options, signal, 
       const chip = event.target.closest?.('[data-month]');
       if (!chip) return;
       const section = scroller.querySelector(`.journal-deck-spread-month[data-month="${chip.dataset.month}"]`);
-      if (section) scroller.scrollTo({ top: section.offsetTop, behavior: reduced() ? 'auto' : 'smooth' });
+      section?.scrollIntoView({ block: 'start', behavior: reduced() ? 'auto' : 'smooth' });
       chips.querySelectorAll('.is-current').forEach(el => el.classList.remove('is-current'));
       chip.classList.add('is-current');
     }, { signal });
@@ -637,7 +623,7 @@ function createDeckSpread({ host, stage, controls, open, list, options, signal, 
         observer.unobserve(item.target);
         item.target.querySelectorAll('img[data-src]').forEach(img => { img.src = img.dataset.src; img.removeAttribute('data-src'); });
       }
-    }, { root: scroller, rootMargin: '240px 0px' }) : null;
+    }, { rootMargin: '240px 0px' }) : null;
     panel.querySelectorAll('.journal-deck-mini').forEach(card => {
       if (observer) observer.observe(card);
       else card.querySelectorAll('img[data-src]').forEach(img => { img.src = img.dataset.src; });
@@ -666,6 +652,12 @@ function createDeckSpread({ host, stage, controls, open, list, options, signal, 
       layers.forEach(img => { img.removeAttribute('src'); img.dataset.src = model.photoSrc; img.loading = 'lazy'; img.decoding = 'async'; });
       frame.append(...layers);
       pick.append(frame);
+    } else {
+      // 没有照片也占同样高的照片位：纸色底 + 小图标，小卡一样高
+      const blank = document.createElement('span');
+      blank.className = `journal-deck-photo journal-deck-mini-photo ${PHOTO_FRAME_CLASS} is-empty`;
+      blank.innerHTML = '<span class="material-symbols-outlined" aria-hidden="true">history_edu</span>';
+      pick.append(blank);
     }
     const meta = document.createElement('small');
     meta.className = 'journal-deck-meta journal-deck-mini-meta';
@@ -731,10 +723,21 @@ function createDeckSpread({ host, stage, controls, open, list, options, signal, 
       setTimeout(() => reads.forEach(([card]) => { card.style.transition = ''; }), 520 + 14 * 28 + 60);
     }));
   };
+  const setToggle = spreadOn => {
+    if (toggleButton) {
+      toggleButton.innerHTML = spreadOn
+        ? '<span class="material-symbols-outlined" aria-hidden="true">unfold_less</span><span>收起</span>'
+        : '<span class="material-symbols-outlined" aria-hidden="true">grid_view</span><span>摊开</span>';
+      toggleButton.setAttribute('aria-label', spreadOn ? '收起，回到牌组' : '摊开全部篇章，按月份查找');
+      toggleButton.setAttribute('aria-expanded', String(spreadOn));
+    }
+    if (searchButton) searchButton.hidden = !spreadOn || !cfg.onSearch;
+  };
   const expand = () => {
     if (opened || busy) return;
     if (!panel) build();
     opened = true;
+    setToggle(true);
     const deckRect = reduced() ? null : stage.getBoundingClientRect();
     host.classList.add('is-spread');
     panel.hidden = false;
@@ -748,11 +751,13 @@ function createDeckSpread({ host, stage, controls, open, list, options, signal, 
     const settleSpread = () => {
       busy = false;
       opened = false;
-      host.classList.remove('is-spread');
+      host.classList.remove('is-spread', 'is-spread-flying');
+      setToggle(false);
       if (panel) panel.hidden = true;
       panel?.querySelectorAll('.is-current').forEach(el => el.classList.remove('is-current'));
       setDeckHidden(false);
       if (at >= 0) jumpTo(at);
+      if (host.getBoundingClientRect().top < 0) host.scrollIntoView({ block: 'start', behavior: 'auto' });
       stage.focus?.({ preventScroll: true });
     };
     if (reduced() || !fromCard) { settleSpread(); return; }
@@ -762,8 +767,9 @@ function createDeckSpread({ host, stage, controls, open, list, options, signal, 
     const from = fromCard.getBoundingClientRect();
     const box = panel.getBoundingClientRect();
     const dx = box.left + box.width / 2 - (from.left + from.width / 2);
-    const dy = box.top + Math.min(215, box.height / 2) - (from.top + from.height / 2);
+    const dy = Math.max(box.top, 0) + 215 - (from.top + from.height / 2);
     panel.classList.add('is-collapsing');
+    host.classList.add('is-spread-flying');
     fromCard.classList.add('is-flying');
     fromCard.style.transition = `transform 420ms ${SPREAD_EASE}`;
     fromCard.style.transform = `translate3d(${dx.toFixed(1)}px, ${dy.toFixed(1)}px, 0) scale(1.4)`;
@@ -871,6 +877,7 @@ export function mountJournalDeck(host, entries = [], options = {}) {
     let deckApi = null;
 
     let spreadButton = null;
+    let spreadSearch = null;
     if (options.heading || options.hint || options.spread) {
       const head = document.createElement('div');
       head.className = 'journal-deck-head';
@@ -886,7 +893,15 @@ export function mountJournalDeck(host, entries = [], options = {}) {
         spreadButton.className = 'journal-deck-cut journal-deck-spread-toggle';
         spreadButton.setAttribute('aria-label', '摊开全部篇章，按月份查找');
         spreadButton.innerHTML = '<span class="material-symbols-outlined" aria-hidden="true">grid_view</span><span>摊开</span>';
-        head.append(spreadButton);
+        spreadSearch = document.createElement('button');
+        spreadSearch.type = 'button';
+        spreadSearch.className = 'journal-deck-cut journal-deck-spread-search';
+        spreadSearch.hidden = true;
+        spreadSearch.innerHTML = '<span class="material-symbols-outlined" aria-hidden="true">search</span><span>搜索</span>';
+        const headTools = document.createElement('div');
+        headTools.className = 'journal-deck-head-tools';
+        headTools.append(spreadSearch, spreadButton);
+        head.append(headTools);
       }
       if (options.hint) {
         const hint = document.createElement('p');
@@ -1190,7 +1205,7 @@ export function mountJournalDeck(host, entries = [], options = {}) {
     let spread = null;
     if (spreadButton) {
       spread = createDeckSpread({
-        host, stage, controls, open, list, options, signal,
+        host, stage, controls, open, list, options, signal, toggleButton: spreadButton, searchButton: spreadSearch,
         currentIndex: () => index,
         jumpTo: at => {
           cutToken += 1;
