@@ -9124,3 +9124,10 @@ img:is(.photo-blur-pad,.snippet-photo-blur,.snippet-cover-blur,.vault-cover-blur
 :root[data-theme="plain"] .photo-blur-frame.photo-blur-frame{background:#E8EDF5!important;border-color:rgba(85,96,108,.16)!important;box-shadow:none!important}
 .photo-blur-frame>img.photo-blur-pad{display:block!important;position:absolute!important;inset:-12%!important;width:124%!important;height:124%!important;max-width:none!important;max-height:none!important;object-fit:cover!important;opacity:.5!important;transform:scale(1.08)!important;filter:none!important;background:#3a3129!important;pointer-events:none}
 .photo-blur-frame>img.photo-blur-still{position:absolute!important;inset:6px!important;width:calc(100% - 12px)!important;height:calc(100% - 12px)!important;max-width:none!important;max-height:none!important;object-fit:contain!important;object-position:center!important;background:transparent!important}
+
+/* 牌组滑动跟手：只有正在拖的顶牌升合成层（is-active-drag），其余牌和照片框不升层、拖动中不改样式；
+   照片框 contain:paint，顶牌移动不会让后面的牌或铺底图重绘。 */
+.journal-deck-card{will-change:auto;transition:none}
+.journal-deck-card.is-active-drag{will-change:transform}
+.journal-deck-stage,.journal-deck-card{touch-action:pan-y}
+.journal-deck-photo,.photo-blur-frame{contain:paint}
