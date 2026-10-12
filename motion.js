@@ -593,9 +593,7 @@ function deckCard(entry, depth) {
     still.draggable = false;
     still.src = entry.photoSrc;
     photo.append(pad, still);
-    const caption = document.createElement('figcaption');
-    caption.textContent = entry.caption || '';
-    figure.append(photo, caption);
+    figure.append(photo);
     face.append(figure);
   }
   if (entry.excerpt) {
@@ -698,13 +696,13 @@ export function mountJournalDeck(host, entries = [], options = {}) {
       const x = offset.current;
       const tiltX = pitch.current;
       const tiltY = yaw.current;
-      card.style.transform = `translate3d(${x.toFixed(2)}px, 0, 28px) rotateX(${tiltX.toFixed(2)}deg) rotateY(${tiltY.toFixed(2)}deg) rotateZ(${(x * 0.03).toFixed(2)}deg)`;
+      card.style.transform = `translate3d(${x.toFixed(2)}px, 0, 28px) rotateX(${(tiltX * 0.3).toFixed(2)}deg) rotateY(${(tiltY * 0.3).toFixed(2)}deg) rotateZ(${(x * 0.012).toFixed(2)}deg)`;
       const travel = Math.min(1, Math.abs(x) / stageWidth);
       const gone = travel < 0.35 ? 0 : (travel - 0.35) / 0.65;
       const nextOpacity = prefersReducedMotion() || gone < 0.02 ? '' : (1 - gone * 0.45).toFixed(3);
       if (card.style.opacity !== nextOpacity) card.style.opacity = nextOpacity;
       const shadow = card.querySelector('.journal-deck-shadow');
-      if (shadow) shadow.style.transform = `translate3d(${(-tiltY * 1.5).toFixed(2)}px, ${(12 - tiltX).toFixed(2)}px, 0)`;
+      if (shadow) shadow.style.transform = `translate3d(${(-tiltY * 0.45).toFixed(2)}px, ${(12 - tiltX * 0.3).toFixed(2)}px, 0)`;
     };
     offset.onUpdate = applyPose;
     pitch.onUpdate = applyPose;

@@ -347,7 +347,6 @@ export function journalHistory(search = '') {
   $$('[data-open-journal]').forEach(button => button.onclick = onPastJournalClick);
   mountDeckHost($('#journal-history-deck'), entries, {
     heading: '牌组翻阅',
-    hint: '按住牌面可倾斜，左右滑过一段会吸到上一篇或下一篇。焦点在牌组上时，左右方向键也能切。点照片仍打开原来的全屏查看器。',
     onOpen: model => { closeModal(); openPastJournal(model.id); }
   });
 }
@@ -637,7 +636,6 @@ function openJournalReader(day) {
   const startIndex = Math.max(0, readable.findIndex(item => item.date === day));
   mountDeckHost($('#journal-reader-deck'), readable.length > 1 ? readable : [], {
     heading: '继续翻篇',
-    hint: '左右切到相邻的一天。焦点在牌组上时可以用方向键。照片仍在上面的相框里打开。',
     startIndex,
     onOpen: model => { if (model.id !== day) openJournalReader(model.id); }
   });
@@ -749,7 +747,6 @@ function bindJournalView() {
   releaseDetachedJournalDecks();
   mountDeckHost($('#journal-past-deck'), journalDeckSource(journalEditingDay).slice(0, 12), {
     heading: '翻阅篇章',
-    hint: '按住倾斜，左右滑过一段会吸到下一篇或上一篇。焦点在牌组上时，左右方向键也能切。',
     onOpen: model => openPastJournal(model.id)
   });
   $('#journal-date-input')?.addEventListener('change', event => {
