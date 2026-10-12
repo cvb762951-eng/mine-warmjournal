@@ -174,12 +174,25 @@ export function withSharedTransition(sourceEl, update, { targetSelector = '', du
   const supported = !preferFlip && typeof document !== 'undefined' && typeof document.startViewTransition === 'function';
   // <video> 在首帧前是原生白底。给它挂共享元素，抠走的就是一块白。
   if (sourceEl?.tagName === 'VIDEO') { update?.(); return null; }
+  const resolveTarget = () => {
+    const primary = targetSelector ? document.querySelector(targetSelector) : null;
+    if (primary) return primary;
+    return fallbackTargetSelector ? document.querySelector(fallbackTargetSelector) : null;
+  };
   if (!canAnimate() || !supported || !sourceEl || !update) {
-    // 没有 View Transitions，或调用方指定 preferFlip（随手拍点开放大）：用 transform+opacity 的 FLIP
+    // 没有 View Transitions，或调用方指定 preferFlip：用 transform+opacity 的 FLIP
     if (!canAnimate() || !sourceEl) { update?.(); return null; }
     const handoff = beginSharedElement(sourceEl, { duration });
     const result = update();
-    Promise.resolve(result).then(() => requestAnimationFrame(() => handoff(fallbackTargetSelector ? document.querySelector(fallbackTargetSelector) : targetSelector ? document.querySelector(targetSelector) : null))).catch(() => {});
+    Promise.resolve(result).then(() => requestAnimationFrame(() => {
+      const target = resolveTarget();
+      // 目标是视频（含实况）：不要幽灵、不要共享过渡；交给 is-awaiting-frame
+      if (!target || target.tagName === 'VIDEO') {
+        handoff(null);
+        return;
+      }
+      handoff(target);
+    })).catch(() => { handoff(null); });
     return null;
   }
   return safely(() => {
@@ -235,24 +248,80 @@ export function withSharedTransition(sourceEl, update, { targetSelector = '', du
  * ⚠️ 幽灵**按源尺寸放好，只做 transform**（经典 FLIP）；
  *    逐帧动画 left/top/width/height 会每帧重新布局 —— 点照片最卡就是那里。
  */
+/** object-fit:contain 时，图真正画在盒子里的那块矩形（等比内接）。 */
+function containPaintedRect(box, naturalW, naturalH) {
+  if (!box?.width || !box?.height) return box;
+  const nw = Number(naturalW) || 0;
+  const nh = Number(naturalH) || 0;
+  if (!(nw > 0 && nh > 0)) {
+    return { left: box.left, top: box.top, width: box.width, height: box.height };
+  }
+  const boxRatio = box.width / box.height;
+  const imgRatio = nw / nh;
+  let width;
+  let height;
+  if (imgRatio > boxRatio) {
+    width = box.width;
+    height = box.width / imgRatio;
+  } else {
+    height = box.height;
+    width = box.height * imgRatio;
+  }
+  return {
+    left: box.left + (box.width - width) / 2,
+    top: box.top + (box.height - height) / 2,
+    width,
+    height,
+  };
+}
+
+function naturalSizeOf(el) {
+  if (!el) return { w: 0, h: 0 };
+  if (el.tagName === 'IMG') return { w: el.naturalWidth || 0, h: el.naturalHeight || 0 };
+  if (el.tagName === 'VIDEO') return { w: el.videoWidth || 0, h: el.videoHeight || 0 };
+  const nested = el.querySelector?.('img, video');
+  if (nested?.tagName === 'IMG') return { w: nested.naturalWidth || 0, h: nested.naturalHeight || 0 };
+  if (nested?.tagName === 'VIDEO') return { w: nested.videoWidth || 0, h: nested.videoHeight || 0 };
+  return { w: 0, h: 0 };
+}
+
 export function beginSharedElement(sourceEl, { duration = DURATION.shared } = {}) {
   if (!canAnimate() || !sourceEl) return () => {};
   const captured = safely(() => {
-    const rect = sourceEl.getBoundingClientRect();
+    const box = sourceEl.getBoundingClientRect();
+    if (!box.width || !box.height) return null;
+    const natural = naturalSizeOf(sourceEl);
+    const rect = containPaintedRect(box, natural.w, natural.h);
     if (!rect.width || !rect.height) return null;
-    return { rect, radius: getComputedStyle(sourceEl).borderRadius, node: sourceEl.cloneNode(true) };
+    return { rect, radius: getComputedStyle(sourceEl).borderRadius, node: sourceEl.cloneNode(true), natural };
   });
   if (!captured) return () => {};
 
-  /* 目标可能还在解码：幽灵先按缩略图矩形飞到大图位（只动 transform），
-     解码完成且落位后再显形 —— 不等解码才起飞，也不会先闪错缩略图。 */
+  let sourceFade = null;
+  const cancelSourceFade = () => {
+    if (!sourceFade) return;
+    try { sourceFade.cancel(); } catch { /* 动画已结束 */ }
+    sourceFade = null;
+  };
+
+  /* 目标可能还在解码：幽灵按「图真正画出来的矩形」起飞（等比 scale + translate），
+     黑底由 modal-layer 自己淡入，不编进幽灵。border-radius 固定，不进关键帧。
+     源图淡出只在飞行期间；交接完立刻 cancel，避免 fill:forwards 关窗后留下空缩略图。 */
   return targetEl => {
-    if (!targetEl) return;
+    if (!targetEl) {
+      cancelSourceFade();
+      return;
+    }
+    if (targetEl.tagName === 'VIDEO') {
+      cancelSourceFade();
+      return;
+    }
     safely(() => {
       const from = captured.rect;
       const ghost = captured.node;
       ghost.classList.add('shared-element-ghost');
-      const fit = sourceEl.tagName === 'IMG' ? 'contain' : '';
+      const fit = sourceEl.tagName === 'IMG' || ghost.tagName === 'IMG' ? 'contain' : '';
+      // 圆角固定在起点样式上，不放进 keyframes（绘制属性）
       ghost.style.cssText = [
         'position:fixed',
         `left:${from.left}px`,
@@ -261,53 +330,71 @@ export function beginSharedElement(sourceEl, { duration = DURATION.shared } = {}
         `height:${from.height}px`,
         `border-radius:${captured.radius}`,
         'margin:0',
+        'background:transparent',
         fit ? `object-fit:${fit}` : '',
       ].filter(Boolean).join(';');
       document.body.appendChild(ghost);
 
       const previousOpacity = targetEl.style.opacity;
-      targetEl.style.opacity = '0';
-      targetEl.classList?.add?.('is-decoding');
+      const awaitingFrame = targetEl.tagName === 'VIDEO' && targetEl.classList?.contains?.('is-awaiting-frame');
+      if (!awaitingFrame) {
+        targetEl.style.opacity = '0';
+        targetEl.classList?.add?.('is-decoding');
+      }
 
       const decodeWait = targetEl.tagName === 'IMG' && typeof targetEl.decode === 'function'
         ? Promise.race([targetEl.decode().catch(() => {}), new Promise(resolve => setTimeout(resolve, 800))])
         : Promise.resolve();
 
-      const to = targetEl.getBoundingClientRect();
-      if (!to.width || !to.height) {
+      const targetBox = targetEl.getBoundingClientRect();
+      if (!targetBox.width || !targetBox.height) {
         decodeWait.then(() => {
           ghost.remove();
+          cancelSourceFade();
           targetEl.classList?.remove?.('is-decoding');
-          targetEl.style.opacity = previousOpacity || '1';
+          if (!awaitingFrame) targetEl.style.opacity = previousOpacity || '1';
         });
         return;
       }
 
-      const targetRadius = getComputedStyle(targetEl).borderRadius;
+      const targetNatural = naturalSizeOf(targetEl);
+      const to = containPaintedRect(
+        targetBox,
+        targetNatural.w || captured.natural.w,
+        targetNatural.h || captured.natural.h
+      );
+      // 同一张图的 contain 内接矩形等比，统一用一个 scale，避免非等比把像素拉变形
+      const scale = Math.min(to.width / from.width, to.height / from.height);
+      const dx = (to.left + to.width / 2) - (from.left + from.width / 2);
+      const dy = (to.top + to.height / 2) - (from.top + from.height / 2);
       const flight = ghost.animate(
         [
-          { transform: 'none', borderRadius: captured.radius, opacity: 1 },
-          {
-            transform: `translate(${to.left - from.left}px, ${to.top - from.top}px) scale(${to.width / from.width}, ${to.height / from.height})`,
-            borderRadius: targetRadius,
-            opacity: 1,
-          },
+          { transform: 'none', opacity: 1 },
+          { transform: `translate(${dx}px, ${dy}px) scale(${scale})`, opacity: 1 },
         ],
         { duration, easing: EASE.fluid, fill: 'forwards' }
       );
 
-      sourceEl.animate([{ opacity: 1 }, { opacity: 0 }], { duration: duration * 0.5, easing: EASE.settle, fill: 'forwards' });
+      sourceFade = sourceEl.animate(
+        [{ opacity: 1 }, { opacity: 0 }],
+        { duration: duration * 0.5, easing: EASE.settle, fill: 'forwards' }
+      );
 
       const revealTarget = () => {
         ghost.remove();
+        cancelSourceFade();
         targetEl.classList?.remove?.('is-decoding');
         targetEl.classList?.add?.('viewer-no-fade');
+        // 视频等首帧：不要写内联 opacity:1，否则压过 is-awaiting-frame
+        if (awaitingFrame || (targetEl.tagName === 'VIDEO' && targetEl.classList?.contains?.('is-awaiting-frame'))) {
+          targetEl.style.opacity = previousOpacity;
+          return;
+        }
         targetEl.style.transition = `opacity 160ms ${EASE.settle}`;
         targetEl.style.opacity = previousOpacity || '1';
         setTimeout(() => { targetEl.style.transition = ''; }, 220);
       };
       Promise.all([flight.finished.catch(() => {}), decodeWait]).then(() => {
-        // 800ms 解码超时后若还没有像素，先留着幽灵，等 load/再短等，避免空图闪一下
         if (targetEl.tagName === 'IMG' && !targetEl.naturalWidth) {
           let settled = false;
           const finish = () => {
@@ -1171,23 +1258,29 @@ export function mountJournalDeck(host, entries = [], options = {}) {
       risingCard.style.zIndex = Number.isFinite(depth) ? String(3 - depth) : '';
       risingCard = null;
     };
+    /* 升牌起点必须与 CSS data-depth 字符串一致（暖色皮肤覆盖后的最终值），
+       不要用 getComputedStyle 的 matrix —— 和 topCardPose 交接时会抖一下。 */
+    const DEPTH_POSE = {
+      1: { transform: 'translate3d(0,-18px,-10px) scale(0.975)', opacity: '0.96' },
+      2: { transform: 'translate3d(0,-34px,-20px) scale(0.95)', opacity: '0.9' },
+    };
     const depthPoseOf = card => {
-      if (!card) return { transform: 'translate3d(0,-18px,-10px) scale(0.975)', opacity: '0.96' };
-      const cs = getComputedStyle(card);
-      return {
-        transform: cs.transform && cs.transform !== 'none' ? cs.transform : 'translate3d(0,-18px,-10px) scale(0.975)',
-        opacity: cs.opacity && cs.opacity !== '1' ? cs.opacity : '0.96',
-      };
+      const depth = Number(card?.dataset?.depth);
+      return DEPTH_POSE[depth] || DEPTH_POSE[1];
     };
 
+    let queuedCut = null; // 飞出超过阈值后，同方向再翻一张只排队，不把顶牌拉回来
+    let cuttingGesture = null;
     const fly = (direction, velocity = 0) => {
       if (list.length < 2) {
+        queuedCut = null;
         offset.to(0);
         yaw.to(0);
         pitch.to(0);
         return;
       }
       if (prefersReducedMotion()) {
+        queuedCut = null;
         cancelRise();
         index = direction === 'next' ? (index + 1) % list.length : (index - 1 + list.length) % list.length;
         offset.set(0);
@@ -1196,8 +1289,14 @@ export function mountJournalDeck(host, entries = [], options = {}) {
         paint();
         return;
       }
-      if (cutting) return;
+      if (cutting) {
+        // 按钮连点 / 同方向快滑：排队一张，等当前飞完再切
+        queuedCut = { direction, velocity: velocity || 0 };
+        return;
+      }
       cutting = true;
+      queuedCut = null;
+      cuttingGesture = direction;
       cancelRise();
       measureStage();
       const dir = direction === 'next' ? -1 : 1;
@@ -1246,6 +1345,10 @@ export function mountJournalDeck(host, entries = [], options = {}) {
         cancelRise();
         paint();
         cutting = false;
+        cuttingGesture = null;
+        const pending = queuedCut;
+        queuedCut = null;
+        if (pending && list.length >= 2) fly(pending.direction, pending.velocity);
       };
       offset.onSettle = () => {
         if (!active || token !== cutToken) {
@@ -1262,6 +1365,26 @@ export function mountJournalDeck(host, entries = [], options = {}) {
 
     const onDown = event => {
       if (event.button !== undefined && event.button > 0) return;
+      // 飞出超过提交阈值后：同方向新手势只排队，不 cancelRise、不把顶牌拉回来。
+      // 反向手势可以取消当前飞出，但从当前位移接着动画，不要 set 到 0 附近。
+      if (cutting) {
+        // 保留 fly 时记下的方向；若缺失再用位移推断
+        if (!cuttingGesture) cuttingGesture = offset.current < 0 || offset.target < 0 ? 'next' : 'prev';
+        pointerId = event.pointerId;
+        downTarget = event.target;
+        downAt = performance.now();
+        startX = event.clientX;
+        startY = event.clientY;
+        trail.length = 0;
+        trail.push({ x: event.clientX, t: performance.now() });
+        tracking = true;
+        dragged = false;
+        vertical = false;
+        try { stage.setPointerCapture?.(event.pointerId); } catch { /* ignore */ }
+        return;
+      }
+      cuttingGesture = null;
+      queuedCut = null;
       cutToken += 1;
       cutting = false;
       offset.onSettle = null;
@@ -1298,6 +1421,41 @@ export function mountJournalDeck(host, entries = [], options = {}) {
       const dy = event.clientY - startY;
       trail.push({ x: event.clientX, t: performance.now() });
       if (trail.length > 6) trail.shift();
+      // 飞出进行中：同方向不拉回；反向才打断并从当前位移接着走
+      if (cutting && cuttingGesture) {
+        if (!dragged) {
+          if (Math.hypot(dx, dy) < 8) return;
+          if (Math.abs(dy) > Math.abs(dx)) {
+            vertical = true;
+            tracking = false;
+            if (stage.hasPointerCapture?.(event.pointerId)) stage.releasePointerCapture(event.pointerId);
+            return;
+          }
+          dragged = true;
+        }
+        const gestureDir = dx < 0 ? 'next' : 'prev';
+        if (gestureDir === cuttingGesture) {
+          queuedCut = { direction: gestureDir, velocity: 0 };
+          return;
+        }
+        // 反向：取消本次结算，从当前位移接着跟手
+        cutToken += 1;
+        offset.onSettle = null;
+        cancelRise();
+        cutting = false;
+        cuttingGesture = null;
+        queuedCut = null;
+        stage.classList.add('is-dragging');
+        setActiveLayer(true);
+        offset.set(offset.current + dx);
+        startX = event.clientX;
+        startY = event.clientY;
+        if (!prefersReducedMotion()) {
+          yaw.set(Math.max(-18, Math.min(18, offset.current / 16)));
+          pitch.set(Math.max(-8, Math.min(8, -dy / 36)));
+        }
+        return;
+      }
       if (!dragged) {
         if (Math.hypot(dx, dy) < 8) return;
         if (Math.abs(dy) > Math.abs(dx)) {
@@ -1320,9 +1478,17 @@ export function mountJournalDeck(host, entries = [], options = {}) {
       if (event.pointerId !== pointerId) return;
       const wasDrag = dragged;
       const wasVertical = vertical;
+      const midCut = cutting && cuttingGesture;
       tracking = false;
       pointerId = null;
       stage.classList.remove('is-dragging');
+      if (midCut) {
+        // 飞出中松手：同方向已在 move 里排队；反向已在 move 里拆掉。这里只收尾指针。
+        cuttingGesture = null;
+        if (wasDrag) setTimeout(() => { if (!tracking) setActiveLayer(false); }, 700);
+        return;
+      }
+      cuttingGesture = null;
       if (wasDrag) {
         // 松手后补一次阴影位置；will-change 等弹簧停下再撤
         schedulePose();

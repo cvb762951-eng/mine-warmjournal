@@ -388,7 +388,7 @@ export function applyTheme(theme = state.settings?.theme) {
   return next;
 }
 
-export function render(animated = false) {
+export function render(animated = false, { skipStagger = false } = {}) {
   clearInterval(tick);
   applyTheme();
   applyCustomBackground();
@@ -416,7 +416,7 @@ export function render(animated = false) {
   binders.forEach(bind => bind());
   onRenders.forEach(fn => fn());
   applyLiquidGlass();
-  decorateMotion($('#app'));
+  decorateMotion($('#app'), { skipStagger });
 }
 
 /* 主角卡的旋转描边与呼吸背光（2026-10-10）
@@ -434,7 +434,7 @@ const HALO_CARDS = [
   '.course-hero',            // 课程表 · 头卡
 ];
 
-function decorateMotion(root) {
+function decorateMotion(root, { skipStagger = false } = {}) {
   if (!root || prefersReducedMotion()) return;
   try {
     root.querySelectorAll(HALO_CARDS.join(',')).forEach(card => {
@@ -450,7 +450,8 @@ function decorateMotion(root) {
       ring.appendChild(sweep);
       card.insertBefore(ring, card.firstChild);
     });
-    autoStagger(root);
+    // 打卡轻反馈走就地更新时不应整页 autoStagger（会盖住勾的弹一下，画报还可能闪纸色）
+    if (!skipStagger) autoStagger(root);
   } catch {
     // 装饰失败不影响任何功能
   }

@@ -7862,7 +7862,8 @@ video.is-awaiting-frame{opacity:0}
 
 /* 私密照片｜直接进入沉浸式原图浏览，不再嵌套白色通用弹窗。 */
 .modal-layer:has(.vault-photo-modal){padding:0;background:#020504;place-items:stretch;backdrop-filter:none;-webkit-backdrop-filter:none}
-.modal.vault-photo-modal{width:100%;max-width:none;height:100dvh;max-height:none;margin:0;padding:0;overflow:hidden;border:0;border-radius:0;background:#020504;color:#fff;box-shadow:none}
+.modal.vault-photo-modal{width:100%;max-width:none;height:100dvh;max-height:none;margin:0;padding:0;overflow:hidden;border:0;border-radius:0;background:#020504;color:#fff;box-shadow:none;transform:none!important;animation:none!important;transition:none!important}
+.modal-layer:has(.vault-photo-modal){animation:none}
 .modal-layer.open .modal.vault-photo-modal{transform:none}
 .vault-photo-viewer{position:relative;width:100%;height:100%;overflow:hidden;background:#020504}
 .vault-photo-stage{position:absolute;inset:0;display:grid;place-items:center;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none}
@@ -7899,9 +7900,9 @@ video.is-awaiting-frame{opacity:0}
 @media(min-width:480px){.journal-reader-gallery>div{grid-template-columns:repeat(3,minmax(0,1fr))}}
 
 /* 日历与普通日记照片查看：真正全屏，并完整等比显示。 */
-.modal-layer:has(.photo-modal){padding:0;background:#05070b;place-items:stretch;backdrop-filter:none;-webkit-backdrop-filter:none}
-.modal.photo-modal{width:100%;max-width:none;height:100dvh;max-height:none;margin:0;padding:0;border:0;border-radius:0;overflow:hidden;background:#05070b;color:#fff;box-shadow:none}
-.modal-layer.open .modal.photo-modal{transform:none}
+.modal-layer:has(.photo-modal){padding:0;background:#05070b;place-items:stretch;backdrop-filter:none;-webkit-backdrop-filter:none;animation:none}
+.modal.photo-modal{width:100%;max-width:none;height:100dvh;max-height:none;margin:0;padding:0;border:0;border-radius:0;overflow:hidden;background:#05070b;color:#fff;box-shadow:none;transform:none!important;animation:none!important;transition:none!important}
+.modal-layer.open .modal.photo-modal,.modal-layer.open .modal.vault-photo-modal{transform:none}
 .photo-viewer{position:relative;width:100%;height:100%;overflow:hidden;background:#05070b}
 .photo-viewer-stage{position:absolute;inset:0;display:grid;place-items:center;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none}
 .photo-viewer-stage img,.photo-viewer-stage video{display:block;width:100%;height:100%;max-width:none;max-height:none;object-fit:contain;border:0;border-radius:0;background:transparent;transform-origin:center;transition:transform .18s ease;will-change:transform}

@@ -132,7 +132,12 @@ test('Check button uses one-tap fill/undo, only writes today, celebrates only on
   assert.match(habits, /habitOneTapValue\(habit, todayValue, habitProgressForDate\(state, habit, day\)/);
   assert.match(habits, /habitOneTapPrior/);
   assert.match(habits, /const day = dateKey\(\);/);
-  assert.match(habits, /if \(next > Number\(previous\[habitId\] \|\| 0\)\) pendingHabitCelebrateId = habitId/);
+  assert.match(habits, /const increased = next > Number\(previous\[habitId\] \|\| 0\)/);
+  assert.match(habits, /refreshHabitCardDom/);
+  assert.match(habits, /refreshTodayHabitChrome/);
+  assert.match(habits, /celebrateHabitCheck\(updated\.tick\)/);
+  assert.match(habits, /pendingHabitCelebrateId = habitId/);
+  assert.match(habits, /skipStagger:\s*true/);
   assert.match(today, /点勾补满/);
 });
 
@@ -150,4 +155,12 @@ test('习惯 / 待办列表不显示滚动条', () => {
   // 只是不画出来，滚动本身还在
   assert.match(css, /\.today-view #habits-bento-list,\s*\.today-view #todos-bento-list\{[^}]*overflow-y:auto/,
     '仍然可以滚动');
+});
+
+test('In-place habit tick also refreshes badge, footer count, and timeline footprint', () => {
+  assert.match(today, /export function refreshTodayHabitChrome/);
+  assert.match(today, /habits-bento-badge/);
+  assert.match(today, /open-habit-detail-today/);
+  assert.match(today, /today-timeline-stream/);
+  assert.match(habits, /refreshTodayHabitChrome\(\)/);
 });

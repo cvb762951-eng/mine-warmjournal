@@ -3,7 +3,7 @@ import { makeHabit, makeTodo, habitProgressForDate, habitGoalMet, todosForDate, 
 import { repeatLabel, linkedHabitMinutes, updateHabitCompletion } from './common.js';
 import { dailyTodoGroups, habitClickValue, habitOneTapValue } from '../daily-workflow.js';
 import { celebrateHabitCheck, autoStagger } from '../motion.js';
-import { habitDayStreak } from './today.js';
+import { habitDayStreak, refreshTodayHabitChrome } from './today.js';
 
 // 打卡成功后的轻动效：render 会重建 DOM，先记下 id，绑定后再弹
 let pendingHabitCelebrateId = null;
@@ -28,6 +28,34 @@ function habitQuickAmounts(habit) {
   return [...new Set(presets.map(Number).filter(value => Number.isInteger(value) && value > 0))].slice(0, 3);
 }
 
+/** 今日习惯行就地刷新：只改这一行的完成态与文案，不整页 render。 */
+function refreshHabitCardDom(habitId) {
+  const habit = state.habits.find(item => item.id === habitId);
+  const card = document.querySelector(`[data-habit-card="${habitId}"]`);
+  if (!habit || !card) return null;
+  const day = dateKey();
+  const count = habitProgressForDate(state, habit, day);
+  const done = habitGoalMet(habit, count);
+  const streak = habitDayStreak(habit, day);
+  const target = Number(habit.target) || 1;
+  const unit = esc(habit.unit);
+  const status = done
+    ? (target > 1 ? `已打卡 ${count}/${target}${unit}` : '今日已打卡')
+    : (count > 0 ? `${count}/${target}${unit} · 点勾补满` : '今日未打卡');
+  const meta = streak > 0 ? `<span>${status}</span> · <span>已连续 ${streak} 天</span>` : `<span>${status}</span>`;
+  card.classList.toggle('is-done', done);
+  card.classList.toggle('is-progress', !done && count > 0);
+  if (done || count > 0) { /* keep */ } else { card.classList.remove('is-done', 'is-progress'); }
+  const metaEl = card.querySelector('.habit-card-meta');
+  if (metaEl) metaEl.innerHTML = meta;
+  const tick = card.querySelector(`.habit-check-btn[data-habit="${habitId}"]`);
+  if (tick) {
+    tick.classList.toggle('is-done', done);
+    tick.setAttribute('aria-label', `${done ? '已完成' : '打卡'} ${habit.name}`);
+  }
+  return { tick, done, count };
+}
+
 export async function commitHabitProgress(habitId, nextValue, message = '') {
   const habit = state.habits.find(item => item.id === habitId);
   if (!habit) return;
@@ -48,8 +76,17 @@ export async function commitHabitProgress(habitId, nextValue, message = '') {
   try {
     await save();
     if ($('#modal-layer').classList.contains('open')) closeModal();
-    if (next > Number(previous[habitId] || 0)) pendingHabitCelebrateId = habitId;
-    render();
+    const increased = next > Number(previous[habitId] || 0);
+    // 优先就地更新今日行 + 只在勾上 celebrate，避免整页 render/autoStagger 盖住轻反馈、画报闪纸色
+    const updated = refreshHabitCardDom(habitId);
+    if (updated) {
+      refreshTodayHabitChrome();
+      if (increased && updated.tick) celebrateHabitCheck(updated.tick);
+      show(requested < linked ? `已保留专注自动同步的 ${linked}${habit.unit}` : message || `${habit.name}：今日 ${next}/${habit.target}${habit.unit}`);
+      return true;
+    }
+    if (increased) pendingHabitCelebrateId = habitId;
+    render(false, { skipStagger: true });
     show(requested < linked ? `已保留专注自动同步的 ${linked}${habit.unit}` : message || `${habit.name}：今日 ${next}/${habit.target}${habit.unit}`);
     return true;
   } catch (error) {

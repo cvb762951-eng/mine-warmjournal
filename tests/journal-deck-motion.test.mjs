@@ -66,6 +66,8 @@ test('牌组相框不拉伸，说明在照片下面，切页不靠模糊', async
   assert.match(motion, /is-deck-rising/);
   assert.match(motion, /cancelRise/);
   assert.match(motion, /topCardPose/, '升牌终点与 applyPose 共用顶牌姿态');
+  assert.match(motion, /DEPTH_POSE/, '升牌起点用 CSS depth 字符串');
+  assert.match(motion, /queuedCut/, '快翻同方向排队');
   assert.match(motion, /risingCard\.style\.zIndex/, 'cancelRise 清掉/还原升牌 zIndex');
   assert.doesNotMatch(motion, /translate3d\(0px, 0px, 28px\) rotateX\(0deg\)/, '升牌终点不再写死 rest 姿态');
   assert.doesNotMatch(motion.slice(motion.indexOf('const fly ='), motion.indexOf('const onDown')), /offset\.current = park/, '翻牌落定不再横向 park 再弹回');

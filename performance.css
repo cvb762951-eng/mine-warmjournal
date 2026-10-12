@@ -159,8 +159,8 @@ body, button, input, textarea, select { font-family: Inter, "Noto Sans SC", sans
 .completion-record time { color:#607393; font-size:12px; white-space:nowrap; }
 
 /* 沉浸式照片回顾：让手机屏幕优先服务于照片本身。 */
-.modal-layer:has(.photo-modal) { padding:0; background:#05070b; place-items:stretch; backdrop-filter:none; -webkit-backdrop-filter:none; }
-.modal.photo-modal { width:100%; max-width:none; height:100dvh; max-height:none; padding:0; border-radius:0; overflow:hidden; background:#05070b; color:#fff; box-shadow:none; }
+.modal-layer:has(.photo-modal) { padding:0; background:#05070b; place-items:stretch; backdrop-filter:none; -webkit-backdrop-filter:none; animation:none; }
+.modal.photo-modal { width:100%; max-width:none; height:100dvh; max-height:none; padding:0; border-radius:0; overflow:hidden; background:#05070b; color:#fff; box-shadow:none; animation:none; transform:none; }
 .photo-viewer { width:100%; height:100%; position:relative; overflow:hidden; background:#05070b; }
 .photo-viewer-stage { position:absolute; inset:0; display:grid; place-items:center; overflow:hidden; touch-action:none; user-select:none; }
 .photo-viewer-stage img { display:block; width:100%; height:100%; max-width:none; max-height:none; object-fit:contain; border-radius:0; background:transparent; transform-origin:center; transition:transform .18s ease; will-change:transform; }
@@ -531,8 +531,12 @@ body, button, input, textarea, select { font-family: Inter, "Noto Sans SC", sans
 }
 
 /* ---- Modal 弹入动画（iOS 式 sheet 上滑 + 背景淡入）---- */
-.modal{
+.modal:not(.photo-modal):not(.vault-photo-modal):not(.vault-feed-modal){
   animation:modalSlideUp var(--dur-med) var(--ease-ios) both;
+}
+.modal.photo-modal,
+.modal.vault-photo-modal{
+  animation:none;
 }
 .modal-layer{
   animation:layerFade var(--dur-fast) var(--ease-ios-out) both;
