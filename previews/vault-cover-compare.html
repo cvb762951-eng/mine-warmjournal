@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=390, initial-scale=1"/>
+<title>Vault cover before/after</title>
+<style>
+:root{--radius-soft:8px;--radius-soft-sm:5px}
+*{box-sizing:border-box}
+body{margin:0;font-family:'Noto Serif SC',serif;background:#eee3ce;color:#352f27}
+.page{padding:16px;max-width:390px;margin:0 auto}
+h1{font-size:16px;margin:0 0 10px}
+.switch{display:flex;gap:8px;margin-bottom:12px}
+.switch button{flex:1;min-height:36px;border:0;background:#315b49;color:#fff3dc;font-size:12px}
+.switch button:not(.active){background:#d9c9a8;color:#315b49}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.card{position:relative;padding:5px;border:1px solid rgba(49,72,60,.22);background:rgba(247,237,216,.14);box-shadow:0 5px 14px rgba(48,38,27,.1)}
+.mode-after .card{border-radius:var(--radius-soft-sm)}
+.box{position:relative;width:100%;aspect-ratio:16/9;overflow:hidden}
+/* BEFORE: gray sides */
+.mode-before .box{background:#101813;display:grid;place-items:center}
+.mode-before .box>img.still{width:100%;height:100%;object-fit:contain;background:#101813;display:block}
+.mode-before .box>img.pad{display:none}
+/* AFTER: shared photo-blur-frame */
+.photo-blur-frame{position:relative!important;overflow:hidden!important;box-sizing:border-box!important;padding:6px!important;border:1px solid rgba(150,120,85,.22)!important;border-radius:var(--radius-soft-sm)!important;background:#efe7d6!important;box-shadow:2px 3px 0 rgba(67,45,26,.08)!important}
+.photo-blur-frame>img.photo-blur-pad{display:block!important;position:absolute!important;inset:-12%!important;width:124%!important;height:124%!important;object-fit:cover!important;opacity:.5!important;transform:scale(1.08)!important;filter:none!important;background:#3a3129!important;pointer-events:none}
+.photo-blur-frame>img.photo-blur-still{position:absolute!important;inset:6px!important;width:calc(100% - 12px)!important;height:calc(100% - 12px)!important;object-fit:contain!important;object-position:center!important;background:transparent!important}
+.mode-after .box.photo-blur-frame{aspect-ratio:16/9}
+.play{position:absolute;left:8px;bottom:8px;z-index:6;width:27px;height:27px;display:grid;place-items:center;border-radius:50%;background:rgba(15,28,23,.82);color:#fff;font-size:14px}
+.dur{position:absolute;z-index:5;top:7px;right:7px;padding:3px 7px;background:rgba(20,35,29,.84);color:#fff5df;font:700 9px/1.2 sans-serif}
+.edited{position:absolute;z-index:5;top:7px;left:7px;padding:3px 6px;border-radius:6px;background:rgba(196,138,46,.92);color:#2a1c06;font:700 9px/1.2 sans-serif}
+.more{position:absolute;right:6px;bottom:6px;z-index:7;width:32px;height:28px;display:grid;place-items:center;border:0;background:rgba(245,233,209,.9);color:#284d3d;border-radius:var(--radius-soft-sm);font-size:14px}
+.placeholder .box{background:#efe7d6;display:grid;place-items:center;color:#8a6a48;font-size:12px}
+.mode-before .placeholder .box{background:#101813;color:#d8c9ac}
+label.cap{display:block;margin-top:6px;font-size:11px;color:#665c4f}
+</style>
+</head>
+<body>
+<div class="page" id="root">
+  <h1 id="title">私密空间 · 缩略图（改前：灰底）</h1>
+  <div class="switch">
+    <button type="button" data-mode="before" class="active">改前灰底</button>
+    <button type="button" data-mode="after">改后同图铺底</button>
+  </div>
+  <div class="grid" id="grid"></div>
+</div>
+<script>
+const items = [
+  {src:'vault-demo-assets/p1.png', dur:'6:00', edited:true},
+  {src:'vault-demo-assets/p2.png', dur:'26:45', edited:false},
+  {src:'vault-demo-assets/l1.png', dur:'1:23', edited:false},
+  {src:'', dur:'', edited:false, placeholder:true}
+];
+const root = document.getElementById('root');
+const grid = document.getElementById('grid');
+const title = document.getElementById('title');
+function render(mode){
+  root.className = 'page mode-' + mode;
+  title.textContent = mode === 'before' ? '私密空间 · 缩略图（改前：灰底）' : '私密空间 · 缩略图（改后：共用 photo-blur-frame）';
+  grid.innerHTML = items.map((it,i)=>{
+    if(it.placeholder){
+      return `<article class="card placeholder"><div class="box">encrypted</div><span class="cap">封面加载前</span></article>`;
+    }
+    const layers = mode === 'after'
+      ? `<img class="photo-blur-pad" src="${it.src}" alt="" aria-hidden="true"><img class="photo-blur-still" src="${it.src}" alt="">`
+      : `<img class="still" src="${it.src}" alt="">`;
+    const boxClass = mode === 'after' ? 'box photo-blur-frame' : 'box';
+    return `<article class="card"><div class="${boxClass}">${layers}<i class="play">▶</i><em class="dur">${it.dur}</em>${it.edited?'<em class="edited">已剪辑</em>':''}</div><button class="more" type="button">⋯</button></article>`;
+  }).join('');
+}
+document.querySelectorAll('[data-mode]').forEach(btn=>btn.onclick=()=>{
+  document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('active', b===btn));
+  render(btn.dataset.mode);
+});
+render('before');
+</script>
+</body>
+</html>

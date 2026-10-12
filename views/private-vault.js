@@ -251,6 +251,7 @@ function vaultItem(item) {
   const rawName = item.name || (item.type === 'video' ? '私密视频' : '私密照片');
   // 竖屏卡片样式：裁过画面之后也算重判（横屏裁成竖屏就该换成竖版卡片）
   const portraitCover = item.type === 'video' && vaultItemOrientation(item) === 'portrait';
+  // 视频封面：共用 photo-blur-frame（纸色兜底 + 同图铺底）。加载前不铺灰底，只留纸色框和 encrypted 占位。
   const media = `<span class="vault-media-box ${item.type === 'video' ? 'video-contain-cover photo-blur-frame' : ''} ${portraitCover ? 'is-portrait-video-cover' : ''}">${cached ? (item.type === 'video' ? photoFrameLayersHtml(esc(cached), { alt: rawName }) : `<img src="${esc(cached)}" alt="${esc(rawName)}">`) : '<span class="vault-media-loading material-symbols-outlined">encrypted</span>'}${item.type === 'video' ? `<i class="material-symbols-outlined">play_arrow</i><em class="video-duration-stamp" data-vault-duration="${item.id}" aria-label="视频时长 ${duration}">${duration}</em>` : ''}${item.type === 'photo' && item.motionRef ? livePhotoMarkHtml() : ''}${edited ? '<em class="video-edited-stamp" aria-label="已剪辑">已剪辑</em>' : ''}</span>`;
   const selected = vaultSelectedIds.has(item.id);
   const primary = vaultSelectionMode ? `data-select-vault-item="${item.id}" aria-label="${selected ? '取消选择' : '选择'}${esc(rawName)}"` : `data-open-vault-item="${item.id}" aria-label="${item.type === 'video' ? '播放' : '查看'}${esc(rawName)}"`;
@@ -399,22 +400,52 @@ function formatSize(bytes) {
   return `${(value / 1024 / 1024).toFixed(1)} MB`;
 }
 
+let vaultThumbnailObserver = null;
+let vaultThumbnailPersistTimer = 0;
+
 async function loadThumbnails() {
   if (!privateVaultUnlocked()) return;
+  // 只给进视口（及附近）的卡片解密/挂封面，避免一屏外全量解码造成卡顿和白闪。
+  vaultThumbnailObserver?.disconnect();
+  vaultThumbnailObserver = null;
+  if (vaultThumbnailPersistTimer) {
+    clearTimeout(vaultThumbnailPersistTimer);
+    vaultThumbnailPersistTimer = 0;
+  }
   const key = privateVaultKey();
   let metadataChanged = false;
-  for (const image of $$('[data-open-vault-item]')) {
-    const id = image.dataset.openVaultItem;
-    if (thumbnailUrls.has(id)) continue;
+  const schedulePersist = () => {
+    if (vaultThumbnailPersistTimer) clearTimeout(vaultThumbnailPersistTimer);
+    vaultThumbnailPersistTimer = setTimeout(async () => {
+      vaultThumbnailPersistTimer = 0;
+      if (!metadataChanged || !privateVaultUnlocked()) return;
+      metadataChanged = false;
+      await persistPrivateVault(state);
+      await save();
+    }, 360);
+  };
+
+  const fillCard = async (button) => {
+    if (!button?.isConnected || !privateVaultUnlocked()) return;
+    const id = button.dataset.openVaultItem;
     const item = privateVaultContent().items.find(entry => entry.id === id);
-    if (!item) continue;
+    if (!item) return;
+    const target = button.querySelector('.vault-media-box');
+    if (!target) return;
     try {
-      const url = await openVaultAsset(item, key, { poster: Boolean(item.posterRef) });
-      if (!privateVaultUnlocked()) return;
-      thumbnailUrls.set(id, url);
-      const target = $(`[data-open-vault-item="${id}"] .vault-media-box`);
-      target?.querySelector('.vault-media-loading')?.remove();
-      if (target && !target.querySelector('img')) target.insertAdjacentHTML('afterbegin', item.type === 'video' ? photoFrameLayersHtml(esc(url), { alt: item.name }) : `<img src="${esc(url)}" alt="${esc(item.name)}">`);
+      let url = thumbnailUrls.get(id) || '';
+      if (!url) {
+        url = await openVaultAsset(item, key, { poster: Boolean(item.posterRef) });
+        if (!privateVaultUnlocked() || !button.isConnected) return;
+        thumbnailUrls.set(id, url);
+      }
+      target.querySelector('.vault-media-loading')?.remove();
+      // 视频封面必须走共用 photo-frame 两层；已挂过则不再插入，避免闪一下。
+      if (!target.querySelector('img')) {
+        target.insertAdjacentHTML('afterbegin', item.type === 'video'
+          ? photoFrameLayersHtml(esc(url), { alt: item.name || '' })
+          : `<img src="${esc(url)}" alt="${esc(item.name || '')}">`);
+      }
       if (item.type === 'video' && (!item.duration || !item.displayOrientation) && item.sourceType !== 'hls' && /^mine-(?:media|browser-media):\/\//.test(item.assetRef || '')) {
         const metadata = await readVideoMetadata(await vaultVideoSource(item));
         if (metadata.duration || metadata.displayOrientation) {
@@ -422,17 +453,33 @@ async function loadThumbnails() {
           item.width = metadata.width;
           item.height = metadata.height;
           item.displayOrientation = metadata.displayOrientation || '';
-          target?.classList.toggle('is-portrait-video-cover', vaultItemOrientation(item) === 'portrait');
+          target.classList.toggle('is-portrait-video-cover', vaultItemOrientation(item) === 'portrait');
           metadataChanged = true;
+          schedulePersist();
           const stamp = $(`[data-vault-duration="${item.id}"]`);
           if (stamp && item.duration) stamp.textContent = formatVideoDuration(vaultPlayableDuration(item));
         }
       }
     } catch { /* 单项损坏不暴露其他私密条目 */ }
-  }
-  if (metadataChanged && privateVaultUnlocked()) {
-    await persistPrivateVault(state);
-    await save();
+  };
+
+  const buttons = $$('[data-open-vault-item]');
+  if (!buttons.length) return;
+  if (typeof IntersectionObserver === 'function') {
+    vaultThumbnailObserver = new IntersectionObserver(entries => {
+      for (const entry of entries) {
+        if (!entry.isIntersecting) continue;
+        vaultThumbnailObserver.unobserve(entry.target);
+        fillCard(entry.target);
+      }
+    }, { rootMargin: '220px 0px', threshold: 0.01 });
+    buttons.forEach(button => vaultThumbnailObserver.observe(button));
+  } else {
+    for (const button of buttons) await fillCard(button);
+    if (metadataChanged && privateVaultUnlocked()) {
+      await persistPrivateVault(state);
+      await save();
+    }
   }
 }
 
