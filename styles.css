@@ -8661,15 +8661,20 @@ body:has(.mine-view) #app{
 .focus-view .focus-stream-sheet:not([open]){min-height:0;padding:14px 18px;border:10px solid transparent;border-image:url('assets/secondary-content-paper-v1.png') 84 96 84 96 fill / 10px / 0 stretch;background:none}
 .focus-view .focus-stream-sheet:not([open]) .sheet-handle{display:none}
 .focus-view .focus-stream-sheet[open]>.focus-optional-summary{margin-bottom:20px}
-.daily-task-row{display:grid;grid-template-columns:44px minmax(0,1fr) 66px;gap:6px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}
-.daily-task-check{width:44px;min-height:44px;border:0;background:none;color:var(--sage-green-dark)}
+.daily-task-row{display:grid;grid-template-columns:minmax(0,1fr) 66px;gap:6px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}
 .daily-task-copy{min-width:0;padding:4px;text-align:left;border:0;background:none;color:var(--ink)}
 .daily-task-copy strong{display:block;overflow-wrap:anywhere;font:14px/1.5 var(--paper-body-font)}
 .daily-task-copy small{display:block;margin-top:4px;font-size:11px;color:var(--ink-muted)}
 .daily-task-start{display:flex;align-items:center;justify-content:center;padding:4px;border-width:6px}
 .daily-task-start .material-symbols-outlined{font-size:17px}
-.daily-task-row.done{grid-template-columns:44px minmax(0,1fr)}
+.daily-task-row.done{grid-template-columns:minmax(0,1fr)}
 .daily-task-row.done strong{text-decoration:line-through;color:var(--ink-muted)}
+/* 今日队列头：第一件未完成稍强调，其余今天条目更安静 */
+.todo-manage-day .daily-task-row.is-next{padding:12px 6px;border-bottom:1px dashed rgba(91,72,48,.28)}
+.todo-manage-day .daily-task-row.is-next .daily-task-copy strong{color:#8f3e2b;font-family:'Noto Serif SC','Newsreader',serif;font-size:15px;font-weight:600}
+.todo-manage-day .daily-task-row.is-next .daily-task-copy small{color:var(--sage-green-dark);letter-spacing:.04em}
+.todo-manage-day .daily-task-row:not(.is-next):not(.done){opacity:.72}
+.todo-manage-day .daily-task-row:not(.is-next):not(.done) .daily-task-copy strong{font-size:13px;color:var(--ink-secondary)}
 .daily-task-fold,.habit-advanced{margin-top:16px}
 .daily-task-fold>summary,.habit-advanced>summary{min-height:48px;padding:12px 4px;color:var(--sage-green-dark);font:14px/1.6 var(--paper-body-font);cursor:pointer}
 .daily-task-fold>summary span{float:right;color:var(--ink-muted)}

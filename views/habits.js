@@ -232,14 +232,20 @@ export function habitForm(habit = null, preset = null) {
 
 // ---- 待办 ----
 export function todoManager() {
+  // 弹层定位：今日队列 + 整理入口。勾选完成留给今日页 / 详情 / 专注结束确认，这里不放勾选。
   const groups = dailyTodoGroups(state);
-  const row = todo => `<article class="daily-task-row ${todo.completed ? 'done' : ''}"><button type="button" class="daily-task-check material-symbols-outlined" data-daily-todo-toggle="${esc(todo.id)}" aria-label="${todo.completed ? '恢复待办' : '完成待办'}">${todo.completed ? 'check_circle' : 'radio_button_unchecked'}</button><button type="button" class="daily-task-copy" data-edit-todo="${esc(todo.id)}"><strong>${esc(todo.title)}</strong><small>${todo.date}${todo.completed ? ' · 已完成' : ''}</small></button>${todo.completed ? '' : `<button type="button" class="daily-task-start" data-focus-todo="${esc(todo.id)}"><span class="material-symbols-outlined">play_arrow</span>先做</button>`}</article>`;
-  const fold = (label, list) => `<details class="daily-task-fold"><summary>${label}<span>${list.length}</span></summary>${list.map(row).join('') || '<p class="subtle">这里暂时没有安排。</p>'}</details>`;
-  modal(`<div class="modal-head"><div><span class="eyebrow">ONE THING AT A TIME</span><h2>今天，先做一件事</h2><p>写下具体的一小步，点“先做”开始专注；计时结束后再确认是否完成。</p></div><button id="new-todo-modal" class="icon-button" aria-label="新增待办"><span class="material-symbols-outlined">add</span></button></div><section class="todo-manage-day"><header><strong>今天要做</strong><small>${groups.today.length} 件</small></header>${groups.today.map(row).join('') || '<p class="subtle">今天还没安排。写下一件想完成的小事就够了。</p>'}</section>${fold('之前没做完，按自己的节奏处理', groups.earlier)}${fold('以后再做', groups.later)}${fold('已经完成', groups.completed)}<div class="modal-actions"><button type="button" data-close>完成</button></div>`, 'large-modal todo-manager-modal');
-  $$('[data-daily-todo-toggle]').forEach(button => button.onclick = async () => {
-    const todo = state.todos.find(item => item.id === button.dataset.dailyTodoToggle);
-    try { await setTodoCompleted(todo.id, !todo.completed); todoManager(); render(); } catch (error) { show(error.message); }
-  });
+  const row = (todo, { isNext = false } = {}) => {
+    const classes = ['daily-task-row'];
+    if (todo.completed) classes.push('done');
+    if (isNext) classes.push('is-next');
+    const hint = isNext ? '下一件' : `${todo.date}${todo.completed ? ' · 已完成' : ''}`;
+    return `<article class="${classes.join(' ')}"><button type="button" class="daily-task-copy" data-edit-todo="${esc(todo.id)}"><strong>${esc(todo.title)}</strong><small>${hint}</small></button>${todo.completed ? '' : `<button type="button" class="daily-task-start" data-focus-todo="${esc(todo.id)}"><span class="material-symbols-outlined">play_arrow</span>先做</button>`}</article>`;
+  };
+  const fold = (label, list) => `<details class="daily-task-fold"><summary>${label}<span>${list.length}</span></summary>${list.map(todo => row(todo)).join('') || '<p class="subtle">这里暂时没有安排。</p>'}</details>`;
+  const todayBlock = groups.today.length
+    ? groups.today.map((todo, index) => row(todo, { isNext: index === 0 })).join('')
+    : '<p class="subtle">今天还没安排。写下一件想完成的小事就够了。</p>';
+  modal(`<div class="modal-head"><div><span class="eyebrow">TODAY'S QUEUE</span><h2>今日队列</h2><p>下一件点「先做」开专注；积压和改期收在下面折叠里。完成仍走今日页勾选、详情，或计时结束确认。</p></div><button id="new-todo-modal" class="icon-button" aria-label="新增待办"><span class="material-symbols-outlined">add</span></button></div><section class="todo-manage-day"><header><strong>今天的队列</strong><small>${groups.today.length} 件</small></header>${todayBlock}</section>${fold('之前没做完，按自己的节奏处理', groups.earlier)}${fold('以后再做', groups.later)}${fold('已经完成', groups.completed)}<div class="modal-actions"><button type="button" data-close>完成</button></div>`, 'large-modal todo-manager-modal');
   $$('[data-focus-todo]').forEach(button => button.onclick = () => Promise.resolve(callHelper('startFocusForTodo', button.dataset.focusTodo)).catch(error => show(error.message)));
 }
 
