@@ -232,21 +232,45 @@ export function habitForm(habit = null, preset = null) {
 
 // ---- 待办 ----
 export function todoManager() {
-  // 弹层定位：今日队列 + 整理入口。勾选完成留给今日页 / 详情 / 专注结束确认，这里不放勾选。
+  /* 2026-10-12 用户要求：「旧待办不要带到今天」「待办简单一点」「不要和专注计时绑在一起」。
+     ⇒ 这一层就是一份朴素的待办清单：
+       · 每行只有「勾」（点一下就地完成 / 取消）和标题（点进编辑）；
+       · 不再放「先做」按钮 —— 待办与专注彻底解耦，专注从专注自己那里开；
+       · 主区只列今天的；以前没做完的收在下面的折叠里，不再混进今天。 */
   const groups = dailyTodoGroups(state);
-  const row = (todo, { isNext = false } = {}) => {
+  const row = (todo, { showDate = false } = {}) => {
     const classes = ['daily-task-row'];
     if (todo.completed) classes.push('done');
-    if (isNext) classes.push('is-next');
-    const hint = isNext ? '下一件' : `${todo.date}${todo.completed ? ' · 已完成' : ''}`;
-    return `<article class="${classes.join(' ')}"><button type="button" class="daily-task-copy" data-edit-todo="${esc(todo.id)}"><strong>${esc(todo.title)}</strong><small>${hint}</small></button>${todo.completed ? '' : `<button type="button" class="daily-task-start" data-focus-todo="${esc(todo.id)}"><span class="material-symbols-outlined">play_arrow</span>先做</button>`}</article>`;
+    const hint = todo.completed ? '已完成' : (showDate ? todo.date : '');
+    return `<article class="${classes.join(' ')}"><button type="button" class="daily-task-check material-symbols-outlined" data-toggle-todo="${esc(todo.id)}" aria-label="${todo.completed ? '取消完成' : '完成待办'}">${todo.completed ? 'check_circle' : 'radio_button_unchecked'}</button><button type="button" class="daily-task-copy" data-edit-todo="${esc(todo.id)}"><strong>${esc(todo.title)}</strong>${hint ? `<small>${hint}</small>` : ''}</button></article>`;
   };
-  const fold = (label, list) => `<details class="daily-task-fold"><summary>${label}<span>${list.length}</span></summary>${list.map(todo => row(todo)).join('') || '<p class="subtle">这里暂时没有安排。</p>'}</details>`;
+  const fold = (label, list, options) => `<details class="daily-task-fold"><summary>${label}<span>${list.length}</span></summary>${list.map(todo => row(todo, options)).join('') || '<p class="subtle">这里暂时没有安排。</p>'}</details>`;
   const todayBlock = groups.today.length
-    ? groups.today.map((todo, index) => row(todo, { isNext: index === 0 })).join('')
+    ? groups.today.map(todo => row(todo)).join('')
     : '<p class="subtle">今天还没安排。写下一件想完成的小事就够了。</p>';
-  modal(`<div class="modal-head"><div><span class="eyebrow">TODAY'S QUEUE</span><h2>今日队列</h2><p>下一件点「先做」开专注；积压和改期收在下面折叠里。完成仍走今日页勾选、详情，或计时结束确认。</p></div><button id="new-todo-modal" class="icon-button" aria-label="新增待办"><span class="material-symbols-outlined">add</span></button></div><section class="todo-manage-day"><header><strong>今天的队列</strong><small>${groups.today.length} 件</small></header>${todayBlock}</section>${fold('之前没做完，按自己的节奏处理', groups.earlier)}${fold('以后再做', groups.later)}${fold('已经完成', groups.completed)}<div class="modal-actions"><button type="button" data-close>完成</button></div>`, 'large-modal todo-manager-modal');
-  $$('[data-focus-todo]').forEach(button => button.onclick = () => Promise.resolve(callHelper('startFocusForTodo', button.dataset.focusTodo)).catch(error => show(error.message)));
+  modal(`<div class="modal-head"><div><span class="eyebrow">TODAY</span><h2>今天的待办</h2><p>点左边的圈就完成，点标题可以改。以前没做完和以后要做的收在下面。</p></div><button id="new-todo-modal" class="icon-button" aria-label="新增待办"><span class="material-symbols-outlined">add</span></button></div><section class="todo-manage-day"><header><strong>今天</strong><small>${groups.today.length} 件</small></header>${todayBlock}</section>${fold('以前没做完的', groups.earlier, { showDate: true })}${fold('以后再做', groups.later, { showDate: true })}${fold('已经完成', groups.completed, { showDate: true })}<div class="modal-actions"><button type="button" data-close>完成</button></div>`, 'large-modal todo-manager-modal');
+  // 在弹层里直接勾完成 / 取消：就地更新这一行，不重建弹层
+  // （重建会把折叠状态和刚弹出的「写进日记」纸签一起冲掉）。
+  // 选择器限定在弹层内 —— 今日页那排待办有自己的绑定，不要越界覆盖。
+  $$('#modal-layer [data-toggle-todo]').forEach(button => button.onclick = async () => {
+    const todo = state.todos.find(item => item.id === button.dataset.toggleTodo);
+    if (!todo) return;
+    const previous = structuredClone(todo);
+    const markingDone = !todo.completed;
+    todo.completed = !todo.completed;
+    todo.updatedAt = Date.now();
+    todo.completedAt = todo.completed ? todo.updatedAt : 0;
+    todo.completedDate = todo.completed ? dateKey(new Date(todo.completedAt)) : '';
+    try {
+      await save();
+      const rowEl = button.closest('.daily-task-row');
+      if (rowEl) rowEl.classList.toggle('done', todo.completed);
+      button.textContent = todo.completed ? 'check_circle' : 'radio_button_unchecked';
+      button.setAttribute('aria-label', todo.completed ? '取消完成' : '完成待办');
+      render();
+      if (markingDone && todo.completed) await offerTodoJournalFootnote(todo.title);
+    } catch (error) { Object.assign(todo, previous); show(error.message); }
+  });
 }
 
 export async function setTodoCompleted(id, completed = true) {

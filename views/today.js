@@ -96,7 +96,8 @@ export function todayView() {
   const encouragement = state.settings?.aiDailyEncouragement;
   const mottoText = encouragement?.date === day && encouragement.text ? encouragement.text : state.profile.motto;
   const doneTodos = todos.filter(todo => todo.completed).length;
-  const earlierTodos = state.todos.filter(todo => !todo.completed && todo.date < day).length;
+  // 旧待办不再带到今天（2026-10-12 用户要求）：今日页只显示今天的待办，
+  // 以前没做完的那些不再在这里露面（去「待办」弹层的折叠里找）。
   const photoEntries = photoStackEntries();
   const recent = recentActivity().filter(item => item.date === day);
   const habitPercent = completion.total ? Math.round(completion.done / completion.total * 100) : 0;
@@ -154,7 +155,7 @@ export function todayView() {
       <div class="bento-card todos-bento-card">
         <div>
           <div class="bento-header"><span class="bento-title"><span class="material-symbols-outlined">checklist</span> 待办</span><span class="bento-badge-sm">${doneTodos}/${todos.length} 完成</span><button type="button" class="bento-header-action" id="open-todo-manager" aria-label="查看全部待办"><span class="material-symbols-outlined">list</span></button></div>
-          <div id="todos-bento-list">${todos.length ? todos.map(todo => `<button type="button" class="bento-item-mini ${todo.completed ? 'done' : ''}" data-toggle-todo="${todo.id}"><span class="bento-item-icon material-symbols-outlined">${todo.completed ? 'task_alt' : 'assignment'}</span><span class="bento-item-copy"><strong>${esc(todo.title)}</strong></span><span class="material-symbols-outlined bento-item-check">${todo.completed ? 'check_circle' : 'radio_button_unchecked'}</span></button>`).join('') : `<p class="bento-empty">今天还没有待办</p>`}</div>${earlierTodos ? `<button type="button" class="today-earlier-todos" id="today-earlier-todos">之前还有 ${earlierTodos} 件没做完 · 整理清单</button>` : ''}
+          <div id="todos-bento-list">${todos.length ? todos.map(todo => `<button type="button" class="bento-item-mini ${todo.completed ? 'done' : ''}" data-toggle-todo="${todo.id}"><span class="bento-item-icon material-symbols-outlined">${todo.completed ? 'task_alt' : 'assignment'}</span><span class="bento-item-copy"><strong>${esc(todo.title)}</strong></span><span class="material-symbols-outlined bento-item-check">${todo.completed ? 'check_circle' : 'radio_button_unchecked'}</span></button>`).join('') : `<p class="bento-empty">今天还没有待办</p>`}</div>
         </div>
         <button type="button" class="bento-card-footer" id="new-todo"><span>新增今日待办</span><span class="material-symbols-outlined">add</span></button>
       </div>
@@ -411,7 +412,6 @@ function bindToday() {
   // 今日页待办卡片：新增 + 查看全部（这两个按钮此前都渲染了但从未绑定，点了没反应）。
   $('#new-todo')?.addEventListener('click', () => callHelper('openTodoForm'));
   $('#open-todo-manager')?.addEventListener('click', () => callHelper('openTodoManager'));
-  $('#today-earlier-todos')?.addEventListener('click', () => callHelper('openTodoManager'));
   $('#life-stream-more')?.addEventListener('click', () => go('calendar'));
   $('#today-avatar')?.addEventListener('click', () => go('mine'));
   $('#photo-stack')?.addEventListener('click', event => {

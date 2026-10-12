@@ -21,7 +21,12 @@ test('complete paths offer opt-in footnote via shared helper', () => {
   assert.match(habits, /写进今天日记？/);
   assert.match(habits, /if \(markingDone && current\.completed\) await offerTodoJournalFootnote\(current\.title\)/);
   assert.match(habits, /if \(markingDone && todo\.completed\) await offerTodoJournalFootnote\(todo\.title\)/);
-  assert.match(focus, /offerTodoJournalFootnote', todo\.title, \{ host: panel \}/);
+  // 第三条入口：待办弹层里直接勾完成。
+  // 2026-10-12 起待办与专注解耦，原来那条「专注结束确认这件事完成了」的入口已删除，
+  // 换成弹层自己的勾（所有完成入口仍然共用同一个 helper）。
+  const manager = habits.slice(habits.indexOf('export function todoManager'), habits.indexOf('export async function setTodoCompleted'));
+  assert.match(manager, /offerTodoJournalFootnote\(todo\.title\)/, '弹层里勾完成也要给「写进日记」纸签');
+  assert.doesNotMatch(focus, /offerTodoJournalFootnote/, '专注不再和待办挂钩，也不从专注提示完成待办');
 });
 
 test('reader shows footnotes after body and before footprints', () => {

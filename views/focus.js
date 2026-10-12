@@ -1,7 +1,7 @@
 import { Capacitor } from '@capacitor/core';
 import { $, $$, esc, uid, state, save, render, modal, closeModal, show, confirmDelete, emptyState, go, formatMinutes, clock, durationText, setTick, registerView, registerBinder, registerOnRender, registerSubmitHandler, registerHelper, callHelper, subpageHeader, PROJECT_ICONS, PROJECT_COLORS } from '../core.js';
 import { dateKey, nextPomodoroStage, pomodoroPhaseSeconds, makeFocusCategory } from '../model.js';
-import { dailyTodoGroups, prepareDailyFocus, focusHasProgress } from '../daily-workflow.js';
+import { prepareDailyFocus, focusHasProgress } from '../daily-workflow.js';
 import { sessionCard, bindRecordActions, replaceSessionHabitContribution, adjustHabitMinutes } from './common.js';
 import { setKeepAwake, startFocusNotification, stopFocusNotification, scheduleTimerNotification, cancelTimerNotification, isTimerAlarmRinging } from '../notifications.js';
 import { AMBIENT_SOUNDS, currentAmbient, currentAmbientMix, pauseAmbientMix, resumeAmbientMix, setAmbient, setAmbientMixTrack, setAmbientMixVolume, setAmbientVolume, stopAmbient } from '../ambient.js';
@@ -266,11 +266,11 @@ export function focusView() {
 
 function dailyFocusHtml() {
   const intent = state.settings.focusIntent || {};
-  const task = state.todos.find(item => item.id === intent.todoId);
+  // 2026-10-12：专注不再从今天的待办里拉条目（用户要求待办不要和专注绑在一起）。
+  // 这里只保留「这条专注是从哪个习惯来的」这一支——习惯与专注的联动是用户要的。
   const habit = state.habits.find(item => item.id === intent.habitId);
   const busy = focusHasProgress(state);
-  const candidates = dailyTodoGroups(state).today.slice(0, 3);
-  return `<section class="daily-focus-sheet"><header><small>JUST ONE SMALL STEP</small><h2>这一刻，只做一件事</h2></header><label for="focus-task-inline">这次想做什么</label><input id="focus-task-inline" maxlength="80" value="${esc(state.timer.task || '')}" placeholder="例如：读十页书，或整理一段笔记" ${busy ? 'disabled' : ''}>${task || habit ? `<p class="daily-focus-link">${task ? '来自待办' : '来自习惯'} · ${esc(task?.title || habit?.name)}</p>` : ''}<div class="daily-focus-starts"><button type="button" data-focus-quick-start="10" ${busy ? 'disabled' : ''}>先做 10 分钟</button><button type="button" data-focus-quick-start="25" ${busy ? 'disabled' : ''}>专注 25 分钟</button></div>${!busy && candidates.length ? `<div class="daily-focus-candidates"><small>也可以从今天的待办开始</small>${candidates.map(item => `<button type="button" data-focus-pick-todo="${esc(item.id)}"><span class="material-symbols-outlined">play_arrow</span>${esc(item.title)}</button>`).join('')}</div>` : ''}<p class="daily-focus-note">分类和环境音都可以稍后再选。结束后保留实际时间，再确认这件事是否完成。</p></section>`;
+  return `<section class="daily-focus-sheet"><header><small>JUST ONE SMALL STEP</small><h2>这一刻，只做一件事</h2></header><label for="focus-task-inline">这次想做什么</label><input id="focus-task-inline" maxlength="80" value="${esc(state.timer.task || '')}" placeholder="例如：读十页书，或整理一段笔记" ${busy ? 'disabled' : ''}>${habit ? `<p class="daily-focus-link">来自习惯 · ${esc(habit.name)}</p>` : ''}<div class="daily-focus-starts"><button type="button" data-focus-quick-start="10" ${busy ? 'disabled' : ''}>先做 10 分钟</button><button type="button" data-focus-quick-start="25" ${busy ? 'disabled' : ''}>专注 25 分钟</button></div><p class="daily-focus-note">分类和环境音都可以稍后再选。结束后保留实际时间，再给习惯记一次。</p></section>`;
 }
 
 export async function startDailyFocus(options) {
@@ -286,25 +286,18 @@ export async function startDailyFocus(options) {
 
 function focusOutcome(sessionId, intent) {
   focusDetailReport(sessionId);
-  const todo = state.todos.find(item => item.id === intent?.todoId && !item.completed);
+  // 2026-10-12：专注不再和待办挂钩（用户要求）。这里只处理「来自习惯」的那一支；
+  // 旧数据里若还留着 todoId，也不再据此提示完成待办。
   const habit = state.habits.find(item => item.id === intent?.habitId && !item.archived);
-  if (!todo && (!habit || (habit.tracking === 'quantity' && /分钟/.test(habit.unit)))) return;
+  if (!habit || (habit.tracking === 'quantity' && /分钟/.test(habit.unit))) return;
   const target = $('#subpage-focus-detail .focus-report-body');
   if (!target) return;
-  target.insertAdjacentHTML('afterbegin', `<section class="daily-focus-outcome"><small>ONE STEP FORWARD</small><h2>这一小步，做完了吗？</h2><p>${esc(todo?.title || habit.name)}</p><button type="button" id="focus-target-complete">${todo ? '这件待办已完成' : '给这个习惯记一次'}</button><small>只有点击确认才会更新记录；还没做完也没关系，保留清单继续做。</small></section>`);
+  target.insertAdjacentHTML('afterbegin', `<section class="daily-focus-outcome"><small>ONE STEP FORWARD</small><h2>这一小步，做完了吗？</h2><p>${esc(habit.name)}</p><button type="button" id="focus-target-complete">给这个习惯记一次</button><small>只有点击确认才会更新记录；还没做完也没关系，继续做就好。</small></section>`);
   $('#focus-target-complete').onclick = async event => {
     const button = event.currentTarget; button.disabled = true;
     try {
-      if (todo) {
-        await callHelper('setTodoCompleted', todo.id, true);
-        button.textContent = '已记下这一步';
-        const panel = button.closest('.daily-focus-outcome') || target;
-        button.hidden = true;
-        await callHelper('offerTodoJournalFootnote', todo.title, { host: panel });
-      } else {
-        if (await callHelper('commitHabitProgress', habit.id, Number(state.checks[dateKey()]?.[habit.id] || 0) + 1, '已记下一次') !== true) throw new Error('习惯还没有保存，请重试');
-        button.textContent = '已记下这一步';
-      }
+      if (await callHelper('commitHabitProgress', habit.id, Number(state.checks[dateKey()]?.[habit.id] || 0) + 1, '已记下一次') !== true) throw new Error('习惯还没有保存，请重试');
+      button.textContent = '已记下这一步';
     } catch (error) { button.disabled = false; show(error.message); }
   };
 }
@@ -1011,8 +1004,12 @@ function bindFocus() {
     state.timer.task = event.target.value.trim(); state.settings.focusIntent = null;
     try { await save(); } catch (error) { state.timer.task = previousTask; state.settings.focusIntent = previousIntent; show(error.message); }
   });
-  $$('[data-focus-quick-start]').forEach(button => button.onclick = () => startDailyFocus({ ...(state.settings.focusIntent || {}), minutes: Number(button.dataset.focusQuickStart) }).catch(error => show(error.message)));
-  $$('[data-focus-pick-todo]').forEach(button => button.onclick = () => startDailyFocus({ todoId: button.dataset.focusPickTodo, minutes: 25 }).catch(error => show(error.message)));
+  $$('[data-focus-quick-start]').forEach(button => button.onclick = () => {
+    // 只把「来自习惯」这一支带进新的一次专注。不带 todoId：待办已与专注解耦，
+    // 而旧数据里可能残留 todoId（会让 prepareDailyFocus 报「这件待办已完成或不存在」）。
+    const habitId = state.settings.focusIntent?.habitId || '';
+    startDailyFocus({ habitId, minutes: Number(button.dataset.focusQuickStart) }).catch(error => show(error.message));
+  });
 
   $('#play')?.addEventListener('click', () => (state.timer.running ? pauseTimer() : startTimer()).catch(error => show(error.message)));
   $('#reset')?.addEventListener('click', () => state.timer.running ? abandonTimer() : resetTimer());
@@ -1098,5 +1095,5 @@ registerHelper('timerSettingsForm', timerSettingsForm);
 registerHelper('focusCategoryOptions', focusCategoryOptions);
 registerVisibilityChangeTracking();
 
-registerHelper('startFocusForTodo', id => startDailyFocus({ todoId: id, minutes: 25 }));
+// 2026-10-12：startFocusForTodo 已移除 —— 待办与专注解耦，没有调用方了（习惯这一支保留）。
 registerHelper('startFocusForHabit', id => startDailyFocus({ habitId: id, minutes: 10 }));

@@ -8657,11 +8657,10 @@ body:has(.mine-view) #app{
 .daily-focus-sheet>label{display:block;margin-bottom:6px;font-size:12px}
 .daily-focus-sheet input{width:100%;min-width:0;min-height:48px;padding:8px;border:6px solid transparent;border-image:url('assets/quick-control-ivory-v1.png') 212 110 210 110 fill / 6px / 0 stretch;background:none;border-radius:0;font:14px/1.5 var(--paper-body-font);color:var(--ink)}
 .daily-focus-starts{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
-.daily-focus-starts button,.daily-task-start,.habit-focus-entry,.daily-focus-outcome button{min-height:48px;padding:8px;border:8px solid transparent;border-image:url('assets/quick-control-sage-v1.png') 204 110 202 110 fill / 8px / 0 stretch;background:none;border-radius:0;box-shadow:none;color:var(--warm-sheet);font:13px/1.5 var(--paper-body-font)}
-.daily-focus-candidates{display:grid;gap:6px;margin-top:12px}
-.daily-focus-candidates small,.daily-focus-note,.daily-focus-link{font:11px/1.7 var(--paper-body-font);color:var(--ink-secondary);overflow-wrap:anywhere}
-.daily-focus-candidates button{min-height:44px;display:flex;align-items:center;gap:7px;min-width:0;padding:7px 6px;text-align:left;border:0;background:none;color:var(--sage-green-dark);font:13px/1.5 var(--paper-body-font);overflow-wrap:anywhere}
-.daily-focus-candidates .material-symbols-outlined{flex:none;font-size:19px}
+.daily-focus-starts button,.habit-focus-entry,.daily-focus-outcome button{min-height:48px;padding:8px;border:8px solid transparent;border-image:url('assets/quick-control-sage-v1.png') 204 110 202 110 fill / 8px / 0 stretch;background:none;border-radius:0;box-shadow:none;color:var(--warm-sheet);font:13px/1.5 var(--paper-body-font)}
+/* .daily-focus-candidates（专注面板里的「从今天的待办开始」候选列表）已于 2026-10-12 随
+   「待办与专注解耦」一起删除，相关样式一并清掉。 */
+.daily-focus-note,.daily-focus-link{font:11px/1.7 var(--paper-body-font);color:var(--ink-secondary);overflow-wrap:anywhere}
 .focus-optional-summary{display:flex;align-items:center;gap:10px;min-height:48px;cursor:pointer;list-style:none;color:var(--sage-green-dark);font:15px/1.5 var(--paper-body-font)}
 .focus-optional-summary::-webkit-details-marker{display:none}
 .focus-optional-summary>span:nth-child(2){flex:1;min-width:0}
@@ -8669,20 +8668,15 @@ body:has(.mine-view) #app{
 .focus-view .focus-stream-sheet:not([open]){min-height:0;padding:14px 18px;border:10px solid transparent;border-image:url('assets/secondary-content-paper-v1.png') 84 96 84 96 fill / 10px / 0 stretch;background:none}
 .focus-view .focus-stream-sheet:not([open]) .sheet-handle{display:none}
 .focus-view .focus-stream-sheet[open]>.focus-optional-summary{margin-bottom:20px}
-.daily-task-row{display:grid;grid-template-columns:minmax(0,1fr) 66px;gap:6px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}
+/* 待办行：左边一个圈（点一下完成/取消），右边标题。2026-10-12 起不再有「先做」按钮，
+   待办与专注解耦；也不再给某一行加「下一件」强调，所有行一视同仁。 */
+.daily-task-row{display:grid;grid-template-columns:44px minmax(0,1fr);gap:2px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)}
+.daily-task-check{display:grid;place-items:center;width:44px;height:44px;padding:0;border:0;background:none;box-shadow:none;color:var(--sage-green);font-size:22px;cursor:pointer}
+.daily-task-row.done .daily-task-check{color:var(--ink-muted)}
 .daily-task-copy{min-width:0;padding:4px;text-align:left;border:0;background:none;color:var(--ink)}
 .daily-task-copy strong{display:block;overflow-wrap:anywhere;font:14px/1.5 var(--paper-body-font)}
 .daily-task-copy small{display:block;margin-top:4px;font-size:11px;color:var(--ink-muted)}
-.daily-task-start{display:flex;align-items:center;justify-content:center;padding:4px;border-width:6px}
-.daily-task-start .material-symbols-outlined{font-size:17px}
-.daily-task-row.done{grid-template-columns:minmax(0,1fr)}
 .daily-task-row.done strong{text-decoration:line-through;color:var(--ink-muted)}
-/* 今日队列头：第一件未完成稍强调，其余今天条目更安静 */
-.todo-manage-day .daily-task-row.is-next{padding:12px 6px;border-bottom:1px dashed rgba(91,72,48,.28)}
-.todo-manage-day .daily-task-row.is-next .daily-task-copy strong{color:#8f3e2b;font-family:'Noto Serif SC','Newsreader',serif;font-size:15px;font-weight:600}
-.todo-manage-day .daily-task-row.is-next .daily-task-copy small{color:var(--sage-green-dark);letter-spacing:.04em}
-.todo-manage-day .daily-task-row:not(.is-next):not(.done){opacity:.72}
-.todo-manage-day .daily-task-row:not(.is-next):not(.done) .daily-task-copy strong{font-size:13px;color:var(--ink-secondary)}
 .daily-task-fold,.habit-advanced{margin-top:16px}
 .daily-task-fold>summary,.habit-advanced>summary{min-height:48px;padding:12px 4px;color:var(--sage-green-dark);font:14px/1.6 var(--paper-body-font);cursor:pointer}
 .daily-task-fold>summary span{float:right;color:var(--ink-muted)}
@@ -8746,9 +8740,6 @@ body:has(.mine-view) #app{
 .private-vault-view .vault-folder-copy strong{white-space:normal;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;font:14px/1.5 var(--paper-body-font)}
 .private-vault-view .vault-folder-copy small{font:10px/1.5 var(--paper-body-font);color:var(--ink-secondary)}
 .private-vault-view .vault-folder-card-menu{right:9px;bottom:16px;width:44px;height:44px;color:var(--sage-green-dark)}
-
-.today-earlier-todos{width:100%;min-height:44px;padding:6px 0;border:0;background:none;text-align:left;font:11px/1.6 var(--paper-body-font);color:var(--terracotta-dark)}
-
 /* ---- 私密空间：保存到相册（2026-10-10） ----
    导出是私密空间唯一一次"主动把内容放出去"的动作，所以警告单独做一块，
    不用小字糊过去。警告用琥珀色是刻意的：它属于"注意"语义，和删除的柔红一样

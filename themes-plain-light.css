@@ -229,7 +229,6 @@
 :root[data-theme="plain"] .focus-screen .focus-timer-actions .play,
 :root[data-theme="plain"] .daily-focus-outcome button,
 :root[data-theme="plain"] .daily-focus-starts button,
-:root[data-theme="plain"] .daily-task-start,
 :root[data-theme="plain"] #generate-focus-coach,
 :root[data-theme="plain"] #ledger-analysis-ai button,
 :root[data-theme="plain"] #screen-library .media-search button,
@@ -243,7 +242,6 @@
   box-shadow: var(--pl-blue-glow) !important;
 }
 :root[data-theme="plain"] :is(.focus-screen .focus-timer-actions .play,
-.daily-task-start,
 .media-detail-actions .media-detail-btn,
 .vault-toolbar button) :is(span, small, strong, .material-symbols-outlined) {
   color: #FFFFFF !important;

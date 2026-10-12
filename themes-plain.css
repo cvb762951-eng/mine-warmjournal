@@ -3,7 +3,7 @@
    —— 本文件由 scripts/gen-plain-theme.mjs 自动生成，请勿手工编辑。
       改了 styles.css / performance.css 之后重新运行该脚本即可。
 
-   扫描 7406 条规则，命中素材规则 499 条。
+   扫描 7396 条规则，命中素材规则 499 条。
    只影响 [data-theme="plain"]，米白与暖阳两个主题完全不受影响。
    ========================================================================== */
 
@@ -35,7 +35,6 @@
 :root[data-theme="plain"] .daily-focus-sheet,
 :root[data-theme="plain"] .daily-focus-sheet input,
 :root[data-theme="plain"] .daily-focus-starts button,
-:root[data-theme="plain"] .daily-task-start,
 :root[data-theme="plain"] .focus-view .focus-stream-sheet:not([open]),
 :root[data-theme="plain"] .habit-focus-entry,
 :root[data-theme="plain"] .habit-modal .habit-icon-picker>label>input:checked+span,
@@ -330,7 +329,6 @@
 :root[data-theme="plain"] .daily-focus-sheet,
 :root[data-theme="plain"] .daily-focus-sheet input,
 :root[data-theme="plain"] .daily-focus-starts button,
-:root[data-theme="plain"] .daily-task-start,
 :root[data-theme="plain"] .dock-btn.active,
 :root[data-theme="plain"] .editorial-hero-image,
 :root[data-theme="plain"] .editorial-hero-image::after,
@@ -806,7 +804,6 @@
 :root[data-theme="plain"] .course-edit-modal .modal-actions .save,
 :root[data-theme="plain"] .daily-focus-outcome button,
 :root[data-theme="plain"] .daily-focus-starts button,
-:root[data-theme="plain"] .daily-task-start,
 :root[data-theme="plain"] .floating-dock,
 :root[data-theme="plain"] .focus-report-badge,
 :root[data-theme="plain"] .focus-screen .focus-mode-btn.active,
@@ -1675,7 +1672,6 @@
 :root[data-theme="plain"] .focus-screen .focus-timer-actions .play,
 :root[data-theme="plain"] .daily-focus-outcome button,
 :root[data-theme="plain"] .daily-focus-starts button,
-:root[data-theme="plain"] .daily-task-start,
 :root[data-theme="plain"] #generate-focus-coach,
 :root[data-theme="plain"] #ledger-analysis-ai button,
 :root[data-theme="plain"] #screen-library .media-search button,
@@ -1689,7 +1685,6 @@
   box-shadow: var(--pl-blue-glow) !important;
 }
 :root[data-theme="plain"] :is(.focus-screen .focus-timer-actions .play,
-.daily-task-start,
 .media-detail-actions .media-detail-btn,
 .vault-toolbar button) :is(span, small, strong, .material-symbols-outlined) {
   color: #FFFFFF !important;
