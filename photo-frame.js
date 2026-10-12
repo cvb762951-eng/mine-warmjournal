@@ -28,3 +28,14 @@ export function photoFrameLayers(url, { padClass = '', stillClass = '' } = {}) {
     return img;
   });
 }
+
+/* 大图先藏着（舞台底色兜底，不白闪），解码完成后一次淡入；已解码的图立刻显示，没有任何过渡。
+   只动 opacity；减少动态效果时 CSS 里不做过渡。共享转场会提前把 is-decoding 摘掉。 */
+export function revealViewerImageWhenDecoded(image) {
+  if (!image || image.tagName !== 'IMG' || typeof image.decode !== 'function') return;
+  if (image.complete && image.naturalWidth && image.dataset?.decoded === '1') return;
+  image.classList.add('is-decoding');
+  const reveal = () => { image.classList.remove('is-decoding'); if (image.dataset) image.dataset.decoded = '1'; };
+  const fallback = setTimeout(reveal, 1200);
+  image.decode().catch(() => {}).then(() => { clearTimeout(fallback); reveal(); });
+}

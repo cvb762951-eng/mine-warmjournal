@@ -1532,6 +1532,13 @@ function photoLightbox(entry, active = 0) {
   });
 }
 
+/* 共享转场的源必须是完整显示的那层主图（.photo-blur-still）。
+   卡片里第一张 <img> 是背后放大铺底的模糊层，拿它当源，转场里飞出来的就是一块被裁切、发糊的缩略图，
+   落到大图上再换成清晰原图 —— 这就是「点照片卡一下缩略图」。 */
+function momentShareSource(button) {
+  return button.querySelector('img.photo-blur-still, img.snippet-photo-main') || button.querySelector('img:not([aria-hidden="true"])') || button.querySelector('img');
+}
+
 function bindSnippets() {
   $('#new-snippet')?.addEventListener('click', () => quickPhotoModal());
   $('#snippet-album')?.addEventListener('click', () => openSnippetAlbum());
@@ -1541,7 +1548,7 @@ function bindSnippets() {
   $$('[data-view-snippet-photo]').forEach(button => button.onclick = () => {
     // 卡片→详情的共享元素：交给浏览器原生的 View Transitions 算那一趟 FLIP
     const entry = state.snippets.find(item => item.id === button.dataset.viewSnippetPhoto);
-    withSharedTransition(button.querySelector('img'), () => photoLightbox(entry, Number(button.dataset.photoIndex) || 0), {
+    withSharedTransition(momentShareSource(button), () => photoLightbox(entry, Number(button.dataset.photoIndex) || 0), {
       targetSelector: '#photo-viewer-image',
       fallbackTargetSelector: '#photo-viewer-image'
     });

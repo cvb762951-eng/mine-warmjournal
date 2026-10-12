@@ -1,4 +1,4 @@
-import { photoFrameLayersHtml } from '../photo-frame.js';
+import { photoFrameLayersHtml, revealViewerImageWhenDecoded } from '../photo-frame.js';
 import { Capacitor } from '@capacitor/core';
 import { NativeMediaStore } from '../native-media-store.js';
 import { PasswordVaultNative } from '../password-vault-native.js';
@@ -865,6 +865,7 @@ function renderVaultPhotoViewer(items, index, source, motion = '') {
     ? `<video id="vault-photo-image" class="is-live-photo" src="${esc(motion)}" poster="${esc(source)}" autoplay loop muted controls playsinline></video>`
     : `<img id="vault-photo-image" src="${esc(source)}" alt="${esc(item.name || '私密照片')}，第 ${index + 1} 张，共 ${items.length} 张" draggable="false">`;
   modal(`<div class="vault-photo-viewer" id="vault-photo-viewer"><div class="vault-photo-stage" id="vault-photo-stage">${frame}</div><div class="vault-photo-chrome" id="vault-photo-chrome"><header><button type="button" data-close aria-label="返回资料库"><span class="material-symbols-outlined">arrow_back</span></button><span><strong>${esc(currentVaultPhotoScopeLabel())}</strong><small>${index + 1} / ${items.length}</small></span><i aria-hidden="true"></i></header><footer><strong>${esc(item.name || '私密照片')}</strong>${details ? `<small>${esc(details)}</small>` : ''}</footer></div><div class="vault-photo-loading" id="vault-photo-loading" hidden><span class="material-symbols-outlined">progress_activity</span></div></div>`, 'photo-modal vault-photo-modal');
+  revealViewerImageWhenDecoded($('#vault-photo-image'));
   if (motion) $('#vault-photo-image')?.play?.().catch(() => {});
   bindVaultPhotoGestures(items, index);
 }
