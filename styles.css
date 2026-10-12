@@ -9201,7 +9201,14 @@ button.journal-deck-cut.journal-deck-mini-more{position:absolute;top:8px;right:6
 .journal-deck-mini-menu button{min-height:30px;padding:3px 14px;font-size:12px}
 .journal-deck-mini.is-flying{z-index:5}
 .journal-deck-spread.is-collapsing .journal-deck-mini:not(.is-flying){opacity:0;transition:opacity 200ms ease}
-@media (prefers-reduced-motion: reduce){.journal-deck-mini{transition:none!important}}
+.journal-deck-spread.is-fanning-in .journal-deck-spread-bar,
+.journal-deck-spread.is-fanning-in .journal-deck-spread-label{opacity:0;transition:opacity 180ms ease}
+@media (prefers-reduced-motion: reduce){
+  .journal-deck-mini{transition:none!important}
+  .journal-deck-spread.is-collapsing .journal-deck-mini:not(.is-flying),
+  .journal-deck-spread.is-fanning-in .journal-deck-spread-bar,
+  .journal-deck-spread.is-fanning-in .journal-deck-spread-label{transition:none!important;opacity:1}
+}
 
 /* 牌组照片轻点轮换：底边小圆点（多张才有），换图时淡一下 */
 .journal-deck-photo .photo-blur-still,.journal-deck-photo .photo-blur-pad{transition:opacity .12s ease}
