@@ -9103,3 +9103,14 @@ button.journal-deck-cut,button.journal-deck-open{min-height:38px;padding:6px 16p
 button.journal-deck-cut{background-color:transparent;background-image:none;color:#174536;box-shadow:inset 0 0 0 1.5px #174536;-webkit-mask-image:none;mask-image:none}
 button.journal-deck-open{margin-top:10px}
 .journal-deck-card:not([data-depth="0"]) .journal-deck-face::before{display:none}
+
+/* 翻阅篇章牌组 · 文字排版收口：全卡统一一套能显示中文的手账字体（fonts.css 已加载的 LXGW WenKai Screen R，缺字回落思源宋体），
+   标题最多两行、正文行高 1.6 并按是否有照片限 2/3 行，照片框收为 2:1，保证正文和日期心情行不被裁。 */
+.journal-deck-face :is(.journal-deck-kicker,.journal-deck-title,.journal-deck-excerpt,.journal-deck-meta){font-family:'LXGW WenKai Screen R','Noto Serif SC',serif;font-weight:400;letter-spacing:.01em}
+.journal-deck-kicker{flex:none;font-size:12px;line-height:1.5}
+.journal-deck-title{flex:none;margin:2px 0 8px;font-size:18px;line-height:1.4;white-space:normal;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;text-overflow:clip}
+.journal-deck-figure{flex:none;margin:0}
+.journal-deck-photo{aspect-ratio:2/1}
+.journal-deck-excerpt{flex:none;margin:10px 0 0;font-size:14px;line-height:1.6;max-height:calc(1.6em * 3);-webkit-line-clamp:3}
+.journal-deck-figure~.journal-deck-excerpt{max-height:calc(1.6em * 2);-webkit-line-clamp:2}
+.journal-deck-meta{flex:none;display:flex;align-items:center;gap:6px;min-height:20px;margin-top:auto;padding-top:8px;font-size:12px;line-height:1.4}
