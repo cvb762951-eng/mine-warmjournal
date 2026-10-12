@@ -615,7 +615,7 @@ function openLedgerAnalysis() {
   const analysisTitle = $('.subpage-nav-title', analysisLayer);
   const analysisBack = $('.subpage-back-btn', analysisLayer);
   if (analysisTitle) analysisTitle.textContent = `${Number(start.slice(5, 7))}月支出深度分析`;
-  if (analysisBack) analysisBack.innerHTML = '<span class="material-symbols-outlined">arrow_back</span>返回';
+  if (analysisBack) analysisBack.innerHTML = '<span class="material-symbols-outlined">arrow_back</span>返回账本';
   $('#ledger-analysis-export')?.setAttribute('disabled','');
   $('#ledger-ai-analysis')?.addEventListener('click', () => { if (!state.settings.aiApiKey) return callHelper('aiSettingsForm'); const result = callHelper('aiLedgerAnalysis', { start, end, expenses }); if (!result) return show('AI 消费分析能力尚未接入'); Promise.resolve(result).catch(() => show('AI 消费分析暂不可用')); });
 }
