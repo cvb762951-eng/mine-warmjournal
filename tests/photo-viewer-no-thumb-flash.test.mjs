@@ -15,12 +15,13 @@ const [snippets, motion, common, vault, styles, calendar] = await Promise.all(
    ② 大图仍要等解码完成再显示，避免画出半张图。 */
 
 test('点照片放大不再走共享转场（三个入口都直接打开）', () => {
-  // 随手拍
+  // 随手拍：多图先相册浏览，大图仍直接 photoLightbox / 无 FLIP
   assert.doesNotMatch(snippets, /withSharedTransition\(/, '随手拍点照片不再用共享转场');
   assert.doesNotMatch(snippets, /preferFlip/, '不再有 FLIP 放大的分支');
   assert.doesNotMatch(snippets, /momentShareSource/, '为转场挑源图的那套已删除');
-  assert.match(snippets, /photoLightbox\(entry, Number\(button\.dataset\.photoIndex\) \|\| 0\)/,
-    '点一下就直接开大图');
+  assert.match(snippets, /openMomentMediaBrowse\(entry, Number\(button\.dataset\.photoIndex\) \|\| 0\)/,
+    '列表点图走相册导航（多图）或直接大图（单张）');
+  assert.match(snippets, /photoLightbox\(current, index\)/, '相册缩略点开仍直接大图、无转场');
   // 日历
   assert.doesNotMatch(calendar, /withSharedTransition\(/, '日历点照片也不再用共享转场');
   // 私密空间

@@ -2,6 +2,7 @@ import { Capacitor, registerPlugin } from '@capacitor/core';
 import { $, $$, esc, goBack, render, show, closeModal, callHelper, registerView, registerBinder, state, save } from '../core.js';
 import { photoViewer } from './common.js';
 import { NativeMediaStore } from '../native-media-store.js';
+import { photoFrameLayersHtml } from '../photo-frame.js';
 
 const Gallery = registerPlugin('LocalGallery');
 const PAGE_SIZE = 48;
@@ -31,7 +32,7 @@ function thumbnail(item) { return thumbnails.get(item.id) || ''; }
 
 function tile(item, index) {
   const cover = thumbnail(item);
-  return `<button class="local-gallery-tile" data-gallery-item="${index}" aria-label="查看${item.kind === 'video' ? '视频' : '照片'}：${esc(item.name)}">${cover ? `<img src="${esc(cover)}" alt="" loading="lazy">` : `<span class="material-symbols-outlined">${item.kind === 'video' ? 'movie' : 'image'}</span>`}${item.kind === 'video' ? '<i class="material-symbols-outlined">play_arrow</i>' : ''}</button>`;
+  return `<button class="local-gallery-tile photo-blur-frame is-edge" data-gallery-item="${index}" aria-label="查看${item.kind === 'video' ? '视频' : '照片'}：${esc(item.name)}">${cover ? photoFrameLayersHtml(esc(cover), { alt: '', lazy: true }) : `<span class="material-symbols-outlined">${item.kind === 'video' ? 'movie' : 'image'}</span>`}${item.kind === 'video' ? '<i class="material-symbols-outlined">play_arrow</i>' : ''}</button>`;
 }
 
 function galleryView() {
@@ -151,7 +152,7 @@ function pumpThumbnails() {
       if (thumbnails.size > 180) thumbnails.delete(thumbnails.keys().next().value);
       const index = items.findIndex(candidate => candidate.id === item.id);
       const tileElement = $(`[data-gallery-item="${index}"]`);
-      if (tileElement) tileElement.insertAdjacentHTML('afterbegin', `<img src="${preview}" alt="" loading="lazy">`);
+      if (tileElement) tileElement.insertAdjacentHTML('afterbegin', photoFrameLayersHtml(preview, { alt: '', lazy: true }));
     }).catch(() => { /* A missing thumbnail must not hide the original file. */ }).finally(() => {
       if (token === requestId) queuedThumbnails.delete(item.id);
       activeThumbnailLoads--;

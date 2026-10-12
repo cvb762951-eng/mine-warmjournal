@@ -2,6 +2,7 @@ import { $, $$, esc, state, save, render, modal, closeModal, show, confirmDelete
 import { dateKey, makeTasteEntry, tastePlaceGroups, TASTE_TYPES, TASTE_VERDICTS } from '../model.js';
 import { compressSnippetPhoto, importPhotoBatch, isSupportedJournalPhoto } from '../photo-utils.js';
 import { photoViewer } from './common.js';
+import { photoFrameLayersHtml } from '../photo-frame.js';
 
 let tasteFilter = 'all';
 let tasteSearch = '';
@@ -47,18 +48,18 @@ export function tasteView() {
 
 function tasteMemoryShelf(title, subtitle, entries, icon) {
   if (!entries.length) return '';
-  return `<section class="taste-memory-shelf"><header><span class="material-symbols-outlined">${icon}</span><span><strong>${title}</strong><small>${subtitle}</small></span></header><div>${entries.map(entry => `<button type="button" data-open-taste="${entry.id}">${entry.photos?.[0] ? `<img src="${imgSrc(entry.photos[0])}" alt="">` : `<span class="material-symbols-outlined">${TASTE_TYPES[entry.type].icon}</span>`}<b>${esc(entry.name)}</b><small>${esc(TASTE_VERDICTS[entry.verdict].short)}</small></button>`).join('')}</div></section>`;
+  return `<section class="taste-memory-shelf"><header><span class="material-symbols-outlined">${icon}</span><span><strong>${title}</strong><small>${subtitle}</small></span></header><div>${entries.map(entry => `<button type="button" data-open-taste="${entry.id}">${entry.photos?.[0] ? `<span class="taste-shelf-thumb photo-blur-frame is-edge">${photoFrameLayersHtml(imgSrc(entry.photos[0]), { alt: '', lazy: true })}</span>` : `<span class="material-symbols-outlined">${TASTE_TYPES[entry.type].icon}</span>`}<b>${esc(entry.name)}</b><small>${esc(TASTE_VERDICTS[entry.verdict].short)}</small></button>`).join('')}</div></section>`;
 }
 
 function tastePlaceCard(group) {
-  return `<button type="button" class="taste-place-card" data-taste-place="${esc(group.name)}">${group.cover ? `<img src="${imgSrc(group.cover)}" alt="">` : '<span class="material-symbols-outlined">storefront</span>'}<span><strong>${esc(group.name)}</strong><small>${group.entries.length} 次记录${group.averageRating ? ` · ${group.averageRating}分` : ''}</small><em>${group.favorites ? `${group.favorites} 个推荐` : '继续尝鲜'}${group.avoid ? ` · ${group.avoid} 个避雷` : ''}</em></span><i class="material-symbols-outlined">chevron_right</i></button>`;
+  return `<button type="button" class="taste-place-card" data-taste-place="${esc(group.name)}">${group.cover ? `<span class="taste-place-thumb photo-blur-frame is-edge">${photoFrameLayersHtml(imgSrc(group.cover), { alt: '', lazy: true })}</span>` : '<span class="material-symbols-outlined">storefront</span>'}<span><strong>${esc(group.name)}</strong><small>${group.entries.length} 次记录${group.averageRating ? ` · ${group.averageRating}分` : ''}</small><em>${group.favorites ? `${group.favorites} 个推荐` : '继续尝鲜'}${group.avoid ? ` · ${group.avoid} 个避雷` : ''}</em></span><i class="material-symbols-outlined">chevron_right</i></button>`;
 }
 
 function tasteEntryCard(entry) {
   const type = TASTE_TYPES[entry.type];
   const verdict = TASTE_VERDICTS[entry.verdict];
   const place = placeNameFor(entry) || entry.brand;
-  return `<article class="taste-entry-card verdict-${entry.verdict}"><button type="button" class="taste-entry-open" data-open-taste="${entry.id}"><span class="taste-entry-photo">${entry.photos?.[0] ? `<img src="${imgSrc(entry.photos[0])}" alt="${esc(entry.name)}">` : `<span class="material-symbols-outlined">${type.icon}</span>`}<em>${esc(verdict.short)}</em></span><span class="taste-entry-copy"><small>${esc(type.label)} · ${entry.date}</small><strong>${esc(entry.name)}</strong><span class="taste-stars" aria-label="${entry.rating || 0}分">${ratingStars(entry.rating)}</span><p>${esc(place || entry.notes || '还没有补充店铺或评价')}</p>${entry.flavorTags.length ? `<i>${entry.flavorTags.slice(0,3).map(tag=>`#${esc(tag)}`).join(' ')}</i>` : ''}</span><span class="material-symbols-outlined">chevron_right</span></button></article>`;
+  return `<article class="taste-entry-card verdict-${entry.verdict}"><button type="button" class="taste-entry-open" data-open-taste="${entry.id}"><span class="taste-entry-photo photo-blur-frame is-edge">${entry.photos?.[0] ? photoFrameLayersHtml(imgSrc(entry.photos[0]), { alt: entry.name, lazy: true }) : `<span class="material-symbols-outlined">${type.icon}</span>`}<em>${esc(verdict.short)}</em></span><span class="taste-entry-copy"><small>${esc(type.label)} · ${entry.date}</small><strong>${esc(entry.name)}</strong><span class="taste-stars" aria-label="${entry.rating || 0}分">${ratingStars(entry.rating)}</span><p>${esc(place || entry.notes || '还没有补充店铺或评价')}</p>${entry.flavorTags.length ? `<i>${entry.flavorTags.slice(0,3).map(tag=>`#${esc(tag)}`).join(' ')}</i>` : ''}</span><span class="material-symbols-outlined">chevron_right</span></button></article>`;
 }
 
 function tasteEmpty(hasRecords) {
@@ -73,7 +74,7 @@ export function tasteForm(entry = null) {
 }
 
 function tastePhotoPreview() {
-  return pendingTastePhotos.length ? pendingTastePhotos.map((photo,index)=>`<span><img src="${imgSrc(photo)}" alt="照片 ${index+1}"><button type="button" data-remove-taste-photo="${index}" aria-label="移除第 ${index+1} 张照片"><span class="material-symbols-outlined">close</span></button></span>`).join('') : '<p><span class="material-symbols-outlined">photo_camera</span><small>最多 6 张照片</small></p>';
+  return pendingTastePhotos.length ? pendingTastePhotos.map((photo,index)=>`<span class="photo-blur-frame is-edge">${photoFrameLayersHtml(imgSrc(photo), { alt: `照片 ${index+1}` })}<button type="button" data-remove-taste-photo="${index}" aria-label="移除第 ${index+1} 张照片"><span class="material-symbols-outlined">close</span></button></span>`).join('') : '<p><span class="material-symbols-outlined">photo_camera</span><small>最多 6 张照片</small></p>';
 }
 
 function refreshTastePhotoPreview() {
@@ -119,7 +120,7 @@ async function deleteTasteEntry(id) {
 function tasteDetail(entry) {
   if (!entry) return;
   const verdict=TASTE_VERDICTS[entry.verdict], type=TASTE_TYPES[entry.type], place=placeNameFor(entry)||entry.brand;
-  modal(`<article class="taste-detail"><header><small>${esc(type.label)} · ${entry.date}</small><h2>${esc(entry.name)}</h2><span class="taste-detail-verdict verdict-${entry.verdict}"><i class="material-symbols-outlined">${verdict.icon}</i>${verdict.label}</span></header>${entry.photos.length?`<button type="button" class="taste-detail-gallery" id="taste-detail-gallery"><img src="${imgSrc(entry.photos[0])}" alt="${esc(entry.name)}"><span>${entry.photos.length} 张照片</span></button>`:''}<div class="taste-detail-facts"><span><small>评分</small><strong>${ratingStars(entry.rating)}</strong></span>${place?`<span><small>店铺 / 品牌</small><strong>${esc(place)}</strong></span>`:''}${entry.price?`<span><small>价格</small><strong>¥${entry.price.toFixed(2)}</strong></span>`:''}${entry.location?`<span><small>地点</small><strong>${esc(entry.location)}</strong></span>`:''}</div>${entry.flavorTags.length?`<div class="taste-detail-tags">${entry.flavorTags.map(tag=>`<span>#${esc(tag)}</span>`).join('')}</div>`:''}<p>${esc(entry.notes||'还没有写详细评价。')}</p><div class="modal-actions"><button type="button" data-close>关闭</button><button type="button" class="save" id="taste-detail-edit">编辑</button></div></article>`, 'taste-detail-modal');
+  modal(`<article class="taste-detail"><header><small>${esc(type.label)} · ${entry.date}</small><h2>${esc(entry.name)}</h2><span class="taste-detail-verdict verdict-${entry.verdict}"><i class="material-symbols-outlined">${verdict.icon}</i>${verdict.label}</span></header>${entry.photos.length?`<button type="button" class="taste-detail-gallery photo-blur-frame is-edge" id="taste-detail-gallery">${photoFrameLayersHtml(imgSrc(entry.photos[0]), { alt: entry.name })}<span>${entry.photos.length} 张照片</span></button>`:''}<div class="taste-detail-facts"><span><small>评分</small><strong>${ratingStars(entry.rating)}</strong></span>${place?`<span><small>店铺 / 品牌</small><strong>${esc(place)}</strong></span>`:''}${entry.price?`<span><small>价格</small><strong>¥${entry.price.toFixed(2)}</strong></span>`:''}${entry.location?`<span><small>地点</small><strong>${esc(entry.location)}</strong></span>`:''}</div>${entry.flavorTags.length?`<div class="taste-detail-tags">${entry.flavorTags.map(tag=>`<span>#${esc(tag)}</span>`).join('')}</div>`:''}<p>${esc(entry.notes||'还没有写详细评价。')}</p><div class="modal-actions"><button type="button" data-close>关闭</button><button type="button" class="save" id="taste-detail-edit">编辑</button></div></article>`, 'taste-detail-modal');
   $('#taste-detail-gallery')?.addEventListener('click',()=>photoViewer(entry.photos,0));
   $('#taste-detail-edit').onclick=()=>tasteForm(entry);
 }

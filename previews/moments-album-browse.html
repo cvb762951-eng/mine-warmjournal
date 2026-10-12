@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Moments 图集浏览 · 预览</title>
+<style>
+  :root { --paper:#FBFCFE; --line:rgba(85,96,108,.12); --ink:#2E343B; --muted:#8a929c; --soft:14px; --bg:#efe7d6; }
+  body { margin:0; font:14px/1.45 system-ui,sans-serif; background:#e8edf5; color:var(--ink); }
+  main { max-width:420px; margin:24px auto; padding:0 14px 40px; }
+  h1 { font-size:18px; } p { color:var(--muted); font-size:12px; }
+  .cols { display:grid; gap:16px; }
+  .phone { background:#fff; border:1px solid var(--line); border-radius:20px; overflow:hidden; box-shadow:0 8px 24px rgba(46,52,59,.08); }
+  .bar { padding:12px 14px; font-size:12px; color:var(--muted); border-bottom:1px solid var(--line); }
+  .before .stage { height:280px; display:grid; place-items:center; background:#05070b; color:#fff; font-size:13px; }
+  .after .sheet { background:var(--paper); border-radius:var(--soft) var(--soft) 0 0; padding:14px; }
+  .grid { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+  .tile { aspect-ratio:1; border-radius:8px; background:linear-gradient(135deg,#d9e2f2,#c5d0e4); position:relative; overflow:hidden; }
+  .tile span { position:absolute; inset:10% 18%; background:rgba(255,255,255,.55); border-radius:4px; }
+  .tile.video::after { content:"▶"; position:absolute; inset:0; display:grid; place-items:center; background:rgba(20,40,30,.35); color:#fff; font-size:18px; }
+  .cap { margin:8px 0 0; font-size:12px; color:var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <h1>图集浏览中间层</h1>
+  <p>Before：点多图马赛克直接进全屏。After：先纸面缩略网格（共用 contain 相框），再点进大图。</p>
+  <div class="cols">
+    <section class="phone before">
+      <div class="bar">Before · 直接全屏</div>
+      <div class="stage">photoViewer 全黑大图</div>
+    </section>
+    <section class="phone after">
+      <div class="bar">After · 图集浏览</div>
+      <div class="sheet">
+        <strong>图集浏览</strong>
+        <div class="cap">3 张照片 · 1 段视频</div>
+        <div class="grid" style="margin-top:10px">
+          <div class="tile"><span></span></div>
+          <div class="tile"><span></span></div>
+          <div class="tile video"><span></span></div>
+          <div class="tile"><span></span></div>
+        </div>
+      </div>
+    </section>
+  </div>
+</main>
+</body>
+</html>
