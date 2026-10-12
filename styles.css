@@ -9426,3 +9426,12 @@ body #modal-layer .modal.todo-sheet .ts-actions { margin-top: 18px !important; b
 body #modal-layer .modal.confirm-sheet { max-width: 420px; }
 body #modal-layer .modal.confirm-sheet p { margin: 10px 0 0; font-size: 13px; line-height: 1.6; color: var(--ds-muted); }
 body #modal-layer .modal.confirm-sheet .modal-actions .danger { padding: 0 16px !important; border: 1px solid color-mix(in srgb, #b4564f 45%, transparent) !important; }
+
+/* ── 今日画页（Today 照片堆叠）：与随手拍同一套共用照片框（photo-blur-frame）──
+   用户要求：清晰照片在框里尽量大——contain 贴满一条轴，不留内边距 / 内缩 / 白边；只有另一条轴剩下的空位露出同图铺底。
+   所以这里只把共用框的 6px 内边距、内缩和描边归零，铺底数值仍沿用共用框（同图、.5 透明、放大 1.08、无动画）。
+   纸色兜底：图片未到前不露白；柔角走 --radius-soft-sm。照片上不压任何文字（时间与文案在框下方）。 */
+.today-view .polaroid-frame.photo-blur-frame{padding:0!important;border:0!important;border-radius:var(--radius-soft-sm,5px)!important;box-shadow:none!important;background:#efe7d6!important}
+:root[data-theme="plain"] .today-view .polaroid-frame.photo-blur-frame{background:#E8EDF5!important}
+.today-view .polaroid-frame.photo-blur-frame>img.photo-blur-still{inset:0!important;width:100%!important;height:100%!important;margin:0!important;border:0!important;border-radius:0!important;transform:none!important;object-fit:contain!important}
+.today-view .polaroid-frame.photo-blur-frame>img.photo-blur-pad{filter:none!important}

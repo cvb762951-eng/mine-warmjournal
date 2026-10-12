@@ -3,6 +3,7 @@ import { habitsForDate, todosForDate, todayCompletion, activeStreak, dateKey, WE
 import { recentActivity, openReleaseNotes } from './common.js';
 import { countdownBanner } from './countdown.js';
 import { isSupportedJournalPhoto } from '../photo-utils.js';
+import { photoFrameLayersHtml } from '../photo-frame.js';
 
 // ---- 本地状态 ----
 let photoStackIndex = 0;
@@ -153,7 +154,7 @@ function photoStackHtml(entries) {
     const photo = entry.photos?.length ? entry.photos[0] : entry.photo;
     const time = entry.createdAt ? new Date(entry.createdAt) : null;
     const timeText = time ? `${time.getMonth() + 1}/${time.getDate()} ${pad(time.getHours())}:${pad(time.getMinutes())}` : '';
-    return `<button type="button" class="stack-card card-pos-${i}" id="card-${i}" data-photo-stack-entry="${esc(entry.id)}"><span class="polaroid-frame">${photoStoryImage(photo, entry.text || '随手拍')}</span><span class="polaroid-meta"><span class="polaroid-time">${timeText}</span><span class="polaroid-caption">${handwrittenCaptionHtml(entry.text || '随手拍')}</span></span></button>`;
+    return `<button type="button" class="stack-card card-pos-${i}" id="card-${i}" data-photo-stack-entry="${esc(entry.id)}"><span class="polaroid-frame photo-blur-frame">${photoStoryImage(photo, entry.text || '随手拍')}</span><span class="polaroid-meta"><span class="polaroid-time">${timeText}</span><span class="polaroid-caption">${handwrittenCaptionHtml(entry.text || '随手拍')}</span></span></button>`;
   }).join('')}</div><div class="stack-dots">${Array.from({ length: count }, (_, i) => `<span class="stack-dot ${i === photoStackIndex % count ? 'active' : ''}" data-stack-dot="${i}"></span>`).join('')}</div></div>`;
 }
 
@@ -162,7 +163,7 @@ function photoStackHtml(entries) {
    两层同地址，浏览器只下载一次。不再按横图、竖图分两套留白。 */
 function photoStoryImage(source, alt = '') {
   const url = imgSrc(source);
-  return `<img class="polaroid-blur" src="${url}" alt="" aria-hidden="true"><img class="polaroid-img" src="${url}" alt="${esc(alt)}">`;
+  return photoFrameLayersHtml(url, { alt, padClass: 'polaroid-blur', stillClass: 'polaroid-img' });
 }
 
 function handwrittenCaptionHtml(text) {
