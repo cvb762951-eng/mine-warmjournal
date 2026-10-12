@@ -9157,6 +9157,7 @@ img:is(.photo-blur-pad,.snippet-photo-blur,.snippet-cover-blur,.vault-cover-blur
    照片框 contain:paint，顶牌移动不会让后面的牌或铺底图重绘。 */
 .journal-deck-card{will-change:auto;transition:none}
 .journal-deck-card.is-active-drag{will-change:transform}
+.journal-deck-card.is-deck-rising{will-change:transform,opacity}
 .journal-deck-stage,.journal-deck-card{touch-action:pan-y}
 .journal-deck-photo,.photo-blur-frame{contain:paint}
 

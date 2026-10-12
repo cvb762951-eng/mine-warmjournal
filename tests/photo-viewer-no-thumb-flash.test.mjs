@@ -37,3 +37,15 @@ test('revealViewerImageWhenDecoded reveals after decode and skips video', async 
   assert.equal(img.dataset.decoded, '1');
   revealViewerImageWhenDecoded({ tagName: 'VIDEO' });
 });
+
+test('moments open uses FLIP enlarge from sharp still, decode before reveal', () => {
+  assert.match(snippets, /preferFlip:\s*true/);
+  assert.match(snippets, /momentShareSource\(button\)/);
+  const shared = motion.slice(motion.indexOf('export function beginSharedElement'), motion.indexOf('export function staggerIn'));
+  assert.match(shared, /decodeWait/);
+  assert.match(shared, /object-fit:\$\{fit\}/);
+  assert.match(shared, /Promise\.all\(\[flight\.finished/);
+  assert.match(shared, /opacity: 1/);
+  assert.match(shared, /!targetEl\.naturalWidth/, '解码超时且尚无像素时先不揭开，避免闪空图');
+  assert.match(motion, /preferFlip/);
+});
