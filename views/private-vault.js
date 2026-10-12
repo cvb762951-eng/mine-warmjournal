@@ -250,7 +250,7 @@ function vaultItem(item) {
   const rawName = item.name || (item.type === 'video' ? '私密视频' : '私密照片');
   // 竖屏卡片样式：裁过画面之后也算重判（横屏裁成竖屏就该换成竖版卡片）
   const portraitCover = item.type === 'video' && vaultItemOrientation(item) === 'portrait';
-  const media = `<span class="vault-media-box ${item.type === 'video' ? 'video-contain-cover' : ''} ${portraitCover ? 'is-portrait-video-cover' : ''}">${cached ? `<img src="${esc(cached)}" alt="${esc(rawName)}">` : '<span class="vault-media-loading material-symbols-outlined">encrypted</span>'}${item.type === 'video' ? `<i class="material-symbols-outlined">play_arrow</i><em class="video-duration-stamp" data-vault-duration="${item.id}" aria-label="视频时长 ${duration}">${duration}</em>` : ''}${item.type === 'photo' && item.motionRef ? livePhotoMarkHtml() : ''}${edited ? '<em class="video-edited-stamp" aria-label="已剪辑">已剪辑</em>' : ''}</span>`;
+  const media = `<span class="vault-media-box ${item.type === 'video' ? 'video-contain-cover' : ''} ${portraitCover ? 'is-portrait-video-cover' : ''}">${cached ? `${item.type === 'video' ? `<img class="photo-blur-pad" src="${esc(cached)}" alt="" aria-hidden="true">` : ''}<img src="${esc(cached)}" alt="${esc(rawName)}">` : '<span class="vault-media-loading material-symbols-outlined">encrypted</span>'}${item.type === 'video' ? `<i class="material-symbols-outlined">play_arrow</i><em class="video-duration-stamp" data-vault-duration="${item.id}" aria-label="视频时长 ${duration}">${duration}</em>` : ''}${item.type === 'photo' && item.motionRef ? livePhotoMarkHtml() : ''}${edited ? '<em class="video-edited-stamp" aria-label="已剪辑">已剪辑</em>' : ''}</span>`;
   const selected = vaultSelectedIds.has(item.id);
   const primary = vaultSelectionMode ? `data-select-vault-item="${item.id}" aria-label="${selected ? '取消选择' : '选择'}${esc(rawName)}"` : `data-open-vault-item="${item.id}" aria-label="${item.type === 'video' ? '播放' : '查看'}${esc(rawName)}"`;
   const mark = vaultSelectionMode ? `<span class="vault-selection-mark material-symbols-outlined">${selected ? 'check_circle' : 'radio_button_unchecked'}</span>` : '';
@@ -413,7 +413,7 @@ async function loadThumbnails() {
       thumbnailUrls.set(id, url);
       const target = $(`[data-open-vault-item="${id}"] .vault-media-box`);
       target?.querySelector('.vault-media-loading')?.remove();
-      if (target && !target.querySelector('img')) target.insertAdjacentHTML('afterbegin', `<img src="${esc(url)}" alt="${esc(item.name)}">`);
+      if (target && !target.querySelector('img')) target.insertAdjacentHTML('afterbegin', `${item.type === 'video' ? `<img class="photo-blur-pad" src="${esc(url)}" alt="" aria-hidden="true">` : ''}<img src="${esc(url)}" alt="${esc(item.name)}">`);
       if (item.type === 'video' && (!item.duration || !item.displayOrientation) && item.sourceType !== 'hls' && /^mine-(?:media|browser-media):\/\//.test(item.assetRef || '')) {
         const metadata = await readVideoMetadata(await vaultVideoSource(item));
         if (metadata.duration || metadata.displayOrientation) {
@@ -1486,7 +1486,7 @@ function bindPrivateVault() {
     // Android WebView 会把封面从页面快照里抠走：抠空处是点击位置的白块，
     // 整页交叉淡化再透出 WebView 的白底，闪一整屏白。照片才走共享元素。
     if (item?.type === 'video') { open(); return; }
-    const source = button.querySelector('.vault-media-box img') || button.querySelector('.vault-media-box');
+    const source = button.querySelector('.vault-media-box img:not(.photo-blur-pad)') || button.querySelector('.vault-media-box');
     withSharedTransition(source, open, {
       targetSelector: '#vault-photo-image',
       fallbackTargetSelector: '#vault-photo-image'
