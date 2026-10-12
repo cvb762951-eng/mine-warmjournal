@@ -545,6 +545,250 @@ export function deckCutDecision({ dx = 0, width = 1, velocity = 0 } = {}) {
   return 'stay';
 }
 
+/* ── 摊开：把牌组铺成按月分组的小卡网格，用来找某一篇 ──
+   只动 transform/opacity（无 filter），小卡照片用共用照片框，进入视口才给 src（IntersectionObserver）。
+   打开时一次性读取牌组和可见小卡的位置（一批读、一批写，不交替），之后只写 transform。
+   点小卡 → 那张小卡飞回牌组位置，牌组跳到这一篇；「收起」原样收回。⋯ 菜单：打开 / 编辑 / 删除（调用方提供，复用原有路径）。 */
+const SPREAD_EASE = 'var(--ease-spring, cubic-bezier(.34,1.56,.64,1))';
+function createDeckSpread({ host, stage, controls, open, list, options, signal, toggleButton, searchButton, currentIndex, jumpTo }) {
+  const cfg = options.spread || {};
+  let panel = null;
+  let observer = null;
+  let opened = false;
+  let busy = false;
+  const monthOf = model => String(model.month || model.id || '').slice(0, 7);
+  const monthLabel = key => /^\d{4}-\d{2}$/.test(key) ? `${key.slice(0, 4)} 年 ${Number(key.slice(5, 7))} 月` : '其他';
+  const reduced = () => prefersReducedMotion();
+  const setDeckHidden = hidden => {
+    for (const el of [stage, controls, open]) {
+      el.classList.toggle('is-spread-hidden', hidden);
+      if (hidden) el.setAttribute('aria-hidden', 'true'); else el.removeAttribute('aria-hidden');
+      el.inert = hidden;
+    }
+  };
+  const build = () => {
+    panel = document.createElement('section');
+    panel.className = 'journal-deck-spread';
+    panel.setAttribute('aria-label', '摊开的篇章');
+    const bar = document.createElement('div');
+    bar.className = 'journal-deck-spread-bar';
+    const chips = document.createElement('div');
+    chips.className = 'journal-deck-spread-months';
+    chips.setAttribute('role', 'tablist');
+    chips.setAttribute('aria-label', '按月份跳转');
+    if (cfg.onSearch && searchButton) searchButton.addEventListener('click', () => cfg.onSearch(), { signal });
+    bar.append(chips);
+    // 不再套内层滚动框：网格随页面自然滚动
+    const scroller = document.createElement('div');
+    scroller.className = 'journal-deck-spread-body';
+    const groups = new Map();
+    list.forEach((model, at) => {
+      const key = monthOf(model);
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push([model, at]);
+    });
+    const keys = [...groups.keys()].sort((a, b) => b.localeCompare(a));
+    for (const key of keys) {
+      const chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'journal-deck-cut journal-deck-spread-chip';
+      chip.textContent = /^\d{4}-\d{2}$/.test(key) ? `${Number(key.slice(5, 7))}月${key.slice(0, 4) !== String(new Date().getFullYear()) ? ` ${key.slice(2, 4)}` : ''}` : '其他';
+      chip.dataset.month = key;
+      chip.setAttribute('aria-label', `跳到${monthLabel(key)}`);
+      chips.append(chip);
+      const section = document.createElement('div');
+      section.className = 'journal-deck-spread-month';
+      section.dataset.month = key;
+      const label = document.createElement('h4');
+      label.className = 'journal-deck-heading journal-deck-spread-label';
+      label.textContent = `${monthLabel(key)} · ${groups.get(key).length} 篇`;
+      const grid = document.createElement('div');
+      grid.className = 'journal-deck-spread-grid';
+      for (const [model, at] of groups.get(key)) grid.append(miniCard(model, at));
+      section.append(label, grid);
+      scroller.append(section);
+    }
+    chips.addEventListener('click', event => {
+      const chip = event.target.closest?.('[data-month]');
+      if (!chip) return;
+      const section = scroller.querySelector(`.journal-deck-spread-month[data-month="${chip.dataset.month}"]`);
+      section?.scrollIntoView({ block: 'start', behavior: reduced() ? 'auto' : 'smooth' });
+      chips.querySelectorAll('.is-current').forEach(el => el.classList.remove('is-current'));
+      chip.classList.add('is-current');
+    }, { signal });
+    panel.append(bar, scroller);
+    observer = typeof IntersectionObserver === 'function' ? new IntersectionObserver(items => {
+      for (const item of items) {
+        if (!item.isIntersecting) continue;
+        observer.unobserve(item.target);
+        item.target.querySelectorAll('img[data-src]').forEach(img => { img.src = img.dataset.src; img.removeAttribute('data-src'); });
+      }
+    }, { rootMargin: '240px 0px' }) : null;
+    panel.querySelectorAll('.journal-deck-mini').forEach(card => {
+      if (observer) observer.observe(card);
+      else card.querySelectorAll('img[data-src]').forEach(img => { img.src = img.dataset.src; });
+    });
+    host.append(panel);
+  };
+  const miniCard = (model, at) => {
+    const card = document.createElement('article');
+    card.className = 'journal-deck-face journal-deck-mini';
+    card.dataset.deckIndex = String(at);
+    const pick = document.createElement('button');
+    pick.type = 'button';
+    pick.className = 'journal-deck-mini-pick';
+    pick.setAttribute('aria-label', `${model.title || '这一篇'}，放回牌组并翻到这一篇`);
+    const date = document.createElement('span');
+    date.className = 'journal-deck-kicker journal-deck-mini-date';
+    date.textContent = String(model.kicker || model.id || '');
+    const title = document.createElement('strong');
+    title.className = 'journal-deck-title journal-deck-mini-title';
+    title.textContent = model.title || '未命名的一天';
+    pick.append(date);
+    if (model.photoSrc) {
+      const frame = document.createElement('span');
+      frame.className = `journal-deck-photo journal-deck-mini-photo ${PHOTO_FRAME_CLASS}`;
+      const layers = photoFrameLayers('', {});
+      layers.forEach(img => { img.removeAttribute('src'); img.dataset.src = model.photoSrc; img.loading = 'lazy'; img.decoding = 'async'; });
+      frame.append(...layers);
+      pick.append(frame);
+    } else {
+      // 没有照片也占同样高的照片位：纸色底 + 小图标，小卡一样高
+      const blank = document.createElement('span');
+      blank.className = `journal-deck-photo journal-deck-mini-photo ${PHOTO_FRAME_CLASS} is-empty`;
+      blank.innerHTML = '<span class="material-symbols-outlined" aria-hidden="true">history_edu</span>';
+      pick.append(blank);
+    }
+    const meta = document.createElement('small');
+    meta.className = 'journal-deck-meta journal-deck-mini-meta';
+    meta.textContent = model.meta || '';
+    pick.append(title, meta);
+    pick.addEventListener('click', () => collapse(at, card), { signal });
+    card.append(pick);
+    const actions = [['open', '打开', cfg.onOpen || options.onOpen], ['edit', '编辑', cfg.onEdit], ['delete', '删除', cfg.onDelete]].filter(([, , fn]) => typeof fn === 'function');
+    if (actions.length) {
+      const more = document.createElement('button');
+      more.type = 'button';
+      more.className = 'journal-deck-cut journal-deck-mini-more';
+      more.setAttribute('aria-label', `${model.title || '这一篇'}的更多操作`);
+      more.setAttribute('aria-expanded', 'false');
+      more.innerHTML = '<span class="material-symbols-outlined" aria-hidden="true">more_horiz</span>';
+      const menu = document.createElement('div');
+      menu.className = 'journal-deck-face journal-deck-mini-menu';
+      menu.hidden = true;
+      for (const [kind, label, fn] of actions) {
+        const item = document.createElement('button');
+        item.type = 'button';
+        item.dataset.miniAction = kind;
+        item.className = kind === 'delete' ? 'journal-deck-cut journal-deck-mini-danger' : 'journal-deck-cut';
+        item.textContent = label;
+        item.addEventListener('click', () => { menu.hidden = true; more.setAttribute('aria-expanded', 'false'); fn(model); }, { signal });
+        menu.append(item);
+      }
+      more.addEventListener('click', () => {
+        const show = menu.hidden;
+        panel?.querySelectorAll('.journal-deck-mini-menu:not([hidden])').forEach(el => { el.hidden = true; });
+        menu.hidden = !show;
+        more.setAttribute('aria-expanded', String(show));
+      }, { signal });
+      card.append(more, menu);
+    }
+    return card;
+  };
+  // 一批读：牌组中心 + 视口内小卡位置；一批写：初始 transform；下一帧统一过渡回原位。
+  const fanOut = deckRect => {
+    if (reduced() || !deckRect?.width) return;
+    const cards = [...panel.querySelectorAll('.journal-deck-mini')];
+    const viewH = window.innerHeight || 800;
+    const reads = [];
+    for (const card of cards) {
+      const r = card.getBoundingClientRect();
+      if (r.top > viewH + 40) break;
+      reads.push([card, r]);
+    }
+    const cx = deckRect.left + deckRect.width / 2;
+    const cy = deckRect.top + deckRect.height / 2;
+    reads.forEach(([card, r], i) => {
+      card.style.transition = 'none';
+      card.style.transform = `translate3d(${(cx - (r.left + r.width / 2)).toFixed(1)}px, ${(cy - (r.top + r.height / 2)).toFixed(1)}px, 0) rotate(${((i % 5) - 2) * 3}deg) scale(.6)`;
+      card.style.opacity = '0';
+    });
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      reads.forEach(([card], i) => {
+        const delay = Math.min(i, 14) * 28;
+        card.style.transition = `transform 520ms ${SPREAD_EASE} ${delay}ms, opacity 260ms ease ${delay}ms`;
+        card.style.transform = '';
+        card.style.opacity = '';
+      });
+      setTimeout(() => reads.forEach(([card]) => { card.style.transition = ''; }), 520 + 14 * 28 + 60);
+    }));
+  };
+  const setToggle = spreadOn => {
+    if (toggleButton) {
+      toggleButton.innerHTML = spreadOn
+        ? '<span class="material-symbols-outlined" aria-hidden="true">unfold_less</span><span>收起</span>'
+        : '<span class="material-symbols-outlined" aria-hidden="true">grid_view</span><span>摊开</span>';
+      toggleButton.setAttribute('aria-label', spreadOn ? '收起，回到牌组' : '摊开全部篇章，按月份查找');
+      toggleButton.setAttribute('aria-expanded', String(spreadOn));
+    }
+    if (searchButton) searchButton.hidden = !spreadOn || !cfg.onSearch;
+  };
+  const expand = () => {
+    if (opened || busy) return;
+    if (!panel) build();
+    opened = true;
+    setToggle(true);
+    const deckRect = reduced() ? null : stage.getBoundingClientRect();
+    host.classList.add('is-spread');
+    panel.hidden = false;
+    setDeckHidden(true);
+    const current = panel.querySelector(`.journal-deck-mini[data-deck-index="${currentIndex()}"]`);
+    current?.classList.add('is-current');
+    fanOut(deckRect);
+  };
+  const collapse = (at, fromCard) => {
+    if (!opened || busy) return;
+    const settleSpread = () => {
+      busy = false;
+      opened = false;
+      host.classList.remove('is-spread', 'is-spread-flying');
+      setToggle(false);
+      if (panel) panel.hidden = true;
+      panel?.querySelectorAll('.is-current').forEach(el => el.classList.remove('is-current'));
+      setDeckHidden(false);
+      if (at >= 0) jumpTo(at);
+      if (host.getBoundingClientRect().top < 0) host.scrollIntoView({ block: 'start', behavior: 'auto' });
+      stage.focus?.({ preventScroll: true });
+    };
+    if (reduced() || !fromCard) { settleSpread(); return; }
+    busy = true;
+    // 读：小卡和牌组位置各一次；写：小卡飞向牌组，其余小卡淡出
+    // 牌组收起时不占位，目标取摊开面板顶部牌组将出现的位置
+    const from = fromCard.getBoundingClientRect();
+    const box = panel.getBoundingClientRect();
+    const dx = box.left + box.width / 2 - (from.left + from.width / 2);
+    const dy = Math.max(box.top, 0) + 215 - (from.top + from.height / 2);
+    panel.classList.add('is-collapsing');
+    host.classList.add('is-spread-flying');
+    fromCard.classList.add('is-flying');
+    fromCard.style.transition = `transform 420ms ${SPREAD_EASE}`;
+    fromCard.style.transform = `translate3d(${dx.toFixed(1)}px, ${dy.toFixed(1)}px, 0) scale(1.4)`;
+    setTimeout(() => {
+      fromCard.style.transition = '';
+      fromCard.style.transform = '';
+      fromCard.classList.remove('is-flying');
+      panel.classList.remove('is-collapsing');
+      settleSpread();
+    }, 430);
+  };
+  return {
+    toggle: () => (opened ? collapse(-1) : expand()),
+    expand,
+    collapse,
+    destroy() { observer?.disconnect(); panel?.remove(); panel = null; }
+  };
+}
+
 const journalDecks = new WeakMap();
 const liveJournalDecks = new Set();
 
@@ -632,7 +876,9 @@ export function mountJournalDeck(host, entries = [], options = {}) {
     const yaw = new SpringODE({ mass: 0.8, stiffness: 240, damping: 20, precision: 0.15 });
     let deckApi = null;
 
-    if (options.heading || options.hint) {
+    let spreadButton = null;
+    let spreadSearch = null;
+    if (options.heading || options.hint || options.spread) {
       const head = document.createElement('div');
       head.className = 'journal-deck-head';
       if (options.heading) {
@@ -640,6 +886,22 @@ export function mountJournalDeck(host, entries = [], options = {}) {
         heading.className = 'journal-deck-heading';
         heading.textContent = options.heading;
         head.append(heading);
+      }
+      if (options.spread) {
+        spreadButton = document.createElement('button');
+        spreadButton.type = 'button';
+        spreadButton.className = 'journal-deck-cut journal-deck-spread-toggle';
+        spreadButton.setAttribute('aria-label', '摊开全部篇章，按月份查找');
+        spreadButton.innerHTML = '<span class="material-symbols-outlined" aria-hidden="true">grid_view</span><span>摊开</span>';
+        spreadSearch = document.createElement('button');
+        spreadSearch.type = 'button';
+        spreadSearch.className = 'journal-deck-cut journal-deck-spread-search';
+        spreadSearch.hidden = true;
+        spreadSearch.innerHTML = '<span class="material-symbols-outlined" aria-hidden="true">search</span><span>搜索</span>';
+        const headTools = document.createElement('div');
+        headTools.className = 'journal-deck-head-tools';
+        headTools.append(spreadSearch, spreadButton);
+        head.append(headTools);
       }
       if (options.hint) {
         const hint = document.createElement('p');
@@ -940,6 +1202,22 @@ export function mountJournalDeck(host, entries = [], options = {}) {
     prev.addEventListener('click', () => fly('prev'), { signal });
     next.addEventListener('click', () => fly('next'), { signal });
     open.addEventListener('click', () => options.onOpen?.(list[index]), { signal });
+    let spread = null;
+    if (spreadButton) {
+      spread = createDeckSpread({
+        host, stage, controls, open, list, options, signal, toggleButton: spreadButton, searchButton: spreadSearch,
+        currentIndex: () => index,
+        jumpTo: at => {
+          cutToken += 1;
+          cutting = false;
+          offset.onSettle = null;
+          offset.set(0); yaw.set(0); pitch.set(0);
+          index = Math.min(Math.max(0, at), list.length - 1);
+          paint();
+        }
+      });
+      spreadButton.addEventListener('click', () => spread.toggle(), { signal });
+    }
     paint();
     markPressables(host);
     const api = {
@@ -952,6 +1230,7 @@ export function mountJournalDeck(host, entries = [], options = {}) {
         pitch.stop();
         yaw.stop();
         if (poseFrame) cancelAnimationFrame(poseFrame);
+        spread?.destroy();
         liveJournalDecks.delete(api);
         if (journalDecks.get(host) === api) journalDecks.delete(host);
       }

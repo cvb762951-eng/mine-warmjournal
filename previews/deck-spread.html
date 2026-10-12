@@ -1,0 +1,17 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=390">
+<link rel="stylesheet" href="../fonts.css"><link rel="stylesheet" href="../performance.css"><link rel="stylesheet" href="../styles.css"><link rel="stylesheet" href="../themes.css"><link rel="stylesheet" href="../themes-plain.css">
+<style>html,body{height:auto!important;overflow:visible!important}body{width:390px;margin:0;padding:10px;box-sizing:border-box;overflow-x:hidden!important}#a{width:370px}</style></head><body class="journal-view">
+<div class="journal-deck-host" id="a"></div>
+<script type="module">
+const q=new URLSearchParams(location.search);const t=q.get('theme');if(t&&t!=='classic')document.documentElement.setAttribute('data-theme',t);
+import { mountJournalDeck } from '../motion.js';
+const cols=['#8fae86','#c8865a','#7d9cc9','#d9b26b','#a487b8'];
+const ph=i=>'data:image/svg+xml,'+encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="${i%2?400:640}" height="${i%2?600:360}"><rect width="100%" height="100%" fill="${cols[i%5]}"/><circle cx="50%" cy="40%" r="60" fill="#f6d27a"/></svg>`);
+const titles=['初遇Grok bot','河边散步','秋天第一次觉得夜里有点凉','面馆要搬家了','一个人的周末','雨后的操场','给妈妈打电话'];
+const list=[];const d=new Date('2026-10-11T12:00:00');
+for(let i=0;i<60;i++){const x=new Date(d);x.setDate(d.getDate()-i*3);const id=x.toISOString().slice(0,10);list.push({id,kicker:`${id} · 星期${'日一二三四五六'[x.getDay()]}`,title:titles[i%7],excerpt:'傍晚沿着河边走了很久，风从对岸吹过来，带着一点桂花的味道。',photoSrc:i%3===2?'':ph(i),meta:['平静 · 晴','开心 · 雨','松快 · 多云'][i%3],photoLabel:'照片'});}
+mountJournalDeck(document.getElementById('a'),list,{heading:'翻阅篇章',onOpen:()=>{},spread:{onOpen(){},onEdit(){},onDelete(){},onSearch(){}}});
+const mode=q.get('mode');
+if(mode){setTimeout(()=>{document.querySelector('.journal-deck-spread-toggle').click();
+ if(mode==='menu')setTimeout(()=>document.querySelector('.journal-deck-mini-more').click(),50);},100);}
+</script></body></html>
