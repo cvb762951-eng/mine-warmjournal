@@ -71,7 +71,9 @@ export function repeatLabel(days) {
 }
 
 export function todoCard(todo) {
-  return `<article class="todo-row ${todo.completed ? 'done' : ''}"><button class="todo-check material-symbols-outlined" data-toggle-todo="${todo.id}" aria-label="${todo.completed ? '取消完成' : '完成待办'}">${todo.completed ? 'check_circle' : 'radio_button_unchecked'}</button><button class="todo-copy" data-edit-todo="${todo.id}"><strong>${esc(todo.title)}</strong><small>${todo.completed ? '已完成' : '今天'}</small></button><button class="todo-more material-symbols-outlined" data-edit-todo="${todo.id}" aria-label="编辑待办">more_horiz</button></article>`;
+  // ⚠️ 图标写在按钮内部的 span 上：弹层里的 `.modal button{font:inherit}` 会压掉挂在按钮
+  //    上的图标字体，字形会退化成字面文字（2026-10-12 真机乱码即此）。
+  return `<article class="todo-row ${todo.completed ? 'done' : ''}"><button class="todo-check" data-toggle-todo="${todo.id}" aria-label="${todo.completed ? '取消完成' : '完成待办'}"><span class="material-symbols-outlined">${todo.completed ? 'check_circle' : 'radio_button_unchecked'}</span></button><button class="todo-copy" data-edit-todo="${todo.id}"><strong>${esc(todo.title)}</strong><small>${todo.completed ? '已完成' : '今天'}</small></button><button class="todo-more" data-edit-todo="${todo.id}" aria-label="编辑待办"><span class="material-symbols-outlined">more_horiz</span></button></article>`;
 }
 
 export function openReleaseNotes(code) {

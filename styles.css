@@ -8671,8 +8671,11 @@ body:has(.mine-view) #app{
 /* 待办行：左边一个圈（点一下完成/取消），右边标题。2026-10-12 起不再有「先做」按钮，
    待办与专注解耦；也不再给某一行加「下一件」强调，所有行一视同仁。 */
 .daily-task-row{display:grid;grid-template-columns:44px minmax(0,1fr);gap:2px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)}
-.daily-task-check{display:grid;place-items:center;width:44px;height:44px;padding:0;border:0;background:none;box-shadow:none;color:var(--sage-green);font-size:22px;cursor:pointer}
-.daily-task-row.done .daily-task-check{color:var(--ink-muted)}
+.daily-task-check{display:grid;place-items:center;width:44px;height:44px;padding:0;border:0;background:none;box-shadow:none;overflow:hidden;cursor:pointer}
+/* 图标写在按钮内部的 span 上：弹层里的 `.modal button{font:inherit}` 会压掉按钮自身的
+   图标字体（2026-10-12 真机乱码就出在这），span 不受它影响。 */
+.daily-task-check .material-symbols-outlined{font-size:22px;line-height:1;color:var(--sage-green)}
+.daily-task-row.done .daily-task-check .material-symbols-outlined{color:var(--ink-muted)}
 .daily-task-copy{min-width:0;padding:4px;text-align:left;border:0;background:none;color:var(--ink)}
 .daily-task-copy strong{display:block;overflow-wrap:anywhere;font:14px/1.5 var(--paper-body-font)}
 .daily-task-copy small{display:block;margin-top:4px;font-size:11px;color:var(--ink-muted)}

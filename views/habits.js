@@ -242,7 +242,11 @@ export function todoManager() {
     const classes = ['daily-task-row'];
     if (todo.completed) classes.push('done');
     const hint = todo.completed ? '已完成' : (showDate ? todo.date : '');
-    return `<article class="${classes.join(' ')}"><button type="button" class="daily-task-check material-symbols-outlined" data-toggle-todo="${esc(todo.id)}" aria-label="${todo.completed ? '取消完成' : '完成待办'}">${todo.completed ? 'check_circle' : 'radio_button_unchecked'}</button><button type="button" class="daily-task-copy" data-edit-todo="${esc(todo.id)}"><strong>${esc(todo.title)}</strong>${hint ? `<small>${hint}</small>` : ''}</button></article>`;
+    // ⚠️ 图标必须放在按钮内部的 span 里，不能直接给按钮挂 material-symbols-outlined：
+    // 弹层里有 `.modal button{font:inherit}`（styles.css），它的优先级高于单个图标类，
+    // 会把图标字体刷掉 ⇒ 字形退化成字面文字「radio_button_unchecked」并压到标题上
+    // （2026-10-12 真机上就是这么乱码的；#34 当初去掉勾选也是因为这个）。
+    return `<article class="${classes.join(' ')}"><button type="button" class="daily-task-check" data-toggle-todo="${esc(todo.id)}" aria-label="${todo.completed ? '取消完成' : '完成待办'}"><span class="material-symbols-outlined">${todo.completed ? 'check_circle' : 'radio_button_unchecked'}</span></button><button type="button" class="daily-task-copy" data-edit-todo="${esc(todo.id)}"><strong>${esc(todo.title)}</strong>${hint ? `<small>${hint}</small>` : ''}</button></article>`;
   };
   const fold = (label, list, options) => `<details class="daily-task-fold"><summary>${label}<span>${list.length}</span></summary>${list.map(todo => row(todo, options)).join('') || '<p class="subtle">这里暂时没有安排。</p>'}</details>`;
   const todayBlock = groups.today.length
@@ -265,7 +269,8 @@ export function todoManager() {
       await save();
       const rowEl = button.closest('.daily-task-row');
       if (rowEl) rowEl.classList.toggle('done', todo.completed);
-      button.textContent = todo.completed ? 'check_circle' : 'radio_button_unchecked';
+      const glyph = button.querySelector('.material-symbols-outlined');
+      if (glyph) glyph.textContent = todo.completed ? 'check_circle' : 'radio_button_unchecked';
       button.setAttribute('aria-label', todo.completed ? '取消完成' : '完成待办');
       render();
       if (markingDone && todo.completed) await offerTodoJournalFootnote(todo.title);
