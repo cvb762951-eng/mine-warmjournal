@@ -9454,3 +9454,261 @@ body #modal-layer .modal.confirm-sheet .modal-actions .danger { padding: 0 16px 
 :root[data-theme="plain"] .today-view .polaroid-frame.photo-blur-frame{background:#E8EDF5!important}
 .today-view .polaroid-frame.photo-blur-frame.is-edge>img.photo-blur-still,.today-view .polaroid-frame.photo-blur-frame>img.photo-blur-still{inset:0!important;width:100%!important;height:100%!important;margin:0!important;border:0!important;border-radius:0!important;transform:none!important;object-fit:contain!important}
 .today-view .polaroid-frame.photo-blur-frame.is-edge>img.photo-blur-pad,.today-view .polaroid-frame.photo-blur-frame>img.photo-blur-pad{filter:none!important}
+
+/* ── Moments 图集浏览层：纸面相册 → 大图/播放器（导航层，不写存储） ──
+   缩略图一律 photo-blur-frame.is-edge + photo-frame.js，禁止 object-fit:cover 裁切内容图。 */
+.moment-album-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: none;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 0;
+  background: rgba(40, 34, 26, 0.42);
+  pointer-events: none;
+}
+.moment-album-layer.open {
+  display: flex;
+  pointer-events: auto;
+}
+.moment-album-sheet {
+  width: min(100%, 560px);
+  max-height: min(88dvh, 820px);
+  margin: 0;
+  padding: 18px 16px calc(16px + env(safe-area-inset-bottom, 0px));
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  gap: 10px;
+  border-radius: var(--radius-soft, 14px) var(--radius-soft, 14px) 0 0;
+  background: var(--warm-sheet, #fdfcf9);
+  border: 1px solid rgba(220, 212, 198, 0.65);
+  box-shadow: 0 -12px 36px rgba(32, 24, 15, 0.12);
+  color: var(--warm-ink, #181614);
+  overflow: hidden;
+}
+:root[data-theme="plain"] .moment-album-sheet {
+  background: #FBFCFE;
+  border-color: rgba(85, 96, 108, 0.12);
+  color: #2E343B;
+  box-shadow: 0 -12px 32px rgba(46, 52, 59, 0.1);
+}
+.moment-album-head {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  align-items: start;
+  gap: 8px;
+}
+.moment-album-close {
+  width: 44px;
+  height: 44px;
+  margin: -6px 0 0 -6px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: transparent;
+  color: inherit;
+}
+.moment-album-title { min-width: 0; display: grid; gap: 2px; }
+.moment-album-kicker {
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  color: var(--warm-ink-muted, #878177);
+}
+:root[data-theme="plain"] .moment-album-kicker { color: #8a929c; }
+.moment-album-title > strong {
+  font-family: 'LXGW WenKai Screen R', 'Noto Serif SC', serif;
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+.moment-album-title > small {
+  color: var(--warm-ink-muted, #878177);
+  font-size: 11px;
+  line-height: 1.45;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.moment-album-caption {
+  margin: 0;
+  padding: 0 2px;
+  color: var(--warm-ink-secondary, #4a453f);
+  font-size: 13px;
+  line-height: 1.55;
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+.moment-album-grid {
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  align-content: start;
+  overflow-y: auto;
+  padding: 2px 1px 8px;
+  -webkit-overflow-scrolling: touch;
+}
+.moment-album-tile {
+  position: relative;
+  aspect-ratio: 1;
+  width: 100%;
+  min-height: 0;
+  padding: 0 !important;
+  border: 0 !important;
+  display: block;
+  overflow: hidden;
+  background: #efe7d6 !important;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+:root[data-theme="plain"] .moment-album-tile { background: #E8EDF5 !important; }
+.moment-album-tile .moment-album-empty {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: rgba(74, 69, 63, 0.45);
+  font-size: 28px;
+  z-index: 1;
+}
+.moment-album-play {
+  position: absolute;
+  z-index: 2;
+  left: 50%;
+  top: 50%;
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: rgba(24, 46, 38, 0.72);
+  color: #fff;
+  pointer-events: none;
+}
+.moment-album-play .material-symbols-outlined { font-size: 22px; }
+.moment-album-tile > .video-duration-stamp {
+  position: absolute;
+  z-index: 2;
+  right: 6px;
+  bottom: 6px;
+  left: auto;
+  top: auto;
+}
+.moment-album-tile .live-photo-mark {
+  position: absolute;
+  z-index: 2;
+  left: 6px;
+  top: 6px;
+}
+@media (max-width: 370px) {
+  .moment-album-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* 内容图迁移到共用相框后：固定尺寸容器只包 frame，仍图用 contain（pad 层除外） */
+.activity-photo-thumb.photo-blur-frame.is-edge,
+.calendar-event-media.photo-blur-frame.is-edge {
+  width: 48px;
+  height: 48px;
+  flex: none;
+  display: block;
+  overflow: hidden;
+}
+.calendar-view .day-photo-thumb.photo-blur-frame.is-edge {
+  position: relative;
+  overflow: hidden;
+  background: #efe7d6 !important;
+  background-image: none !important;
+}
+.calendar-view .day-photo-thumb.photo-blur-frame.is-edge > img {
+  /* 旧 cover 规则会被 .photo-blur-still 的 contain !important 盖住；这里清掉绝对定位冲突外的 cover */
+  object-fit: contain;
+}
+.calendar-snapshot > button.photo-blur-frame.is-edge {
+  position: relative;
+  display: block;
+  width: 100%;
+  overflow: hidden;
+}
+.journal-history-thumb.photo-blur-frame.is-edge {
+  width: 72px;
+  height: 72px;
+  display: block;
+  overflow: hidden;
+}
+.journal-snippet-pick-thumb.photo-blur-frame.is-edge {
+  width: 56px;
+  height: 56px;
+  display: block;
+  overflow: hidden;
+}
+.journal-inline-snippet-thumb.photo-blur-frame.is-edge {
+  position: relative;
+  overflow: hidden;
+}
+.journal-polaroid-frame.photo-blur-frame.is-edge > img.photo-blur-still {
+  object-fit: contain !important;
+}
+.journal-reader-gallery button.photo-blur-frame.is-edge {
+  position: relative;
+  overflow: hidden;
+  background: #efe7d6 !important;
+}
+.journal-photo-editor > .photo-blur-frame.is-edge {
+  position: relative;
+  overflow: hidden;
+}
+.snippet-photo-thumb.photo-blur-frame.is-edge {
+  position: relative;
+  overflow: hidden;
+  background: #efe7d6 !important;
+}
+.snippet-video-segments button.photo-blur-frame.is-edge {
+  position: relative;
+  overflow: hidden;
+  background: #efe7d6 !important;
+}
+.snippet-video-segments button.photo-blur-frame.is-edge > img {
+  object-fit: contain;
+}
+.taste-shelf-thumb.photo-blur-frame.is-edge,
+.taste-place-thumb.photo-blur-frame.is-edge {
+  width: 56px;
+  height: 56px;
+  display: block;
+  overflow: hidden;
+  flex: none;
+}
+.taste-entry-photo.photo-blur-frame.is-edge {
+  background: #efe7d6 !important;
+}
+.taste-detail-gallery.photo-blur-frame.is-edge {
+  background: #efe7d6 !important;
+}
+.local-gallery-tile.photo-blur-frame.is-edge {
+  background: #efe7d6 !important;
+}
+.local-gallery-tile.photo-blur-frame.is-edge > img.photo-blur-still {
+  object-fit: contain !important;
+  z-index: 1;
+}
+.local-gallery-tile.photo-blur-frame.is-edge > i {
+  z-index: 2;
+}
+.vault-moment-preview.photo-blur-frame.is-edge {
+  background: #efe7d6 !important;
+}
+:root[data-theme="plain"] .calendar-view .day-photo-thumb.photo-blur-frame.is-edge,
+:root[data-theme="plain"] .snippet-photo-thumb.photo-blur-frame.is-edge,
+:root[data-theme="plain"] .journal-reader-gallery button.photo-blur-frame.is-edge,
+:root[data-theme="plain"] .taste-entry-photo.photo-blur-frame.is-edge,
+:root[data-theme="plain"] .taste-detail-gallery.photo-blur-frame.is-edge,
+:root[data-theme="plain"] .local-gallery-tile.photo-blur-frame.is-edge,
+:root[data-theme="plain"] .vault-moment-preview.photo-blur-frame.is-edge {
+  background: #E8EDF5 !important;
+}

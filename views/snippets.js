@@ -2,7 +2,7 @@ import { photoFrameLayersHtml } from '../photo-frame.js';
 import { Capacitor } from '@capacitor/core';
 import { Camera, CameraDirection, EncodingType } from '@capacitor/camera';
 import { FilePicker } from '@capawesome/capacitor-file-picker';
-import { $, $$, esc, uid, state, save, render, modal, closeModal, show, confirmDelete, imgSrc, emptyState, go, registerView, registerBinder, registerSubmitHandler, registerHelper, callHelper, PHOTO_IMPORT_BATCH_LIMIT } from '../core.js';
+import { $, $$, esc, uid, state, save, render, modal, closeModal, show, confirmDelete, imgSrc, emptyState, go, registerView, registerBinder, registerSubmitHandler, registerHelper, registerOnRender, callHelper, PHOTO_IMPORT_BATCH_LIMIT } from '../core.js';
 import { makeSnippet, makeTodo, snippetEntries, dateKey, WEEK_DAYS, activeStreak, formatShanghaiStamp } from '../model.js';
 import { photoViewer, micButtonHtml, bindVoiceInput } from './common.js';
 import { compressSnippetPhoto, captureVideoFrame, importPhotoBatch, isSupportedJournalPhoto } from '../photo-utils.js';
@@ -142,7 +142,7 @@ function snippetStreamCard(item) {
       ? snippetPhotoMosaic(entry, photos)
       : cover ? `<div class="snippet-cover-frame is-video-cover photo-blur-frame is-edge">${snippetCoverImage(cover, entry.text || '随手拍')}</div>${videoDurationStamp(videos[0])}`
         : videos.length ? `<div class="snippet-video-stream-placeholder"><span class="material-symbols-outlined">live_tv</span><small>在线视频</small></div>${videoDurationStamp(videos[0])}` : '';
-    const segments = videos.length > 1 ? `<div class="snippet-video-segments" aria-label="这条记录中的视频">${videos.map((item, index) => `<button type="button" data-play-snippet-video="${entry.id}" data-video-index="${index}">${item.poster ? `<img src="${imgSrc(item.poster)}" alt="第 ${index + 1} 段视频封面">` : '<span class="material-symbols-outlined">stream</span>'}<small>${index + 1}</small>${videoDurationStamp(item)}</button>`).join('')}</div>` : '';
+    const segments = videos.length > 1 ? `<div class="snippet-video-segments" aria-label="这条记录中的视频">${videos.map((item, index) => `<button type="button" class="photo-blur-frame is-edge" data-play-snippet-video="${entry.id}" data-video-index="${index}">${item.poster ? photoFrameLayersHtml(imgSrc(item.poster), { alt: `第 ${index + 1} 段视频封面`, padClass: 'snippet-cover-blur', stillClass: 'snippet-cover-main', lazy: true }) : '<span class="material-symbols-outlined">stream</span>'}<small>${index + 1}</small>${videoDurationStamp(item)}</button>`).join('')}</div>` : '';
     const localVideoIndex = videos.findIndex(item => item.sourceType !== 'hls' && !isHlsAddress(item.video));
     return `<article class="snippet-item-card"><div class="snippet-visual-wrap">${visual}${badge}</div>${segments}<div class="snippet-item-meta"><span>${time ? `${pad2(time.getHours())}:${pad2(time.getMinutes())} · 随手拍` : '随手拍'}</span>${tag ? `<span style="color:var(--sage-green);font-weight:700">#${esc(tag)}</span>` : ''}</div>${entry.text ? `<p class="snippet-item-text">${esc(entry.text)}</p>` : ''}<div class="snippet-item-actions"><button data-edit-snippet="${entry.id}">编辑</button><button class="danger" data-delete-snippet="${entry.id}">删除</button>${videos.length ? `<button class="view" data-play-snippet-video="${entry.id}" data-video-index="0"><span class="material-symbols-outlined">play_circle</span>播放视频</button>` : ''}${localVideoIndex >= 0 ? `<button class="view" data-refresh-video-poster="${entry.id}" data-video-index="${localVideoIndex}"><span class="material-symbols-outlined">image</span>选择封面</button>` : ''}${photos.length ? `<button class="view" data-view-snippet-photo="${entry.id}" data-photo-index="0">查看照片</button>` : ''}</div></article>`;
   }
@@ -233,7 +233,7 @@ function aiStructureCard(item) {
 
 function snippetPhotoGrid() {
   if (!pendingSnippetPhotos.length) return '<div class="snippet-photo-empty"><span class="material-symbols-outlined">photo_camera</span><strong>拍下此刻</strong><small>也可以从相册选择，可连续添加</small></div>';
-  return `<div class="snippet-photo-grid-inner">${pendingSnippetPhotos.map((photo, index) => `<div class="snippet-photo-cell"><button type="button" class="snippet-photo-thumb" data-view-pending-snippet-photo="${index}" aria-label="查看第 ${index + 1} 张"><img src="${imgSrc(photo)}" alt="待保存照片 ${index + 1}">${photoHasLiveMark(photo, pendingSnippetLive)}</button><button type="button" class="snippet-photo-remove" data-remove-pending-snippet-photo="${index}" aria-label="删除第 ${index + 1} 张"><span class="material-symbols-outlined">close</span></button></div>`).join('')}</div>`;
+  return `<div class="snippet-photo-grid-inner">${pendingSnippetPhotos.map((photo, index) => `<div class="snippet-photo-cell"><button type="button" class="snippet-photo-thumb photo-blur-frame is-edge" data-view-pending-snippet-photo="${index}" aria-label="查看第 ${index + 1} 张">${snippetPhotoImage(photo, `待保存照片 ${index + 1}`)}${photoHasLiveMark(photo, pendingSnippetLive)}</button><button type="button" class="snippet-photo-remove" data-remove-pending-snippet-photo="${index}" aria-label="删除第 ${index + 1} 张"><span class="material-symbols-outlined">close</span></button></div>`).join('')}</div>`;
 }
 
 function bindSnippetPhotoGrid() {
@@ -436,7 +436,7 @@ async function importSnippetPhotos(files) {
 // ---- 视频/实况：预览网格、拍摄/相册导入、播放与保存 ----
 function snippetVideoGrid() {
   if (!pendingSnippetVideos.length) return '<div class="snippet-photo-empty"><span class="material-symbols-outlined">movie</span><strong>还没有视频</strong><small>拍一段，或从相册选实况/视频</small></div>';
-  return `<div class="snippet-photo-grid-inner">${pendingSnippetVideos.map((video, index) => { const hls = video.sourceType === 'hls' || isHlsAddress(video.video); const preview = video.poster ? `<img class="snippet-video-poster-preview" src="${imgSrc(video.poster)}" alt="视频 ${index + 1}">` : `<span class="snippet-video-hls-placeholder"><span class="material-symbols-outlined">${hls ? 'stream' : 'image'}</span><small>${hls ? 'm3u8' : '等待封面'}</small></span>`; return `<div class="snippet-photo-cell snippet-video-cell"><button type="button" class="snippet-photo-thumb" data-play-pending-snippet-video="${index}" aria-label="预览第 ${index + 1} 个${hls ? '在线' : '本地'}视频">${preview}<span class="snippet-video-cell-play"><span class="material-symbols-outlined">play_arrow</span></span><span class="snippet-video-source">${hls ? '在线' : '本地'}</span>${videoDurationStamp(video)}</button>${!hls ? `<div class="snippet-video-poster-actions"><button type="button" data-recapture-video-poster="${index}">视频选帧</button><button type="button" data-change-video-poster="${index}">自选图片</button></div>` : ''}<button type="button" class="snippet-photo-remove" data-remove-pending-snippet-video="${index}" aria-label="删除第 ${index + 1} 个视频"><span class="material-symbols-outlined">close</span></button></div>`; }).join('')}</div>`;
+  return `<div class="snippet-photo-grid-inner">${pendingSnippetVideos.map((video, index) => { const hls = video.sourceType === 'hls' || isHlsAddress(video.video); const preview = video.poster ? photoFrameLayersHtml(imgSrc(video.poster), { alt: `视频 ${index + 1}`, padClass: 'snippet-cover-blur', stillClass: 'snippet-video-poster-preview', lazy: true }) : `<span class="snippet-video-hls-placeholder"><span class="material-symbols-outlined">${hls ? 'stream' : 'image'}</span><small>${hls ? 'm3u8' : '等待封面'}</small></span>`; return `<div class="snippet-photo-cell snippet-video-cell"><button type="button" class="snippet-photo-thumb photo-blur-frame is-edge" data-play-pending-snippet-video="${index}" aria-label="预览第 ${index + 1} 个${hls ? '在线' : '本地'}视频">${preview}<span class="snippet-video-cell-play"><span class="material-symbols-outlined">play_arrow</span></span><span class="snippet-video-source">${hls ? '在线' : '本地'}</span>${videoDurationStamp(video)}</button>${!hls ? `<div class="snippet-video-poster-actions"><button type="button" data-recapture-video-poster="${index}">视频选帧</button><button type="button" data-change-video-poster="${index}">自选图片</button></div>` : ''}<button type="button" class="snippet-photo-remove" data-remove-pending-snippet-video="${index}" aria-label="删除第 ${index + 1} 个视频"><span class="material-symbols-outlined">close</span></button></div>`; }).join('')}</div>`;
 }
 
 function videoDurationStamp(video) {
@@ -1506,6 +1506,126 @@ function visibleMomentPhotoEntries() {
     .sort((a, b) => b.date.localeCompare(a.date) || b.createdAt - a.createdAt);
 }
 
+
+// ---- 单条随手拍相册浏览层：图集 → 缩略网格 → 既有大图/播放器（导航层，不写存储） ----
+let momentAlbumEntryId = '';
+
+function momentAlbumItems(entry) {
+  if (!entry) return [];
+  const photos = entry.photos?.length ? entry.photos : (entry.photo ? [entry.photo] : []);
+  const videos = entry.videos || [];
+  const items = [];
+  photos.forEach((photo, index) => items.push({ kind: 'photo', index, photo }));
+  videos.forEach((video, index) => items.push({ kind: 'video', index, video }));
+  return items;
+}
+
+function isMomentAlbumOpen() {
+  return Boolean($('#moment-album-layer')?.classList.contains('open'));
+}
+
+function closeMomentAlbum() {
+  const layer = $('#moment-album-layer');
+  if (!layer) return false;
+  const wasOpen = layer.classList.contains('open');
+  layer.classList.remove('open');
+  layer.innerHTML = '';
+  layer.hidden = true;
+  momentAlbumEntryId = '';
+  callHelper('syncSystemBackConsumption');
+  return wasOpen;
+}
+
+function ensureMomentAlbumLayer() {
+  let layer = $('#moment-album-layer');
+  if (layer) return layer;
+  layer = document.createElement('div');
+  layer.id = 'moment-album-layer';
+  layer.className = 'moment-album-layer';
+  layer.hidden = true;
+  layer.setAttribute('role', 'dialog');
+  layer.setAttribute('aria-modal', 'true');
+  document.body.appendChild(layer);
+  return layer;
+}
+
+function momentAlbumThumbHtml(item, entry) {
+  if (item.kind === 'video') {
+    const video = item.video;
+    const hls = video.sourceType === 'hls' || isHlsAddress(video.video);
+    const poster = video.poster ? imgSrc(video.poster) : '';
+    const media = poster
+      ? photoFrameLayersHtml(poster, { alt: entry.text || `视频 ${item.index + 1}`, padClass: 'moment-album-blur', stillClass: 'moment-album-still', lazy: true })
+      : `<span class="moment-album-empty material-symbols-outlined">${hls ? 'stream' : 'movie'}</span>`;
+    return `<button type="button" class="moment-album-tile photo-blur-frame is-edge is-video" data-moment-album-kind="video" data-moment-album-index="${item.index}" aria-label="播放第 ${item.index + 1} 个视频">${media}<span class="moment-album-play" aria-hidden="true"><span class="material-symbols-outlined">play_arrow</span></span>${videoDurationStamp(video)}</button>`;
+  }
+  const live = photoHasLiveMark(item.photo, entry.livePhotos);
+  return `<button type="button" class="moment-album-tile photo-blur-frame is-edge" data-moment-album-kind="photo" data-moment-album-index="${item.index}" aria-label="查看第 ${item.index + 1} 张照片">${snippetPhotoImage(item.photo, entry.text || `随手拍 ${item.index + 1}`)}${live}</button>`;
+}
+
+function openMomentAlbumBrowse(entry, focusPhotoIndex = 0) {
+  if (!entry) return;
+  const items = momentAlbumItems(entry);
+  if (!items.length) return;
+  if (items.length === 1) {
+    const only = items[0];
+    if (only.kind === 'video') return playSnippetVideo(only.video, entry, only.index);
+    return photoLightbox(entry, only.index);
+  }
+
+  const layer = ensureMomentAlbumLayer();
+  momentAlbumEntryId = entry.id;
+  const time = entry.createdAt ? new Date(entry.createdAt) : null;
+  const timeText = time ? `${time.getFullYear()}年${time.getMonth() + 1}月${time.getDate()}日 · ${pad2(time.getHours())}:${pad2(time.getMinutes())}` : (entry.date || '');
+  const tag = (entry.tags || [])[0];
+  const countLabel = `${items.filter(item => item.kind === 'photo').length} 张照片` + (items.some(item => item.kind === 'video') ? ` · ${items.filter(item => item.kind === 'video').length} 段视频` : '');
+  layer.hidden = false;
+  layer.classList.add('open');
+  layer.innerHTML = `<div class="moment-album-sheet" role="document">
+    <header class="moment-album-head">
+      <button type="button" class="moment-album-close" data-moment-album-close aria-label="关闭相册"><span class="material-symbols-outlined">close</span></button>
+      <div class="moment-album-title">
+        <span class="moment-album-kicker">ALBUM</span>
+        <strong>图集浏览</strong>
+        <small>${esc([timeText, tag ? '#' + tag : '', countLabel].filter(Boolean).join(' · '))}</small>
+      </div>
+    </header>
+    ${entry.text ? `<p class="moment-album-caption">${esc(entry.text)}</p>` : ''}
+    <div class="moment-album-grid" id="moment-album-grid">${items.map(item => momentAlbumThumbHtml(item, entry)).join('')}</div>
+  </div>`;
+  layer.onclick = event => { if (event.target === layer || event.target.closest?.('[data-moment-album-close]')) closeMomentAlbum(); };
+  layer.querySelectorAll('[data-moment-album-kind]').forEach(button => {
+    button.onclick = event => {
+      event.stopPropagation();
+      const kind = button.dataset.momentAlbumKind;
+      const index = Number(button.dataset.momentAlbumIndex) || 0;
+      const current = state.snippets.find(item => item.id === momentAlbumEntryId) || entry;
+      if (kind === 'video') {
+        const video = current.videos?.[index];
+        if (video) playSnippetVideo(video, current, index);
+        return;
+      }
+      // 走既有 photoLightbox（含 live 无闪路径）；相册层留在下方，关大图后仍在网格
+      photoLightbox(current, index);
+    };
+  });
+  const focusKind = 'photo';
+  const focusBtn = layer.querySelector(`[data-moment-album-kind="${focusKind}"][data-moment-album-index="${Number(focusPhotoIndex) || 0}"]`)
+    || layer.querySelector('[data-moment-album-kind]');
+  requestAnimationFrame(() => focusBtn?.focus?.({ preventScroll: true }));
+  focusBtn?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
+  callHelper('syncSystemBackConsumption');
+}
+
+/** 多图/图+视频：先开相册；单张照片仍直接大图。 */
+function openMomentMediaBrowse(entry, photoIndex = 0) {
+  if (!entry) return;
+  const items = momentAlbumItems(entry);
+  if (items.length > 1) return openMomentAlbumBrowse(entry, photoIndex);
+  if (items[0]?.kind === 'video') return playSnippetVideo(items[0].video, entry, items[0].index);
+  return photoLightbox(entry, photoIndex);
+}
+
 // photo-lightbox：左右切换本条照片，上下切换相邻随手拍。
 function photoLightbox(entry, active = 0) {
   if (!entry) return;
@@ -1541,10 +1661,9 @@ function bindSnippets() {
   $$('[data-edit-snippet]').forEach(button => button.onclick = () => snippetForm(state.snippets.find(entry => entry.id === button.dataset.editSnippet)));
   $$('[data-delete-snippet]').forEach(button => button.onclick = () => confirmDelete('删除这条随手记素材？已经加入日记的内容不会受影响。', async () => { state.snippets = state.snippets.filter(entry => entry.id !== button.dataset.deleteSnippet); await save(); render(); callHelper('scheduleAiRefresh'); }));
   $$('[data-view-snippet-photo]').forEach(button => button.onclick = () => {
-    // 点照片直接开大图，**不做任何进入动效**（用户 2026-10-12 明确要求去掉放大的那套动效）。
-    // 之前这里走 withSharedTransition：从缩略图 FLIP 起飞再落到大图上。
+    // 多图/图+视频先进入相册浏览层；单张仍直接大图。大图本身不做进入 FLIP（2026-10-12）。
     const entry = state.snippets.find(item => item.id === button.dataset.viewSnippetPhoto);
-    photoLightbox(entry, Number(button.dataset.photoIndex) || 0);
+    openMomentMediaBrowse(entry, Number(button.dataset.photoIndex) || 0);
   });
   $$('[data-play-snippet-video]').forEach(button => button.onclick = () => {
     const entry = state.snippets.find(item => item.id === button.dataset.playSnippetVideo);
@@ -1584,9 +1703,16 @@ registerBinder(bindSnippets);
 
 const pad2 = value => String(value).padStart(2, '0');
 
+registerOnRender(() => {
+  if (state.route !== 'snippets' && isMomentAlbumOpen()) closeMomentAlbum();
+});
+
 registerHelper('snippetForm', snippetForm);
 registerHelper('openQuickPhotoModal', quickPhotoModal);
 registerHelper('openQuickMemoModal', quickMemoModal);
 registerHelper('openPhotoLightbox', photoLightbox);
+registerHelper('openMomentAlbumBrowse', openMomentAlbumBrowse);
+registerHelper('isMomentAlbumOpen', isMomentAlbumOpen);
+registerHelper('closeMomentAlbum', closeMomentAlbum);
 registerHelper('closeVideoPlayer', stopActiveVideoPlayer);
 registerHelper('playSnippetVideo', playSnippetVideo);

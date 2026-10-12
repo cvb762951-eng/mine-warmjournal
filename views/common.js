@@ -1,6 +1,6 @@
 import { $, $$, pad, esc, imgSrc, state, cursor, formatMinutes, category, modal, confirmDelete, save, render, show, callHelper } from '../core.js';
 import { clampStillTransform, measureLongStill } from '../photo-utils.js';
-import { revealViewerImageWhenDecoded } from '../photo-frame.js';
+import { photoFrameLayersHtml, revealViewerImageWhenDecoded } from '../photo-frame.js';
 import { MOODS, WEATHERS, WEEK_DAYS, dateKey, habitProgressForDate, habitGoalMet, formatShanghaiDateTime } from '../model.js';
 import { mediaFocusSummary } from '../analytics.js';
 import { rebuildActivityLog } from '../activity-log.js';
@@ -105,7 +105,7 @@ export function activityItem(item) {
   const [icon, tone] = styles[item.type] || ['history', 'blue'];
   const today = item.date === dateKey();
   const label = `${today ? '今天' : item.date.slice(5).replace('-', '月') + '日'} ${pad(time.getHours())}:${pad(time.getMinutes())}`;
-  return `<button class="activity-card ${tone}" data-activity-day="${item.date}"><span class="activity-icon material-symbols-outlined">${icon}</span><span class="activity-copy"><span><b>${item.type}</b><time>${label}</time></span><strong>${esc(item.text)}</strong></span>${item.photo ? `<img src="${imgSrc(item.photo)}" alt="随手拍缩略图">` : '<i class="material-symbols-outlined">chevron_right</i>'}</button>`;
+  return `<button class="activity-card ${tone}" data-activity-day="${item.date}"><span class="activity-icon material-symbols-outlined">${icon}</span><span class="activity-copy"><span><b>${item.type}</b><time>${label}</time></span><strong>${esc(item.text)}</strong></span>${item.photo ? `<span class="activity-photo-thumb photo-blur-frame is-edge">${photoFrameLayersHtml(imgSrc(item.photo), { alt: '随手拍缩略图', lazy: true })}</span>` : '<i class="material-symbols-outlined">chevron_right</i>'}</button>`;
 }
 
 export function sessionCard(session) {
@@ -122,7 +122,7 @@ export function journalMeta(journal) {
 }
 
 export function journalPhotos(photos = [], className = '') {
-  return photos.length ? `<div class="journal-photo-grid ${className}">${photos.map((photo, index) => `<button type="button" data-view-photo="${index}" aria-label="查看第 ${index + 1} 张照片"><img src="${imgSrc(photo)}" alt="日记照片 ${index + 1}"></button>`).join('')}</div>` : '';
+  return photos.length ? `<div class="journal-photo-grid ${className}">${photos.map((photo, index) => `<button type="button" class="photo-blur-frame is-edge" data-view-photo="${index}" aria-label="查看第 ${index + 1} 张照片">${photoFrameLayersHtml(imgSrc(photo), { alt: `日记照片 ${index + 1}`, lazy: true })}</button>`).join('')}</div>` : '';
 }
 
 export function journalDetailCard(journal, day) {
@@ -136,7 +136,7 @@ export function completionArchiveCard(type, text, timestamp, icon) {
 
 export function snapshotCard(entry) {
   const time = new Date(entry.createdAt);
-  return `<article class="calendar-snapshot"><button data-view-calendar-snapshot="${entry.id}" aria-label="查看 ${pad(time.getHours())}:${pad(time.getMinutes())} 的随手拍"><img src="${imgSrc(entry.photo)}" alt="${esc(entry.text || '随手拍')}"><span><i class="material-symbols-outlined">schedule</i>${pad(time.getHours())}:${pad(time.getMinutes())}</span></button>${entry.text ? `<p>${esc(entry.text)}</p>` : ''}</article>`;
+  return `<article class="calendar-snapshot"><button class="photo-blur-frame is-edge" data-view-calendar-snapshot="${entry.id}" aria-label="查看 ${pad(time.getHours())}:${pad(time.getMinutes())} 的随手拍">${photoFrameLayersHtml(imgSrc(entry.photo), { alt: entry.text || '随手拍', lazy: true })}<span><i class="material-symbols-outlined">schedule</i>${pad(time.getHours())}:${pad(time.getMinutes())}</span></button>${entry.text ? `<p>${esc(entry.text)}</p>` : ''}</article>`;
 }
 
 export function monthDays() {
@@ -151,7 +151,7 @@ export function calendarEventCard(item) {
     note: ['edit_note', '随手记'], journal: ['menu_book', '日记'], book: ['auto_stories', '书籍'], movie: ['movie', '电影']
   }[item.kind] || ['history', '记录'];
   const time = new Date(item.timestamp);
-  return `<button class="calendar-event" data-calendar-event="${esc(item.id)}"><span class="calendar-event-time">${pad(time.getHours())}:${pad(time.getMinutes())}</span><i class="material-symbols-outlined">${meta[0]}</i><span><small>${meta[1]}</small><strong>${esc(item.title)}</strong><em>${esc(item.summary)}</em></span>${item.media ? `<img src="${imgSrc(item.media)}" alt="${esc(item.title)}">` : '<b class="material-symbols-outlined">chevron_right</b>'}</button>`;
+  return `<button class="calendar-event" data-calendar-event="${esc(item.id)}"><span class="calendar-event-time">${pad(time.getHours())}:${pad(time.getMinutes())}</span><i class="material-symbols-outlined">${meta[0]}</i><span><small>${meta[1]}</small><strong>${esc(item.title)}</strong><em>${esc(item.summary)}</em></span>${item.media ? `<span class="calendar-event-media photo-blur-frame is-edge">${photoFrameLayersHtml(imgSrc(item.media), { alt: item.title, lazy: true })}</span>` : '<b class="material-symbols-outlined">chevron_right</b>'}</button>`;
 }
 
 export function mediaStatusLabel(entry) {
