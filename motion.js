@@ -170,16 +170,16 @@ function mountShareBlend(name, duration) {
   return () => style.remove();
 }
 
-export function withSharedTransition(sourceEl, update, { targetSelector = '', duration = DURATION.shared, fallbackTargetSelector = '' } = {}) {
-  const supported = typeof document !== 'undefined' && typeof document.startViewTransition === 'function';
+export function withSharedTransition(sourceEl, update, { targetSelector = '', duration = DURATION.shared, fallbackTargetSelector = '', preferFlip = false } = {}) {
+  const supported = !preferFlip && typeof document !== 'undefined' && typeof document.startViewTransition === 'function';
   // <video> 在首帧前是原生白底。给它挂共享元素，抠走的就是一块白。
   if (sourceEl?.tagName === 'VIDEO') { update?.(); return null; }
   if (!canAnimate() || !supported || !sourceEl || !update) {
-    // 没有 View Transitions：用两段式 FLIP 顶上
+    // 没有 View Transitions，或调用方指定 preferFlip（随手拍点开放大）：用 transform+opacity 的 FLIP
     if (!canAnimate() || !sourceEl) { update?.(); return null; }
     const handoff = beginSharedElement(sourceEl, { duration });
     const result = update();
-    Promise.resolve(result).then(() => requestAnimationFrame(() => handoff(fallbackTargetSelector ? document.querySelector(fallbackTargetSelector) : null))).catch(() => {});
+    Promise.resolve(result).then(() => requestAnimationFrame(() => handoff(fallbackTargetSelector ? document.querySelector(fallbackTargetSelector) : targetSelector ? document.querySelector(targetSelector) : null))).catch(() => {});
     return null;
   }
   return safely(() => {
@@ -244,14 +244,15 @@ export function beginSharedElement(sourceEl, { duration = DURATION.shared } = {}
   });
   if (!captured) return () => {};
 
+  /* 目标可能还在解码：幽灵先按缩略图矩形飞到大图位（只动 transform），
+     解码完成且落位后再显形 —— 不等解码才起飞，也不会先闪错缩略图。 */
   return targetEl => {
     if (!targetEl) return;
     safely(() => {
-      const to = targetEl.getBoundingClientRect();
-      if (!to.width || !to.height) return;
       const from = captured.rect;
       const ghost = captured.node;
       ghost.classList.add('shared-element-ghost');
+      const fit = sourceEl.tagName === 'IMG' ? 'contain' : '';
       ghost.style.cssText = [
         'position:fixed',
         `left:${from.left}px`,
@@ -260,34 +261,51 @@ export function beginSharedElement(sourceEl, { duration = DURATION.shared } = {}
         `height:${from.height}px`,
         `border-radius:${captured.radius}`,
         'margin:0',
-      ].join(';');
+        fit ? `object-fit:${fit}` : '',
+      ].filter(Boolean).join(';');
       document.body.appendChild(ghost);
 
-      // 目标先隐形，等幽灵落位再显形 —— 交接处不会闪
       const previousOpacity = targetEl.style.opacity;
       targetEl.style.opacity = '0';
+      targetEl.classList?.add?.('is-decoding');
+
+      const decodeWait = targetEl.tagName === 'IMG' && typeof targetEl.decode === 'function'
+        ? Promise.race([targetEl.decode().catch(() => {}), new Promise(resolve => setTimeout(resolve, 800))])
+        : Promise.resolve();
+
+      const to = targetEl.getBoundingClientRect();
+      if (!to.width || !to.height) {
+        decodeWait.then(() => {
+          ghost.remove();
+          targetEl.classList?.remove?.('is-decoding');
+          targetEl.style.opacity = previousOpacity || '1';
+        });
+        return;
+      }
 
       const targetRadius = getComputedStyle(targetEl).borderRadius;
-      ghost.animate(
+      const flight = ghost.animate(
         [
-          { transform: 'none', borderRadius: captured.radius },
+          { transform: 'none', borderRadius: captured.radius, opacity: 1 },
           {
             transform: `translate(${to.left - from.left}px, ${to.top - from.top}px) scale(${to.width / from.width}, ${to.height / from.height})`,
             borderRadius: targetRadius,
+            opacity: 1,
           },
         ],
         { duration, easing: EASE.fluid, fill: 'forwards' }
-      ).finished
-        .catch(() => {})
-        .then(() => {
-          ghost.remove();
-          targetEl.style.transition = `opacity 180ms ${EASE.settle}`;
-          targetEl.style.opacity = previousOpacity || '1';
-          setTimeout(() => { targetEl.style.transition = ''; }, 240);
-        });
+      );
 
-      // 源卡片淡出，避免"一份变成两份"
       sourceEl.animate([{ opacity: 1 }, { opacity: 0 }], { duration: duration * 0.5, easing: EASE.settle, fill: 'forwards' });
+
+      Promise.all([flight.finished.catch(() => {}), decodeWait]).then(() => {
+        ghost.remove();
+        targetEl.classList?.remove?.('is-decoding');
+        targetEl.classList?.add?.('viewer-no-fade');
+        targetEl.style.transition = `opacity 160ms ${EASE.settle}`;
+        targetEl.style.opacity = previousOpacity || '1';
+        setTimeout(() => { targetEl.style.transition = ''; }, 220);
+      });
     });
   };
 }
@@ -856,6 +874,15 @@ function cycleDeckPhoto(card, entry) {
   img.src = url;
 }
 
+/** 翻牌前把牌面照片 decode 好，避免切到下一篇时才解大图造成卡顿弹出。 */
+function preloadDeckCard(card) {
+  if (!card?.querySelectorAll) return;
+  card.querySelectorAll('img').forEach(img => {
+    if (!img?.src || typeof img.decode !== 'function') return;
+    img.decode().catch(() => {});
+  });
+}
+
 function deckCard(entry, depth) {
   const card = document.createElement('article');
   card.className = 'journal-deck-card';
@@ -1105,6 +1132,28 @@ export function mountJournalDeck(host, entries = [], options = {}) {
       measureStage();
       if (poseFrame) cancelAnimationFrame(poseFrame);
       applyPose();
+      // 下一张、再下一张预先 decode，翻牌过程中不再解大图
+      for (let depth = 1; depth < visible; depth += 1) preloadDeckCard(pool.get(keys[depth]));
+    };
+
+    let riseAnim = null;
+    let risingCard = null;
+    const cancelRise = () => {
+      riseAnim?.cancel?.();
+      riseAnim = null;
+      if (!risingCard) return;
+      risingCard.classList.remove('is-deck-rising');
+      risingCard.style.transform = '';
+      risingCard.style.opacity = '';
+      risingCard = null;
+    };
+    const depthPoseOf = card => {
+      if (!card) return { transform: 'translate3d(0,-18px,-10px) scale(0.975)', opacity: '0.96' };
+      const cs = getComputedStyle(card);
+      return {
+        transform: cs.transform && cs.transform !== 'none' ? cs.transform : 'translate3d(0,-18px,-10px) scale(0.975)',
+        opacity: cs.opacity && cs.opacity !== '1' ? cs.opacity : '0.96',
+      };
     };
 
     const fly = (direction, velocity = 0) => {
@@ -1115,6 +1164,7 @@ export function mountJournalDeck(host, entries = [], options = {}) {
         return;
       }
       if (prefersReducedMotion()) {
+        cancelRise();
         index = direction === 'next' ? (index + 1) % list.length : (index - 1 + list.length) % list.length;
         offset.set(0);
         yaw.set(0);
@@ -1124,20 +1174,42 @@ export function mountJournalDeck(host, entries = [], options = {}) {
       }
       if (cutting) return;
       cutting = true;
+      cancelRise();
       measureStage();
       const dir = direction === 'next' ? -1 : 1;
       const travel = dir * (stageWidth + 72);
       const token = ++cutToken;
-      offset.onSettle = () => {
+      const nextIndex = direction === 'next' ? (index + 1) % list.length : (index - 1 + list.length) % list.length;
+      const nextEntry = list[nextIndex];
+      const nextKey = nextEntry?.id || `i${nextIndex}`;
+      const incoming = pool.get(nextKey);
+      preloadDeckCard(incoming);
+      // 顶牌飞出的同时，已就位的下一张从叠放位连续升到顶牌位（只动 transform/opacity，中途不 paint）
+      if (incoming && incoming !== topCard) {
+        const from = depthPoseOf(incoming);
+        risingCard = incoming;
+        incoming.classList.add('is-deck-rising');
+        incoming.style.transform = from.transform;
+        incoming.style.opacity = from.opacity;
+        incoming.style.zIndex = '2';
+        const rest = 'translate3d(0px, 0px, 28px) rotateX(0deg) rotateY(0deg) rotateZ(0deg)';
+        riseAnim = incoming.animate(
+          [
+            { transform: from.transform, opacity: Number(from.opacity) || 0.96 },
+            { transform: rest, opacity: 1 },
+          ],
+          { duration: 480, easing: EASE.settle, fill: 'forwards' }
+        );
+      }
+      const completeCut = () => {
         if (!active || token !== cutToken) {
           cutting = false;
           return;
         }
-        index = direction === 'next' ? (index + 1) % list.length : (index - 1 + list.length) % list.length;
-        const park = -dir * 28;
+        index = nextIndex;
         offset.stop();
-        offset.current = park;
-        offset.target = park;
+        offset.current = 0;
+        offset.target = 0;
         offset.velocity = 0;
         yaw.stop();
         yaw.current = 0;
@@ -1147,9 +1219,17 @@ export function mountJournalDeck(host, entries = [], options = {}) {
         pitch.current = 0;
         pitch.target = 0;
         pitch.velocity = 0;
+        cancelRise();
         paint();
-        offset.onSettle = () => { cutting = false; };
-        offset.to(0);
+        cutting = false;
+      };
+      offset.onSettle = () => {
+        if (!active || token !== cutToken) {
+          cutting = false;
+          return;
+        }
+        const risen = riseAnim?.finished?.catch(() => {}) || Promise.resolve();
+        Promise.resolve(risen).then(completeCut);
       };
       offset.to(travel, velocity || dir * 640);
       yaw.to(dir * -8);
@@ -1161,6 +1241,7 @@ export function mountJournalDeck(host, entries = [], options = {}) {
       cutToken += 1;
       cutting = false;
       offset.onSettle = null;
+      cancelRise();
       offset.stop();
       tracking = true;
       dragged = false;
@@ -1308,6 +1389,7 @@ export function mountJournalDeck(host, entries = [], options = {}) {
         pitch.stop();
         yaw.stop();
         if (poseFrame) cancelAnimationFrame(poseFrame);
+        cancelRise();
         spread?.destroy();
         liveJournalDecks.delete(api);
         if (journalDecks.get(host) === api) journalDecks.delete(host);

@@ -1550,7 +1550,8 @@ function bindSnippets() {
     const entry = state.snippets.find(item => item.id === button.dataset.viewSnippetPhoto);
     withSharedTransition(momentShareSource(button), () => photoLightbox(entry, Number(button.dataset.photoIndex) || 0), {
       targetSelector: '#photo-viewer-image',
-      fallbackTargetSelector: '#photo-viewer-image'
+      fallbackTargetSelector: '#photo-viewer-image',
+      preferFlip: true,
     });
   });
   $$('[data-play-snippet-video]').forEach(button => button.onclick = () => {

@@ -154,8 +154,10 @@ test('按压物理：按下缩到 0.96 并压内阴影，释放带回弹', async
   // JS 只切属性，动画在 CSS —— 这比 JS 逐帧写内联样式更快也更稳
   assert.match(motion, /setAttribute\('data-pressed'/, '按下只切换属性');
   assert.match(motion, /removeAttribute\('data-pressed'\)/, '松开只切回属性');
-  // ⚠️ 只看按压那一段，别全文搜 —— FLIP 回退里合法地用着 sourceEl.animate()
-  const pressSection = motion.slice(motion.indexOf('export function installPressFeedback'));
+  // ⚠️ 只看按压那一段，别全文搜 —— FLIP / 牌组升牌合法地用着 element.animate()
+  const pressStart = motion.indexOf('export function installPressFeedback');
+  const pressEnd = motion.indexOf('export function deckCutDecision');
+  const pressSection = motion.slice(pressStart, pressEnd === -1 ? undefined : pressEnd);
   assert.ok(!pressSection.includes('.animate('), '按压不该由 JS 逐帧驱动');
   assert.match(performance, /\[data-pressable\]\[data-pressed\] \{[^}]*scale\(0\.96\)/, '按下缩到 0.96 由 CSS 负责');
   assert.match(performance, /box-shadow: inset 0 2px 6px/, '按下要压一层内阴影');

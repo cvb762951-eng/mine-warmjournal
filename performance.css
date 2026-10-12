@@ -4363,8 +4363,12 @@ body:has(.ai-companion-screen) main{padding-top:0}
 .shared-element-ghost > img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
   display: block;
+}
+img.shared-element-ghost {
+  object-fit: contain;
+  background: transparent;
 }
 
 /* ── 旋转渐变描边 + 呼吸弥散背光 ──
