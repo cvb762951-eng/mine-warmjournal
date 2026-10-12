@@ -9248,7 +9248,8 @@ button.journal-deck-cut.journal-deck-mini-more{border-radius:var(--radius-soft-s
 }
 .today-view .habit-card-copy { display: block; min-width: 0; }
 .today-view .habit-card-copy strong,
-.today-view .habit-card-meta { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.today-view .habit-card-meta { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; white-space: normal; }
+.today-view .habit-card-meta > span { white-space: nowrap; }
 .today-view .habit-card-copy strong { font-size: 11px; font-weight: 650; line-height: 1.35; color: #373a34; }
 .today-view .habit-card-meta { margin-top: 2px; font-size: 8.5px; font-weight: 500; line-height: 1.35; color: var(--ink-muted, #8a8174); }
 .today-view .habit-card.is-done .habit-card-copy strong { color: var(--ink-muted, #8a8174); }
@@ -9315,3 +9316,113 @@ button.journal-deck-cut.journal-deck-mini-more{border-radius:var(--radius-soft-s
 .photo-viewer-stage img.zoomed,.vault-photo-stage img.zoomed{transition:opacity .2s ease}
 .photo-viewer-stage img.viewer-no-fade,.vault-photo-stage img.viewer-no-fade{transition:transform .18s ease}
 @media (prefers-reduced-motion:reduce){.photo-viewer-stage img,.vault-photo-stage img{transition:none!important}}
+
+/* ── 习惯详情 / 待办详情（detail-sheet）：纸面、细线、留白，与今日习惯+待办列同一语言 ──
+   不做大色块与徽章；状态与连续天数用灰字；小圆勾视觉 26px、热区 48px。
+   用 #modal-layer 前缀压过旧的 habit-log-modal / todo-form-modal 主题规则，避免逐条拼权重。
+   动效只走 motion.js 的 autoStagger（transform/opacity），减弱动效时关掉。 */
+body #modal-layer .modal.detail-sheet {
+  --ds-ink: var(--ink, #2e2820);
+  --ds-muted: var(--ink-muted, #8a8174);
+  --ds-line: rgba(66, 57, 44, 0.12);
+  --ds-accent: var(--editorial-green, #174737);
+  --ds-accent-ink: #f6efdf;
+  --ds-paper: var(--canvas, #f5f1e8);
+  --ds-heat-0: rgba(66, 57, 44, 0.07);
+  background: var(--ds-paper) !important;
+  background-image: none !important;
+  border: 0 !important;
+  border-radius: var(--radius-soft, 14px) var(--radius-soft, 14px) 0 0 !important;
+  box-shadow: 0 -1px 0 var(--ds-line), 0 -12px 32px rgba(40, 34, 26, 0.06) !important;
+  color: var(--ds-ink) !important;
+  padding: 26px 24px calc(18px + env(safe-area-inset-bottom, 0px)) !important;
+  max-width: 520px;
+}
+:root[data-theme="plain"] body #modal-layer .modal.detail-sheet {
+  --ds-ink: #2E343B; --ds-muted: #8a929c; --ds-line: rgba(85, 96, 108, 0.12);
+  --ds-accent: var(--pl-blue, #4F76BD); --ds-accent-ink: #fff; --ds-paper: #FBFCFE; --ds-heat-0: rgba(85, 96, 108, 0.07);
+}
+:root[data-theme="sunny"] body #modal-layer .modal.detail-sheet { --ds-line: rgba(93, 122, 67, 0.16); --ds-heat-0: rgba(93, 122, 67, 0.08); }
+body #modal-layer .modal.detail-sheet h2 { margin: 2px 0 0 !important; font-size: 21px !important; font-weight: 700 !important; line-height: 1.3 !important; color: var(--ds-ink) !important; letter-spacing: 0 !important; }
+body #modal-layer .modal.detail-sheet h3 { margin: 0 !important; font-size: 12px !important; font-weight: 600 !important; color: var(--ds-ink) !important; letter-spacing: .02em; }
+body #modal-layer .modal.detail-sheet .hs-eyebrow { display: block; font-size: 11px; color: var(--ds-muted); letter-spacing: .08em; }
+body #modal-layer .modal.detail-sheet .hs-head { display: grid; grid-template-columns: minmax(0, 1fr) 48px; align-items: start; gap: 12px; margin: 0 0 18px !important; padding: 0 !important; background: none !important; border: 0 !important; box-shadow: none !important; }
+body #modal-layer .modal.detail-sheet .hs-status { margin: 8px 0 0; font-size: 13px; line-height: 1.55; color: var(--ds-ink); opacity: .82; }
+body #modal-layer .modal.detail-sheet .hs-quiet { margin: 3px 0 0; font-size: 11.5px; line-height: 1.55; color: var(--ds-muted); }
+/* 小圆勾：与今日行同款 */
+body #modal-layer .modal.detail-sheet .hs-tick { display: grid; place-items: center; width: 48px; height: 48px; margin: -6px -8px 0 0; padding: 0; border: 0 !important; border-radius: 50% !important; background: transparent !important; box-shadow: none !important; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+body #modal-layer .modal.detail-sheet .hs-tick-dot { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; border: 1.5px solid color-mix(in srgb, var(--ds-accent) 55%, transparent); background: transparent; color: var(--ds-accent-ink); transition: background-color .2s ease, border-color .2s ease, transform .3s var(--spring-release, ease); }
+body #modal-layer .modal.detail-sheet .hs-tick-dot .material-symbols-outlined { font-size: 17px; opacity: 0; transform: scale(.6); transition: opacity .18s ease, transform .3s var(--spring-release, ease); }
+body #modal-layer .modal.detail-sheet .hs-tick.is-done .hs-tick-dot { background: var(--ds-accent); border-color: var(--ds-accent); }
+body #modal-layer .modal.detail-sheet .hs-tick.is-done .hs-tick-dot .material-symbols-outlined { opacity: 1; transform: none; }
+body #modal-layer .modal.detail-sheet .hs-tick.is-pop .hs-tick-dot { animation: hs-tick-pop 420ms var(--spring-entrance, ease-out); }
+@keyframes hs-tick-pop { 0% { transform: scale(.82); } 55% { transform: scale(1.12); } 100% { transform: scale(1); } }
+/* 进度：一根发丝线，scaleX 而不是改宽度 */
+body #modal-layer .modal.detail-sheet .hs-progress { position: relative; height: 2px; margin: 0 0 6px; border-radius: 2px; background: var(--ds-line); overflow: hidden; }
+body #modal-layer .modal.detail-sheet .hs-progress > i { position: absolute; inset: 0; background: var(--ds-accent); opacity: .7; transform-origin: left center; }
+body #modal-layer .modal.detail-sheet .hs-section { margin: 0 !important; padding: 20px 0 !important; border: 0 !important; border-top: 1px solid var(--ds-line) !important; border-radius: 0 !important; background: transparent !important; box-shadow: none !important; }
+body #modal-layer .modal.detail-sheet .hs-progress + .hs-section { border-top: 0 !important; }
+body #modal-layer .modal.detail-sheet .hs-label-row { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 12px; }
+body #modal-layer .modal.detail-sheet .hs-label-row small { font-size: 11px; color: var(--ds-muted); }
+/* 记一笔：快捷量是细线小胶囊；步进器一行 */
+body #modal-layer .modal.detail-sheet .hs-chips { display: flex !important; grid-template-columns: none !important; flex-wrap: wrap; gap: 8px; margin: 0 0 14px !important; padding: 0 !important; background: none !important; border: 0 !important; }
+body #modal-layer .modal.detail-sheet .hs-chips button { flex: 0 0 auto !important; width: auto !important; display: inline-flex !important; flex-direction: row !important; align-items: center !important; justify-content: center; gap: 2px; min-height: 34px; padding: 0 14px !important; border: 1px solid var(--ds-line) !important; border-radius: 999px !important; background: transparent !important; box-shadow: none !important; color: var(--ds-ink) !important; font-size: 13px !important; font-weight: 600 !important; }
+body #modal-layer .modal.detail-sheet .hs-chips button small { font-size: 10.5px; font-weight: 500; color: var(--ds-muted); }
+body #modal-layer .modal.detail-sheet .hs-stepper-form { display: flex; align-items: center; gap: 12px; margin: 0 !important; padding: 0 !important; background: none !important; border: 0 !important; box-shadow: none !important; }
+body #modal-layer .modal.detail-sheet .hs-stepper { flex: 1; display: grid; grid-template-columns: 40px minmax(0, 1fr) 40px; align-items: center; min-height: 44px; border-bottom: 1px solid var(--ds-line); }
+body #modal-layer .modal.detail-sheet .hs-stepper > button { display: grid; place-items: center; width: 40px; height: 40px; padding: 0; border: 0 !important; border-radius: 50% !important; background: transparent !important; box-shadow: none !important; color: var(--ds-muted) !important; }
+body #modal-layer .modal.detail-sheet .hs-stepper > button .material-symbols-outlined { font-size: 18px; }
+body #modal-layer .modal.detail-sheet .hs-stepper-value { display: flex; align-items: baseline; justify-content: center; gap: 4px; margin: 0 !important; color: var(--ds-muted); font-size: 12px; }
+body #modal-layer .modal.detail-sheet .hs-stepper-value input { width: 5ch; min-height: 0 !important; height: auto !important; padding: 0 !important; border: 0 !important; background: transparent !important; box-shadow: none !important; text-align: right; font-size: 20px !important; font-weight: 600; color: var(--ds-ink) !important; -moz-appearance: textfield; }
+body #modal-layer .modal.detail-sheet .hs-stepper-value input::-webkit-inner-spin-button, body #modal-layer .modal.detail-sheet .hs-stepper-value input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+body #modal-layer .modal.detail-sheet .hs-commit { flex: none; min-height: 38px; padding: 0 18px !important; border: 1px solid var(--ds-accent) !important; border-radius: 999px !important; background: transparent !important; box-shadow: none !important; color: var(--ds-accent) !important; font-size: 13px !important; font-weight: 600 !important; }
+/* 最近五周：小方格，色阶用强调色透明度，不做大面积色块 */
+body #modal-layer .modal.detail-sheet .hs-heat-week, body #modal-layer .modal.detail-sheet .hs-heat { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 7px 6px; }
+body #modal-layer .modal.detail-sheet .hs-heat-week { margin-bottom: 6px; }
+body #modal-layer .modal.detail-sheet .hs-heat-week span { text-align: center; font-size: 10px; color: var(--ds-muted); }
+body #modal-layer .modal.detail-sheet .hs-heat-cell { display: block; width: 100%; max-width: 22px; height: 10px; margin: 0 auto; border-radius: 3px; background: var(--ds-heat-0); }
+body #modal-layer .modal.detail-sheet .hs-heat-cell.level-1 { background: color-mix(in srgb, var(--ds-accent) 16%, transparent); }
+body #modal-layer .modal.detail-sheet .hs-heat-cell.level-2 { background: color-mix(in srgb, var(--ds-accent) 28%, transparent); }
+body #modal-layer .modal.detail-sheet .hs-heat-cell.level-3 { background: color-mix(in srgb, var(--ds-accent) 42%, transparent); }
+body #modal-layer .modal.detail-sheet .hs-heat-cell.level-4 { background: color-mix(in srgb, var(--ds-accent) 58%, transparent); }
+body #modal-layer .modal.detail-sheet .hs-heat-cell.is-future { background: transparent; box-shadow: inset 0 0 0 1px var(--ds-line); }
+body #modal-layer .modal.detail-sheet .hs-heat-cell.is-rest { background: transparent; box-shadow: inset 0 0 0 1px var(--ds-line); background-image: linear-gradient(135deg, transparent 45%, var(--ds-line) 45%, var(--ds-line) 55%, transparent 55%); }
+body #modal-layer .modal.detail-sheet .hs-heat-cell.is-today { outline: 1px solid var(--ds-muted); outline-offset: 1px; }
+/* 次要操作：一行灰字，细竖线分隔 */
+body #modal-layer .modal.detail-sheet .hs-secondary { display: flex; flex-wrap: wrap; align-items: center; gap: 0 18px; margin: 0 !important; padding: 16px 0 4px !important; border-top: 1px solid var(--ds-line); }
+body #modal-layer .modal.detail-sheet .hs-secondary button { min-height: 36px; padding: 0 !important; border: 0 !important; border-radius: 8px !important; background: transparent !important; box-shadow: none !important; color: var(--ds-muted) !important; font-size: 12px !important; font-weight: 500 !important; }
+body #modal-layer .modal.detail-sheet .modal-actions { display: flex; align-items: center; justify-content: flex-end; gap: 6px; margin: 8px 0 0 !important; padding: 12px 0 0 !important; border-top: 0 !important; background: transparent !important; }
+body #modal-layer .modal.detail-sheet .modal-actions button { min-height: 40px; padding: 0 16px !important; border: 0 !important; border-radius: 999px !important; background: transparent !important; box-shadow: none !important; background-image: none !important; color: var(--ds-muted) !important; font-size: 13px !important; font-weight: 600 !important; }
+body #modal-layer .modal.detail-sheet .modal-actions button::before, body #modal-layer .modal.detail-sheet .modal-actions button::after { display: none !important; }
+body #modal-layer .modal.detail-sheet .modal-actions .save { border: 1px solid var(--ds-accent) !important; color: var(--ds-accent) !important; }
+body #modal-layer .modal.detail-sheet .modal-actions .danger { background: transparent !important; padding-left: 0 !important; color: color-mix(in srgb, #b4564f 80%, var(--ds-muted)) !important; font-weight: 500 !important; }
+body #modal-layer .modal.detail-sheet .ts-spacer { flex: 1; }
+/* 待办详情 */
+body #modal-layer .modal.todo-sheet .ts-visually-hidden { position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+body #modal-layer .modal.todo-sheet .ts-title-row { display: flex; align-items: flex-start; gap: 2px; margin: 8px 0 0; }
+body #modal-layer .modal.todo-sheet .ts-title-row .hs-tick { margin: -9px 0 0 -11px; flex: none; }
+body #modal-layer .modal.todo-sheet .ts-title { flex: 1; min-width: 0; margin: 0 !important; }
+body #modal-layer .modal.todo-sheet .ts-title textarea { display: block; width: 100%; min-height: 30px; margin: 0; padding: 0 0 8px !important; border: 0 !important; border-bottom: 1px solid var(--ds-line) !important; border-radius: 0 !important; background: transparent !important; box-shadow: none !important; resize: none; overflow: hidden; font: inherit; font-size: 19px !important; font-weight: 600; line-height: 1.45; color: var(--ds-ink) !important; }
+body #modal-layer .modal.todo-sheet .ts-title textarea:focus { outline: none; border-bottom-color: color-mix(in srgb, var(--ds-accent) 60%, transparent) !important; }
+body #modal-layer .modal.todo-sheet .ts-meta { margin: 8px 0 22px; }
+body #modal-layer .modal.todo-sheet .todo-date-field legend { float: left; width: 100%; margin: 0 0 12px; padding: 0; font-size: 12px; font-weight: 600; color: var(--ds-ink); }
+body #modal-layer .modal.todo-sheet .todo-date-field > div { clear: both; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+body #modal-layer .modal.todo-sheet .todo-date-field > div label { position: relative; margin: 0 !important; }
+body #modal-layer .modal.todo-sheet .todo-date-field > div input { position: absolute; opacity: 0; pointer-events: none; }
+body #modal-layer .modal.todo-sheet .todo-date-field > div span { display: flex; flex-direction: column; gap: 2px; min-height: 52px; padding: 9px 12px !important; border: 1px solid var(--ds-line) !important; border-radius: var(--radius-soft-sm, 8px) !important; background: transparent !important; box-shadow: none !important; transition: border-color .2s ease, color .2s ease; }
+body #modal-layer .modal.todo-sheet .todo-date-field > div span strong { font-size: 13px; font-weight: 600; color: var(--ds-ink) !important; }
+body #modal-layer .modal.todo-sheet .todo-date-field > div span small { font-size: 11px; color: var(--ds-muted) !important; }
+body #modal-layer .modal.todo-sheet .todo-date-field input:checked+span { border-color: var(--ds-accent) !important; background: transparent !important; }
+body #modal-layer .modal.todo-sheet .todo-date-field input:checked+span strong { color: var(--ds-accent) !important; }
+body #modal-layer .modal.todo-sheet .todo-date-field input:focus-visible+span { outline: 2px solid color-mix(in srgb, var(--ds-accent) 40%, transparent); outline-offset: 2px; }
+body #modal-layer .modal.todo-sheet .todo-custom-date { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 14px 0 0 !important; padding: 0 0 6px !important; border: 0 !important; border-bottom: 1px solid var(--ds-line) !important; border-radius: 0 !important; background: transparent !important; font-size: 12px; color: var(--ds-muted); }
+body #modal-layer .modal.todo-sheet .todo-custom-date[hidden] { display: none !important; }
+body #modal-layer .modal.todo-sheet #todo-custom-date { width: auto; min-height: 34px; padding: 0 !important; border: 0 !important; background: transparent !important; box-shadow: none !important; color: var(--ds-ink) !important; font-size: 13px; }
+body #modal-layer .modal.todo-sheet .ts-actions { margin-top: 18px !important; border-top: 1px solid var(--ds-line) !important; }
+@media (prefers-reduced-motion: reduce) {
+  body #modal-layer .modal.detail-sheet .hs-tick.is-pop .hs-tick-dot { animation: none !important; }
+  body #modal-layer .modal.detail-sheet .hs-tick-dot, body #modal-layer .modal.detail-sheet .hs-tick-dot .material-symbols-outlined { transition: none !important; }
+}
+body #modal-layer .modal.confirm-sheet { max-width: 420px; }
+body #modal-layer .modal.confirm-sheet p { margin: 10px 0 0; font-size: 13px; line-height: 1.6; color: var(--ds-muted); }
+body #modal-layer .modal.confirm-sheet .modal-actions .danger { padding: 0 16px !important; border: 1px solid color-mix(in srgb, #b4564f 45%, transparent) !important; }

@@ -309,6 +309,7 @@ const CASCADE_ITEMS = [
   '.vault-item',
   '.stats-habit-row',
   '.habit-card',
+  '.detail-sheet-row',
   '.cal-activity-row',
   '.media-card',
   '.taste-card',
@@ -1335,7 +1336,7 @@ export function celebrateHabitCheck(button) {
     void button.offsetWidth;
     button.classList.add('is-pop');
     const clear = () => button.classList.remove('is-pop');
-    button.querySelector('.habit-check-dot')?.addEventListener('animationend', clear, { once: true });
+    button.querySelector('.habit-check-dot, .hs-tick-dot')?.addEventListener('animationend', clear, { once: true });
     setTimeout(clear, 480);
   });
 }
