@@ -3,7 +3,7 @@
    —— 本文件由 scripts/gen-plain-theme.mjs 自动生成，请勿手工编辑。
       改了 styles.css / performance.css 之后重新运行该脚本即可。
 
-   扫描 7061 条规则，命中素材规则 491 条。
+   扫描 7112 条规则，命中素材规则 491 条。
    只影响 [data-theme="plain"]，米白与暖阳两个主题完全不受影响。
    ========================================================================== */
 
@@ -2497,3 +2497,107 @@ button.danger) {
 :root[data-theme="plain"] .journal-view :is(.mood-pick-item, .weather-pick-item).active :is(small, .material-symbols-outlined) {
   color: #fff !important;
 }
+
+/* ---------------------------------------------------------------------------
+   二十三 · PR1 清简对齐
+   --------------------------------------------------------------------------- */
+
+/* ① Dock 清简悬浮岛 + 今日页不再更矮 */
+:root[data-theme="plain"] .floating-dock,
+:root[data-theme="plain"] .phone-shell:has(.today-view) .floating-dock,
+:root[data-theme="plain"] .phone-shell:has(.calendar-view) .floating-dock,
+:root[data-theme="plain"] .phone-shell:has(.snippets-view) .floating-dock,
+:root[data-theme="plain"] .phone-shell:has(.journal-view) .floating-dock,
+:root[data-theme="plain"] .phone-shell:has(.ledger-view) .floating-dock {
+  left: 50% !important;
+  right: auto !important;
+  transform: translateX(-50%) !important;
+  width: calc(100% - 24px) !important;
+  max-width: 480px !important;
+  bottom: max(10px, calc(var(--app-safe-bottom) + 6px)) !important;
+  height: 60px !important;
+  padding: 4px 6px !important;
+  border-radius: 999px !important;
+  border: 1px solid var(--pl-line, rgba(61,95,158,.16)) !important;
+  background-color: #FFFFFF !important;
+  background-image: none !important;
+  box-shadow: 0 4px 16px rgba(46, 52, 59, 0.08), 0 1px 3px rgba(46, 52, 59, 0.04), inset 0 1px 0 rgba(255,255,255,.95) !important;
+}
+:root[data-theme="plain"] .floating-dock .dock-btn,
+:root[data-theme="plain"] .phone-shell:has(.today-view) .floating-dock .dock-btn {
+  height: 50px !important;
+  border-radius: 999px !important;
+  gap: 2px !important;
+}
+:root[data-theme="plain"] .phone-shell:has(.today-view) .dock-btn .material-symbols-outlined {
+  font-size: 22px !important;
+}
+:root[data-theme="plain"] .floating-dock .dock-btn small,
+:root[data-theme="plain"] .phone-shell:has(.today-view) .dock-btn small {
+  font-size: 10px !important;
+}
+
+/* ② 显示今日格言 */
+:root[data-theme="plain"] .today-photo-feature .washi-tape-note {
+  display: block !important;
+  margin: 10px 0 0 !important;
+  padding: 8px 12px !important;
+  background: var(--pl-blue-soft) !important;
+  border: 1px solid var(--pl-blue-line) !important;
+  border-radius: 12px !important;
+  box-shadow: none !important;
+}
+
+/* ③ 抬升清简下今日/底栏相关 sub-10px 字号 */
+:root[data-theme="plain"] .stack-indicator {
+  font-size: 11px !important;
+}
+:root[data-theme="plain"] .qa-card > span:last-child {
+  font-size: 11px !important;
+}
+:root[data-theme="plain"] #today-timeline-stream .life-stream-copy small {
+  font-size: 11px !important;
+}
+:root[data-theme="plain"] .section-layer-hint {
+  font-size: 11px !important;
+}
+:root[data-theme="plain"] .polaroid-caption {
+  font-size: 10px !important;
+}
+:root[data-theme="plain"] .polaroid-time {
+  font-size: 10px !important;
+}
+:root[data-theme="plain"] .photo-stack-empty small {
+  font-size: 11px !important;
+}
+:root[data-theme="plain"] .bento-item-copy strong {
+  font-size: 11px !important;
+}
+:root[data-theme="plain"] .bento-item-copy small {
+  font-size: 10px !important;
+}
+
+/* ④ 二级顶栏吸顶圆角平顶 */
+:root[data-theme="plain"] .subpage-nav-bar,
+:root[data-theme="plain"] :is(#subpage-habit-detail,#subpage-timetable,#subpage-journal-reader,#subpage-ledger-detail,#subpage-focus-detail,#subpage-media-detail) .subpage-nav-bar,
+:root[data-theme="plain"] #subpage-timetable .subpage-nav-bar,
+:root[data-theme="plain"] #subpage-journal-reader .journal-reader-page .subpage-nav-bar,
+:root[data-theme="plain"] .journal-reader-page .subpage-nav-bar {
+  border-radius: 0 0 16px 16px !important;
+  border-top: 0 !important;
+}
+
+/* ⑥ 便当左右对称 + 藏 A/B 水印 */
+:root[data-theme="plain"] .bento-card {
+  padding: 12px 12px 8px 12px !important;
+}
+:root[data-theme="plain"] .bento-card + .bento-card {
+  padding: 12px 12px 8px 12px !important;
+  border-left: 1px solid var(--pl-line, rgba(61,95,158,.16)) !important;
+}
+:root[data-theme="plain"] .bento-card::before,
+:root[data-theme="plain"] .bento-card + .bento-card::before {
+  content: none !important;
+  display: none !important;
+}
+
