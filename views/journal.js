@@ -509,16 +509,12 @@ function journalDeckModels(list) {
       excerpt: body.slice(0, 72),
       caption: String(entry.summary || '').trim() || mood || (photo ? '说明在照片下面' : ''),
       photoSrc: photo ? mediaSource(photo) : '',
-      photoLabel: `查看${entry.date}的照片，共 ${entry.photos?.length || 0} 张`,
+      // 牌组上点照片只在本篇的几张之间轮换；放大/长图查看器留给「阅读这篇」之后
+      photos: (entry.photos || []).map(item => mediaSource(item)).filter(Boolean),
+      photoLabel: (entry.photos?.length || 0) > 1 ? `${entry.date}的照片，共 ${entry.photos.length} 张，点按切换下一张` : `${entry.date}的照片`,
       meta: [mood, weather].filter(Boolean).join(' · ') || '心情与天气未记'
     };
   });
-}
-
-function openDeckPhoto(day) {
-  const entry = state.journals?.[day];
-  if (!entry?.photos?.length) return;
-  photoViewer(photosWithLiveMotion(entry.photos, entry.livePhotos), 0);
 }
 
 function mountDeckHost(host, list, options = {}) {
@@ -528,8 +524,7 @@ function mountDeckHost(host, list, options = {}) {
     hint: options.hint,
     startIndex: options.startIndex,
     onOpen: options.onOpen,
-    spread: options.spread,
-    onPhoto: model => openDeckPhoto(model.id)
+    spread: options.spread
   });
 }
 

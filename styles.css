@@ -9175,3 +9175,12 @@ button.journal-deck-cut.journal-deck-mini-more{position:absolute;top:8px;right:6
 .journal-deck-mini.is-flying{z-index:5}
 .journal-deck-spread.is-collapsing .journal-deck-mini:not(.is-flying){opacity:0;transition:opacity 200ms ease}
 @media (prefers-reduced-motion: reduce){.journal-deck-mini{transition:none!important}}
+
+/* 牌组照片轻点轮换：底边小圆点（多张才有），换图时淡一下 */
+.journal-deck-photo .photo-blur-still,.journal-deck-photo .photo-blur-pad{transition:opacity .12s ease}
+.journal-deck-photo.is-cycling .photo-blur-still{opacity:.35}
+.journal-deck-photo-dots{position:absolute;left:50%;bottom:6px;transform:translateX(-50%);display:flex;gap:4px;padding:3px 5px;border-radius:6px;background:rgba(58,49,41,.28);pointer-events:none;z-index:2}
+.journal-deck-photo-dots i{width:5px;height:5px;border-radius:50%;background:rgba(255,250,240,.55)}
+.journal-deck-photo-dots i.is-on{background:#fffaf0}
+:root[data-theme="plain"] .journal-deck-photo-dots{background:rgba(40,52,68,.28)}
+@media (prefers-reduced-motion:reduce){.journal-deck-photo .photo-blur-still,.journal-deck-photo .photo-blur-pad{transition:none}}

@@ -28,7 +28,7 @@ test('弹簧会落定，而不是一直漂着', () => {
   assert.ok(Math.abs(spring.current - 100) < 0.5);
 });
 
-test('日记浏览用牌组，照片仍交给原来的查看器', async () => {
+test('日记浏览用牌组，阅读页照片仍交给原来的查看器（牌组上点照片改为轮换）', async () => {
   const journal = await read('views/journal.js');
   const common = await read('views/common.js');
   const motion = await read('motion.js');
@@ -37,8 +37,7 @@ test('日记浏览用牌组，照片仍交给原来的查看器', async () => {
   assert.match(journal, /id="journal-past-deck"/);
   assert.match(journal, /id="journal-history-deck"/);
   assert.match(journal, /id="journal-reader-deck"/);
-  assert.match(journal, /function openDeckPhoto/);
-  assert.match(journal, /photoViewer\(photosWithLiveMotion\(entry\.photos, entry\.livePhotos\), 0\)/);
+  assert.doesNotMatch(journal, /function openDeckPhoto/);
   assert.match(journal, /photoViewer\(photosWithLiveMotion\(photos, entry\.livePhotos\), Number\(button\.dataset\.viewJournalReaderPhoto\)\)/);
   assert.match(common, /export function bindPhotoViewerGestures/);
   assert.match(common, /未缩放时水平滑动切换/);

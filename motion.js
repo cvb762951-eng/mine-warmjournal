@@ -798,6 +798,57 @@ export function releaseDetachedJournalDecks() {
   }
 }
 
+/** 同一篇日记的照片地址列表（至少含封面那张）。 */
+export function deckPhotoList(entry) {
+  const list = Array.isArray(entry?.photos) ? entry.photos.filter(Boolean) : [];
+  return list.length ? list : (entry?.photoSrc ? [entry.photoSrc] : []);
+}
+
+function deckPhotoIndex(entry) {
+  const n = deckPhotoList(entry).length;
+  return n ? ((Number(entry.photoIndex) || 0) % n + n) % n : 0;
+}
+
+/** 轻点判定：按下到松手不超过 250ms，位移不超过 8px，否则算拖动。 */
+export function isDeckTap({ dx = 0, dy = 0, ms = 0 } = {}) {
+  return Math.hypot(dx, dy) < 8 && ms <= 250;
+}
+
+/** 下一张的序号，最后一张之后回到第一张；单张返回 null（什么都不做）。 */
+export function nextDeckPhotoIndex(current, total) {
+  if (!(total > 1)) return null;
+  return ((Number(current) || 0) + 1) % total;
+}
+
+/** 先在内存里把下一张载好（decode 完）再换 src，两层同时换，不闪白。只改内存里的牌面模型，不碰存储。 */
+function cycleDeckPhoto(card, entry) {
+  const photos = deckPhotoList(entry);
+  const next = nextDeckPhotoIndex(deckPhotoIndex(entry), photos.length);
+  if (next === null || !card) return;
+  const frame = card.querySelector('[data-deck-photo]');
+  if (!frame) return;
+  const token = (frame._cycleToken || 0) + 1;
+  frame._cycleToken = token;
+  entry.photoIndex = next;
+  const url = photos[next];
+  const img = new Image();
+  img.decoding = 'async';
+  const apply = () => {
+    if (frame._cycleToken !== token || !frame.isConnected) return;
+    const swap = () => {
+      frame.querySelectorAll('img').forEach(layer => { layer.src = url; });
+      frame.querySelectorAll('.journal-deck-photo-dots i').forEach((dot, i) => dot.classList.toggle('is-on', i === next));
+      frame.classList.remove('is-cycling');
+    };
+    if (prefersReducedMotion()) { swap(); return; }
+    frame.classList.add('is-cycling');
+    setTimeout(swap, 120);
+  };
+  img.onload = () => { (img.decode ? img.decode().catch(() => {}) : Promise.resolve()).then(apply); };
+  img.onerror = () => { if (frame._cycleToken === token) entry.photoIndex = next; };
+  img.src = url;
+}
+
 function deckCard(entry, depth) {
   const card = document.createElement('article');
   card.className = 'journal-deck-card';
@@ -828,8 +879,21 @@ function deckCard(entry, depth) {
     photo.dataset.deckPhoto = entry.id || '';
     photo.setAttribute('aria-label', entry.photoLabel || '查看照片');
     photo.classList.add(PHOTO_FRAME_CLASS);
-    photo.append(...photoFrameLayers(entry.photoSrc, { padClass: 'journal-deck-pad', stillClass: 'journal-deck-still' }));
+    const photos = deckPhotoList(entry);
+    const at = deckPhotoIndex(entry);
+    photo.append(...photoFrameLayers(photos[at] || entry.photoSrc, { padClass: 'journal-deck-pad', stillClass: 'journal-deck-still' }));
     figure.append(photo);
+    if (photos.length > 1) {
+      const dots = document.createElement('span');
+      dots.className = 'journal-deck-photo-dots';
+      dots.setAttribute('aria-hidden', 'true');
+      photos.forEach((_, i) => {
+        const dot = document.createElement('i');
+        if (i === at) dot.className = 'is-on';
+        dots.append(dot);
+      });
+      photo.append(dots);
+    }
     face.append(figure);
   }
   if (entry.excerpt) {
@@ -848,7 +912,7 @@ function deckCard(entry, depth) {
 
 /**
  * 在 host 里挂一组可倾斜、可磁性切牌的日记卡。
- * onOpen 打开篇章；onPhoto 只表示用户点了照片，由调用方决定去哪个查看器。
+ * onOpen 打开篇章；点照片在本篇几张之间轮换（放大查看留在阅读页）。
  */
 export function mountJournalDeck(host, entries = [], options = {}) {
   return safely(() => {
@@ -871,6 +935,7 @@ export function mountJournalDeck(host, entries = [], options = {}) {
     let startY = 0;
     const trail = [];
     let downTarget = null;
+    let downAt = 0;
     const offset = new SpringODE({ mass: 1, stiffness: 210, damping: 24, precision: 0.6 });
     const pitch = new SpringODE({ mass: 0.8, stiffness: 240, damping: 20, precision: 0.15 });
     const yaw = new SpringODE({ mass: 0.8, stiffness: 240, damping: 20, precision: 0.15 });
@@ -1097,7 +1162,8 @@ export function mountJournalDeck(host, entries = [], options = {}) {
       measureStage();
       pointerId = event.pointerId;
       downTarget = event.target;
-      stage.setPointerCapture?.(event.pointerId);
+      downAt = performance.now();
+      try { stage.setPointerCapture?.(event.pointerId); } catch { /* 指针已失效时照常记录起点 */ }
       startX = event.clientX;
       startY = event.clientY;
       trail.length = 0;
@@ -1159,7 +1225,12 @@ export function mountJournalDeck(host, entries = [], options = {}) {
         if (!entry) return;
         // 按下时就捕获了指针，pointerup 的 target 会变成 stage，所以用按下时记下的目标判断点了哪里
         const hit = downTarget || event.target;
-        if (hit?.closest?.('[data-deck-photo]')) options.onPhoto?.(entry);
+        if (hit?.closest?.('[data-deck-photo]')) {
+          // 牌组上点照片 = 换本篇下一张（单张不动），不再打开放大查看器
+          if (isDeckTap({ dx: event.clientX - startX, dy: event.clientY - startY, ms: performance.now() - downAt })) {
+            cycleDeckPhoto(hit.closest('.journal-deck-card'), entry);
+          }
+        }
         else if (hit?.closest?.('.journal-deck-face')) options.onOpen?.(entry);
         return;
       }
