@@ -71,3 +71,19 @@ test('三处渲染封面图的地方都走同一个函数', () => {
   assert.ok(calls.length >= 3, `vaultCoverImage 应至少被调用 3 次（卡片 / 选择器 / 异步补齐），实际 ${calls.length}`);
   assert.match(vault, /cover\.innerHTML = vaultCoverImage\(source\)/, '异步补齐也要用它');
 });
+
+
+test('列表缩略图视频封面也走共用 photo-blur-frame，不用灰底填两侧', () => {
+  assert.match(vault, /video-contain-cover photo-blur-frame/);
+  assert.match(vault, /item\.type === 'video' \? photoFrameLayersHtml/);
+  assert.match(vault, /new IntersectionObserver/);
+  // 加载前纸色兜底，不再写死灰/深绿底（选择器可能与 is-portrait 写在同一条）
+  assert.match(style, /vault-video-item \.vault-media-box(?:\.is-portrait-video-cover)?\.photo-blur-frame[^{]*\{[^}]*background:#efe7d6!important/);
+  assert.match(style, /vault-video-item \.video-contain-cover\.photo-blur-frame\{[^}]*background:#efe7d6!important/);
+  assert.doesNotMatch(style, /vault-video-item \.video-contain-cover>img[^{]*\{[^}]*transform:none!important/);
+  const pad = style.match(/\.photo-blur-frame>img\.photo-blur-pad\{([^}]*)\}/)?.[1] || '';
+  assert.match(pad, /object-fit:cover/);
+  assert.match(pad, /opacity:\.5/);
+  const still = style.match(/\.photo-blur-frame>img\.photo-blur-still\{([^}]*)\}/)?.[1] || '';
+  assert.match(still, /object-fit:contain/);
+});

@@ -334,19 +334,22 @@ test('private videos use compact complete covers and keep encrypted editing in a
   assert.match(view, /正在准备/);
   assert.match(core, /layer\.innerHTML = ''/);
   assert.match(css, /vault-video-item \.[^{]*vault-media-box\{[^}]*aspect-ratio:16\/9/);
-  assert.match(css, /vault-video-item \.[^{]*vault-media-box>img\{object-fit:contain/);
-  assert.match(view, /video-contain-cover/);
+  // 列表封面走共用 photo-blur-frame：主图 contain，铺底 cover（不再用灰底 + 全 img contain）
+  assert.match(view, /video-contain-cover photo-blur-frame/);
+  assert.match(view, /photoFrameLayersHtml\(esc\((?:cached|url)\)/);
   assert.match(css, /vault-video-item \.video-contain-cover\{[^}]*aspect-ratio:16\/9/);
-  assert.match(css, /video-contain-cover>img[^}]*object-fit:contain!important[^}]*object-position:center center/);
+  assert.match(css, /\.photo-blur-frame>img\.photo-blur-still\{[^}]*object-fit:contain!important/);
+  assert.match(css, /\.photo-blur-frame>img\.photo-blur-pad\{[^}]*object-fit:cover!important/);
   assert.match(view, /is-portrait-video-cover/);
   assert.match(css, /vault-media-box\.is-portrait-video-cover\{[^}]*aspect-ratio:16\/9/);
-  assert.match(css, /vault-media-box\.is-portrait-video-cover>img\{[^}]*object-fit:contain/);
+  assert.match(css, /vault-media-box\.is-portrait-video-cover>img\.photo-blur-still\{[^}]*object-fit:contain/);
   assert.match(css, /vault-video-item \.vault-media-box>i\{[^}]*bottom:8px[^}]*width:27px/);
   assert.match(css, /vault-video-item\{[^}]*border:1px solid rgba\(49,72,60,\.22\)/);
-  assert.match(view, /target\?\.classList\.toggle\('is-portrait-video-cover'/);
+  assert.match(view, /target\.classList\.toggle\('is-portrait-video-cover'/);
   assert.match(view, /data-vault-item-menu/);
   assert.doesNotMatch(view, /vault-video-copy-paper/);
   assert.match(css, /vault-video-item\{[^}]*grid-column:auto!important/);
+  assert.match(view, /new IntersectionObserver/);
 });
 
 test('private playback caches decrypted legacy sources, preloads neighbors and supports swipe continuation', () => {
