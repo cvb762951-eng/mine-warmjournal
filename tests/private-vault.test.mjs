@@ -278,8 +278,11 @@ test('passwordless mode is process-memory only and manual lock always clears it'
   assert.match(view, /let passwordlessForThisRun = false/);
   assert.doesNotMatch(view, /state\.(?:settings|privateVault)\.passwordlessForThisRun/);
   assert.match(view, /结束 App 后自动失效/);
-  assert.match(view, /vault-lock[^\n]+passwordlessForThisRun = false/);
-  assert.match(view, /if \(!passwordlessForThisRun\) \{ resetVaultFingerprintAttempt\(\); decryptedVideoUrls\.clear\(\); decryptingVideoUrls\.clear\(\); lockPrivateVault\(\); \}/);
+  assert.match(view, /#vault-lock'\)\?\.addEventListener\('click'[\s\S]*?passwordlessForThisRun = false/);
+  // 离开私密空间时（非免密模式）必须清掉指纹尝试与已解密缓存，再重新上锁。
+  // 该逻辑在源码里分两处：lockAndLeave 与 registerOnRender 的关闭回调。
+  assert.match(view, /if \(!passwordlessForThisRun\) \{ decryptedVideoUrls\.clear\(\); decryptingVideoUrls\.clear\(\); await lockPrivateVault\(\); \}/, '离开私密空间要清缓存并重新上锁');
+  assert.match(view, /if \(!passwordlessForThisRun\) \{[\s\S]*?resetVaultFingerprintAttempt\(\);[\s\S]*?decryptedVideoUrls\.clear\(\);[\s\S]*?decryptingVideoUrls\.clear\(\);[\s\S]*?lockPrivateVault\(\);/, '退出路由时要重置指纹尝试并清缓存上锁');
 });
 
 test('entry password keeps metadata encrypted while media uses fast app-private references', () => {
@@ -419,7 +422,7 @@ test('an untrimmed video and a full-frame crop are stored as null instead of fak
 test('the vault video editor is wired from menu to player', () => {
   assert.match(view, /id="vault-menu-trim"/, '私密视频菜单要有「剪辑视频」入口');
   assert.match(view, /showVideoEditor\(/, '菜单要真的打开剪辑器');
-  assert.match(view, /trim: item\.trim \|\| null, crop: item\.crop \|\| null/, '剪辑元数据要交给播放器');
+  assert.match(view, /trim: item\.trim \|\| null,\s*crop: item\.crop \|\| null/, '剪辑元数据要交给播放器');
   assert.match(vaultCore, /trim: normalizeTrim\(item\)/, 'trim 必须进持久化白名单');
   assert.match(vaultCore, /crop: normalizeCrop\(item\?\.crop\)/, 'crop 必须进持久化白名单');
   assert.match(css, /\.video-editor-crop-handle/, '剪辑器的手柄样式要在');

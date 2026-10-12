@@ -100,7 +100,10 @@ test('密钥加密失败时仍保存日记账本速记，保留已有密文且�
   assert.equal(await h.context.persistState(seeded), true);
   const habitsBefore = h.rows.get('habits');
   h.failEncryption();
-  const next = makeDefaultState();
+  // ⚠️ 必须从同一份状态派生，不能重新调 makeDefaultState()：
+  //    每次调用都会给实体盖上当时的 createdAt，两次调用哪怕只差 1 毫秒，
+  //    habits 分区的序列化结果就不一样，下面「没动过的分区不该被重写」的断言会随机失败。
+  const next = structuredClone(seeded);
   next.settings.aiApiKey = 'new-secret';
   next.journals['2026-10-01'] = { content: '旧日记', photos: [] };
   next.journals['2026-10-11'] = { content: '新日记', photos: [] };
