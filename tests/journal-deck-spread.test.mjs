@@ -26,6 +26,8 @@ test('「过往篇章」并入牌组摊开：打开走 openPastJournal，不跳�
   assert.match(motion, /section\?\.scrollIntoView\(\{ block: 'start'/);
   assert.match(motion, /new IntersectionObserver/);
   assert.match(motion, /photoFrameLayers\(/);
-  assert.match(motion, /const fanOut = deckRect => \{\n    if \(reduced\(\) \|\| !deckRect\?\.width\) return;/);
+  // ⚠️ 跨行断言必须容忍 CRLF：本机 core.autocrlf=true，检出的源码是 \r\n，
+  //    只写 \n 的话这条在 Windows 检出上必然失败（2026-10-12 踩过）。
+  assert.match(motion, /const fanOut = deckRect => \{\r?\n\s+if \(reduced\(\) \|\| !deckRect\?\.width\) return;/);
   assert.doesNotMatch(motion.slice(motion.indexOf('function createDeckSpread'), motion.indexOf('const journalDecks')), /filter:/);
 });

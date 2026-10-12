@@ -7,6 +7,7 @@ const read = file => readFile(new URL(file, root), 'utf8');
 
 const style = await read('styles.css');
 const snippets = await read('views/snippets.js');
+const photoFrame = await read('photo-frame.js');
 const activity = await read('android/app/src/main/java/com/mine/focus/MainActivity.java');
 
 /**
@@ -59,8 +60,12 @@ test('② 随手拍的视频封面：统一为横屏高度 + 两侧虚化（方�
   assert.doesNotMatch(style, /max-height:min\(64vh,480px\)/, '超高限幅那版应已移除');
 
   // 两层复用同一地址 → 只下载一次，不额外占存储、不用重新处理图片
-  assert.match(snippets, /class="snippet-cover-blur" src="\$\{url\}"/, '虚化层要用封面自己的地址');
-  assert.match(snippets, /class="snippet-cover-main" src="\$\{url\}"/, '主图要用同一个地址');
+  // 2026-10-12：两层结构已抽到共用实现 photo-frame.js（牌组/随手拍/私密空间共用），
+  // 断言跟着改成「随手拍调用共用实现 + 共用实现里两层引用同一个 url」——意图不变，写法跟上源码。
+  assert.match(snippets, /photoFrameLayersHtml\(url, \{[^}]*padClass: 'snippet-cover-blur'/, '虚化层要用封面自己的地址');
+  assert.match(snippets, /photoFrameLayersHtml\(url, \{[^}]*stillClass: 'snippet-cover-main'/, '主图要用同一个地址');
+  const urlsInFrame = photoFrame.match(/src="\$\{url\}"/g) || [];
+  assert.ok(urlsInFrame.length >= 2, '共用实现里两层必须引用同一个地址（浏览器只下载一次）');
   assert.match(snippets, /snippet-cover-frame is-video-cover/, '列表卡片要渲染虚化封面的方框');
 
   // 最早的固定高度横条规则不能回来
