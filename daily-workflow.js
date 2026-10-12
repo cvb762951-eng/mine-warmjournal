@@ -30,6 +30,27 @@ export function prepareDailyFocus(state, { todoId = '', habitId = '', minutes = 
   };
 }
 
+export function habitOneTapValue(habit, todayValue, periodValue = todayValue, remembered = null) {
+  // 一键打卡：未完成 → 只把「今天」这一格补到刚好达标。
+  // 已完成：只有本次打开期间用圆勾补满的（remembered 有效）才撤销回原值；
+  // 没有记忆（详情里手动记满 / 重启后）→ 'confirm'，由调用方弹窗确认后才清零，绝不静默清空；
+  // 今天是 0、靠本周期其他天已达标 → 'noop'（不是撤销）。
+  const today = Math.max(0, Number(todayValue) || 0);
+  const period = Math.max(today, Number(periodValue) || 0);
+  const target = Math.max(1, Number(habit.target) || 1);
+  const met = habit.goalType === 'range'
+    ? period >= target && period <= Number(habit.targetMax ?? Infinity)
+    : period >= target;
+  if (met) {
+    if (today === 0) return { action: 'noop', next: 0, prior: null };
+    const prior = Number(remembered);
+    if (remembered !== null && Number.isFinite(prior) && prior >= 0 && prior < today) return { action: 'undo', next: prior, prior: null };
+    return { action: 'confirm', next: 0, prior: null };
+  }
+  const otherDays = period - today;
+  return { action: 'fill', next: Math.max(today, target - otherDays), prior: today };
+}
+
 export function habitClickValue(habit, todayValue, linked = 0) {
   // 多次目标点击只加一次；只有每日单次习惯才支持再次点击撤销。
   const value = Number(todayValue) || 0;

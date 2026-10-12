@@ -9213,3 +9213,97 @@ button.journal-deck-cut.journal-deck-mini-more{border-radius:var(--radius-soft-s
 .private-vault-view .vault-video-item .vault-media-box.photo-blur-frame{border-radius:var(--radius-soft-sm)!important}
 .private-vault-view .vault-video-menu-trigger{border-radius:var(--radius-soft-sm)}
 
+
+/* ── 习惯页版式重做 v2（今日 bento）：轻、留白，与待办列同一语言 ──
+   无整块底色；细线分隔；小圆勾（视觉 28px，热区 48px）；只动 transform/opacity。 */
+.today-view #habits-bento-list { display: flex; flex-direction: column; gap: 0; }
+.today-view .habit-swipe-wrap { position: relative; min-width: 0; border-radius: 0 !important; background: transparent !important; box-shadow: none !important; }
+.today-view .habit-swipe-wrap + .habit-swipe-wrap { border-top: 1px dotted rgba(66, 57, 44, 0.19); }
+.today-view .habit-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 48px;
+  align-items: center;
+  gap: 4px;
+  min-height: 48px;
+  padding: 4px 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  color: #373a34;
+  overflow: hidden;
+}
+.today-view .habit-card-main {
+  display: block;
+  min-width: 0;
+  margin: 0;
+  padding: 4px 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  touch-action: pan-y;
+  will-change: transform;
+}
+.today-view .habit-card-copy { display: block; min-width: 0; }
+.today-view .habit-card-copy strong,
+.today-view .habit-card-meta { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.today-view .habit-card-copy strong { font-size: 11px; font-weight: 650; line-height: 1.35; color: #373a34; }
+.today-view .habit-card-meta { margin-top: 2px; font-size: 8.5px; font-weight: 500; line-height: 1.35; color: var(--ink-muted, #8a8174); }
+.today-view .habit-card.is-done .habit-card-copy strong { color: var(--ink-muted, #8a8174); }
+.today-view .habit-check-btn {
+  position: relative;
+  z-index: 2;
+  justify-self: end;
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  margin: 0 -10px 0 0;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  box-shadow: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  isolation: isolate;
+  transform: translateZ(0);
+}
+.today-view .habit-check-dot {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border: 1.5px solid rgba(23, 71, 55, 0.42);
+  border-radius: 50%;
+  background: transparent;
+  color: transparent;
+  transition: background-color 180ms ease, border-color 180ms ease;
+}
+.today-view .habit-check-dot .material-symbols-outlined {
+  font-size: 15px;
+  font-variation-settings: 'FILL' 0, 'wght' 600, 'GRAD' 0, 'opsz' 20;
+  opacity: 0;
+  transform: scale(0.6);
+  transition: opacity 180ms ease, transform 220ms var(--ease-spring, cubic-bezier(0.34, 1.56, 0.64, 1));
+}
+.today-view .habit-check-btn.is-done .habit-check-dot { background: var(--editorial-green, #174737); border-color: var(--editorial-green, #174737); color: #f6efdf; }
+.today-view .habit-check-btn.is-done .habit-check-dot .material-symbols-outlined { opacity: 1; transform: scale(1); }
+.today-view .habit-check-btn.is-pop .habit-check-dot {
+  animation: habitCheckPop 360ms var(--ease-spring, cubic-bezier(0.34, 1.56, 0.64, 1)) both;
+}
+@keyframes habitCheckPop {
+  0% { transform: scale(0.82); opacity: 0.6; }
+  60% { transform: scale(1.06); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .today-view .habit-check-btn.is-pop .habit-check-dot { animation: none !important; }
+  .today-view .habit-check-dot,
+  .today-view .habit-check-dot .material-symbols-outlined { transition: none !important; }
+}
+/* 页脚汇总：普通小字，不加粗不上色 */
+.today-view .habits-bento-card .bento-card-footer b { font-weight: 600; color: inherit; font-family: inherit; font-size: inherit; }
