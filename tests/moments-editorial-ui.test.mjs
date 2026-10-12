@@ -71,7 +71,7 @@ test('Moments portrait photos stay complete and large albums use a bounded mosai
   assert.match(source, /function snippetPhotoMosaic/);
   assert.match(source, /photos\.slice\(0, 5\)/);
   assert.match(source, /data-photo-index="\$\{index\}"/);
-  assert.match(source, /loading="lazy"/);
+  assert.match(source, /lazy: true/);
   assert.match(css, /\.snippet-photo-tile img\{[^}]*object-fit:contain/);
   // 2026-10-09 实测发现（核对「竖拍照片要完整显示」时）：格子是固定高度的网格单元，
   // 子图若只写 height:100%，在自动行里会退化成 auto，被按原图比例撑高后由 overflow:hidden
@@ -95,19 +95,14 @@ test('Moments portrait photos stay complete and large albums use a bounded mosai
   // （用户要求「竖屏照片也按这个风格处理」，与视频封面同一套做法）。
   // 只换垫底 —— 照片格的高度与排布一律不动。
   assert.match(source, /function snippetPhotoImage/);
-  assert.match(source, /class="snippet-photo-blur" src="\$\{url\}"/, '虚化层要用照片自己的地址');
-  assert.match(source, /class="snippet-photo-main" src="\$\{url\}"/, '主图要用同一个地址');
-
-  const photoBlur = css.match(/\.snippets-view \.snippet-photo-tile img\.snippet-photo-blur\{([^}]*)\}/)?.[1] || '';
-  assert.ok(photoBlur, '应有照片格的虚化层规则');
-  assert.match(photoBlur, /filter:blur\(/, '底层要是同一张照片放大虚化，不能是纯色块');
+  assert.match(source, /photoFrameLayersHtml\(url, \{[^}]*padClass: 'snippet-photo-blur', stillClass: 'snippet-photo-main'/, '两层用同一张照片的地址（共用 photo-frame.js）');
+  assert.match(source, /class="photo-blur-frame snippet-photo-tile"/);
+  const photoBlur = css.match(/\.photo-blur-frame>img\.photo-blur-pad\{([^}]*)\}/)?.[1] || '';
   assert.match(photoBlur, /object-fit:cover/, '底层要铺满，不能留白');
-  assert.match(photoBlur, /position:absolute/, '虚化层要脱离排版，不能影响格子尺寸');
-
-  const photoMain = css.match(/\.snippets-view \.snippet-photo-tile img\.snippet-photo-main\{([^}]*)\}/)?.[1] || '';
-  assert.ok(photoMain, '应有照片格的主图规则');
+  assert.match(photoBlur, /position:absolute/, '铺底层要脱离排版，不能影响格子尺寸');
+  const photoMain = css.match(/\.photo-blur-frame>img\.photo-blur-still\{([^}]*)\}/)?.[1] || '';
   assert.match(photoMain, /object-fit:contain/, '照片要完整显示，不能裁切');
-  assert.match(photoMain, /background:transparent/, '上层必须透明，否则深色底会盖住虚化层');
+  assert.match(photoMain, /background:transparent/, '上层必须透明，否则底色会盖住铺底层');
 
   // 上层变成定位元素后，「+N」遮罩必须仍压在照片之上，否则角标被盖住
   assert.match(css, /\.snippets-view \.snippet-photo-more\{z-index:2\}/, '角标要抬到主图之上');

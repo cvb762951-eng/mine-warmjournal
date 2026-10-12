@@ -1,3 +1,4 @@
+import { PHOTO_FRAME_CLASS, photoFrameLayers } from './photo-frame.js';
 /**
  * 动效核心（2026-10-10 创建，同日按业界做法重构）
  *
@@ -582,17 +583,8 @@ function deckCard(entry, depth) {
     photo.className = 'journal-deck-photo';
     photo.dataset.deckPhoto = entry.id || '';
     photo.setAttribute('aria-label', entry.photoLabel || '查看照片');
-    const pad = document.createElement('img');
-    pad.className = 'journal-deck-pad';
-    pad.alt = '';
-    pad.draggable = false;
-    pad.src = entry.photoSrc;
-    const still = document.createElement('img');
-    still.className = 'journal-deck-still';
-    still.alt = '';
-    still.draggable = false;
-    still.src = entry.photoSrc;
-    photo.append(pad, still);
+    photo.classList.add(PHOTO_FRAME_CLASS);
+    photo.append(...photoFrameLayers(entry.photoSrc, { padClass: 'journal-deck-pad', stillClass: 'journal-deck-still' }));
     figure.append(photo);
     face.append(figure);
   }

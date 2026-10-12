@@ -1,3 +1,4 @@
+import { photoFrameLayersHtml } from '../photo-frame.js';
 import { Capacitor } from '@capacitor/core';
 import { NativeMediaStore } from '../native-media-store.js';
 import { PasswordVaultNative } from '../password-vault-native.js';
@@ -196,7 +197,7 @@ function vaultFolderParentChoices(folders, current = null) {
 // 两层用同一个地址，浏览器只会下载一次。
 function vaultCoverImage(source, alt = '') {
   const url = esc(source);
-  return `<img class="vault-cover-blur" src="${url}" alt="" aria-hidden="true"><img class="vault-cover-main" src="${url}" alt="${esc(alt)}">`;
+  return photoFrameLayersHtml(url, { alt, padClass: 'vault-cover-blur', stillClass: 'vault-cover-main' });
 }
 
 function folderHome(content) {
@@ -231,7 +232,7 @@ function folderCard(folder, content) {
   const cached = preferred ? thumbnailUrls.get(preferred.id) : '';
   const meta = `${folder.count} 项${folder.subfolderCount ? ` · ${folder.subfolderCount} 个子夹` : ''} · ${folder.updatedAt ? formatFolderDate(folder.updatedAt) : '暂无内容'}`;
   const cover = cached ? vaultCoverImage(cached, folder.name) : `<span class="material-symbols-outlined">${folder.icon}</span>`;
-  return `<article class="vault-folder-card"><button class="vault-folder-open" data-vault-folder-mode="${folder.mode}" data-vault-folder-id="${folder.id || ''}"><span class="vault-folder-cover" ${preferred ? `data-vault-cover-item="${preferred.id}"` : ''}>${cover}</span><span class="vault-folder-copy"><strong>${esc(folder.name)}</strong><small>${esc(meta)}</small></span></button>${folder.mode === 'folder' ? `<button class="vault-folder-card-menu" data-manage-vault-folder="${folder.id}" aria-label="管理${esc(folder.name)}"><span class="material-symbols-outlined">more_horiz</span></button>` : ''}</article>`;
+  return `<article class="vault-folder-card"><button class="vault-folder-open" data-vault-folder-mode="${folder.mode}" data-vault-folder-id="${folder.id || ''}"><span class="vault-folder-cover photo-blur-frame" ${preferred ? `data-vault-cover-item="${preferred.id}"` : ''}>${cover}</span><span class="vault-folder-copy"><strong>${esc(folder.name)}</strong><small>${esc(meta)}</small></span></button>${folder.mode === 'folder' ? `<button class="vault-folder-card-menu" data-manage-vault-folder="${folder.id}" aria-label="管理${esc(folder.name)}"><span class="material-symbols-outlined">more_horiz</span></button>` : ''}</article>`;
 }
 
 function formatFolderDate(timestamp) { const date = new Date(Number(timestamp) || 0); return `${date.getMonth() + 1}月${date.getDate()}日更新`; }
@@ -250,7 +251,7 @@ function vaultItem(item) {
   const rawName = item.name || (item.type === 'video' ? '私密视频' : '私密照片');
   // 竖屏卡片样式：裁过画面之后也算重判（横屏裁成竖屏就该换成竖版卡片）
   const portraitCover = item.type === 'video' && vaultItemOrientation(item) === 'portrait';
-  const media = `<span class="vault-media-box ${item.type === 'video' ? 'video-contain-cover' : ''} ${portraitCover ? 'is-portrait-video-cover' : ''}">${cached ? `<img src="${esc(cached)}" alt="${esc(rawName)}">` : '<span class="vault-media-loading material-symbols-outlined">encrypted</span>'}${item.type === 'video' ? `<i class="material-symbols-outlined">play_arrow</i><em class="video-duration-stamp" data-vault-duration="${item.id}" aria-label="视频时长 ${duration}">${duration}</em>` : ''}${item.type === 'photo' && item.motionRef ? livePhotoMarkHtml() : ''}${edited ? '<em class="video-edited-stamp" aria-label="已剪辑">已剪辑</em>' : ''}</span>`;
+  const media = `<span class="vault-media-box ${item.type === 'video' ? 'video-contain-cover photo-blur-frame' : ''} ${portraitCover ? 'is-portrait-video-cover' : ''}">${cached ? (item.type === 'video' ? photoFrameLayersHtml(esc(cached), { alt: rawName }) : `<img src="${esc(cached)}" alt="${esc(rawName)}">`) : '<span class="vault-media-loading material-symbols-outlined">encrypted</span>'}${item.type === 'video' ? `<i class="material-symbols-outlined">play_arrow</i><em class="video-duration-stamp" data-vault-duration="${item.id}" aria-label="视频时长 ${duration}">${duration}</em>` : ''}${item.type === 'photo' && item.motionRef ? livePhotoMarkHtml() : ''}${edited ? '<em class="video-edited-stamp" aria-label="已剪辑">已剪辑</em>' : ''}</span>`;
   const selected = vaultSelectedIds.has(item.id);
   const primary = vaultSelectionMode ? `data-select-vault-item="${item.id}" aria-label="${selected ? '取消选择' : '选择'}${esc(rawName)}"` : `data-open-vault-item="${item.id}" aria-label="${item.type === 'video' ? '播放' : '查看'}${esc(rawName)}"`;
   const mark = vaultSelectionMode ? `<span class="vault-selection-mark material-symbols-outlined">${selected ? 'check_circle' : 'radio_button_unchecked'}</span>` : '';
@@ -413,7 +414,7 @@ async function loadThumbnails() {
       thumbnailUrls.set(id, url);
       const target = $(`[data-open-vault-item="${id}"] .vault-media-box`);
       target?.querySelector('.vault-media-loading')?.remove();
-      if (target && !target.querySelector('img')) target.insertAdjacentHTML('afterbegin', `<img src="${esc(url)}" alt="${esc(item.name)}">`);
+      if (target && !target.querySelector('img')) target.insertAdjacentHTML('afterbegin', item.type === 'video' ? photoFrameLayersHtml(esc(url), { alt: item.name }) : `<img src="${esc(url)}" alt="${esc(item.name)}">`);
       if (item.type === 'video' && (!item.duration || !item.displayOrientation) && item.sourceType !== 'hls' && /^mine-(?:media|browser-media):\/\//.test(item.assetRef || '')) {
         const metadata = await readVideoMetadata(await vaultVideoSource(item));
         if (metadata.duration || metadata.displayOrientation) {
@@ -735,7 +736,7 @@ function folderCoverPicker(folder) {
   // 候选含子孙文件夹的内容，和 folderCard 的自动封面口径保持一致。
   const scope = new Set([folder.id, ...vaultFolderDescendants(folder.id, privateVaultContent().folders)]);
   const items = privateVaultContent().items.filter(item => scope.has(item.folderId) && (item.posterRef || item.type === 'photo'));
-  modal(`<div class="vault-folder-cover-picker"><span class="eyebrow">ALBUM COVER</span><h2>选择「${esc(folder.name)}」的封面</h2><div>${items.map(item => `<button data-folder-cover-choice="${item.id}" aria-label="使用${esc(item.name)}作为封面"><span class="vault-folder-cover" data-vault-cover-item="${item.id}">${thumbnailUrls.get(item.id) ? vaultCoverImage(thumbnailUrls.get(item.id)) : '<span class="material-symbols-outlined">image</span>'}</span></button>`).join('')}</div><div class="modal-actions"><button type="button" id="vault-cover-auto">自动选择最近内容</button><button data-close>取消</button></div></div>`, 'vault-folder-cover-modal');
+  modal(`<div class="vault-folder-cover-picker"><span class="eyebrow">ALBUM COVER</span><h2>选择「${esc(folder.name)}」的封面</h2><div>${items.map(item => `<button data-folder-cover-choice="${item.id}" aria-label="使用${esc(item.name)}作为封面"><span class="vault-folder-cover photo-blur-frame" data-vault-cover-item="${item.id}">${thumbnailUrls.get(item.id) ? vaultCoverImage(thumbnailUrls.get(item.id)) : '<span class="material-symbols-outlined">image</span>'}</span></button>`).join('')}</div><div class="modal-actions"><button type="button" id="vault-cover-auto">自动选择最近内容</button><button data-close>取消</button></div></div>`, 'vault-folder-cover-modal');
   const chooseCover = async id => {
     if (!privateVaultUnlocked()) return;
     const previous = { ...folder }, previousVault = structuredClone(state.privateVault);
@@ -1486,7 +1487,7 @@ function bindPrivateVault() {
     // Android WebView 会把封面从页面快照里抠走：抠空处是点击位置的白块，
     // 整页交叉淡化再透出 WebView 的白底，闪一整屏白。照片才走共享元素。
     if (item?.type === 'video') { open(); return; }
-    const source = button.querySelector('.vault-media-box img') || button.querySelector('.vault-media-box');
+    const source = button.querySelector('.vault-media-box img:not(.photo-blur-pad)') || button.querySelector('.vault-media-box');
     withSharedTransition(source, open, {
       targetSelector: '#vault-photo-image',
       fallbackTargetSelector: '#vault-photo-image'

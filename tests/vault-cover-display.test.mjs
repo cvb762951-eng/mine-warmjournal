@@ -38,24 +38,23 @@ test('封面统一比例，不再随内容动态改尺寸', () => {
 
 test('内容完整显示：主图层仍用 contain（用户明确说喜欢这一点）', () => {
   assert.match(vault, /function vaultCoverImage\(source, alt = ''\)/);
-  assert.match(vault, /class="vault-cover-main"/, '需要主图层');
+  assert.match(vault, /stillClass: 'vault-cover-main'/, '需要主图层（共用 photo-frame.js）');
   assert.match(style, /\.vault-folder-cover>\.vault-cover-main\{[^}]*object-fit:contain/,
     '主图层必须 contain —— 竖屏视频不能被裁');
   assert.match(style, /\.private-vault-view \.vault-folder-cover>\.vault-cover-main\{[^}]*object-fit:contain/,
     '私密空间生效的那条规则同样要 contain');
 });
 
-test('留白用同一张画面虚化铺底，而不是纯色块', () => {
-  assert.match(vault, /class="vault-cover-blur"/, '需要虚化铺底层');
+test('留白用同一张画面放大铺底（与日记牌组同一份实现），而不是纯色块', () => {
+  assert.match(vault, /import \{ photoFrameLayersHtml \} from '\.\.\/photo-frame\.js'/);
   // 两层用同一个地址：浏览器只会下载一次
-  assert.match(vault, /const url = esc\(source\)[\s\S]{0,200}vault-cover-blur[\s\S]{0,200}vault-cover-main/,
-    '两层应复用同一个地址，避免重复下载');
-  assert.match(style, /\.vault-cover-blur\{[^}]*filter:blur\(/);
-  assert.match(style, /\.vault-cover-blur\{[^}]*object-fit:cover/,
-    '铺底层要 cover 才填得满');
-  // 放大是必需的：blur 会让边缘半透明，不放大就会在四周透出一圈底色
-  assert.match(style, /\.vault-cover-blur\{[^}]*transform:scale\(/);
-  assert.match(style, /\.private-vault-view \.vault-folder-cover>\.vault-cover-blur\{[^}]*transform:scale\(/);
+  assert.match(vault, /const url = esc\(source\);\s*return photoFrameLayersHtml\(url, \{[^}]*padClass: 'vault-cover-blur', stillClass: 'vault-cover-main'/);
+  const pad = style.match(/\.photo-blur-frame>img\.photo-blur-pad\{([^}]*)\}/)?.[1] || '';
+  assert.match(pad, /object-fit:cover/, '铺底层要 cover 才填得满');
+  assert.match(pad, /transform:scale\(1\.08\)/);
+  assert.match(pad, /opacity:\.5/);
+  assert.match(pad, /inset:-12%/);
+  assert.match(vault, /vault-folder-cover photo-blur-frame/);
 });
 
 test('虚化层不会盖住相框（靠 overflow:hidden 裁到 padding 区）', () => {
