@@ -60,6 +60,32 @@ function habitCardHtml(habit, day) {
   </article></div>`;
 }
 
+/** 打卡就地更新后：刷新角标、卡片脚「今日 b/a」、时光轴打卡足迹（不整页 render）。 */
+export function refreshTodayHabitChrome() {
+  const day = dateKey();
+  const completion = todayCompletion(state, day);
+  const streak = activeStreak(state, day);
+  const habitPercent = completion.total ? Math.round(completion.done / completion.total * 100) : 0;
+  const badge = $('#habits-bento-badge');
+  if (badge) badge.textContent = completion.total ? `${completion.done}/${completion.total} · ${habitPercent}%` : '无安排';
+  const footer = $('#open-habit-detail-today');
+  const footerCopy = footer?.querySelector(':scope > span:first-child');
+  if (footerCopy) footerCopy.innerHTML = `今日 <b>${completion.done}</b>/${completion.total || 0} · 节奏 <b>${streak}</b> 天`;
+  const stream = $('#today-timeline-stream');
+  if (stream) {
+    const recent = recentActivity().filter(item => item.date === day);
+    stream.innerHTML = recent.length
+      ? recent.map(timelineNode).join('')
+      : `<div class="life-stream-empty"><span class="life-stream-empty-icon"><span class="life-stream-glyph material-symbols-outlined" aria-hidden="true">history_toggle_off</span></span><span><strong>今天还很安静</strong><small>完成一次专注、打卡或记录后，时光会在这里留下足迹</small></span></div>`;
+    $$('[data-timeline-day]', stream).forEach(button => {
+      button.onclick = () => go('calendar', button.dataset.timelineDay);
+    });
+    $$('[data-release-code]', stream).forEach(button => {
+      button.onclick = () => openReleaseNotes(button.dataset.releaseCode);
+    });
+  }
+}
+
 export function todayView() {
   const now = new Date();
   const day = dateKey();

@@ -3,7 +3,7 @@ import { makeHabit, makeTodo, habitProgressForDate, habitGoalMet, todosForDate, 
 import { repeatLabel, linkedHabitMinutes, updateHabitCompletion } from './common.js';
 import { dailyTodoGroups, habitClickValue, habitOneTapValue } from '../daily-workflow.js';
 import { celebrateHabitCheck, autoStagger } from '../motion.js';
-import { habitDayStreak } from './today.js';
+import { habitDayStreak, refreshTodayHabitChrome } from './today.js';
 
 // 打卡成功后的轻动效：render 会重建 DOM，先记下 id，绑定后再弹
 let pendingHabitCelebrateId = null;
@@ -80,6 +80,7 @@ export async function commitHabitProgress(habitId, nextValue, message = '') {
     // 优先就地更新今日行 + 只在勾上 celebrate，避免整页 render/autoStagger 盖住轻反馈、画报闪纸色
     const updated = refreshHabitCardDom(habitId);
     if (updated) {
+      refreshTodayHabitChrome();
       if (increased && updated.tick) celebrateHabitCheck(updated.tick);
       show(requested < linked ? `已保留专注自动同步的 ${linked}${habit.unit}` : message || `${habit.name}：今日 ${next}/${habit.target}${habit.unit}`);
       return true;
