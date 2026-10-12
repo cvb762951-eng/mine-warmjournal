@@ -67,8 +67,8 @@ test('Today photo story keeps the kraft frame and shows each photo complete, lik
   assert.match(main, /background:transparent/);
   assert.doesNotMatch(photoCss, /object-fit:\s*fill/);
   assert.match(source, /function photoStoryImage/);
-  assert.match(source, /class="polaroid-blur" src="\$\{url\}"/);
-  assert.match(source, /class="polaroid-img" src="\$\{url\}"/);
+  // 两层改由共用 photo-frame.js 生成（photo-blur-pad polaroid-blur / photo-blur-still polaroid-img）
+  assert.match(source, /photoFrameLayersHtml\(url, \{ alt, padClass: 'polaroid-blur', stillClass: 'polaroid-img' \}\)/);
   assert.match(photoCss, /aspect-ratio:16\/9/);
   assert.doesNotMatch(photoCss, /@media[^{]*orientation/);
   assert.doesNotMatch(photoCss, /portrait|landscape/);
