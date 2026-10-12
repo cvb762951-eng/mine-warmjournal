@@ -30,4 +30,15 @@ test('「过往篇章」并入牌组摊开：打开走 openPastJournal，不跳�
   //    只写 \n 的话这条在 Windows 检出上必然失败（2026-10-12 踩过）。
   assert.match(motion, /const fanOut = deckRect => \{\r?\n\s+if \(reduced\(\) \|\| !deckRect\?\.width\) return;/);
   assert.doesNotMatch(motion.slice(motion.indexOf('function createDeckSpread'), motion.indexOf('const journalDecks')), /filter:/);
+  // 收起与展开对称：点「收起」走 fanIn（无 fromCard），减弱动态效果瞬时落定
+  const spreadFn = motion.slice(motion.indexOf('function createDeckSpread'), motion.indexOf('const journalDecks'));
+  assert.match(spreadFn, /const fanIn = \(deckRect, done\) =>/);
+  assert.match(spreadFn, /pileTransform/);
+  assert.match(spreadFn, /点「收起」：全量 fanIn/);
+  assert.match(spreadFn, /if \(reduced\(\)\) \{ settleSpread\(\); return; \}/);
+  assert.match(spreadFn, /fanIn\(gatherRect\(\), settleSpread\)/);
+  assert.doesNotMatch(spreadFn, /if \(reduced\(\) \|\| !fromCard\) \{ settleSpread\(\); return; \}/, '无 fromCard 时不再瞬时跳过动画');
+  assert.doesNotMatch(spreadFn, /filter:/);
+  const styles = await read('styles.css');
+  assert.match(styles, /is-fanning-in/);
 });
