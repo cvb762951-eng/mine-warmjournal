@@ -1,6 +1,6 @@
 import { $, $$, pad, esc, imgSrc, state, cursor, formatMinutes, category, modal, confirmDelete, save, render, show, callHelper } from '../core.js';
 import { clampStillTransform, measureLongStill } from '../photo-utils.js';
-import { revealViewerImageWhenDecoded } from '../photo-frame.js';
+import { photoFrameLayersHtml, revealViewerImageWhenDecoded } from '../photo-frame.js';
 import { MOODS, WEATHERS, WEEK_DAYS, dateKey, habitProgressForDate, habitGoalMet, formatShanghaiDateTime } from '../model.js';
 import { mediaFocusSummary } from '../analytics.js';
 import { rebuildActivityLog } from '../activity-log.js';
