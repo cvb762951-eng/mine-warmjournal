@@ -3,7 +3,7 @@
    —— 本文件由 scripts/gen-plain-theme.mjs 自动生成，请勿手工编辑。
       改了 styles.css / performance.css 之后重新运行该脚本即可。
 
-   扫描 7202 条规则，命中素材规则 494 条。
+   扫描 7234 条规则，命中素材规则 494 条。
    只影响 [data-theme="plain"]，米白与暖阳两个主题完全不受影响。
    ========================================================================== */
 
@@ -2532,3 +2532,15 @@ button.danger) {
 :root[data-theme="plain"] .journal-deck-face.journal-deck-mini,:root[data-theme="plain"] .journal-deck-face.journal-deck-mini-menu{border-radius:var(--radius-soft-sm) !important}
 :root[data-theme="plain"] button.journal-deck-cut.journal-deck-mini-more{border:0 !important}
 :root[data-theme="plain"] button.journal-deck-cut.journal-deck-spread-chip.is-current{border-color:transparent !important}
+
+/* 习惯页版式重做（清简）：今日习惯行与待办同一语言 —— 透明行 + 细线，小圆勾用清简蓝。
+   2026-10-12：这几条原先是直接写进 themes-plain.css（生成产物）的，
+   写在那儿会被 gen 脚本重跑冲掉 —— 搬到本手工源文件，脚本会把它并进产物。 */
+:root[data-theme="plain"] .today-view .habit-card{background:transparent !important;border:0 !important;border-radius:var(--radius-soft) !important;box-shadow:none !important;color:#2E343B !important}
+:root[data-theme="plain"] .today-view .habit-swipe-wrap + .habit-swipe-wrap{border-top:1px solid var(--pl-line, rgba(85,96,108,0.14)) !important}
+:root[data-theme="plain"] .today-view .habit-card-copy strong{color:#2E343B !important}
+:root[data-theme="plain"] .today-view .habit-card-meta{color:#8a929c !important}
+:root[data-theme="plain"] .today-view .habit-card.is-done .habit-card-copy strong{color:#8a929c !important}
+:root[data-theme="plain"] .today-view .habit-check-btn{background:transparent !important;border-radius:50% !important;box-shadow:none !important}
+:root[data-theme="plain"] .today-view .habit-check-dot{border-color:rgba(79,118,189,0.5) !important}
+:root[data-theme="plain"] .today-view .habit-check-btn.is-done .habit-check-dot{background:var(--pl-blue,#4F76BD) !important;border-color:var(--pl-blue,#4F76BD) !important;color:#fff !important}

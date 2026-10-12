@@ -11,25 +11,50 @@ let todayCoverCropState = null;
 const PRIVATE_VAULT_HOLD_MS = 1500;
 const PRIVATE_VAULT_MOVE_TOLERANCE = 12;
 
-// 习惯进度展示：统一「轨道 + 圆点」视觉（普通目标 & 区间目标共用结构）
-function habitProgressHtml(habit, count, done) {
-  const unit = esc(habit.unit);
-  if (habit.goalType === 'range') {
-    const target = Number(habit.target) || 0;
-    const targetMax = Number(habit.targetMax) || 0;
-    const max = Math.max(targetMax * 1.2, count, targetMax + 1);
-    const zoneLeft = target / max * 100;
-    const zoneWidth = (targetMax - target) / max * 100;
-    const dotLeft = Math.min(100, count / max * 100);
-    let status, text;
-    if (count < target) { status = 'below'; text = `还差 ${target - count}${unit} 进入理想区间`; }
-    else if (count <= targetMax) { status = 'in'; text = '正处于理想区间 · 刚刚好'; }
-    else { status = 'over'; text = `已超出区间 ${count - targetMax}${unit} · 适度休息`; }
-    return `<span class="habit-progress"><span class="habit-track"><span class="habit-zone" style="left:${zoneLeft}%;width:${zoneWidth}%"></span><span class="habit-dot ${status}" style="left:${dotLeft}%"></span></span><small class="${status}">${text}</small></span>`;
+// 单习惯连续达标天数（今日未达标时从昨天往回算；休息日跳过、不打断）
+function habitDayStreak(habit, endDay = dateKey()) {
+  let streak = 0;
+  const cursor = new Date(`${endDay}T12:00:00`);
+  const todayValue = habitProgressForDate(state, habit, endDay);
+  if (!habitGoalMet(habit, todayValue) && !(state.habitSkips?.[endDay] || []).includes(habit.id)) {
+    cursor.setDate(cursor.getDate() - 1);
   }
+  while (streak < 3660) {
+    const day = dateKey(cursor);
+    if ((state.habitSkips?.[day] || []).includes(habit.id)) {
+      cursor.setDate(cursor.getDate() - 1);
+      continue;
+    }
+    if (!habitGoalMet(habit, habitProgressForDate(state, habit, day))) break;
+    streak += 1;
+    cursor.setDate(cursor.getDate() - 1);
+  }
+  return streak;
+}
+
+// 习惯卡：只放名字、今日是否打卡、连续天数；大号打卡钮；细则进二级
+function habitCardHtml(habit, day) {
+  const count = habitProgressForDate(state, habit, day);
+  const done = habitGoalMet(habit, count);
+  const streak = habitDayStreak(habit, day);
   const target = Number(habit.target) || 1;
-  const percent = Math.min(100, Math.round(count / target * 100));
-  return `<span class="habit-progress"><span class="habit-track"><span class="habit-fill" style="width:${percent}%"></span><span class="habit-dot ${done ? 'in' : ''}" style="left:${percent}%"></span></span><small>${count}/${target}${unit}${done ? ' · 已完成' : ''}</small></span>`;
+  const unit = esc(habit.unit);
+  const status = done
+    ? (target > 1 ? `今日已打卡 · ${count}/${target}${unit}` : '今日已打卡')
+    : (count > 0 ? `${count}/${target}${unit} · 点勾补满` : '今日未打卡');
+  const stateClass = done ? 'is-done' : (count > 0 ? 'is-progress' : '');
+  const meta = streak > 0 ? `已连续 ${streak} 天 · ${status}` : status;
+  return `<div class="habit-swipe-wrap"><article class="habit-card ${stateClass}" data-habit-card="${habit.id}">
+    <button type="button" class="habit-card-main" data-habit-open="${habit.id}" aria-label="查看${esc(habit.name)}详情">
+      <span class="habit-card-copy">
+        <strong>${esc(habit.name)}</strong>
+        <small class="habit-card-meta">${meta}</small>
+      </span>
+    </button>
+    <button type="button" class="habit-check-btn ${done ? 'is-done' : ''}" data-habit="${habit.id}" aria-label="${done ? '已完成' : '打卡'} ${esc(habit.name)}">
+      <span class="habit-check-dot" aria-hidden="true"><span class="material-symbols-outlined">check</span></span>
+    </button>
+  </article></div>`;
 }
 
 export function todayView() {
@@ -93,9 +118,9 @@ export function todayView() {
       <div class="bento-card habits-bento-card">
         <div>
           <div class="bento-header"><span class="bento-title"><span class="material-symbols-outlined">eco</span> 习惯</span><span class="bento-badge-sm" id="habits-bento-badge">${completion.total ? `${completion.done}/${completion.total} · ${habitPercent}%` : '无安排'}</span></div>
-          <div id="habits-bento-list">${habits.length ? habits.map(habit => { const count = habitProgressForDate(state, habit, day); const done = habitGoalMet(habit, count); return `<button type="button" class="bento-item-mini habit-mini-row ${done ? 'done' : ''}" data-habit="${habit.id}"><span class="bento-item-icon material-symbols-outlined">${habit.icon}</span><span class="bento-item-copy"><strong>${esc(habit.name)}</strong>${habitProgressHtml(habit, count, done)}</span></button>`; }).join('') : `<p class="bento-empty">今天没有安排习惯</p>`}</div>
+          <div id="habits-bento-list">${habits.length ? habits.map(habit => habitCardHtml(habit, day)).join('') : `<p class="bento-empty">今天没有安排习惯</p>`}</div>
         </div>
-        <button type="button" class="bento-card-footer" id="open-habit-detail-today"><span>已坚持 <b>${streak}</b> 天 · ${completion.done}/${completion.total || 0}</span><span class="material-symbols-outlined">chevron_right</span></button>
+        <button type="button" class="bento-card-footer" id="open-habit-detail-today"><span>今日 <b>${completion.done}</b>/${completion.total || 0} · 节奏 <b>${streak}</b> 天</span><span class="material-symbols-outlined">chevron_right</span></button>
       </div>
       <div class="bento-card todos-bento-card">
         <div>

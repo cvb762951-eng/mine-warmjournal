@@ -303,6 +303,7 @@ const CASCADE_ITEMS = [
   '.snippet-media-card',
   '.vault-item',
   '.stats-habit-row',
+  '.habit-card',
   '.cal-activity-row',
   '.media-card',
   '.taste-card',
@@ -344,13 +345,13 @@ const PRESS_SOLID = [
   '.focus-mode-btn', '.duration-chip', '.timer-action-secondary', '.timer-action-screensaver',
   '.cal-tool-btn', '.creative-tool-btn', '.snippet-add-btn', '.snippet-filter-pill',
   '.journal-add-polaroid-btn', '.journal-save-btn', '.mood-pick-item', '.weather-pick-item',
-  '.ledger-add-btn', '.habit-switch-chip', '.subpage-back-btn', '.profile-edit-pill',
+  '.ledger-add-btn', '.habit-switch-chip', '.habit-check-btn', '.subpage-back-btn', '.profile-edit-pill',
   '.modal-actions button', '.vault-item-menu-actions > button', '.bento-card-footer',
   '.journal-deck-cut', '.journal-deck-open',
 ].join(',');
 
 const PRESS_LIGHT = [
-  '.qa-card', '.stack-card', '.bento-item-mini',
+  '.qa-card', '.stack-card', '.bento-item-mini', '.habit-card-main',
   '.stats-habit-row', '.snippet-item-card', '.snippet-media-card', '.snippet-photo-tile',
   '.ledger-row', '.account-mini-card', '.day-photo-thumb',
   '.vault-item-open', '.countdown-card', '.course-row', '.setting-item-row',
@@ -1312,6 +1313,26 @@ export function mountJournalDeck(host, entries = [], options = {}) {
     releaseDetachedJournalDecks();
     return api;
   }) || { destroy() {} };
+}
+
+/**
+ * 习惯打卡成功反馈：只动 transform / opacity。
+ * 只在小圆勾上做轻缩放+淡入（不用 blur、不动画阴影）。
+ * 减弱动效时只保留状态类，不做运动。
+ */
+export function celebrateHabitCheck(button) {
+  if (!button) return;
+  button.classList.add('is-done');
+  button.closest('.habit-card')?.classList.add('is-done');
+  if (!canAnimate()) return;
+  safely(() => {
+    button.classList.remove('is-pop');
+    void button.offsetWidth;
+    button.classList.add('is-pop');
+    const clear = () => button.classList.remove('is-pop');
+    button.querySelector('.habit-check-dot')?.addEventListener('animationend', clear, { once: true });
+    setTimeout(clear, 480);
+  });
 }
 
 /** 统计数字从 0 弹簧滚到 data-roll。减弱动效时保持原文。 */

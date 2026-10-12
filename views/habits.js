@@ -1,7 +1,13 @@
 import { $, $$, esc, uid, state, save, render, modal, closeModal, show, confirmDelete, emptyState, registerBinder, registerSubmitHandler, registerHelper, callHelper, HABIT_ICONS } from '../core.js';
 import { makeHabit, makeTodo, habitProgressForDate, habitGoalMet, todosForDate, dateKey, WEEK_DAYS } from '../model.js';
 import { repeatLabel, linkedHabitMinutes, updateHabitCompletion } from './common.js';
-import { dailyTodoGroups, habitClickValue } from '../daily-workflow.js';
+import { dailyTodoGroups, habitClickValue, habitOneTapValue } from '../daily-workflow.js';
+import { celebrateHabitCheck } from '../motion.js';
+
+// 打卡成功后的轻动效：render 会重建 DOM，先记下 id，绑定后再弹
+let pendingHabitCelebrateId = null;
+// 一键打卡前的今日值，只存在内存里，按「日期|习惯」记，用于撤销恢复；不写存储。
+const habitOneTapPrior = new Map();
 
 // ---- 习惯管理 ----
 export function habitManager() {
@@ -41,6 +47,7 @@ export async function commitHabitProgress(habitId, nextValue, message = '') {
   try {
     await save();
     if ($('#modal-layer').classList.contains('open')) closeModal();
+    if (next > Number(previous[habitId] || 0)) pendingHabitCelebrateId = habitId;
     render();
     show(requested < linked ? `已保留专注自动同步的 ${linked}${habit.unit}` : message || `${habit.name}：今日 ${next}/${habit.target}${habit.unit}`);
     return true;
@@ -150,6 +157,7 @@ let habitSwipeAxis = '';
 let habitSwipeSuppressedClick = null;
 
 function bindHabitSwipe(button) {
+  // 位移只写在卡面 button（[data-habit-open]）上，打卡钮是兄弟节点，不跟着 translate
   const wrap = button.closest('.habit-swipe-wrap');
   const resetSwipe = () => {
     if (habitSwipeButton === button) habitSwipeButton = null;
@@ -186,7 +194,8 @@ function bindHabitSwipe(button) {
     resetSwipe();
     if (habitSwipeAxis !== 'x' || Math.abs(dx) < HABIT_SWIPE_THRESHOLD) return;
     habitSwipeSuppressedClick = button;
-    const habit = state.habits.find(item => item.id === button.dataset.habit);
+    const habitId = button.dataset.habit || button.dataset.habitOpen;
+    const habit = state.habits.find(item => item.id === habitId);
     if (!habit) return;
     if (dx < 0) {
       const current = habitProgressForDate(state, habit, dateKey());
@@ -205,20 +214,62 @@ function bindHabitSwipe(button) {
 
 // ---- 绑定（今日页的习惯/待办交互）----
 function bindHabits() {
-  $$('[data-habit]').forEach(button => {
-    button.onclick = () => {
+  // 大号打卡钮：一键计数走 habitClickValue；累计型打开记录表
+  // stopPropagation：避免与卡面侧滑抢 pointer/click；侧滑只绑在 [data-habit-open] 上
+  $$('.habit-check-btn[data-habit]').forEach(button => {
+    const stopSwipeConflict = event => { event.stopPropagation(); };
+    for (const type of ['pointerdown', 'pointermove', 'pointerup', 'pointercancel', 'click']) {
+      button.addEventListener(type, stopSwipeConflict);
+    }
+    button.onclick = event => {
+      event.stopPropagation();
       if (habitSwipeSuppressedClick === button) { habitSwipeSuppressedClick = null; return; }
       const habit = state.habits.find(item => item.id === button.dataset.habit);
       if (!habit) return;
-      if (button.classList.contains('bento-item-mini')) {
-        const todayValue = Number(state.checks[dateKey()]?.[habit.id] || 0);
-        const next = habitClickValue(habit, todayValue, linkedHabitMinutes(dateKey(), habit.id));
-        if (next !== null) { commitHabitProgress(habit.id, next, next > todayValue ? `${habit.name} +1${habit.unit}` : '已撤销今天的手动记录'); return; }
+      const day = dateKey();
+      const key = `${day}|${habit.id}`;
+      const todayValue = Number(state.checks[day]?.[habit.id] || 0);
+      const result = habitOneTapValue(habit, todayValue, habitProgressForDate(state, habit, day), habitOneTapPrior.has(key) ? habitOneTapPrior.get(key) : null);
+      if (result.action === 'noop') { show(habit.goalPeriod === 'weekly' ? '本周已达标' : '本周期已达标'); return; }
+      if (result.action === 'confirm') {
+        confirmDelete('清空今天的记录？', () => { habitOneTapPrior.delete(key); commitHabitProgress(habit.id, 0, `已清空${habit.name}今天的记录`); });
+        return;
       }
+      if (result.action === 'fill') habitOneTapPrior.set(key, result.prior);
+      else habitOneTapPrior.delete(key);
+      commitHabitProgress(habit.id, result.next, result.action === 'fill' ? `${habit.name} 今日已打卡` : `已撤销${habit.name}今天的打卡`);
+    };
+  });
+  // 卡面点进去看详情 / 记量；侧滑仍可用
+  $$('[data-habit-open]').forEach(button => {
+    button.onclick = () => {
+      if (habitSwipeSuppressedClick === button) { habitSwipeSuppressedClick = null; return; }
+      const habit = state.habits.find(item => item.id === button.dataset.habitOpen);
+      if (!habit) return;
       habitLogForm(habit);
     };
     bindHabitSwipe(button);
   });
+  // 兼容旧版迷你行（若别处仍渲染）
+  $$('button.bento-item-mini[data-habit]').forEach(button => {
+    if (button.classList.contains('habit-check-btn')) return;
+    button.onclick = () => {
+      if (habitSwipeSuppressedClick === button) { habitSwipeSuppressedClick = null; return; }
+      const habit = state.habits.find(item => item.id === button.dataset.habit);
+      if (!habit) return;
+      const todayValue = Number(state.checks[dateKey()]?.[habit.id] || 0);
+      const next = habitClickValue(habit, todayValue, linkedHabitMinutes(dateKey(), habit.id));
+      if (next !== null) { commitHabitProgress(habit.id, next, next > todayValue ? `${habit.name} +1${habit.unit}` : '已撤销今天的手动记录'); return; }
+      habitLogForm(habit);
+    };
+    bindHabitSwipe(button);
+  });
+  if (pendingHabitCelebrateId) {
+    const celebrateId = pendingHabitCelebrateId;
+    pendingHabitCelebrateId = null;
+    const checkBtn = [...document.querySelectorAll('.habit-check-btn[data-habit]')].find(el => el.dataset.habit === celebrateId);
+    if (checkBtn) requestAnimationFrame(() => celebrateHabitCheck(checkBtn));
+  }
   $('#new-todo')?.addEventListener('click', () => todoForm());
   $$('[data-toggle-todo]').forEach(button => button.onclick = async () => {
     const todo = state.todos.find(item => item.id === button.dataset.toggleTodo);

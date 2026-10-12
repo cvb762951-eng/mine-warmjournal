@@ -1,0 +1,308 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="plain">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>习惯页预览 · 清简 / 经典</title>
+  <link rel="stylesheet" href="../fonts.css">
+  <link rel="stylesheet" href="../performance.css">
+  <link rel="stylesheet" href="../styles.css?v=habits">
+  <link rel="stylesheet" href="../themes.css">
+  <link rel="stylesheet" href="../themes-plain.css">
+  <style>
+    html, body {
+      height: auto !important;
+      min-height: 100% !important;
+      overflow: auto !important;
+      margin: 0;
+      background: #EAF0F8 !important;
+      background-image: none !important;
+      color: #2E343B !important;
+    }
+    html[data-theme="classic"], html[data-theme="classic"] body {
+      background: #f5f1e8 !important;
+      color: #2e2820 !important;
+    }
+    .preview-page {
+      box-sizing: border-box;
+      width: min(100%, 420px);
+      margin: 0 auto;
+      padding: 18px 16px 40px;
+    }
+    .preview-page p.note {
+      margin: 0 0 12px;
+      color: #55606c;
+      font-size: 12px;
+      line-height: 1.65;
+    }
+    .preview-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 0 0 14px;
+    }
+    .preview-toolbar button {
+      min-height: 36px;
+      padding: 0 12px;
+      border: 1px solid rgba(85,96,108,.28);
+      border-radius: 8px;
+      background: #fff;
+      color: #2E343B;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .preview-toolbar button.active {
+      background: #4F76BD;
+      border-color: #4F76BD;
+      color: #fff;
+    }
+    html[data-theme="classic"] .preview-toolbar button.active {
+      background: #174737;
+      border-color: #174737;
+    }
+    .today-view { background: transparent; }
+    .preview-bento {
+      width: 100%;
+      min-height: 220px;
+      margin: 0;
+      padding: 13px 12px 12px;
+      border: 0;
+      background: transparent url('../assets/today-bento-paper-thick.png') center/100% 100% no-repeat;
+      box-shadow: none;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0;
+    }
+    html[data-theme="plain"] .preview-bento {
+      background: #F4F7FC !important;
+      border: 1px solid rgba(85,96,108,.16);
+      border-radius: 14px;
+    }
+    .preview-bento .bento-card {
+      min-height: 160px;
+      padding: 5px 9px 4px 0;
+      background: transparent;
+      box-shadow: none;
+      border: 0;
+    }
+    .preview-bento .bento-card + .bento-card {
+      padding-left: 13px;
+      border-left: 1px dotted rgba(66,57,44,.19);
+    }
+    #habits-bento-list {
+      max-height: 180px;
+      overflow-y: auto;
+    }
+    .legacy-list { display: none; flex-direction: column; }
+    body.show-before .legacy-list { display: flex; }
+    body.show-before #habits-bento-list.after-list { display: none; }
+    body:not(.show-before) .legacy-list { display: none; }
+    .legacy-row {
+      display: grid;
+      grid-template-columns: 25px minmax(0,1fr);
+      gap: 5px;
+      align-items: center;
+      min-height: 31px;
+      padding: 3px 0;
+      border: 0;
+      border-top: 1px dotted rgba(66,57,44,.19);
+      background: transparent;
+      color: inherit;
+      text-align: left;
+    }
+    .legacy-row:first-child { border-top: 0; }
+    .legacy-row .icon {
+      width: 25px; height: 25px; display: grid; place-items: center;
+      border-radius: 50%; background: #174737; color: #f5ead5; font-size: 14px;
+    }
+    .legacy-row strong { display:block; font-size:9px; font-weight:700; }
+    .legacy-row small { display:block; margin-top:1px; font-size:7px; color:#706657; }
+    .legacy-track {
+      position: relative; display:block; height:5px; margin-top:4px;
+      border-radius:99px; background:#ddd9d0; overflow:hidden;
+    }
+    .legacy-track > i { display:block; height:100%; background:#315b49; }
+    #status { min-height: 1.3em; margin: 8px 0 0; color: #3D5F9E; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <main class="preview-page">
+    <p class="note">习惯页预览：v2：透明行 + 细线，与右侧待办同一语言；小圆勾（热区 48px），名字下一行灰字写连续天数。</p>
+    <div class="preview-toolbar">
+      <button type="button" id="theme-plain" class="active">清简</button>
+      <button type="button" id="theme-classic">经典</button>
+      <button type="button" id="show-before">改前</button>
+      <button type="button" id="show-after" class="active">改后</button>
+      <button type="button" id="sim-check">模拟打卡</button>
+    </div>
+    <section class="today-view">
+      <div class="preview-bento today-bento-grid">
+        <div class="bento-card habits-bento-card">
+          <div>
+            <div class="bento-header">
+              <span class="bento-title"><span class="material-symbols-outlined">eco</span> 习惯</span>
+              <span class="bento-badge-sm" id="habits-bento-badge">1/3 · 33%</span>
+            </div>
+            <div class="legacy-list" aria-hidden="true">
+              <button type="button" class="legacy-row"><span class="icon material-symbols-outlined">menu_book</span><span><strong>阅读</strong><small>10/20分钟 · 轨道进度条很长不好扫</small><span class="legacy-track"><i style="width:50%"></i></span></span></button>
+              <button type="button" class="legacy-row"><span class="icon material-symbols-outlined">water_drop</span><span><strong>喝水</strong><small>还差 2杯 进入理想区间 · 文案挤</small><span class="legacy-track"><i style="width:33%"></i></span></span></button>
+              <button type="button" class="legacy-row done"><span class="icon material-symbols-outlined">directions_walk</span><span><strong>散步</strong><small>20/20分钟 · 已完成</small><span class="legacy-track"><i style="width:100%"></i></span></span></button>
+            </div>
+            <div id="habits-bento-list" class="after-list"></div>
+          </div>
+          <button type="button" class="bento-card-footer" id="open-habit-detail-today">
+            <span>今日 <b id="done-count">1</b>/3 · 节奏 <b>12</b> 天</span>
+            <span class="material-symbols-outlined">chevron_right</span>
+          </button>
+        </div>
+        <div class="bento-card todos-bento-card">
+          <div>
+            <div class="bento-header">
+              <span class="bento-title"><span class="material-symbols-outlined">checklist</span> 待办</span>
+              <span class="bento-badge-sm">1/3 完成</span>
+            </div>
+            <div>
+              <button type="button" class="bento-item-mini"><span class="bento-item-copy"><strong>整理书桌</strong></span><span class="material-symbols-outlined bento-item-check">radio_button_unchecked</span></button>
+              <button type="button" class="bento-item-mini"><span class="bento-item-copy"><strong>回复邮件</strong></span><span class="material-symbols-outlined bento-item-check">radio_button_unchecked</span></button>
+              <button type="button" class="bento-item-mini done"><span class="bento-item-copy"><strong>取快递</strong></span><span class="material-symbols-outlined bento-item-check">check_circle</span></button>
+            </div>
+          </div>
+          <button type="button" class="bento-card-footer"><span>新增今日待办</span><span class="material-symbols-outlined">add</span></button>
+        </div>
+      </div>
+    </section>
+    <p id="status" role="status"></p>
+  </main>
+  <script type="module">
+    import { celebrateHabitCheck, prefersReducedMotion } from '../motion.js';
+    import { habitOneTapValue } from '../daily-workflow.js';
+
+    const habits = [
+      { id: 'read', name: '阅读', streak: 7, value: 10, target: 20, unit: '分钟' },
+      { id: 'water', name: '喝水', streak: 3, value: 0, target: 1, unit: '次' },
+      { id: 'walk', name: '散步', streak: 12, value: 1, target: 1, unit: '次' },
+    ];
+    const prior = new Map();
+    const view = h => {
+      const done = h.value >= h.target;
+      h.done = done; h.progress = !done && h.value > 0;
+      h.status = done ? (h.target > 1 ? `今日已打卡 · ${h.value}/${h.target}${h.unit}` : '今日已打卡') : (h.value > 0 ? `${h.value}/${h.target}${h.unit} · 点勾补满` : '今日未打卡');
+    };
+    const list = document.getElementById('habits-bento-list');
+    const status = document.getElementById('status');
+
+    function cardHtml(habit) {
+      const stateClass = habit.done ? 'is-done' : (habit.progress ? 'is-progress' : '');
+      const meta = habit.streak > 0 ? `已连续 ${habit.streak} 天 · ${habit.status}` : habit.status;
+      return `<div class="habit-swipe-wrap"><article class="habit-card ${stateClass}" data-habit-card="${habit.id}">
+        <button type="button" class="habit-card-main" data-habit-open="${habit.id}">
+          <span class="habit-card-copy"><strong>${habit.name}</strong><small class="habit-card-meta">${meta}</small></span>
+        </button>
+        <button type="button" class="habit-check-btn ${habit.done ? 'is-done' : ''}" data-habit="${habit.id}" aria-label="${habit.done ? '已完成' : '打卡'} ${habit.name}">
+          <span class="habit-check-dot" aria-hidden="true"><span class="material-symbols-outlined">check</span></span>
+        </button>
+      </article></div>`;
+    }
+
+    function renderList() {
+      habits.forEach(view);
+      list.innerHTML = habits.map(cardHtml).join('');
+      const done = habits.filter(h => h.done).length;
+      document.getElementById('done-count').textContent = String(done);
+      document.getElementById('habits-bento-badge').textContent = `${done}/3 · ${Math.round(done / 3 * 100)}%`;
+      list.querySelectorAll('.habit-check-btn').forEach(button => {
+        const stopSwipeConflict = event => { event.stopPropagation(); };
+        for (const type of ['pointerdown', 'pointermove', 'pointerup', 'pointercancel', 'click']) {
+          button.addEventListener(type, stopSwipeConflict);
+        }
+        button.onclick = event => {
+          event.stopPropagation();
+          const habit = habits.find(item => item.id === button.dataset.habit);
+          if (!habit) return;
+          const r = habitOneTapValue(habit, habit.value, habit.value, prior.has(habit.id) ? prior.get(habit.id) : null);
+          if (r.action === 'fill') prior.set(habit.id, r.prior); else prior.delete(habit.id);
+          const increased = r.next > habit.value;
+          habit.value = r.next;
+          habit.streak += increased ? 1 : -1;
+          renderList();
+          if (!increased) { status.textContent = `已撤销：${habit.name}`; return; }
+          const nextBtn = list.querySelector(`.habit-check-btn[data-habit="${habit.id}"]`);
+          if (nextBtn) requestAnimationFrame(() => celebrateHabitCheck(nextBtn));
+          status.textContent = prefersReducedMotion()
+            ? `已打卡：${habit.name}（减弱动效）`
+            : `已打卡：${habit.name} · 弹簧反馈`;
+        };
+      });
+    }
+
+    renderList();
+
+    document.getElementById('theme-plain').onclick = () => {
+      document.documentElement.dataset.theme = 'plain';
+      document.getElementById('theme-plain').classList.add('active');
+      document.getElementById('theme-classic').classList.remove('active');
+    };
+    document.getElementById('theme-classic').onclick = () => {
+      document.documentElement.dataset.theme = 'classic';
+      document.getElementById('theme-classic').classList.add('active');
+      document.getElementById('theme-plain').classList.remove('active');
+    };
+    document.getElementById('show-before').onclick = () => {
+      document.body.classList.add('show-before');
+      document.getElementById('show-before').classList.add('active');
+      document.getElementById('show-after').classList.remove('active');
+    };
+    document.getElementById('show-after').onclick = () => {
+      document.body.classList.remove('show-before');
+      document.getElementById('show-after').classList.add('active');
+      document.getElementById('show-before').classList.remove('active');
+    };
+    document.getElementById('sim-check').onclick = () => {
+      document.body.classList.remove('show-before');
+      document.getElementById('show-after').classList.add('active');
+      document.getElementById('show-before').classList.remove('active');
+      const target = habits.find(h => !h.done) || habits[0];
+      list.querySelector(`.habit-check-btn[data-habit="${target.id}"]`)?.click();
+    };
+
+    // 供截图脚本调用
+    
+    // URL ?state=before|after|checked&theme=plain|classic
+    const params = new URLSearchParams(location.search);
+    const theme = params.get('theme') || 'plain';
+    const state = params.get('state') || 'after';
+    if (theme === 'classic') document.getElementById('theme-classic').click();
+    else document.getElementById('theme-plain').click();
+    if (state === 'before') document.getElementById('show-before').click();
+    else document.getElementById('show-after').click();
+    if (state === 'checked') {
+      document.getElementById('show-after').click();
+      // delay so celebrate paints
+      setTimeout(() => window.__habitsPreview?.checkWater(), 80);
+    }
+
+    window.__habitsPreview = {
+      showBefore: () => document.getElementById('show-before').click(),
+      showAfter: () => document.getElementById('show-after').click(),
+      plain: () => document.getElementById('theme-plain').click(),
+      classic: () => document.getElementById('theme-classic').click(),
+      tapRead: () => list.querySelector('.habit-check-btn[data-habit="read"]')?.click(),
+      checkWater: () => {
+        document.body.classList.remove('show-before');
+        const water = habits.find(h => h.id === 'water');
+        if (water && !water.done) list.querySelector('.habit-check-btn[data-habit="water"]')?.click();
+      },
+      resetWater: () => {
+        const water = habits.find(h => h.id === 'water');
+        if (!water) return;
+        water.done = false;
+        water.progress = false;
+        water.status = '今日未打卡';
+        water.streak = 3;
+        renderList();
+      }
+    };
+  </script>
+</body>
+</html>
