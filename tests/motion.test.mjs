@@ -82,7 +82,7 @@ test('共享元素：优先用浏览器原生 View Transitions，且至少有 4 
   // 不支持的内核退回手写 FLIP
   assert.match(motion, /export function beginSharedElement/, '要有 FLIP 回退');
   // 四个落点
-  assert.match(snippetsView, /withSharedTransition\(button\.querySelector\('img'\)/, '随手拍照片要用共享元素');
+  assert.match(snippetsView, /withSharedTransition\(momentShareSource\(button\)/, '随手拍照片要用共享元素，且源是清晰主图层');
   assert.match(vaultView, /withSharedTransition\(source/, '私密空间要用共享元素');
   assert.match(vaultView, /#vault-photo-image/, '落点要指向查看器里那张图');
   assert.match(calendarView, /withSharedTransition\(source/, '日历要用共享元素');
@@ -266,5 +266,6 @@ test('共享元素：拍"新状态"快照前要等图片解码', async () => {
   /* 不等的话，快照里的图还是空白 —— 观感同样是"打开大图时闪一下"。
      View Transitions 的 update 回调支持 await，就是为这种场景准备的。 */
   assert.match(motion, /target\.decode\?\.\(\)/, '要等图片解码完再让浏览器拍快照');
-  assert.match(motion, /!target\.complete/, '只在还没解码完时才等');
+  // complete 不等于已解码：一律 decode，并设上限避免卡住
+  assert.match(motion, /Promise\.race\(\[target\.decode/, '解码等待要有上限');
 });

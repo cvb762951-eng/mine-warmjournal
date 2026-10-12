@@ -46,7 +46,10 @@ test('内容完整显示：主图层仍用 contain（用户明确说喜欢这一
 });
 
 test('留白用同一张画面放大铺底（与日记牌组同一份实现），而不是纯色块', () => {
-  assert.match(vault, /import \{ photoFrameLayersHtml \} from '\.\.\/photo-frame\.js'/);
+  // ⚠️ 别写死 import 列表：同一行之后可能再加别的符号（2026-10-12 就被
+  //    「顺手多导入一个 revealViewerImageWhenDecoded」打挂过）。
+  assert.match(vault, /import \{ [^}]*photoFrameLayersHtml[^}]*\} from '\.\.\/photo-frame\.js'/,
+    '要复用共用的照片框实现');
   // 两层用同一个地址：浏览器只会下载一次
   assert.match(vault, /const url = esc\(source\);\s*return photoFrameLayersHtml\(url, \{[^}]*padClass: 'vault-cover-blur', stillClass: 'vault-cover-main'/);
   const pad = style.match(/\.photo-blur-frame>img\.photo-blur-pad\{([^}]*)\}/)?.[1] || '';

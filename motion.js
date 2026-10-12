@@ -207,9 +207,14 @@ export function withSharedTransition(sourceEl, update, { targetSelector = '', du
           /* ⚠️ 等图片解码完再让浏览器拍"新状态"快照。
              不等的话，快照里的图还是空白 —— 观感就是"打开大图时闪一下"。
              这是 View Transitions 配大图时的标准做法（update 回调支持 await，就是为这个）。 */
-          if (target.tagName === 'IMG' && !target.complete) {
-            await target.decode?.().catch(() => {});
+          /* complete 只表示字节到了，不代表已解码：大图 data URL 在安卓上 complete 也可能还没解完。
+             一律 decode（已解码时立即返回），最多等 600ms，避免拍到半解码的图。 */
+          if (target.tagName === 'IMG') {
+            await Promise.race([target.decode?.().catch(() => {}), new Promise(resolve => setTimeout(resolve, 600))]);
           }
+          // 查看器自己的淡入交给转场：直接以最终状态拍快照，避免快照里是透明的
+          target.classList.add('viewer-no-fade');
+          target.classList.remove('is-decoding');
           target.style.viewTransitionName = name;
           cleanup.push(() => { target.style.viewTransitionName = ''; });
         });
