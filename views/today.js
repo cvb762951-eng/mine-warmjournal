@@ -154,25 +154,52 @@ function photoStackHtml(entries) {
     const photo = entry.photos?.length ? entry.photos[0] : entry.photo;
     const time = entry.createdAt ? new Date(entry.createdAt) : null;
     const timeText = time ? `${time.getMonth() + 1}/${time.getDate()} ${pad(time.getHours())}:${pad(time.getMinutes())}` : '';
-    return `<button type="button" class="stack-card card-pos-${i}" id="card-${i}" data-photo-stack-entry="${esc(entry.id)}"><span class="polaroid-frame photo-blur-frame">${photoStoryImage(photo, entry.text || '随手拍')}</span><span class="polaroid-meta"><span class="polaroid-time">${timeText}</span><span class="polaroid-caption">${handwrittenCaptionHtml(entry.text || '随手拍')}</span></span></button>`;
+    return `<button type="button" class="stack-card card-pos-${i}" id="card-${i}" data-photo-stack-entry="${esc(entry.id)}"><span class="polaroid-frame photo-blur-frame">${photoStoryImage(photo, entry.text || '随手拍', entry.id)}</span><span class="polaroid-meta"><span class="polaroid-time">${timeText}</span><span class="polaroid-caption">${handwrittenCaptionHtml(entry.text || '随手拍')}</span></span></button>`;
   }).join('')}</div><div class="stack-dots">${Array.from({ length: count }, (_, i) => `<span class="stack-dot ${i === photoStackIndex % count ? 'active' : ''}" data-stack-dot="${i}"></span>`).join('')}</div></div>`;
 }
 
 /* 与随手拍照片格同一套（见 snippets.js 的 snippetPhotoImage）：
    不论横竖，都进同一个相框。底层同一张图放大虚化铺满，上层 contain 完整居中。
    两层同地址，浏览器只下载一次。不再按横图、竖图分两套留白。 */
-function photoStoryImage(source, alt = '') {
+function photoStoryImage(source, alt = '', entryId = '') {
   const url = imgSrc(source);
-  const haze = posterHazeCache.get(url);
+  const haze = posterHazeLookup(entryId, url);
+  const idAttr = entryId ? ` data-haze-id="${esc(entryId)}"` : '';
   const html = photoFrameLayersHtml(url, { alt, padClass: haze ? 'polaroid-blur is-haze' : 'polaroid-blur is-haze-pending', stillClass: 'polaroid-img' });
-  return haze ? html.replace(`src="${url}" alt="" aria-hidden="true"`, `src="${haze}" data-haze-of="${url}" alt="" aria-hidden="true"`) : html;
+  return haze
+    ? html.replace(`src="${url}" alt="" aria-hidden="true"`, `src="${haze}" data-haze-of="${url}"${idAttr} alt="" aria-hidden="true"`)
+    : html.replace(`src="${url}" alt="" aria-hidden="true"`, `src="${url}"${idAttr} alt="" aria-hidden="true"`);
 }
 
 /* 今日画页铺底「朦胧」：不用 CSS filter（安卓卡顿、测试也禁止），而是把清晰图缩到长边 POSTER_HAZE_SIDE 像素画进小画布，
-   再由浏览器平滑放大当铺底，看起来是轻轻的雾感。按图片地址缓存在内存（不写存储），翻牌不会重复缩图。
-   画布被跨域污染或解码失败时，退回原来的同图铺底。 */
+   再由浏览器平滑放大当铺底，看起来是轻轻的雾感。按照片条目 id 缓存在内存（没有 id 时先按地址，有 id 后再迁过去）；
+   不设张数上限、不写存储，翻牌不会重复缩图。画布被跨域污染或解码失败时，退回原来的同图铺底。 */
 const POSTER_HAZE_SIDE = 120;
 const posterHazeCache = new Map();
+function posterHazeKey(id, url) {
+  const stable = String(id || '').trim();
+  if (stable) return `id:${stable}`;
+  const src = String(url || '').trim();
+  return src ? `url:${src}` : '';
+}
+function posterHazeLookup(id, url) {
+  const byId = posterHazeKey(id, '');
+  if (byId && posterHazeCache.has(byId)) return posterHazeCache.get(byId);
+  const byUrl = posterHazeKey('', url);
+  if (byUrl && posterHazeCache.has(byUrl)) return posterHazeCache.get(byUrl);
+  return '';
+}
+function posterHazeRemember(id, url, haze) {
+  if (!haze) return;
+  const byId = posterHazeKey(id, '');
+  const byUrl = posterHazeKey('', url);
+  if (byId) {
+    posterHazeCache.set(byId, haze);
+    if (byUrl) posterHazeCache.delete(byUrl);
+  } else if (byUrl) {
+    posterHazeCache.set(byUrl, haze);
+  }
+}
 function posterHazeDataUrl(image) {
   const w = image.naturalWidth, h = image.naturalHeight;
   if (!w || !h) return '';
@@ -190,14 +217,26 @@ function posterHazeDataUrl(image) {
 function hazePosterPads(root = $('#photo-stack')) {
   if (!root) return;
   root.querySelectorAll('.polaroid-frame img.polaroid-blur.is-haze-pending').forEach(pad => {
-    const still = pad.parentElement?.querySelector('img.photo-blur-still');
-    const src = pad.getAttribute('src');
-    const settle = haze => { pad.classList.remove('is-haze-pending'); if (haze) { pad.dataset.hazeOf = src; pad.src = haze; pad.classList.add('is-haze'); } };
+    const frame = pad.closest('.polaroid-frame') || pad.parentElement;
+    const still = frame?.querySelector('img.photo-blur-still');
+    const card = pad.closest('[data-photo-stack-entry]');
+    const src = still?.getAttribute('src') || pad.getAttribute('src') || '';
+    const id = pad.dataset.hazeId || card?.dataset?.photoStackEntry || '';
+    const settle = haze => {
+      pad.classList.remove('is-haze-pending');
+      if (haze) {
+        if (src) pad.dataset.hazeOf = src;
+        if (id) pad.dataset.hazeId = id;
+        pad.src = haze;
+        pad.classList.add('is-haze');
+      }
+    };
     const run = () => {
-      if (posterHazeCache.has(src)) return settle(posterHazeCache.get(src));
+      const hit = posterHazeLookup(id, src);
+      if (hit) return settle(hit);
       let haze = '';
       try { haze = posterHazeDataUrl(still); } catch { haze = ''; }
-      if (haze) { posterHazeCache.set(src, haze); if (posterHazeCache.size > 30) posterHazeCache.delete(posterHazeCache.keys().next().value); }
+      if (haze) posterHazeRemember(id, src, haze);
       settle(haze);
     };
     if (!still) return settle('');
