@@ -24,8 +24,8 @@ const AppUpdater = registerPlugin('AppUpdater');
    ⚠️ 必须与 android/app/build.gradle 的 versionName / versionCode 严格一致，
    tests/app-version.test.mjs 会核对，不同步会直接失败。
    真正做「有没有新版」判断时改用 currentVersion()，它以系统记录为准。 */
-export const APP_VERSION_NAME = '1.1.13';
-export const APP_VERSION_CODE = 114;
+export const APP_VERSION_NAME = '1.1.14';
+export const APP_VERSION_CODE = 115;
 
 let cachedVersion = null;
 
