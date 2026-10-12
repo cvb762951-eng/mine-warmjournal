@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { SCHEMA_VERSION, HABIT_HEAD_MAX_SECONDS, habitHeadLimit, activeStreak, calculateFlowScore, calibrateLedgerAccount, formatShanghaiStamp, habitGoalMet, habitHeatmapData, habitProgressForDate, habitsForDate, journalEntries, ledgerSummary, makeDefaultState, makeFocusProject, makeHabit, makeMediaEntry, makeSnippet, makeTodo, makeTransaction, mediaEntries, migrateState, nextPomodoroStage, periodSummary, pomodoroPhaseSeconds, previousCompleteWeekRange, snippetEntries, todayCompletion, todosForDate } from '../model.js';
+import { SCHEMA_VERSION, HABIT_HEAD_MAX_SECONDS, habitHeadLimit, activeStreak, appendJournalFootnote, calculateFlowScore, calibrateLedgerAccount, formatShanghaiStamp, habitGoalMet, habitHeatmapData, habitProgressForDate, habitsForDate, journalEntries, ledgerSummary, makeDefaultState, makeFocusProject, makeHabit, makeMediaEntry, makeSnippet, makeTodo, makeTransaction, mediaEntries, migrateState, nextPomodoroStage, periodSummary, pomodoroPhaseSeconds, previousCompleteWeekRange, snippetEntries, todayCompletion, todosForDate } from '../model.js';
 import { activityForDate, rebuildActivityLog } from '../activity-log.js';
 import { focusInsights, mediaFocusSummary, projectGoalSummary } from '../analytics.js';
 
@@ -510,4 +510,76 @@ test('habit heatmap derives 0-4 levels and focus flow score is bounded', () => {
   assert.equal(heatmap.totalActiveDays, 2);
   assert.equal(calculateFlowScore({ durationSeconds: 3600, targetDurationSeconds: 3600, interruptionsCount: 0 }), 100);
   assert.equal(calculateFlowScore({ durationSeconds: 0, targetDurationSeconds: 3600, interruptionsCount: 20 }), 0);
+});
+
+
+test('journal footnotes survive normalize: preserve, trim≤40, max 12, dedupe, keep footnotes-only days', () => {
+  const long = '字' + '长'.repeat(50);
+  const migrated = migrateState({ journals: {
+    '2026-10-10': {
+      content: '有正文',
+      mood: '',
+      weather: '',
+      photos: [],
+      footnotes: [' 整理书桌 ', long, '整理书桌', '第二件', ...Array.from({ length: 14 }, (_, i) => `脚注${i}`)],
+      summary: '不要动我',
+      tags: ['生活']
+    },
+    '2026-10-11': {
+      content: '',
+      mood: '',
+      weather: '',
+      photos: [],
+      footnotes: ['只写了脚注']
+    },
+    '2026-10-12': { content: '', mood: '', weather: '', photos: [], footnotes: [] }
+  } });
+
+  const day = migrated.journals['2026-10-10'];
+  assert.equal(day.content, '有正文');
+  assert.equal(day.summary, '不要动我');
+  assert.deepEqual(day.tags, ['生活']);
+  assert.ok(Array.isArray(day.footnotes));
+  assert.equal(day.footnotes[0], '整理书桌');
+  assert.equal(day.footnotes[1].length, 40);
+  assert.equal(day.footnotes.length, 12, '同标题去重后最多 12 条');
+  assert.equal(day.footnotes.filter(item => item === '整理书桌').length, 1);
+
+  assert.ok(migrated.journals['2026-10-11'], '仅含脚注的日记应保留');
+  assert.deepEqual(migrated.journals['2026-10-11'].footnotes, ['只写了脚注']);
+  assert.equal(migrated.journals['2026-10-12'], undefined, '空脚注空正文不应保留');
+});
+
+test('appendJournalFootnote creates day entry, trims, dedupes, caps at 12, and never touches content/summary/tags', () => {
+  const state = migrateState({ journals: {} });
+  const first = appendJournalFootnote(state, { day: '2026-10-12', title: '  读完一章  ' });
+  assert.equal(first.appended, true);
+  assert.ok(state.journals['2026-10-12']);
+  assert.equal(state.journals['2026-10-12'].content, '');
+  assert.equal(state.journals['2026-10-12'].summary, '');
+  assert.deepEqual(state.journals['2026-10-12'].tags, []);
+  assert.deepEqual(state.journals['2026-10-12'].footnotes, ['读完一章']);
+
+  state.journals['2026-10-12'].content = '白天写的正文';
+  state.journals['2026-10-12'].summary = '摘要留着';
+  state.journals['2026-10-12'].tags = ['保留'];
+
+  const dup = appendJournalFootnote(state, { day: '2026-10-12', title: '读完一章' });
+  assert.equal(dup.appended, false);
+  assert.equal(dup.reason, 'duplicate');
+
+  for (let i = 0; i < 11; i += 1) {
+    assert.equal(appendJournalFootnote(state, { day: '2026-10-12', title: `事项${i}` }).appended, true);
+  }
+  const full = appendJournalFootnote(state, { day: '2026-10-12', title: '第十三件' });
+  assert.equal(full.appended, false);
+  assert.equal(full.reason, 'full');
+  assert.equal(state.journals['2026-10-12'].footnotes.length, 12);
+  assert.equal(state.journals['2026-10-12'].content, '白天写的正文');
+  assert.equal(state.journals['2026-10-12'].summary, '摘要留着');
+  assert.deepEqual(state.journals['2026-10-12'].tags, ['保留']);
+
+  const long = appendJournalFootnote(state, { day: '2026-10-13', title: '超'.repeat(60) });
+  assert.equal(long.appended, true);
+  assert.equal(state.journals['2026-10-13'].footnotes[0].length, 40);
 });

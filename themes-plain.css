@@ -21,6 +21,10 @@
 :root[data-theme="plain"] #subpage-journal-reader .journal-reader-edit,
 :root[data-theme="plain"] #subpage-journal-reader .journal-reader-page .subpage-nav-bar,
 :root[data-theme="plain"] #subpage-journal-reader .journal-reader-quote,
+:root[data-theme="plain"] #subpage-journal-reader .journal-reader-footnotes,
+:root[data-theme="plain"] #subpage-journal-reader .journal-reader-footnote-tag,
+:root[data-theme="plain"] .todo-footnote-offer-actions button,
+:root[data-theme="plain"] .modal.todo-footnote-offer-modal,
 :root[data-theme="plain"] #subpage-journal-reader :is(.journal-reader-hero,.journal-reader-paper),
 :root[data-theme="plain"] #timer-settings-form .orientation-option>input:checked+span,
 :root[data-theme="plain"] #timer-settings-form .orientation-option>span,
@@ -2544,3 +2548,24 @@ button.danger) {
 :root[data-theme="plain"] .today-view .habit-check-btn{background:transparent !important;border-radius:50% !important;box-shadow:none !important}
 :root[data-theme="plain"] .today-view .habit-check-dot{border-color:rgba(79,118,189,0.5) !important}
 :root[data-theme="plain"] .today-view .habit-check-btn.is-done .habit-check-dot{background:var(--pl-blue,#4F76BD) !important;border-color:var(--pl-blue,#4F76BD) !important;color:#fff !important}
+
+
+/* 收工留痕纸签：清简主题下去掉撕边素材，保留暖纸与鼠尾草实心接受键。 */
+:root[data-theme="plain"] #subpage-journal-reader .journal-reader-footnotes,
+:root[data-theme="plain"] #subpage-journal-reader .journal-reader-footnote-tag,
+:root[data-theme="plain"] .todo-footnote-offer-actions button,
+:root[data-theme="plain"] .modal.todo-footnote-offer-modal {
+  border: 1px solid var(--warm-card-border, rgba(220, 212, 198, .65)) !important;
+  border-image: none !important;
+  background: var(--warm-sheet, #fdfcf9) !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+}
+:root[data-theme="plain"] .todo-footnote-accept {
+  background: var(--warm-sage-strong, #4d7056) !important;
+  color: var(--warm-sheet, #fdfcf9) !important;
+  border-color: transparent !important;
+}
+:root[data-theme="plain"] .todo-footnote-skip {
+  color: var(--warm-sage-strong, #4d7056) !important;
+}

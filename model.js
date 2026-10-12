@@ -1115,8 +1115,28 @@ function normalizeJournals(journals) {
         };
     const livePhotos = normalizeLivePhotos(value?.livePhotos, entry.photos, 60);
     if (livePhotos.length) entry.livePhotos = livePhotos;
-    return entry.content || entry.mood || entry.weather || entry.photos.length ? [[day, entry]] : [];
+    // 收工留痕：待办完成可选写进当天日记脚注；normalize 必须保留。
+    const footnotes = normalizeStringArray(value?.footnotes, 12, 40);
+    if (footnotes.length) entry.footnotes = footnotes;
+    return entry.content || entry.mood || entry.weather || entry.photos.length || footnotes.length ? [[day, entry]] : [];
   }));
+}
+
+/** 把待办标题追加进当天日记脚注。不写 content/summary/tags；取消完成不删脚注。 */
+export function appendJournalFootnote(state, { day = dateKey(), title } = {}) {
+  const text = String(title || '').trim().slice(0, 40);
+  if (!text || !/^\d{4}-\d{2}-\d{2}$/.test(String(day || ''))) return { appended: false, reason: 'invalid' };
+  let entry = state.journals?.[day];
+  if (!entry) {
+    entry = { content: '', mood: '', weather: '', photos: [], tags: [], summary: '', footnotes: [], updatedAt: Date.now() };
+    state.journals[day] = entry;
+  }
+  const existing = Array.isArray(entry.footnotes) ? entry.footnotes.map(item => String(item || '').trim()).filter(Boolean) : [];
+  if (existing.includes(text)) return { appended: false, reason: 'duplicate', entry };
+  if (existing.length >= 12) return { appended: false, reason: 'full', entry };
+  entry.footnotes = [...existing, text];
+  entry.updatedAt = Date.now();
+  return { appended: true, entry };
 }
 
 function normalizeDailySummaries(summaries) {
