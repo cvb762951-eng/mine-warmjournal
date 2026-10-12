@@ -27,6 +27,9 @@
   --pl-blue-glow: 0 4px 14px rgba(79, 118, 189, 0.28);
   --pl-danger: #B4564F;
   --pl-danger-soft: #FBEEEC;
+  /* 柔角：和今日页卡片（16px 一档）对齐的中等圆角 */
+  --radius-soft: 14px;
+  --radius-soft-sm: 8px;
 }
 
 /* ---------------------------------------------------------------------------
@@ -1102,11 +1105,17 @@ button.danger) {
 
 /* 翻阅篇章牌组（清简）：标题条同「过往篇章」浅蓝章节条；纸面用清简卡片色与阴影；
    胶带改成半透明浅蓝；按钮同清简主按钮（实心蓝 / 描边蓝）。 */
-:root[data-theme="plain"] .journal-deck-heading{background:var(--pl-blue-soft) !important;border:1px solid var(--pl-blue-line) !important;border-radius:12px !important;color:var(--pl-blue-deep) !important;-webkit-mask-image:none !important;mask-image:none !important}
+:root[data-theme="plain"] .journal-deck-heading{background:var(--pl-blue-soft) !important;border:1px solid var(--pl-blue-line) !important;border-radius:var(--radius-soft-sm) !important;color:var(--pl-blue-deep) !important;-webkit-mask-image:none !important;mask-image:none !important}
 :root[data-theme="plain"] .journal-deck-face{background:#F4F7FC !important;background-image:none !important;border-color:rgba(85,96,108,.18) !important;box-shadow:var(--pl-card-shadow) !important;color:#2E343B !important}
 :root[data-theme="plain"] .journal-deck-face::before{background:rgba(79,118,189,.28)}
 :root[data-theme="plain"] :is(.journal-deck-kicker,.journal-deck-meta,.journal-deck-count){color:#55606c !important}
 :root[data-theme="plain"] .journal-deck-meta{border-top-color:var(--pl-line) !important}
 :root[data-theme="plain"] .journal-deck-photo{background:#E8EDF5 !important;border-color:rgba(85,96,108,.16) !important;box-shadow:none !important}
-:root[data-theme="plain"] button.journal-deck-open{background:var(--pl-blue) !important;color:#fff !important;border:0 !important;border-radius:0 !important;box-shadow:none !important;-webkit-mask-image:none !important;mask-image:none !important}
-:root[data-theme="plain"] button.journal-deck-cut{background:transparent !important;color:var(--pl-blue-deep) !important;border:1.5px solid var(--pl-blue) !important;border-radius:0 !important;box-shadow:none !important;-webkit-mask-image:none !important;mask-image:none !important}
+:root[data-theme="plain"] button.journal-deck-open{background:var(--pl-blue) !important;color:#fff !important;border:0 !important;border-radius:var(--radius-soft-sm) !important;box-shadow:none !important;-webkit-mask-image:none !important;mask-image:none !important}
+:root[data-theme="plain"] button.journal-deck-cut{background:transparent !important;color:var(--pl-blue-deep) !important;border:1px solid var(--pl-blue-line) !important;border-radius:var(--radius-soft-sm) !important;box-shadow:none !important;-webkit-mask-image:none !important;mask-image:none !important}
+
+/* 柔角（清简）：牌面用卡片阴影，不再用深色硬描边 */
+:root[data-theme="plain"] .journal-deck-face{border-radius:var(--radius-soft) !important;border-color:var(--pl-line) !important}
+:root[data-theme="plain"] .journal-deck-face.journal-deck-mini,:root[data-theme="plain"] .journal-deck-face.journal-deck-mini-menu{border-radius:var(--radius-soft-sm) !important}
+:root[data-theme="plain"] button.journal-deck-cut.journal-deck-mini-more{border:0 !important}
+:root[data-theme="plain"] button.journal-deck-cut.journal-deck-spread-chip.is-current{border-color:transparent !important}

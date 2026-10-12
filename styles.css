@@ -63,6 +63,9 @@
   --pale: var(--sage-green-light);
   --pale2: var(--warm-beige);
   --radius-sm: 12px;
+  /* 柔角：牌组/摊开网格/照片框共用。纸感为主，只做小到中等的圆角，不做胶囊 */
+  --radius-soft: 8px;
+  --radius-soft-sm: 5px;
   --radius-md: 18px;
   --radius-lg: 24px;
   --radius-xl: 32px;
@@ -9184,3 +9187,18 @@ button.journal-deck-cut.journal-deck-mini-more{position:absolute;top:8px;right:6
 .journal-deck-photo-dots i.is-on{background:#fffaf0}
 :root[data-theme="plain"] .journal-deck-photo-dots{background:rgba(40,52,68,.28)}
 @media (prefers-reduced-motion:reduce){.journal-deck-photo .photo-blur-still,.journal-deck-photo .photo-blur-pad{transition:none}}
+
+/* ===== 柔角：牌组、照片框、摊开网格、月份签、⋯ 菜单、摊开/收起按钮 =====
+   圆角统一走 --radius-soft / --radius-soft-sm（主题根上定义），不写死数字；
+   硬的 1.5px 深色描边换成 1px 半透明线 + 轻阴影。和纸胶带（::before）保持直角不动。 */
+.journal-deck-face,.journal-deck-face.journal-deck-mini,.journal-deck-face.journal-deck-mini-menu{border-radius:var(--radius-soft)}
+.journal-deck-face{box-shadow:0 1px 2px rgba(46,40,32,.05),0 8px 20px rgba(46,40,32,.07)}
+.journal-deck-face.journal-deck-mini{border-radius:var(--radius-soft-sm)}
+.journal-deck-face.journal-deck-mini-menu{border-radius:var(--radius-soft-sm);box-shadow:0 6px 18px rgba(46,40,32,.14)}
+.photo-blur-frame.photo-blur-frame,.journal-deck-photo{border-radius:var(--radius-soft-sm)!important}
+.photo-blur-frame .photo-blur-still{border-radius:calc(var(--radius-soft-sm) - 2px)}
+button.journal-deck-cut,button.journal-deck-open,button.journal-deck-cut.journal-deck-spread-chip,.journal-deck-head-tools button{border-radius:var(--radius-soft-sm)}
+button.journal-deck-cut{box-shadow:inset 0 0 0 1px rgba(23,69,54,.42)}
+button.journal-deck-cut.journal-deck-mini-more{border-radius:var(--radius-soft-sm);box-shadow:none}
+.journal-deck-mini.is-current{outline-offset:2px;border-radius:var(--radius-soft-sm)}
+:root[data-theme="sunny"] button.journal-deck-cut{box-shadow:inset 0 0 0 1px rgba(93,122,67,.45)}
