@@ -298,13 +298,31 @@ export function beginSharedElement(sourceEl, { duration = DURATION.shared } = {}
 
       sourceEl.animate([{ opacity: 1 }, { opacity: 0 }], { duration: duration * 0.5, easing: EASE.settle, fill: 'forwards' });
 
-      Promise.all([flight.finished.catch(() => {}), decodeWait]).then(() => {
+      const revealTarget = () => {
         ghost.remove();
         targetEl.classList?.remove?.('is-decoding');
         targetEl.classList?.add?.('viewer-no-fade');
         targetEl.style.transition = `opacity 160ms ${EASE.settle}`;
         targetEl.style.opacity = previousOpacity || '1';
         setTimeout(() => { targetEl.style.transition = ''; }, 220);
+      };
+      Promise.all([flight.finished.catch(() => {}), decodeWait]).then(() => {
+        // 800ms 解码超时后若还没有像素，先留着幽灵，等 load/再短等，避免空图闪一下
+        if (targetEl.tagName === 'IMG' && !targetEl.naturalWidth) {
+          let settled = false;
+          const finish = () => {
+            if (settled) return;
+            settled = true;
+            targetEl.removeEventListener('load', finish);
+            targetEl.removeEventListener('error', finish);
+            revealTarget();
+          };
+          targetEl.addEventListener('load', finish);
+          targetEl.addEventListener('error', finish);
+          setTimeout(finish, 400);
+          return;
+        }
+        revealTarget();
       });
     });
   };
@@ -1043,6 +1061,9 @@ export function mountJournalDeck(host, entries = [], options = {}) {
     // 顶牌引用在 paint() 里缓存，拖动中不再 querySelector；姿态写入按 rAF 合并，一帧最多写一次 transform。
     let topCard = null;
     let poseFrame = 0;
+    /* 顶牌姿态唯一来源：升牌终点与 paint/applyPose 落定必须同一套，否则交接会抖。 */
+    const topCardPose = (x = 0, tiltX = 0, tiltY = 0) =>
+      `translate3d(${Number(x).toFixed(2)}px, 0, 28px) rotateX(${(Number(tiltX) * 0.3).toFixed(2)}deg) rotateY(${(Number(tiltY) * 0.3).toFixed(2)}deg) rotateZ(${(Number(x) * 0.012).toFixed(2)}deg)`;
     const applyPose = () => {
       poseFrame = 0;
       if (!active || !host.isConnected) {
@@ -1054,7 +1075,7 @@ export function mountJournalDeck(host, entries = [], options = {}) {
       const x = offset.current;
       const tiltX = pitch.current;
       const tiltY = yaw.current;
-      card.style.transform = `translate3d(${x.toFixed(2)}px, 0, 28px) rotateX(${(tiltX * 0.3).toFixed(2)}deg) rotateY(${(tiltY * 0.3).toFixed(2)}deg) rotateZ(${(x * 0.012).toFixed(2)}deg)`;
+      card.style.transform = topCardPose(x, tiltX, tiltY);
       const travel = Math.min(1, Math.abs(x) / stageWidth);
       const gone = travel < 0.35 ? 0 : (travel - 0.35) / 0.65;
       const nextOpacity = prefersReducedMotion() || gone < 0.02 ? '' : (1 - gone * 0.45).toFixed(3);
@@ -1145,6 +1166,9 @@ export function mountJournalDeck(host, entries = [], options = {}) {
       risingCard.classList.remove('is-deck-rising');
       risingCard.style.transform = '';
       risingCard.style.opacity = '';
+      // 升牌时写过 zIndex；取消时一并清掉并按 depth 还原，避免 paint 未重写时叠放乱掉
+      const depth = Number(risingCard.dataset.depth);
+      risingCard.style.zIndex = Number.isFinite(depth) ? String(3 - depth) : '';
       risingCard = null;
     };
     const depthPoseOf = card => {
@@ -1192,7 +1216,7 @@ export function mountJournalDeck(host, entries = [], options = {}) {
         incoming.style.transform = from.transform;
         incoming.style.opacity = from.opacity;
         incoming.style.zIndex = '2';
-        const rest = 'translate3d(0px, 0px, 28px) rotateX(0deg) rotateY(0deg) rotateZ(0deg)';
+        const rest = topCardPose(0, 0, 0);
         riseAnim = incoming.animate(
           [
             { transform: from.transform, opacity: Number(from.opacity) || 0.96 },

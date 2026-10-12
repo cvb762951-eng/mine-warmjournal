@@ -46,5 +46,6 @@ test('moments open uses FLIP enlarge from sharp still, decode before reveal', ()
   assert.match(shared, /object-fit:\$\{fit\}/);
   assert.match(shared, /Promise\.all\(\[flight\.finished/);
   assert.match(shared, /opacity: 1/);
+  assert.match(shared, /!targetEl\.naturalWidth/, '解码超时且尚无像素时先不揭开，避免闪空图');
   assert.match(motion, /preferFlip/);
 });
