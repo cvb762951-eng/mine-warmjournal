@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="plain">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>日记牌组预览 · 清简</title>
+  <link rel="stylesheet" href="../performance.css">
+  <link rel="stylesheet" href="../styles.css?v=deck">
+  <link rel="stylesheet" href="../themes.css">
+  <link rel="stylesheet" href="../themes-plain.css">
+  <style>
+    html, body {
+      height: auto !important;
+      min-height: 100% !important;
+      overflow: auto !important;
+      background: #EAF0F8 !important;
+      background-image: none !important;
+      color: #2E343B !important;
+    }
+    .preview-page {
+      box-sizing: border-box;
+      width: min(100%, 420px);
+      margin: 0 auto;
+      padding: 18px 16px 48px;
+    }
+    .preview-page p.note {
+      margin: 0 0 14px;
+      color: #55606c;
+      font-size: 12px;
+      line-height: 1.65;
+    }
+    .preview-page .today-view { background: transparent; }
+    .preview-page .magazine-header {
+      margin-bottom: 16px;
+      background: transparent !important;
+    }
+    .preview-dock.floating-dock {
+      position: relative !important;
+      left: auto !important;
+      right: auto !important;
+      bottom: auto !important;
+      transform: none !important;
+      width: 100% !important;
+      margin: 18px 0 0;
+    }
+    .preview-dock .material-symbols-outlined { display: none !important; }
+    .preview-roll {
+      margin: 16px 0 0;
+      font-variant-numeric: tabular-nums;
+    }
+    .preview-roll strong { font-size: 28px; }
+    #status { min-height: 1.4em; color: #3D5F9E; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <main class="preview-page">
+    <p class="note">清简主题下的本地预览。左右拖动牌面会倾斜，滑过一段松手会吸到下一篇或弹回。点照片换本篇下一张（底边圆点）；放大和长图留在「阅读这篇」里。底栏只让当前页那一格跟着指针轻移，透明格子不动。</p>
+    <p id="status" role="status"></p>
+    <div class="today-view">
+      <header class="magazine-header">
+        <div class="magazine-brand-line"><span class="magazine-brand">Warm Life Journal</span></div>
+        <div class="magazine-title-date"><span class="date-name">今日刊头 · 错落入场</span></div>
+        <p class="editorial-cover-motto">把每个今天，过成故事。</p>
+      </header>
+    </div>
+    <div id="deck"></div>
+    <p class="preview-roll">本周专注 <strong data-roll="128">128</strong> 分钟</p>
+    <nav class="floating-dock preview-dock" aria-label="底栏磁吸预览">
+      <button type="button" class="dock-btn active" id="dock-btn-today"><span class="material-symbols-outlined">draw</span><small>Today</small></button>
+      <button type="button" class="dock-btn" id="dock-btn-calendar"><span class="material-symbols-outlined">calendar_month</span><small>Calendar</small></button>
+      <button type="button" class="dock-btn" id="dock-btn-snippets"><span class="material-symbols-outlined">auto_awesome_motion</span><small>Moments</small></button>
+      <button type="button" class="dock-btn" id="dock-btn-journal"><span class="material-symbols-outlined">history_edu</span><small>Journal</small></button>
+      <button type="button" class="dock-btn" id="dock-btn-ledger"><span class="material-symbols-outlined">account_balance_wallet</span><small>Ledger</small></button>
+    </nav>
+  </main>
+  <script type="module">
+    import { mountJournalDeck, rollNumbers, installMagneticDock } from '../motion.js';
+
+    const drawing = (label, sky, ink) => {
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="640" height="360" viewBox="0 0 640 360">
+        <rect width="640" height="360" fill="${sky}"/>
+        <circle cx="150" cy="120" r="46" fill="#F4F7FC"/>
+        <rect x="70" y="210" width="220" height="70" fill="${ink}" opacity="0.35"/>
+        <text x="330" y="190" fill="#2E343B" font-size="42" font-family="serif">${label}</text>
+      </svg>`;
+      return `data:image/svg+xml,${encodeURIComponent(svg)}`;
+    };
+
+    const status = document.getElementById('status');
+    mountJournalDeck(document.getElementById('deck'), [
+      { id: '2026-10-11', kicker: '2026-10-11 · 星期日', title: '窗边的下午', excerpt: '把光记下来，不把句子写满。', caption: '窗光 · 写在照片下面', photoSrc: drawing('窗光', '#D5E0F2', '#4F76BD'), photos: [drawing('窗光', '#D5E0F2', '#4F76BD'), drawing('第二张', '#F2E4D5', '#BD7A4F'), drawing('第三张', '#DDEFD9', '#4F9E5F')], meta: '平静 · 多云', photoLabel: '查看窗边这张照片' },
+      { id: '2026-10-10', kicker: '2026-10-10 · 星期六', title: '夜路很短', excerpt: '回家时路灯一盏一盏亮起来。', caption: '路灯 · 说明不压在画面上', photoSrc: drawing('夜路', '#E4E9F4', '#3D5F9E'), meta: '安静 · 晴', photoLabel: '查看夜路这张照片' },
+      { id: '2026-10-08', kicker: '2026-10-08 · 星期四', title: '只留下一句', excerpt: '今天没有拍照，牌面就只放文字。', caption: '', photoSrc: '', meta: '寻常', photoLabel: '' },
+      { id: '2026-10-03', kicker: '2026-10-03 · 星期六', title: '河岸', excerpt: '风把水面推平了一小会儿。', caption: '河岸 · 16:9 完整居中', photoSrc: drawing('河岸', '#E7EEF8', '#55606C'), meta: '松快 · 风', photoLabel: '查看河岸这张照片' }
+    ], {
+      heading: '翻阅篇章',
+      onOpen: entry => { status.textContent = `打开画报：${entry.title}`; },
+      onPhoto: entry => { status.textContent = `照片交给原来的全屏查看器：${entry.title}。长图在那里上下滑动。`; }
+    });
+    rollNumbers(document);
+    installMagneticDock();
+  
+    if (location.search.includes('tap')) setTimeout(() => {
+      const ph = document.querySelector('.journal-deck-card[data-depth="0"] [data-deck-photo]');
+      const stage = ph.closest('.journal-deck-stage') || ph.parentElement;
+      const r = ph.getBoundingClientRect(); const o = { bubbles: true, pointerId: 1, clientX: r.x + 40, clientY: r.y + 40, pointerType: 'mouse', button: 0, isPrimary: true };
+      ph.dispatchEvent(new PointerEvent('pointerdown', o)); ph.dispatchEvent(new PointerEvent('pointerup', o));
+    }, 600);
+  </script>
+</body>
+</html>
