@@ -1,5 +1,4 @@
 import { photoFrameLayersHtml } from '../photo-frame.js';
-import { withSharedTransition } from '../motion.js';
 import { Capacitor } from '@capacitor/core';
 import { Camera, CameraDirection, EncodingType } from '@capacitor/camera';
 import { FilePicker } from '@capawesome/capacitor-file-picker';
@@ -1532,12 +1531,8 @@ function photoLightbox(entry, active = 0) {
   });
 }
 
-/* 共享转场的源必须是完整显示的那层主图（.photo-blur-still）。
-   卡片里第一张 <img> 是背后放大铺底的模糊层，拿它当源，转场里飞出来的就是一块被裁切、发糊的缩略图，
-   落到大图上再换成清晰原图 —— 这就是「点照片卡一下缩略图」。 */
-function momentShareSource(button) {
-  return button.querySelector('img.photo-blur-still, img.snippet-photo-main') || button.querySelector('img:not([aria-hidden="true"])') || button.querySelector('img');
-}
+/* 2026-10-12：点照片放大不再做转场，原先「挑出完整显示的主图层当转场源」的那个函数已删除。
+   大图的清晰度由 photo-viewer 的「解码完成前不显示」保证，不再依赖转场源。 */
 
 function bindSnippets() {
   $('#new-snippet')?.addEventListener('click', () => quickPhotoModal());
@@ -1546,13 +1541,10 @@ function bindSnippets() {
   $$('[data-edit-snippet]').forEach(button => button.onclick = () => snippetForm(state.snippets.find(entry => entry.id === button.dataset.editSnippet)));
   $$('[data-delete-snippet]').forEach(button => button.onclick = () => confirmDelete('删除这条随手记素材？已经加入日记的内容不会受影响。', async () => { state.snippets = state.snippets.filter(entry => entry.id !== button.dataset.deleteSnippet); await save(); render(); callHelper('scheduleAiRefresh'); }));
   $$('[data-view-snippet-photo]').forEach(button => button.onclick = () => {
-    // 卡片→详情的共享元素：交给浏览器原生的 View Transitions 算那一趟 FLIP
+    // 点照片直接开大图，**不做任何进入动效**（用户 2026-10-12 明确要求去掉放大的那套动效）。
+    // 之前这里走 withSharedTransition：从缩略图 FLIP 起飞再落到大图上。
     const entry = state.snippets.find(item => item.id === button.dataset.viewSnippetPhoto);
-    withSharedTransition(momentShareSource(button), () => photoLightbox(entry, Number(button.dataset.photoIndex) || 0), {
-      targetSelector: '#photo-viewer-image',
-      fallbackTargetSelector: '#photo-viewer-image',
-      preferFlip: true,
-    });
+    photoLightbox(entry, Number(button.dataset.photoIndex) || 0);
   });
   $$('[data-play-snippet-video]').forEach(button => button.onclick = () => {
     const entry = state.snippets.find(item => item.id === button.dataset.playSnippetVideo);

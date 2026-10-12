@@ -135,3 +135,19 @@ test('Check button uses one-tap fill/undo, only writes today, celebrates only on
   assert.match(habits, /if \(next > Number\(previous\[habitId\] \|\| 0\)\) pendingHabitCelebrateId = habitId/);
   assert.match(today, /点勾补满/);
 });
+
+test('习惯 / 待办列表不显示滚动条', () => {
+  // 2026-10-12 用户要求「习惯页不要有滑条」：原先这里是 scrollbar-width:thin
+  // 加一条 3px 宽的滑块，列表旁边会露出一根细条。
+  assert.match(css, /\.today-view #habits-bento-list,\s*\.today-view #todos-bento-list\{[^}]*scrollbar-width:none/,
+    '不再画滚动条');
+  // 只要求「这两条列表的规则里没有 thin」；别处（其它容器）用 thin 与我们无关
+  const habitsRule = css.slice(css.indexOf('.today-view #habits-bento-list'), css.indexOf('::-webkit-scrollbar{display:none;width:0;height:0}'));
+  assert.doesNotMatch(habitsRule, /scrollbar-width:thin/, '这两条列表不再用细滚动条');
+  assert.match(css, /#habits-bento-list::-webkit-scrollbar,[\s\S]{0,90}#todos-bento-list::-webkit-scrollbar\{display:none/,
+    'WebKit 内核也要隐藏');
+  assert.doesNotMatch(css, /::-webkit-scrollbar-thumb\{[\s\S]{0,90}rgba\(49,91,73,\.42\)/, '滑块规则已删除');
+  // 只是不画出来，滚动本身还在
+  assert.match(css, /\.today-view #habits-bento-list,\s*\.today-view #todos-bento-list\{[^}]*overflow-y:auto/,
+    '仍然可以滚动');
+});

@@ -81,13 +81,14 @@ test('共享元素：优先用浏览器原生 View Transitions，且至少有 4 
   assert.match(motion, /viewTransitionName = ''/, '转场结束要清掉名字');
   // 不支持的内核退回手写 FLIP
   assert.match(motion, /export function beginSharedElement/, '要有 FLIP 回退');
-  // 四个落点
-  assert.match(snippetsView, /withSharedTransition\(momentShareSource\(button\)/, '随手拍照片要用共享元素，且源是清晰主图层');
-  assert.match(vaultView, /withSharedTransition\(source/, '私密空间要用共享元素');
-  assert.match(vaultView, /#vault-photo-image/, '落点要指向查看器里那张图');
-  assert.match(calendarView, /withSharedTransition\(source/, '日历要用共享元素');
-  assert.match(statsView, /withSharedTransition\(button/, '习惯档案要用共享元素');
+  /* 2026-10-12：用户要求「点照片放大不要动效」，随手拍 / 日历 / 私密空间三处照片
+     改为直接打开大图，所以转场落点只剩「卡片 → 详情」这一类（习惯档案）。
+     转场机制本身保留 —— 详情类转场仍在用，FLIP 回退也要留着。 */
+  assert.match(statsView, /withSharedTransition\(button/, '习惯档案仍用共享元素（卡片→详情）');
   assert.match(statsView, /#subpage-habit-detail \.habit-hero-card/, '落点要指向档案头卡');
+  for (const [name, view] of [['随手拍', snippetsView], ['日历', calendarView], ['私密空间', vaultView]]) {
+    assert.doesNotMatch(view, /withSharedTransition\(/, `${name}的照片放大不再用转场`);
+  }
 });
 
 test('旋转描边与呼吸背光：只在合成器上跑，不做逐帧样式重算', async () => {
@@ -216,11 +217,13 @@ test('沉浸式弹窗不许被主题刷白，也不许走容器变形', async ()
    视频复用了照片的共享元素，但落点 #vault-photo-image 并不存在。
    封面被从页面快照里抠走，Android WebView 的转场底是白的 —— 抠空处就是点击位置的白块，
    整页交叉淡化再闪一整屏白。准备弹窗还会从按钮上长出一块浅色面；<video> 在首帧前铺原生白底。 */
-test('打开私密视频停在深色底上，照片仍走共享元素', async () => {
+test('打开私密视频停在深色底上；照片与视频统一直接打开', async () => {
   const openHandler = vaultView.slice(vaultView.indexOf("$$('[data-open-vault-item]')"), vaultView.indexOf("$$('[data-vault-item-menu]')"));
-  assert.match(openHandler, /item\?\.type === 'video'\) \{ open\(\); return; \}/, '点视频不能走共享元素转场');
-  assert.match(openHandler, /withSharedTransition\(source/, '点照片仍要走共享元素');
-  assert.match(openHandler, /#vault-photo-image/, '照片落点仍是查看器里的那张图');
+  // 2026-10-12：照片放大不再做进入动效 ⇒ 照片与视频走同一条路（直接打开）。
+  // 原先这里是两分支（视频直接开、照片走共享元素），因为给视频封面挂 view-transition-name
+  // 会被 WebView 抠出白块。现在照片也不挂名字了，白块问题自然不存在。
+  assert.doesNotMatch(openHandler, /withSharedTransition\(/, '点开私密项不再走共享元素转场');
+  assert.match(openHandler, /openItem\(item\)\.catch\(error => show\(error\.message\)\)/, '照片与视频都直接打开');
   assert.match(vaultView, /vault-decrypting-modal vault-video-preparing/, '视频准备层要单独标成深色全屏');
   assert.match(motion, /vault-video-preparing'\)\) return null/, '视频弹窗不许从点击处长出一块面');
   assert.match(styles, /\.modal\.vault-video-preparing\{[^}]*background:#050807!important[^}]*animation:none!important/);

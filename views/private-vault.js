@@ -8,7 +8,6 @@ import { livePhotoMarkHtml } from '../motion-photo.js';
 import { privateVaultConfigured, privateVaultUnlocked, privateVaultContent, privateVaultKey, privateVaultKeyBase64, setupPrivateVault, unlockPrivateVault, unlockPrivateVaultWithKey, persistPrivateVault, lockPrivateVault, vaultPlayableDuration, vaultItemEdited, vaultItemOrientation } from '../private-vault.js';
 import { encryptVaultFile, encryptVaultPoster, encryptExistingVaultMedia, encryptExistingVaultPoster, openVaultAsset, deleteVaultAssets, exportVaultItemToGallery, reencodeVaultItem, cancelVaultReencode } from '../vault-media-store.js';
 import { imgSrc } from '../core.js';
-import { withSharedTransition } from '../motion.js';
 import { showVideoFramePicker } from '../video-frame-picker.js';
 import { showVideoEditor } from '../video-editor.js';
 import { formatVideoDuration } from '../video-player.js';
@@ -1530,16 +1529,10 @@ function bindPrivateVault() {
   $('#vault-folder-menu')?.addEventListener('click', () => folderForm(privateVaultContent().folders.find(folder => folder.id === activeFolderId)));
   $$('[data-open-vault-item]').forEach(button => button.onclick = () => {
     const item = privateVaultContent().items.find(entry => entry.id === button.dataset.openVaultItem);
-    const open = () => openItem(item).catch(error => show(error.message));
-    // 视频没有 #vault-photo-image 这个落点。若仍给封面挂 view-transition-name，
-    // Android WebView 会把封面从页面快照里抠走：抠空处是点击位置的白块，
-    // 整页交叉淡化再透出 WebView 的白底，闪一整屏白。照片才走共享元素。
-    if (item?.type === 'video') { open(); return; }
-    const source = button.querySelector('.vault-media-box img:not(.photo-blur-pad)') || button.querySelector('.vault-media-box');
-    withSharedTransition(source, open, {
-      targetSelector: '#vault-photo-image',
-      fallbackTargetSelector: '#vault-photo-image'
-    });
+    // 点开私密照片 / 视频都**不做进入动效**（用户 2026-10-12 要求去掉放大的动效）。
+    // 这里原先给照片挂了 view-transition-name 走共享元素；视频那支一直没挂
+    // （封面被从页面快照里抠走会闪一整屏白），现在两支统一：直接打开。
+    openItem(item).catch(error => show(error.message));
   });
   $$('[data-vault-item-menu]').forEach(button => button.onclick = () => vaultItemMenu(privateVaultContent().items.find(item => item.id === button.dataset.vaultItemMenu)));
   $$('[data-move-vault-item]').forEach(button => button.onclick = () => moveItemForm(privateVaultContent().items.find(item => item.id === button.dataset.moveVaultItem)));

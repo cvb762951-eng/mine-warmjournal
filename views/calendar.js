@@ -1,7 +1,6 @@
 import { $, $$, esc, uid, state, cursor, selected, save, render, modal, closeModal, show, confirmDelete, imgSrc, emptyState, go, formatMinutes, setSelected, setCursor, registerView, registerBinder, registerSubmitHandler, registerHelper, callHelper } from '../core.js';
 import { WEEK_DAYS, dateKey, minutesOnDate, todayCompletion, habitsForDate, habitGoalMet, habitProgressForDate, MOODS, WEATHERS, formatShanghaiClock } from '../model.js';
 import { activityForDate } from '../activity-log.js';
-import { withSharedTransition } from '../motion.js';
 import { journalForm } from './journal.js';
 import { monthDays, sessionCard, bindRecordActions, replaceSessionHabitContribution, photoViewer } from './common.js';
 import { formatVideoDuration } from '../video-player.js';
@@ -225,18 +224,16 @@ function bindCalendar() {
     const media = mediaForDay(selected);
     const item = media[Number(button.dataset.viewDayMedia)];
     if (!item) return;
-    // 共享元素转场：缩略图"长大"成全屏那张（交给浏览器原生 View Transitions）
-    const source = button.querySelector('img');
-    const shared = { targetSelector: '#photo-viewer-image', fallbackTargetSelector: '#photo-viewer-image' };
     if (item.kind === 'video') {
-      // 视频播放器没有稳定落点，不做共享元素，直接播
+      // 视频播放器没有稳定落点，直接播
       const entry = state.snippets.find(snippet => snippet.id === item.entryId);
       callHelper('playSnippetVideo', item.video, entry, item.index);
       return;
     }
     const photos = media.filter(entry => entry.kind === 'photo');
     const photoIndex = photos.findIndex(entry => entry === item);
-    withSharedTransition(source, () => photoViewer(photos.map(entry => entry.motion ? { poster: entry.source, video: entry.motion, live: true } : entry.source), Math.max(0, photoIndex)), shared);
+    // 点照片直接开大图，不做进入动效（用户 2026-10-12 要求去掉放大的动效；与随手拍一致）
+    photoViewer(photos.map(entry => entry.motion ? { poster: entry.source, video: entry.motion, live: true } : entry.source), Math.max(0, photoIndex));
   });
   $('#gen-day-summary')?.addEventListener('click', () => {
     if (summaryGenerating) return;

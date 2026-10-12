@@ -4,24 +4,49 @@ import { readFile } from 'node:fs/promises';
 
 const root = new URL('../', import.meta.url);
 const read = file => readFile(new URL(file, root), 'utf8');
-const [snippets, motion, common, vault, styles] = await Promise.all(['views/snippets.js', 'motion.js', 'views/common.js', 'views/private-vault.js', 'styles.css'].map(read));
+const [snippets, motion, common, vault, styles, calendar] = await Promise.all(
+  ['views/snippets.js', 'motion.js', 'views/common.js', 'views/private-vault.js', 'styles.css', 'views/calendar.js'].map(read)
+);
 
-test('moments share transition starts from the clear still layer, not the blurred pad', () => {
-  assert.match(snippets, /withSharedTransition\(momentShareSource\(button\)/);
-  assert.match(snippets, /img\.photo-blur-still/);
-  assert.doesNotMatch(snippets, /withSharedTransition\(button\.querySelector\('img'\)/);
+/* 2026-10-12 用户要求：点照片放大**不要动效**。
+   之前随手拍/日历/私密空间三处的照片都走 withSharedTransition（缩略图 FLIP 长大 / View Transitions），
+   现在统一改成直接打开大图。这里锁住「不再有转场」，同时保留两条老账：
+   ① 共享元素时代修过的「点开先闪一张糊缩略图」不能回来；
+   ② 大图仍要等解码完成再显示，避免画出半张图。 */
+
+test('点照片放大不再走共享转场（三个入口都直接打开）', () => {
+  // 随手拍
+  assert.doesNotMatch(snippets, /withSharedTransition\(/, '随手拍点照片不再用共享转场');
+  assert.doesNotMatch(snippets, /preferFlip/, '不再有 FLIP 放大的分支');
+  assert.doesNotMatch(snippets, /momentShareSource/, '为转场挑源图的那套已删除');
+  assert.match(snippets, /photoLightbox\(entry, Number\(button\.dataset\.photoIndex\) \|\| 0\)/,
+    '点一下就直接开大图');
+  // 日历
+  assert.doesNotMatch(calendar, /withSharedTransition\(/, '日历点照片也不再用共享转场');
+  // 私密空间
+  assert.doesNotMatch(vault, /withSharedTransition\(/, '私密空间点照片也不再用共享转场');
+  assert.match(vault, /openItem\(item\)\.catch\(error => show\(error\.message\)\)/,
+    '照片与视频统一直接打开');
 });
 
-test('shared transition always waits for decode (bounded) before the new snapshot', () => {
+test('共享转场的等待解码逻辑保留给其它转场用（卡片→详情）', () => {
+  // 这条是给 stats / 其它还在用共享元素的调用方兜底的，别一起删掉
   assert.doesNotMatch(motion, /target\.tagName === 'IMG' && !target\.complete/);
   assert.match(motion, /Promise\.race\(\[target\.decode/);
   assert.match(motion, /classList\.remove\('is-decoding'\)/);
+  assert.match(motion, /export function withSharedTransition/);
 });
 
-test('viewers hide until decoded and fade in with opacity only, honoring reduced motion', () => {
+test('大图仍等解码完成才显示，但不再淡入', async () => {
   assert.match(common, /revealViewerImageWhenDecoded\(\$\('#photo-viewer-image'\)\)/);
   assert.match(vault, /revealViewerImageWhenDecoded\(\$\('#vault-photo-image'\)\)/);
-  assert.match(styles, /\.photo-viewer-stage img\.is-decoding,\.vault-photo-stage img\.is-decoding\{opacity:0\}/);
+  assert.match(styles, /\.photo-viewer-stage img\.is-decoding,\.vault-photo-stage img\.is-decoding\{opacity:0\}/,
+    '解码完成前不显示');
+  // 关键：viewer 上的 transition 只剩 transform（双指缩放要用），没有 opacity 淡入
+  assert.match(styles, /\.photo-viewer-stage img,\.vault-photo-stage img\{transition:transform \.18s ease\}/,
+    '不再有 opacity 过渡');
+  assert.doesNotMatch(styles, /\.photo-viewer-stage img,\.vault-photo-stage img\{transition:transform \.18s ease,opacity/,
+    '淡入已经去掉');
   assert.match(styles, /prefers-reduced-motion:reduce\)\{\.photo-viewer-stage img,\.vault-photo-stage img\{transition:none!important\}/);
 });
 
@@ -36,16 +61,4 @@ test('revealViewerImageWhenDecoded reveals after decode and skips video', async 
   assert.ok(!classes.has('is-decoding'));
   assert.equal(img.dataset.decoded, '1');
   revealViewerImageWhenDecoded({ tagName: 'VIDEO' });
-});
-
-test('moments open uses FLIP enlarge from sharp still, decode before reveal', () => {
-  assert.match(snippets, /preferFlip:\s*true/);
-  assert.match(snippets, /momentShareSource\(button\)/);
-  const shared = motion.slice(motion.indexOf('export function beginSharedElement'), motion.indexOf('export function staggerIn'));
-  assert.match(shared, /decodeWait/);
-  assert.match(shared, /object-fit:\$\{fit\}/);
-  assert.match(shared, /Promise\.all\(\[flight\.finished/);
-  assert.match(shared, /opacity: 1/);
-  assert.match(shared, /!targetEl\.naturalWidth/, '解码超时且尚无像素时先不揭开，避免闪空图');
-  assert.match(motion, /preferFlip/);
 });

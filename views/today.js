@@ -71,7 +71,7 @@ export function todayView() {
   const mottoText = encouragement?.date === day && encouragement.text ? encouragement.text : state.profile.motto;
   const doneTodos = todos.filter(todo => todo.completed).length;
   const earlierTodos = state.todos.filter(todo => !todo.completed && todo.date < day).length;
-  const photoEntries = state.snippets.filter(entry => entry.type === 'photo' && (entry.photos?.length || entry.photo)).slice(-3);
+  const photoEntries = photoStackEntries();
   const recent = recentActivity().filter(item => item.date === day);
   const habitPercent = completion.total ? Math.round(completion.done / completion.total * 100) : 0;
   photoStackCount = photoEntries.length;
@@ -145,6 +145,22 @@ export function todayView() {
 }
 
 // 拍立得照片堆叠（#photo-stack）
+/* 「今日画页」显示的 3 张：按时间倒序取最新的 3 条。
+   ⚠️ 必须显式排序，不能靠数组顺序（2026-10-12 用户报「今日画页不会更新」）：
+   state.snippets 里新照片有两种落位方式 —— 随手拍是 push（加在末尾），
+   而分享进来的照片、从私密空间导出的视频是 unshift（插在最前面，见 incoming-share.js
+   / private-vault.js）。所以数组顺序并不总是「新在末尾」；
+   以前直接取数组末尾三条，一旦列表里有插在最前面的，取到的就不是最新那批，
+   画页看起来就像永远停在旧照片上。
+   界面上其它地方（随手拍相册流、私密空间、AI 取图）都是显式按 createdAt 倒序取，
+   这里跟上同一套口径；顺带让最上面那张就是最新的一张。 */
+function photoStackEntries() {
+  return (state.snippets || [])
+    .filter(entry => entry.type === 'photo' && (entry.photos?.length || entry.photo))
+    .sort((a, b) => (Number(b.createdAt) || 0) - (Number(a.createdAt) || 0))
+    .slice(0, 3);
+}
+
 function photoStackHtml(entries) {
   if (!entries.length) return `<div class="photo-stack-container photo-stack-empty" id="photo-stack"><span class="material-symbols-outlined">photo_camera</span><small>还没有随手拍，拍下第一张吧</small></div>`;
   const count = entries.length;
@@ -177,7 +193,9 @@ function switchPhotoStack(nextIndex, preferredDirection = '') {
   const previousIndex = photoStackIndex;
   photoStackIndex = (Number(nextIndex) + photoStackCount) % photoStackCount;
   const direction = preferredDirection || (photoStackIndex >= previousIndex ? 'next' : 'previous');
-  const entries = state.snippets.filter(entry => entry.type === 'photo' && (entry.photos?.length || entry.photo)).slice(-3);
+  // 与首屏渲染共用同一个取法（photoStackEntries：按时间倒序取最新 3 条）。
+  // 两处必须一致，否则切换时会把整摞牌换成另一批条目。
+  const entries = photoStackEntries();
   const temp = document.createElement('div');
   temp.innerHTML = photoStackHtml(entries);
   const wrap = temp.querySelector('.stack-stagger');

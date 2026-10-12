@@ -6805,16 +6805,13 @@ body:has(.ai-companion-screen) #app{background:#f3ead9 url('assets/ai-companion-
   flex-direction:column;
   overflow-y:auto;
   overscroll-behavior:contain;
-  scrollbar-width:thin;
-  scrollbar-color:rgba(49,91,73,.45) transparent;
+  /* 不要可见的滚动条（2026-10-12 用户要求「习惯页 / 待办那块都不要滑条」）：
+     之前这里是细滚动条 + 一条 3px 宽的滑块，列表旁边会露出一根细条。
+     滚动行为不变，只是不再画出来。 */
+  scrollbar-width:none;
 }
 .today-view #habits-bento-list::-webkit-scrollbar,
-.today-view #todos-bento-list::-webkit-scrollbar{width:3px}
-.today-view #habits-bento-list::-webkit-scrollbar-thumb,
-.today-view #todos-bento-list::-webkit-scrollbar-thumb{
-  border-radius:3px;
-  background:rgba(49,91,73,.42);
-}
+.today-view #todos-bento-list::-webkit-scrollbar{display:none;width:0;height:0}
 .journal-inline-snippet-list::-webkit-scrollbar{display:none;width:0;height:0}
 
 /* Journal 当日素材纸张：放大纸面本体，列表仍在日记编辑流内。 */
@@ -9331,10 +9328,12 @@ button.journal-deck-cut.journal-deck-mini-more{border-radius:var(--radius-soft-s
 
 
 /* 大图查看器：解码完成前不露半成品/缩略图，舞台深色底兜底；解码后一次淡入（只动 opacity） */
-.photo-viewer-stage img,.vault-photo-stage img{transition:transform .18s ease,opacity .2s var(--spring-entrance,cubic-bezier(0.22,1,0.36,1))}
+/* 大图不做进入动效（2026-10-12 用户要求去掉「点照片放大」的那套动效）：
+   这里的 transition 只服务双指缩放。解码门槛保留（解码完成前 opacity:0，避免画出半张图），
+   但它是瞬间生效、没有淡入。 */
+.photo-viewer-stage img,.vault-photo-stage img{transition:transform .18s ease}
 .photo-viewer-stage img.is-decoding,.vault-photo-stage img.is-decoding{opacity:0}
-.photo-viewer-stage img.zoomed,.vault-photo-stage img.zoomed{transition:opacity .2s ease}
-.photo-viewer-stage img.viewer-no-fade,.vault-photo-stage img.viewer-no-fade{transition:transform .18s ease}
+.photo-viewer-stage img.zoomed,.vault-photo-stage img.zoomed{transition:none}
 @media (prefers-reduced-motion:reduce){.photo-viewer-stage img,.vault-photo-stage img{transition:none!important}}
 
 /* ── 习惯详情 / 待办详情（detail-sheet）：纸面、细线、留白，与今日习惯+待办列同一语言 ──

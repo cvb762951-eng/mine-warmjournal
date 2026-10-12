@@ -155,3 +155,20 @@ test('Today Life Stream uses one warm-paper section with breathable semantic row
   assert.match(css, /\.today-view \.today-life-stream-section #today-timeline-stream \.life-stream-card\s*\{[^}]*min-height:54px/);
   assert.match(css, /\.today-view \.today-life-stream-section #today-timeline-stream \.life-stream-copy strong\s*\{[^}]*text-overflow:ellipsis/);
 });
+
+test('今日画页取「最新 3 条」必须显式按时间倒序，不能靠数组顺序', () => {
+  // 2026-10-12 用户报「今日画页感觉不会更新」。根因：
+  // state.snippets 里新照片有两种落位方式 —— 随手拍是 push（新在末尾），
+  // 而分享进来的照片、从私密空间导出的视频是 unshift（新在最前面，见 incoming-share / private-vault）。
+  // 以前这里是 slice(-3) 取「最后三条」，一旦列表里有插在最前面的，取到的就不是最新那批，
+  // 画页看起来就永远停在旧照片上。
+  assert.match(source, /function photoStackEntries\(\)/);
+  assert.match(source, /\.filter\(entry => entry\.type === 'photo' && \(entry\.photos\?\.length \|\| entry\.photo\)\)/);
+  assert.match(source, /\.sort\(\(a, b\) => \(Number\(b\.createdAt\) \|\| 0\) - \(Number\(a\.createdAt\) \|\| 0\)\)/,
+    '按 createdAt 倒序');
+  assert.match(source, /\.slice\(0, 3\)/, '取最新的 3 条');
+  assert.doesNotMatch(source, /\.slice\(-3\)/, '不能再靠数组顺序取末尾三条');
+  // 渲染与「轻触切换」两条路径必须用同一个取法，否则切换时会跳到另一批条目
+  const uses = source.match(/photoStackEntries\(\)/g) || [];
+  assert.ok(uses.length >= 2, '渲染与切换都要用同一个取法');
+});
