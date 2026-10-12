@@ -77,9 +77,12 @@ async function readAppliedVersion() {
     const result = await Filesystem.readFile({ path: HOT_VERSION_PATH, directory: Directory.Data, encoding: 'utf8' });
     const text = typeof result?.data === 'string' ? result.data : '';
     const parsed = JSON.parse(text);
-    return Number(parsed?.versionCode) || 0;
+    return {
+      versionCode: Number(parsed?.versionCode) || 0,
+      versionName: String(parsed?.versionName || '')
+    };
   } catch {
-    return 0;
+    return { versionCode: 0, versionName: '' };
   }
 }
 
@@ -95,9 +98,58 @@ async function writeAppliedVersion(versionCode, versionName) {
   } catch { /* 记不上只是下次仍提示更新，不影响已生效的资源 */ }
 }
 
-/** 已应用到的资源版本号（含装机版本兜底）。 */
+/** 已应用到的资源版本号（没热更新过就是 0）。 */
 export async function appliedResourceVersionCode() {
-  return readAppliedVersion();
+  return (await readAppliedVersion()).versionCode;
+}
+
+/**
+ * 「当前实际生效的版本」：装机版本与「已应用到的资源版本」里取较新的那个。
+ *
+ * ⚠️ 为什么必须有它（2026-10-12 用户反馈）：热更新只替换网页资源，装机包的
+ * versionCode 永远不变。用户装着 1.1.14 的包、一路热更到 1.1.17 之后，
+ * 装机版本号还停在 115。界面上一处显示「当前 1.1.17」（按资源算）、
+ * 另一处点检查却报「已是最新版本（1.1.14）」（按装机算）——
+ * 用户看到的就是「显示的版本号和实际版本号不符合」。
+ * ⇒ 所有给用户看的「当前版本」都走这一个函数，保证只有一个答案。
+ */
+export async function effectiveVersion() {
+  const installed = await currentVersion();
+  const applied = await readAppliedVersion();
+  const appliedCode = Number(applied.versionCode) || 0;
+  if (appliedCode > (Number(installed.versionCode) || 0)) {
+    return {
+      versionCode: appliedCode,
+      versionName: applied.versionName || installed.versionName,
+      source: 'resource'
+    };
+  }
+  return {
+    versionCode: Number(installed.versionCode) || 0,
+    versionName: installed.versionName,
+    source: 'installed'
+  };
+}
+
+/**
+ * 算本次热更新**实际要下多少**：拿远程资源清单和本地「已应用清单」比对，
+ * 把变化文件的体积加起来。
+ *
+ * ⚠️ 别拿安装包体积充数（2026-10-12 用户反馈「更新的实际大小一直写死一个值」）：
+ * 整包 83.5MB，而热更新通常只有几 MB。用整包体积会让用户以为每次都要下一整包。
+ * 读不到清单时返回 count=0 / bytes=0，调用方据此不显示具体数字，绝不编一个。
+ */
+export async function pendingResourceUpdate(resourceManifest) {
+  const applied = await readAppliedResources();
+  const files = (resourceManifest?.files || []).filter(file => file && typeof file.path === 'string' && file.path);
+  const changed = files.filter(file => applied[file.path] !== file.sha256);
+  const bytes = changed.reduce((sum, file) => sum + (Number(file.size) || 0), 0);
+  return {
+    count: changed.length,
+    bytes,
+    // 每个文件都带体积才算得准；缺一个就不报价，避免低报
+    exact: changed.length > 0 && changed.every(file => Number(file.size) > 0)
+  };
 }
 
 /** 读取本地已应用的热更新清单（文件路径 → sha256）。没有则回落到装机自带指纹。 */

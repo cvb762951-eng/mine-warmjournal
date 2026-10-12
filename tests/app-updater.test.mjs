@@ -182,9 +182,40 @@ test('热更新后不再重复提示有新版（资源版本要单独记录）',
   assert.match(updater, /export async function appliedResourceVersionCode/);
   assert.match(updater, /await writeAppliedVersion\(resourceManifest\.versionCode/,
     '应用成功后要记下资源版本');
-  assert.match(mine, /const effectiveCode = Math\.max\(Number\(current\.versionCode\) \|\| 0, Number\(appliedCode\) \|\| 0\)/,
-    '比较时取装机版本与资源版本的较大者');
-  assert.match(mine, /const appliedCode = await appliedResourceVersionCode\(\)/);
+  // 2026-10-12 起：比较与显示统一走 effectiveVersion()，不再在界面里自己 Math.max
+  // （否则设置页那行按资源算、检查结果按装机算，会出现两个「当前版本」）。
+  assert.match(mine, /const current = await effectiveVersion\(\)/);
+  assert.match(mine, /hasNewerVersion\(manifest, Number\(current\.versionCode\) \|\| 0\)/);
+});
+
+test('「当前版本」只能有一个答案，更新体积要按本次实际下载量报', () => {
+  // 2026-10-12 用户反馈的两件事：
+  //  ① 点「检查更新」提示已是最新，但它报的版本号和页面上显示的版本号不一致；
+  //  ② 每次更新显示的体积都是同一个写死的值，不是这次真正要下多少。
+  //
+  // ① 根因：热更新只换网页资源、装机 versionCode 不变。设置页那行用常量（=资源版本），
+  //    检查结果用装机版本 ⇒ 同一个屏幕上两个答案。
+  assert.match(updater, /export async function effectiveVersion/);
+  assert.match(updater, /if \(appliedCode > \(Number\(installed\.versionCode\) \|\| 0\)\)/,
+    '装机版本与已应用资源版本要取较新者');
+  assert.match(mine, /id="update-current-version"/, '那行要能异步纠正');
+  assert.match(mine, /async function refreshCurrentVersionLabel\(\)/);
+  assert.match(mine, /label\.textContent = `当前 \$\{version\.versionName\} · 只在你点击时才联网`/,
+    '显示的是实际生效版本，不是渲染常量');
+
+  // ② 根因：体积取自版本清单的 sizeBytes（整包体积，每版都是 83.5MB 上下，看着就像写死的）。
+  //    修法：热更新时按「远程资源清单 vs 本地已应用清单」现算变化文件之和。
+  assert.match(updater, /export async function pendingResourceUpdate/);
+  assert.match(updater, /applied\[file\.path\] !== file\.sha256/, '按 sha256 比对出变化文件');
+  assert.match(updater, /changed\.reduce\(\(sum, file\) => sum \+ \(Number\(file\.size\) \|\| 0\), 0\)/,
+    '把变化文件的体积加起来');
+  assert.match(mine, /async function pendingUpdateSize\(manifest\)/);
+  assert.match(mine, /const pending = await pendingUpdateSize\(manifest\)/);
+  assert.match(mine, /const size = hot \? \(pending \? sizeText : ''\) : sizeText/,
+    '热更新算不出体积时不报数字，绝不用整包体积顶替');
+  assert.match(mine, /formatBytes\(pending\.bytes\)/, '报的是现算出来的体积');
+  assert.match(mine, /if \(!manifest\?\.resourceManifestUrl\) return null;[\s\S]{0,400}catch \{\s*return null;/,
+    '算不出来就返回 null，不要编一个数字');
 });
 
 test('热更新必须真正生效：入口页、缓存、免重启三处都不能漏', () => {

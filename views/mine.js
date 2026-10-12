@@ -7,7 +7,7 @@ import { mediaHealth, externalizeStateMedia } from '../media-store.js';
 import { aiKeyStorageMode } from '../ai-key-vault.js';
 import { clearJournalDraftCache } from '../journal-drafts.js';
 import { Capacitor } from '@capacitor/core';
-import { APP_VERSION_NAME, fetchUpdateManifest, hasNewerVersion, currentVersion, downloadUpdate, installUpdate, canInstall, openInstallSettings, clearDownload, isUpdateSupported, formatBytes, fetchResourceManifest, applyResourceUpdate, appliedResourceVersionCode } from '../app-updater.js';
+import { APP_VERSION_NAME, fetchUpdateManifest, hasNewerVersion, effectiveVersion, pendingResourceUpdate, downloadUpdate, installUpdate, canInstall, openInstallSettings, clearDownload, isUpdateSupported, formatBytes, fetchResourceManifest, applyResourceUpdate } from '../app-updater.js';
 
 // ---- 本地状态 ----
 let pendingAvatar = '';
@@ -191,10 +191,10 @@ export function mineView() {
       </div></section>
       <section class="mine-settings-section mine-update-section"><header class="mine-section-heading"><span class="mine-section-index" aria-hidden="true">05</span><h2>应用更新</h2><small>APP UPDATE</small></header>
       <div class="settings-group-card">
-        <button class="setting-item-row" id="settings-update"><span class="setting-row-left"><span class="setting-icon-box"><span class="material-symbols-outlined">system_update</span></span><span><span class="setting-row-title">检查更新</span><span class="setting-row-subtitle">当前 ${esc(APP_VERSION_NAME)} · 只在你点击时才联网</span></span></span><span class="setting-row-right"><span id="update-status">检查</span><span class="material-symbols-outlined">chevron_right</span></span></button>
+        <button class="setting-item-row" id="settings-update"><span class="setting-row-left"><span class="setting-icon-box"><span class="material-symbols-outlined">system_update</span></span><span><span class="setting-row-title">检查更新</span><span class="setting-row-subtitle" id="update-current-version">当前 ${esc(APP_VERSION_NAME)} · 只在你点击时才联网</span></span></span><span class="setting-row-right"><span id="update-status">检查</span><span class="material-symbols-outlined">chevron_right</span></span></button>
         <button class="setting-item-row" id="open-release-history"><span class="setting-row-left"><span class="setting-icon-box"><span class="material-symbols-outlined">new_releases</span></span><span><span class="setting-row-title">更新记录</span><span class="setting-row-subtitle">${releaseNoteCount ? `已保存 ${releaseNoteCount} 条版本说明` : '版本说明保存在这里，不刷当天活动'}</span></span></span><span class="setting-row-right"><span>查看</span><span class="material-symbols-outlined">chevron_right</span></span></button>
       </div></section>
-      <footer class="mine-privacy-note"><span class="material-symbols-outlined">lock</span><p>数据默认保存在本机。仅在用户明确触发 AI 功能，以及已授权的凌晨日结任务执行时联网。</p><small>暖色生活志 · v${esc(version)}</small></footer>
+      <footer class="mine-privacy-note"><span class="material-symbols-outlined">lock</span><p>数据默认保存在本机。仅在用户明确触发 AI 功能，以及已授权的凌晨日结任务执行时联网。</p><small id="mine-version-footer">暖色生活志 · v${esc(version)}</small></footer>
     </div>
   </section>`;
 }
@@ -728,6 +728,37 @@ function showReleaseHistory() {
   $$('[data-release-history]').forEach(button => button.onclick = () => openReleaseNotes(button.dataset.releaseHistory));
 }
 
+/* 当前生效的版本号 = 装机版本与「已应用到的资源版本」里较新的那个。
+   渲染时先用常量占位，挂载后异步纠正一次。
+   ⚠️ 为什么必须只有一个答案（2026-10-12 用户反馈「显示版本号和实际不符」）：
+   热更新只换网页资源、装机 versionCode 不变。若一处按资源算、一处按装机算，
+   用户会看到这行写着新版号、点检查却报旧版号，像是版本对不上。 */
+async function refreshCurrentVersionLabel() {
+  if (!isUpdateSupported()) return;
+  try {
+    const version = await effectiveVersion();
+    if (!version.versionName) return;
+    const label = $('#update-current-version');
+    if (label) label.textContent = `当前 ${version.versionName} · 只在你点击时才联网`;
+    const footer = $('#mine-version-footer');
+    if (footer) footer.textContent = `暖色生活志 · v${version.versionName}`;
+  } catch { /* 读不到就用渲染时的常量，不打扰用户 */ }
+}
+
+/* 本次真正要下载的体积：热更新=变化文件之和（几 MB）；整包=安装包体积。
+   读不到清单就返回 null，界面据此不报数字 —— 绝不写死一个值。 */
+async function pendingUpdateSize(manifest) {
+  if (!manifest?.resourceManifestUrl) return null;
+  try {
+    const resourceManifest = await fetchResourceManifest(manifest);
+    if (!resourceManifest) return null;
+    const pending = await pendingResourceUpdate(resourceManifest);
+    return pending.exact ? { bytes: pending.bytes, count: pending.count, hot: true } : null;
+  } catch {
+    return null;   // 算不出来就不提体积，不要编一个
+  }
+}
+
 async function checkForUpdate() {
   const status = $('#update-status');
   if (!isUpdateSupported()) {
@@ -737,19 +768,17 @@ async function checkForUpdate() {
   if (status) status.textContent = '检查中…';
   try {
     const manifest = await fetchUpdateManifest(state.settings?.updateManifestUrl);
-    const current = await currentVersion();
-    // 热更新只替换网页资源，装机包的 versionCode 不会变。
-    // 所以要取「装机版本」与「已应用到的资源版本」中较大的那个来比较，
-    // 否则热更新完成后仍会一直提示有新版本。
-    const appliedCode = await appliedResourceVersionCode();
-    const effectiveCode = Math.max(Number(current.versionCode) || 0, Number(appliedCode) || 0);
-    if (!hasNewerVersion(manifest, effectiveCode)) {
+    // 比较与显示都用「实际生效的版本」：它与设置页那行、页脚同一个来源。
+    // （热更新只替换网页资源，装机包的 versionCode 不会变，所以不能只看装机版本。）
+    const current = await effectiveVersion();
+    if (!hasNewerVersion(manifest, Number(current.versionCode) || 0)) {
       if (status) status.textContent = '已是最新';
       show(`已是最新版本（${current.versionName || APP_VERSION_NAME}）`);
       return;
     }
     if (status) status.textContent = '有新版本';
-    updateDialog(manifest, current);
+    const pending = await pendingUpdateSize(manifest);
+    updateDialog(manifest, current, pending);
   } catch (error) {
     if (status) status.textContent = '检查';
     show(error?.message || '检查更新失败，请稍后再试');
@@ -763,13 +792,21 @@ function updatePublishedLabel(value) {
   return Number.isFinite(parsed) ? formatShanghaiDateTime(parsed) : '';
 }
 
-function updateDialog(manifest, current) {
-  const size = formatBytes(manifest.sizeBytes);
+function updateDialog(manifest, current, pending) {
   const published = updatePublishedLabel(manifest.publishedAt);
   const notes = String(manifest.notes || '').split('\n').map(line => line.trim()).filter(Boolean);
-  // 支持资源热更新时，实际下载量通常只有几 MB，明确告诉用户，别被整包体积吓到
   const hot = Boolean(manifest.resourceManifestUrl);
-  modal(`<div class="update-dialog"><span class="eyebrow">NEW VERSION</span><h2>发现新版本 ${esc(manifest.versionName)}</h2><p class="update-from">${esc(current.versionName || APP_VERSION_NAME)} → <strong>${esc(manifest.versionName)}</strong>${size ? ` · ${esc(size)}` : ''}${published ? ` · ${esc(published)}` : ''}</p>${hot ? '<p class="update-hint"><span class="material-symbols-outlined">bolt</span>只需下载变化的文件，通常几 MB；装不上的功能才会退回完整安装包。</p>' : ''}${notes.length ? `<div class="update-notes">${notes.map(line => `<p>${esc(line)}</p>`).join('')}</div>` : ''}<div class="update-progress" id="update-progress" hidden><span class="update-progress-track"><i id="update-progress-bar"></i></span><small id="update-progress-text">准备中…</small></div><div class="modal-actions"><button type="button" data-close>以后再说</button><button type="button" class="save" id="update-download">${hot ? '下载变化部分' : '下载并更新'}</button></div></div>`, 'update-modal');
+  // 体积只报「本次真正要下的量」：
+  //   热更新 → 变化文件之和（通常几 MB），由 pendingUpdateSize 现算；
+  //   整包   → 安装包体积。
+  // ⚠️ 决不能用整包体积顶替热更新的体积 —— 用户会以为每次都要下一整包
+  //    （2026-10-12 反馈：更新的实际大小一直写死一个值）。
+  const sizeText = pending
+    ? `${formatBytes(pending.bytes)}（${pending.count} 个文件）`
+    : formatBytes(manifest.sizeBytes);
+  const size = hot ? (pending ? sizeText : '') : sizeText;
+  const fullSize = formatBytes(manifest.sizeBytes);
+  modal(`<div class="update-dialog"><span class="eyebrow">NEW VERSION</span><h2>发现新版本 ${esc(manifest.versionName)}</h2><p class="update-from">${esc(current.versionName || APP_VERSION_NAME)} → <strong>${esc(manifest.versionName)}</strong>${size ? ` · ${esc(size)}` : ''}${published ? ` · ${esc(published)}` : ''}</p>${hot ? `<p class="update-hint"><span class="material-symbols-outlined">bolt</span>本次${pending ? `只下载变化的 ${pending.count} 个文件（${formatBytes(pending.bytes)}）` : '只下载变化的文件'}；万一装不上，会退回完整安装包${fullSize ? `（${fullSize}）` : ''}。</p>` : ''}${notes.length ? `<div class="update-notes">${notes.map(line => `<p>${esc(line)}</p>`).join('')}</div>` : ''}<div class="update-progress" id="update-progress" hidden><span class="update-progress-track"><i id="update-progress-bar"></i></span><small id="update-progress-text">准备中…</small></div><div class="modal-actions"><button type="button" data-close>以后再说</button><button type="button" class="save" id="update-download">${hot ? '下载变化部分' : '下载并更新'}</button></div></div>`, 'update-modal');
   $('#update-download')?.addEventListener('click', () => runUpdate(manifest));
 }
 
@@ -843,6 +880,10 @@ function bindMine() {
   $('#edit-avatar')?.addEventListener('click', profileForm);
   $('#settings-data')?.addEventListener('click', showSettingsAndData);
   $('#settings-update')?.addEventListener('click', () => { checkForUpdate(); });
+  // 这行与页脚显示的是「实际生效的版本」（装机版本与已应用资源版本取较新者），
+  // 渲染时先用常量占位，挂载后异步纠正一次 —— 否则热更新过的人会看到
+  // 「这行写着新版号、点检查却报旧版号」。
+  refreshCurrentVersionLabel();
   $('#settings-password-vault')?.addEventListener('click', () => callHelper('openPasswordVault'));
   $('#settings-ai')?.addEventListener('click', () => callHelper('aiSettingsForm'));
   $('#settings-reminder')?.addEventListener('click', () => callHelper('dailyReminderSettingsForm'));
