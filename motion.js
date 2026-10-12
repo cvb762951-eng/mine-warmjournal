@@ -677,8 +677,8 @@ export function deckCutDecision({ dx = 0, width = 1, velocity = 0 } = {}) {
 
 /* ── 摊开：把牌组铺成按月分组的小卡网格，用来找某一篇 ──
    只动 transform/opacity（无 filter），小卡照片用共用照片框，进入视口才给 src（IntersectionObserver）。
-   打开时一次性读取牌组和可见小卡的位置（一批读、一批写，不交替），之后只写 transform。
-   点小卡 → 那张小卡飞回牌组位置，牌组跳到这一篇；「收起」原样收回。⋯ 菜单：打开 / 编辑 / 删除（调用方提供，复用原有路径）。 */
+   打开时一次性读取牌组和可见小卡的位置（一批读、一批写，不交替），之后只写 transform / opacity。
+   点小卡 → 那张小卡飞回牌组位置，牌组跳到这一篇；点「收起」→ fanIn 镜像 fanOut 收回。⋯ 菜单：打开 / 编辑 / 删除（调用方提供，复用原有路径）。 */
 const SPREAD_EASE = 'var(--ease-spring, cubic-bezier(.34,1.56,.64,1))';
 function createDeckSpread({ host, stage, controls, open, list, options, signal, toggleButton, searchButton, currentIndex, jumpTo }) {
   const cfg = options.spread || {};
@@ -826,21 +826,36 @@ function createDeckSpread({ host, stage, controls, open, list, options, signal, 
     return card;
   };
   // 一批读：牌组中心 + 视口内小卡位置；一批写：初始 transform；下一帧统一过渡回原位。
-  const fanOut = deckRect => {
-    if (reduced() || !deckRect?.width) return;
+  // 收起时 fanIn 镜像同一套：只动 transform / opacity，减弱动态效果则瞬时落定。
+  let lastDeckRect = null;
+  const visibleMiniReads = () => {
     const cards = [...panel.querySelectorAll('.journal-deck-mini')];
     const viewH = window.innerHeight || 800;
     const reads = [];
     for (const card of cards) {
       const r = card.getBoundingClientRect();
+      if (r.bottom < -40) continue;
       if (r.top > viewH + 40) break;
       reads.push([card, r]);
     }
+    return reads;
+  };
+  const pileTransform = (deckRect, r, i) => {
     const cx = deckRect.left + deckRect.width / 2;
     const cy = deckRect.top + deckRect.height / 2;
+    return `translate3d(${(cx - (r.left + r.width / 2)).toFixed(1)}px, ${(cy - (r.top + r.height / 2)).toFixed(1)}px, 0) rotate(${((i % 5) - 2) * 3}deg) scale(.6)`;
+  };
+  const clearMiniMotion = card => {
+    card.style.transition = '';
+    card.style.transform = '';
+    card.style.opacity = '';
+  };
+  const fanOut = deckRect => {
+    if (reduced() || !deckRect?.width) return;
+    const reads = visibleMiniReads();
     reads.forEach(([card, r], i) => {
       card.style.transition = 'none';
-      card.style.transform = `translate3d(${(cx - (r.left + r.width / 2)).toFixed(1)}px, ${(cy - (r.top + r.height / 2)).toFixed(1)}px, 0) rotate(${((i % 5) - 2) * 3}deg) scale(.6)`;
+      card.style.transform = pileTransform(deckRect, r, i);
       card.style.opacity = '0';
     });
     requestAnimationFrame(() => requestAnimationFrame(() => {
@@ -852,6 +867,47 @@ function createDeckSpread({ host, stage, controls, open, list, options, signal, 
       });
       setTimeout(() => reads.forEach(([card]) => { card.style.transition = ''; }), 520 + 14 * 28 + 60);
     }));
+  };
+  // 对称收起：视口内小卡收回牌组中心（与 fanOut 同一套 pile 姿态），再露出牌组。
+  const fanIn = (deckRect, done) => {
+    if (reduced() || !deckRect?.width || !panel) { done(); return; }
+    const reads = visibleMiniReads();
+    if (!reads.length) { done(); return; }
+    host.classList.add('is-spread-flying');
+    panel.classList.add('is-fanning-in');
+    // 先读后写：当前帧设好 transition，下一帧再落到 pile，避免跳变
+    reads.forEach(([card], i) => {
+      const delay = Math.min(i, 14) * 22;
+      card.style.transition = `transform 420ms ${SPREAD_EASE} ${delay}ms, opacity 240ms ease ${delay}ms`;
+    });
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      reads.forEach(([card, r], i) => {
+        card.style.transform = pileTransform(deckRect, r, i);
+        card.style.opacity = '0';
+      });
+    }));
+    const wait = 420 + Math.min(Math.max(reads.length - 1, 0), 14) * 22 + 40;
+    setTimeout(() => {
+      reads.forEach(([card]) => clearMiniMotion(card));
+      panel.classList.remove('is-fanning-in');
+      done();
+    }, wait);
+  };
+  const gatherRect = () => {
+    if (lastDeckRect?.width) {
+      const head = host.querySelector('.journal-deck-head');
+      const hostRect = host.getBoundingClientRect();
+      const top = head ? head.getBoundingClientRect().bottom + 8 : Math.max(hostRect.top + 40, 0);
+      return {
+        left: hostRect.left + (hostRect.width - lastDeckRect.width) / 2,
+        top,
+        width: lastDeckRect.width,
+        height: lastDeckRect.height
+      };
+    }
+    const box = panel?.getBoundingClientRect();
+    if (!box?.width) return null;
+    return { left: box.left, top: Math.max(box.top, 0), width: box.width, height: 430 };
   };
   const setToggle = spreadOn => {
     if (toggleButton) {
@@ -868,13 +924,13 @@ function createDeckSpread({ host, stage, controls, open, list, options, signal, 
     if (!panel) build();
     opened = true;
     setToggle(true);
-    const deckRect = reduced() ? null : stage.getBoundingClientRect();
+    lastDeckRect = reduced() ? null : stage.getBoundingClientRect();
     host.classList.add('is-spread');
     panel.hidden = false;
     setDeckHidden(true);
     const current = panel.querySelector(`.journal-deck-mini[data-deck-index="${currentIndex()}"]`);
     current?.classList.add('is-current');
-    fanOut(deckRect);
+    fanOut(lastDeckRect);
   };
   const collapse = (at, fromCard) => {
     if (!opened || busy) return;
@@ -883,33 +939,43 @@ function createDeckSpread({ host, stage, controls, open, list, options, signal, 
       opened = false;
       host.classList.remove('is-spread', 'is-spread-flying');
       setToggle(false);
-      if (panel) panel.hidden = true;
+      if (panel) {
+        panel.hidden = true;
+        panel.classList.remove('is-collapsing', 'is-fanning-in');
+      }
+      panel?.querySelectorAll('.journal-deck-mini').forEach(clearMiniMotion);
       panel?.querySelectorAll('.is-current').forEach(el => el.classList.remove('is-current'));
       setDeckHidden(false);
       if (at >= 0) jumpTo(at);
       if (host.getBoundingClientRect().top < 0) host.scrollIntoView({ block: 'start', behavior: 'auto' });
       stage.focus?.({ preventScroll: true });
     };
-    if (reduced() || !fromCard) { settleSpread(); return; }
+    // 减弱动态效果：瞬时收起，不做半截动画
+    if (reduced()) { settleSpread(); return; }
+    // 点小卡：仍走单卡飞回 + 其余淡出（原路径）
+    if (fromCard) {
+      busy = true;
+      const from = fromCard.getBoundingClientRect();
+      const target = gatherRect() || panel.getBoundingClientRect();
+      const dx = target.left + target.width / 2 - (from.left + from.width / 2);
+      const dy = target.top + target.height / 2 - (from.top + from.height / 2);
+      panel.classList.add('is-collapsing');
+      host.classList.add('is-spread-flying');
+      fromCard.classList.add('is-flying');
+      fromCard.style.transition = `transform 420ms ${SPREAD_EASE}, opacity 240ms ease`;
+      fromCard.style.transform = `translate3d(${dx.toFixed(1)}px, ${dy.toFixed(1)}px, 0) scale(.6)`;
+      fromCard.style.opacity = '0';
+      setTimeout(() => {
+        clearMiniMotion(fromCard);
+        fromCard.classList.remove('is-flying');
+        panel.classList.remove('is-collapsing');
+        settleSpread();
+      }, 430);
+      return;
+    }
+    // 点「收起」：全量 fanIn，镜像 fanOut
     busy = true;
-    // 读：小卡和牌组位置各一次；写：小卡飞向牌组，其余小卡淡出
-    // 牌组收起时不占位，目标取摊开面板顶部牌组将出现的位置
-    const from = fromCard.getBoundingClientRect();
-    const box = panel.getBoundingClientRect();
-    const dx = box.left + box.width / 2 - (from.left + from.width / 2);
-    const dy = Math.max(box.top, 0) + 215 - (from.top + from.height / 2);
-    panel.classList.add('is-collapsing');
-    host.classList.add('is-spread-flying');
-    fromCard.classList.add('is-flying');
-    fromCard.style.transition = `transform 420ms ${SPREAD_EASE}`;
-    fromCard.style.transform = `translate3d(${dx.toFixed(1)}px, ${dy.toFixed(1)}px, 0) scale(1.4)`;
-    setTimeout(() => {
-      fromCard.style.transition = '';
-      fromCard.style.transform = '';
-      fromCard.classList.remove('is-flying');
-      panel.classList.remove('is-collapsing');
-      settleSpread();
-    }, 430);
+    fanIn(gatherRect(), settleSpread);
   };
   return {
     toggle: () => (opened ? collapse(-1) : expand()),
