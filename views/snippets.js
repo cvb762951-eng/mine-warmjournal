@@ -1507,8 +1507,12 @@ function visibleMomentPhotoEntries() {
 }
 
 
-// ---- 单条随手拍相册浏览层：图集 → 缩略网格 → 既有大图/播放器（导航层，不写存储） ----
+// ---- 单条随手拍相册浏览层：图集 → 一叠牌（轻触看大图、左右拖翻下一张）→ 既有大图/播放器 ----
+// 2026-10-12 用户要求：把图集「照着日记翻牌的形式来」——
+// 一屏一张大卡（后两张露边），点照片开大图，左右拖动翻下一张（对应日记牌组的深度与拖拽手感）。
+// 仍是纯导航层，不写存储。
 let momentAlbumEntryId = '';
+let momentAlbumIndex = 0;
 
 function momentAlbumItems(entry) {
   if (!entry) return [];
@@ -1549,18 +1553,128 @@ function ensureMomentAlbumLayer() {
   return layer;
 }
 
-function momentAlbumThumbHtml(item, entry) {
+function momentAlbumCardHtml(item, entry, depth) {
+  const label = item.kind === 'video' ? `播放第 ${item.index + 1} 个视频` : `查看第 ${item.index + 1} 张照片`;
+  const kindClass = item.kind === 'video' ? ' is-video' : '';
+  let media = '';
   if (item.kind === 'video') {
     const video = item.video;
     const hls = video.sourceType === 'hls' || isHlsAddress(video.video);
     const poster = video.poster ? imgSrc(video.poster) : '';
-    const media = poster
-      ? photoFrameLayersHtml(poster, { alt: entry.text || `视频 ${item.index + 1}`, padClass: 'moment-album-blur', stillClass: 'moment-album-still', lazy: true })
+    media = poster
+      ? photoFrameLayersHtml(poster, { alt: entry.text || `视频 ${item.index + 1}`, padClass: 'moment-album-blur', stillClass: 'moment-album-still' })
       : `<span class="moment-album-empty material-symbols-outlined">${hls ? 'stream' : 'movie'}</span>`;
-    return `<button type="button" class="moment-album-tile photo-blur-frame is-edge is-video" data-moment-album-kind="video" data-moment-album-index="${item.index}" aria-label="播放第 ${item.index + 1} 个视频">${media}<span class="moment-album-play" aria-hidden="true"><span class="material-symbols-outlined">play_arrow</span></span>${videoDurationStamp(video)}</button>`;
+    media += `<span class="moment-album-play" aria-hidden="true"><span class="material-symbols-outlined">play_arrow</span></span>${videoDurationStamp(video)}`;
+  } else {
+    media = `${snippetPhotoImage(item.photo, entry.text || `随手拍 ${item.index + 1}`)}${photoHasLiveMark(item.photo, entry.livePhotos)}`;
   }
-  const live = photoHasLiveMark(item.photo, entry.livePhotos);
-  return `<button type="button" class="moment-album-tile photo-blur-frame is-edge" data-moment-album-kind="photo" data-moment-album-index="${item.index}" aria-label="查看第 ${item.index + 1} 张照片">${snippetPhotoImage(item.photo, entry.text || `随手拍 ${item.index + 1}`)}${live}</button>`;
+  // 牌面是一张纸卡，照片在里面的共用相框里（contain/纸色兜底），与日记牌组同一种「牌」的感觉
+  return `<button type="button" class="moment-album-card${kindClass}" data-depth="${depth}" data-moment-album-kind="${item.kind}" data-moment-album-index="${item.index}" aria-label="${label}"><span class="moment-album-frame photo-blur-frame is-edge">${media}</span></button>`;
+}
+
+function momentAlbumStackHtml(items, entry, index) {
+  const count = items.length;
+  const depthCount = Math.min(3, count);
+  return Array.from({ length: depthCount }, (_, depth) => momentAlbumCardHtml(items[(index + depth) % count], entry, depth)).join('');
+}
+
+/** 重画牌堆。animate 传 'next' / 'prev' 时补一次翻牌动画（只动 transform / opacity）。 */
+function renderMomentAlbumStack(entry, animate = '') {
+  const layer = $('#moment-album-layer');
+  const stack = layer?.querySelector('#moment-album-stack');
+  if (!stack) return;
+  const items = momentAlbumItems(entry);
+  const count = items.length || 1;
+  momentAlbumIndex = ((momentAlbumIndex % count) + count) % count;
+  stack.innerHTML = momentAlbumStackHtml(items, entry, momentAlbumIndex);
+  stack.classList.remove('is-flip-next', 'is-flip-prev');
+  if (animate) {
+    void stack.offsetWidth;
+    stack.classList.add(animate === 'next' ? 'is-flip-next' : 'is-flip-prev');
+  }
+  const counter = layer.querySelector('#moment-album-counter');
+  if (counter) counter.textContent = `${momentAlbumIndex + 1} / ${count}`;
+}
+
+/** 轻触牌面：看大图（视频则播放）。牌堆不动。 */
+function openMomentAlbumCurrent() {
+  const entry = state.snippets.find(item => item.id === momentAlbumEntryId);
+  if (!entry) return;
+  const item = momentAlbumItems(entry)[momentAlbumIndex];
+  if (!item) return;
+  if (item.kind === 'video') {
+    if (item.video) playSnippetVideo(item.video, entry, item.index);
+    return;
+  }
+  // 走既有 photoLightbox（含实况照片的无闪路径）；牌堆留在下面，关掉大图还在原处
+  photoLightbox(entry, item.index);
+}
+
+function flipMomentAlbum(step) {
+  const entry = state.snippets.find(item => item.id === momentAlbumEntryId);
+  if (!entry) return;
+  const items = momentAlbumItems(entry);
+  if (items.length < 2) return;
+  momentAlbumIndex = ((momentAlbumIndex + step) % items.length + items.length) % items.length;
+  renderMomentAlbumStack(entry, step > 0 ? 'next' : 'prev');
+}
+
+/** 牌堆手势：左右拖 = 翻下一张 / 上一张；没拖动（轻触）= 看大图。 */
+function bindMomentAlbumDeck(layer) {
+  const stage = layer.querySelector('#moment-album-stage');
+  if (!stage) return;
+  const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
+  const THRESHOLD = 56;
+  let pointerId = null;
+  let startX = 0;
+  let startY = 0;
+  let dx = 0;
+  let dragging = false;
+  let moved = false;
+  const topCard = () => stage.querySelector('.moment-album-card[data-depth="0"]');
+  const resetTopCard = () => { const card = topCard(); if (card) card.style.transform = ''; };
+
+  stage.addEventListener('pointerdown', event => {
+    if (pointerId !== null) return;
+    pointerId = event.pointerId;
+    startX = event.clientX;
+    startY = event.clientY;
+    dx = 0;
+    dragging = true;
+    moved = false;
+    try { stage.setPointerCapture(pointerId); } catch { /* 捕获失败也能靠 pointerup 收尾 */ }
+  });
+  stage.addEventListener('pointermove', event => {
+    if (!dragging || event.pointerId !== pointerId) return;
+    dx = event.clientX - startX;
+    const dy = event.clientY - startY;
+    // 还没判定方向：竖向为主的滑动不抢（留给页面/其它手势）
+    if (!moved && Math.abs(dx) < 6 && Math.abs(dy) < 6) return;
+    if (!moved && Math.abs(dy) > Math.abs(dx)) { dragging = false; pointerId = null; return; }
+    moved = true;
+    const card = topCard();
+    if (card && !reduceMotion) {
+      const tilt = Math.max(-6, Math.min(6, dx / 30));
+      card.style.transform = `translate3d(${dx}px,0,0) rotate(${tilt}deg)`;
+    }
+  });
+  const finish = event => {
+    if (!dragging || (event && event.pointerId !== pointerId)) return;
+    dragging = false;
+    if (pointerId !== null) { try { stage.releasePointerCapture(pointerId); } catch { /* 忽略 */ } }
+    pointerId = null;
+    if (!moved) { openMomentAlbumCurrent(); return; }
+    resetTopCard();
+    if (dx <= -THRESHOLD) flipMomentAlbum(1);
+    else if (dx >= THRESHOLD) flipMomentAlbum(-1);
+  };
+  stage.addEventListener('pointerup', finish);
+  stage.addEventListener('pointercancel', () => { dragging = false; pointerId = null; resetTopCard(); });
+  // 键盘/无障碍：左右方向键也能翻，回车/空格由按钮自身触发轻触
+  stage.addEventListener('keydown', event => {
+    if (event.key === 'ArrowRight') { event.preventDefault(); flipMomentAlbum(1); }
+    if (event.key === 'ArrowLeft') { event.preventDefault(); flipMomentAlbum(-1); }
+  });
 }
 
 function openMomentAlbumBrowse(entry, focusPhotoIndex = 0) {
@@ -1575,6 +1689,8 @@ function openMomentAlbumBrowse(entry, focusPhotoIndex = 0) {
 
   const layer = ensureMomentAlbumLayer();
   momentAlbumEntryId = entry.id;
+  const focusPos = items.findIndex(item => item.kind === 'photo' && item.index === (Number(focusPhotoIndex) || 0));
+  momentAlbumIndex = focusPos >= 0 ? focusPos : 0;
   const time = entry.createdAt ? new Date(entry.createdAt) : null;
   const timeText = time ? `${time.getFullYear()}年${time.getMonth() + 1}月${time.getDate()}日 · ${pad2(time.getHours())}:${pad2(time.getMinutes())}` : (entry.date || '');
   const tag = (entry.tags || [])[0];
@@ -1591,29 +1707,13 @@ function openMomentAlbumBrowse(entry, focusPhotoIndex = 0) {
       </div>
     </header>
     ${entry.text ? `<p class="moment-album-caption">${esc(entry.text)}</p>` : ''}
-    <div class="moment-album-grid" id="moment-album-grid">${items.map(item => momentAlbumThumbHtml(item, entry)).join('')}</div>
+    <div class="moment-album-stage" id="moment-album-stage"><div class="moment-album-stack" id="moment-album-stack"></div></div>
+    <div class="moment-album-foot"><span class="moment-album-hint">轻触看大图 · 左右拖动翻下一张</span><small class="moment-album-counter" id="moment-album-counter"></small></div>
   </div>`;
   layer.onclick = event => { if (event.target === layer || event.target.closest?.('[data-moment-album-close]')) closeMomentAlbum(); };
-  layer.querySelectorAll('[data-moment-album-kind]').forEach(button => {
-    button.onclick = event => {
-      event.stopPropagation();
-      const kind = button.dataset.momentAlbumKind;
-      const index = Number(button.dataset.momentAlbumIndex) || 0;
-      const current = state.snippets.find(item => item.id === momentAlbumEntryId) || entry;
-      if (kind === 'video') {
-        const video = current.videos?.[index];
-        if (video) playSnippetVideo(video, current, index);
-        return;
-      }
-      // 走既有 photoLightbox（含 live 无闪路径）；相册层留在下方，关大图后仍在网格
-      photoLightbox(current, index);
-    };
-  });
-  const focusKind = 'photo';
-  const focusBtn = layer.querySelector(`[data-moment-album-kind="${focusKind}"][data-moment-album-index="${Number(focusPhotoIndex) || 0}"]`)
-    || layer.querySelector('[data-moment-album-kind]');
-  requestAnimationFrame(() => focusBtn?.focus?.({ preventScroll: true }));
-  focusBtn?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
+  renderMomentAlbumStack(entry);
+  bindMomentAlbumDeck(layer);
+  requestAnimationFrame(() => layer.querySelector('.moment-album-card[data-depth="0"]')?.focus?.({ preventScroll: true }));
   callHelper('syncSystemBackConsumption');
 }
 

@@ -3,7 +3,7 @@
    —— 本文件由 scripts/gen-plain-theme.mjs 自动生成，请勿手工编辑。
       改了 styles.css / performance.css 之后重新运行该脚本即可。
 
-   扫描 7397 条规则，命中素材规则 499 条。
+   扫描 7412 条规则，命中素材规则 500 条。
    只影响 [data-theme="plain"]，米白与暖阳两个主题完全不受影响。
    ========================================================================== */
 
@@ -552,6 +552,7 @@
 :root[data-theme="plain"] .modal:has(form) .modal-head,
 :root[data-theme="plain"] .modal:has(form) :is(input:not([type=hidden]):not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]):not([type=color]),textarea,select),
 :root[data-theme="plain"] .modal:has(form) p.subtle,
+:root[data-theme="plain"] .moment-album-card,
 :root[data-theme="plain"] .password-entry,
 :root[data-theme="plain"] .password-gate-paper,
 :root[data-theme="plain"] .password-vault-empty,
@@ -1310,7 +1311,8 @@
   background-color: #dce7d8 !important;
 }
 
-:root[data-theme="plain"] .journal-deck-face {
+:root[data-theme="plain"] .journal-deck-face,
+:root[data-theme="plain"] .moment-album-card {
   background-color: #fdfcf9 !important;
 }
 

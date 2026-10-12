@@ -9509,7 +9509,7 @@ body #modal-layer .modal.confirm-sheet .modal-actions .danger { padding: 0 16px 
   margin: 0;
   padding: 18px 16px calc(16px + env(safe-area-inset-bottom, 0px));
   display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr);
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
   gap: 10px;
   border-radius: var(--radius-soft, 14px) var(--radius-soft, 14px) 0 0;
   background: var(--warm-sheet, #fdfcf9);
@@ -9574,31 +9574,63 @@ body #modal-layer .modal.confirm-sheet .modal-actions .danger { padding: 0 16px 
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 3;
 }
-.moment-album-grid {
-  min-height: 0;
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
-  align-content: start;
-  overflow-y: auto;
-  padding: 2px 1px 8px;
-  -webkit-overflow-scrolling: touch;
-}
-.moment-album-tile {
+/* 图集：一叠牌（2026-10-12 用户要求照日记翻牌的形式）。
+   一屏一张纸卡，后两张向后缩并上移露边；轻触看大图、左右拖动翻下一张。
+   深度位移沿用日记牌组的数值（-12px / -24px + 缩放），只动 transform / opacity。 */
+.moment-album-stage {
   position: relative;
-  aspect-ratio: 1;
-  width: 100%;
   min-height: 0;
-  padding: 0 !important;
-  border: 0 !important;
-  display: block;
-  overflow: hidden;
-  background: #efe7d6 !important;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
+  height: min(54dvh, 400px);
+  margin: 2px 0 0;
+  touch-action: pan-y;
+  -webkit-user-select: none;
+  user-select: none;
 }
-:root[data-theme="plain"] .moment-album-tile { background: #E8EDF5 !important; }
-.moment-album-tile .moment-album-empty {
+.moment-album-stack { position: absolute; inset: 0; }
+.moment-album-stack.is-flip-next { animation: momentAlbumFlipNext .28s var(--spring-entrance, cubic-bezier(0.22, 1, 0.36, 1)) both; }
+.moment-album-stack.is-flip-prev { animation: momentAlbumFlipPrev .28s var(--spring-entrance, cubic-bezier(0.22, 1, 0.36, 1)) both; }
+@keyframes momentAlbumFlipNext { from { transform: translate3d(18%, 0, 0); opacity: .4; } to { transform: none; opacity: 1; } }
+@keyframes momentAlbumFlipPrev { from { transform: translate3d(-18%, 0, 0); opacity: .4; } to { transform: none; opacity: 1; } }
+.moment-album-card {
+  position: absolute;
+  inset: 18px 12px 10px;
+  display: block;
+  padding: 10px;
+  box-sizing: border-box;
+  border: 1px solid rgba(220, 212, 198, 0.7);
+  border-radius: var(--radius-soft, 14px);
+  background-color: #fdfcf9;
+  background-image: url('assets/today-paper-texture.png');
+  background-size: 180px 180px;
+  background-blend-mode: multiply;
+  box-shadow: 0 1px 2px rgba(46, 40, 32, 0.05), 0 10px 24px rgba(46, 40, 32, 0.1);
+  color: inherit;
+  cursor: pointer;
+  overflow: hidden;
+  -webkit-tap-highlight-color: transparent;
+  will-change: transform;
+}
+:root[data-theme="plain"] .moment-album-card {
+  background-color: #FBFCFE;
+  border-color: rgba(85, 96, 108, 0.14);
+  box-shadow: 0 1px 2px rgba(46, 52, 59, 0.05), 0 10px 22px rgba(46, 52, 59, 0.08);
+}
+/* ⚠️ 必须按深度给层级：三张牌在 DOM 里是按 0/1/2 依次插入的，
+   不设 z-index 的话最后插入的「最深那张」会盖在最上面（探针实测：看到的颜色是第三张的）。 */
+.moment-album-card[data-depth="0"] { z-index: 3; }
+.moment-album-card[data-depth="1"] { z-index: 2; transform: translate3d(0, -12px, -10px) scale(0.972); opacity: 0.96; }
+.moment-album-card[data-depth="2"] { z-index: 1; transform: translate3d(0, -24px, -20px) scale(0.944); opacity: 0.9; }
+.moment-album-frame {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  border-radius: var(--radius-soft-sm, 5px);
+  background: #efe7d6;
+}
+:root[data-theme="plain"] .moment-album-frame { background: #E8EDF5; }
+.moment-album-frame .moment-album-empty {
   position: absolute;
   inset: 0;
   display: grid;
@@ -9623,7 +9655,7 @@ body #modal-layer .modal.confirm-sheet .modal-actions .danger { padding: 0 16px 
   pointer-events: none;
 }
 .moment-album-play .material-symbols-outlined { font-size: 22px; }
-.moment-album-tile > .video-duration-stamp {
+.moment-album-card .video-duration-stamp {
   position: absolute;
   z-index: 2;
   right: 6px;
@@ -9631,14 +9663,18 @@ body #modal-layer .modal.confirm-sheet .modal-actions .danger { padding: 0 16px 
   left: auto;
   top: auto;
 }
-.moment-album-tile .live-photo-mark {
+.moment-album-card .live-photo-mark {
   position: absolute;
   z-index: 2;
   left: 6px;
   top: 6px;
 }
-@media (max-width: 370px) {
-  .moment-album-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.moment-album-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 0 2px; }
+.moment-album-hint { color: var(--warm-ink-muted, #878177); font-size: 11px; }
+.moment-album-counter { color: var(--warm-ink-muted, #878177); font-size: 11px; font-variant-numeric: tabular-nums; }
+@media (prefers-reduced-motion: reduce) {
+  .moment-album-stack.is-flip-next,
+  .moment-album-stack.is-flip-prev { animation: none; }
 }
 
 /* 内容图迁移到共用相框后：固定尺寸容器只包 frame，仍图用 contain（pad 层除外） */

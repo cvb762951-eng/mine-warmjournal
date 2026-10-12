@@ -22,13 +22,27 @@ test('Moments multi-media opens album browse before fullscreen', () => {
   assert.doesNotMatch(snippets, /SECTIONS|SCHEMA_VERSION|state\.snippets\.push.*album/);
 });
 
-test('Moments album thumbs reuse shared photo-blur-frame is-edge contain path', () => {
-  assert.match(snippets, /moment-album-tile photo-blur-frame is-edge/);
+test('Moments album is a card deck (journal-style flip), not a thumbnail grid', () => {
+  // 2026-10-12 用户要求：图集照着日记翻牌的形式来 —— 一叠牌、点照片看大图、左右拖翻下一张。
+  assert.match(snippets, /moment-album-card/);
+  assert.match(snippets, /moment-album-frame photo-blur-frame is-edge/, '照片仍走共用相框（contain + 纸色兜底）');
   assert.match(snippets, /snippetPhotoImage\(item\.photo/);
   assert.match(snippets, /photoFrameLayersHtml\(poster/);
-  assert.match(css, /\.moment-album-tile/);
+  assert.match(snippets, /data-depth="\$\{depth\}"/, '后两张靠 depth 定位');
+  assert.match(snippets, /function bindMomentAlbumDeck/, '手势：左右拖翻页、轻触看大图');
+  assert.match(snippets, /const THRESHOLD = 56/);
+  assert.match(snippets, /if \(!moved\) \{ openMomentAlbumCurrent\(\); return; \}/, '没拖动就是轻触 → 看大图');
+  assert.match(snippets, /function flipMomentAlbum\(step\)/);
+  assert.match(snippets, /prefers-reduced-motion: reduce/);
+  assert.match(css, /\.moment-album-stage/);
+  assert.match(css, /\.moment-album-card\[data-depth="1"\] \{ z-index: 2; transform: translate3d\(0, -12px, -10px\) scale\(0\.972\); opacity: 0\.96; \}/,
+    '深度位移沿用日记牌组数值，并带层级与透明度阶梯');
+  // ⚠️ 必须按深度给层级：三张牌按 0/1/2 依次插入 DOM，不给 z-index 的话「最深那张」会盖在最上面
+  assert.match(css, /\.moment-album-card\[data-depth="0"\] \{ z-index: 3; \}/);
+  assert.match(css, /\.moment-album-card\[data-depth="2"\] \{ z-index: 1;/);
   assert.match(css, /\.moment-album-sheet/);
-  assert.doesNotMatch(css, /\.moment-album-tile[^{]*\{[^}]*object-fit:\s*cover/);
+  assert.doesNotMatch(css, /\.moment-album-grid/, '旧的缩略网格已删除');
+  assert.doesNotMatch(css, /\.moment-album-tile/, '旧的缩略格子已删除');
 });
 
 test('Album layer is navigation-only and restores under modal viewer', () => {
@@ -36,8 +50,10 @@ test('Album layer is navigation-only and restores under modal viewer', () => {
   assert.match(snippets, /registerHelper\('closeMomentAlbum'/);
   assert.match(app, /isMomentAlbumOpen/);
   assert.match(app, /closeMomentAlbum/);
-  assert.match(snippets, /photoLightbox\(current, index\)/);
-  assert.match(snippets, /playSnippetVideo\(video, current, index\)/);
+  // 轻触牌面 → 既有大图 / 播放器（2026-10-12 起集中在 openMomentAlbumCurrent 里）
+  assert.match(snippets, /function openMomentAlbumCurrent\(\)/);
+  assert.match(snippets, /photoLightbox\(entry, item\.index\)/);
+  assert.match(snippets, /playSnippetVideo\(item\.video, entry, item\.index\)/);
 });
 
 test('Content photo surfaces migrated to shared photo-frame helper', () => {

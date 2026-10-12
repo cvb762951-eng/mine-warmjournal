@@ -21,7 +21,8 @@ test('点照片放大不再走共享转场（三个入口都直接打开）', ()
   assert.doesNotMatch(snippets, /momentShareSource/, '为转场挑源图的那套已删除');
   assert.match(snippets, /openMomentMediaBrowse\(entry, Number\(button\.dataset\.photoIndex\) \|\| 0\)/,
     '列表点图走相册导航（多图）或直接大图（单张）');
-  assert.match(snippets, /photoLightbox\(current, index\)/, '相册缩略点开仍直接大图、无转场');
+  // 相册层现在是一叠牌（2026-10-12）：轻触牌面走 openMomentAlbumCurrent → 既有大图，仍无转场
+  assert.match(snippets, /photoLightbox\(entry, item\.index\)/, '相册轻触牌面仍直接大图、无转场');
   // 日历
   assert.doesNotMatch(calendar, /withSharedTransition\(/, '日历点照片也不再用共享转场');
   // 私密空间
