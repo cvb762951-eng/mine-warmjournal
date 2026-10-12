@@ -163,7 +163,48 @@ function photoStackHtml(entries) {
    两层同地址，浏览器只下载一次。不再按横图、竖图分两套留白。 */
 function photoStoryImage(source, alt = '') {
   const url = imgSrc(source);
-  return photoFrameLayersHtml(url, { alt, padClass: 'polaroid-blur', stillClass: 'polaroid-img' });
+  const haze = posterHazeCache.get(url);
+  const html = photoFrameLayersHtml(url, { alt, padClass: haze ? 'polaroid-blur is-haze' : 'polaroid-blur is-haze-pending', stillClass: 'polaroid-img' });
+  return haze ? html.replace(`src="${url}" alt="" aria-hidden="true"`, `src="${haze}" data-haze-of="${url}" alt="" aria-hidden="true"`) : html;
+}
+
+/* 今日画页铺底「朦胧」：不用 CSS filter（安卓卡顿、测试也禁止），而是把清晰图缩到长边 POSTER_HAZE_SIDE 像素画进小画布，
+   再由浏览器平滑放大当铺底，看起来是轻轻的雾感。按图片地址缓存在内存（不写存储），翻牌不会重复缩图。
+   画布被跨域污染或解码失败时，退回原来的同图铺底。 */
+const POSTER_HAZE_SIDE = 120;
+const posterHazeCache = new Map();
+function posterHazeDataUrl(image) {
+  const w = image.naturalWidth, h = image.naturalHeight;
+  if (!w || !h) return '';
+  const scale = POSTER_HAZE_SIDE / Math.max(w, h);
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(1, Math.round(w * Math.min(1, scale)));
+  canvas.height = Math.max(1, Math.round(h * Math.min(1, scale)));
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return '';
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+  return canvas.toDataURL('image/jpeg', 0.85);
+}
+function hazePosterPads(root = $('#photo-stack')) {
+  if (!root) return;
+  root.querySelectorAll('.polaroid-frame img.polaroid-blur.is-haze-pending').forEach(pad => {
+    const still = pad.parentElement?.querySelector('img.photo-blur-still');
+    const src = pad.getAttribute('src');
+    const settle = haze => { pad.classList.remove('is-haze-pending'); if (haze) { pad.dataset.hazeOf = src; pad.src = haze; pad.classList.add('is-haze'); } };
+    const run = () => {
+      if (posterHazeCache.has(src)) return settle(posterHazeCache.get(src));
+      let haze = '';
+      try { haze = posterHazeDataUrl(still); } catch { haze = ''; }
+      if (haze) posterHazeCache.set(src, haze);
+      settle(haze);
+    };
+    if (!still) return settle('');
+    const decoded = () => (typeof still.decode === 'function' ? still.decode().catch(() => {}) : Promise.resolve()).then(run);
+    if (still.complete && still.naturalWidth) decoded();
+    else { still.addEventListener('load', decoded, { once: true }); still.addEventListener('error', () => settle(''), { once: true }); }
+  });
 }
 
 function handwrittenCaptionHtml(text) {
@@ -185,6 +226,7 @@ function switchPhotoStack(nextIndex, preferredDirection = '') {
   if (wrap && dots) {
     stack.classList.remove('switch-next', 'switch-previous');
     stack.innerHTML = wrap.outerHTML + dots.outerHTML;
+    hazePosterPads(stack);
     void stack.offsetWidth;
     stack.classList.add(direction === 'next' ? 'switch-next' : 'switch-previous');
     setTimeout(() => stack.classList.remove('switch-next', 'switch-previous'), 520);
@@ -370,6 +412,7 @@ function bindToday() {
   $('#today-earlier-todos')?.addEventListener('click', () => callHelper('openTodoManager'));
   $('#life-stream-more')?.addEventListener('click', () => go('calendar'));
   $('#today-avatar')?.addEventListener('click', () => go('mine'));
+  hazePosterPads();
   $('#photo-stack')?.addEventListener('click', event => {
     // Today 的照片区只负责切图；放大查看由 Moments/Library 等专属入口提供。
     // 圆点有自己的精确索引操作，避免冒泡后又额外切换一次。
