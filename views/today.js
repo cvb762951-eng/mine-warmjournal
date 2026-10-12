@@ -12,7 +12,7 @@ const PRIVATE_VAULT_HOLD_MS = 1500;
 const PRIVATE_VAULT_MOVE_TOLERANCE = 12;
 
 // 单习惯连续达标天数（今日未达标时从昨天往回算；休息日跳过、不打断）
-function habitDayStreak(habit, endDay = dateKey()) {
+export function habitDayStreak(habit, endDay = dateKey()) {
   let streak = 0;
   const cursor = new Date(`${endDay}T12:00:00`);
   const todayValue = habitProgressForDate(state, habit, endDay);
@@ -39,11 +39,13 @@ function habitCardHtml(habit, day) {
   const streak = habitDayStreak(habit, day);
   const target = Number(habit.target) || 1;
   const unit = esc(habit.unit);
+  // 文案压短：状态在前、连续天数在后；样式上最多两行，不再被省略号截成「20…」
   const status = done
-    ? (target > 1 ? `今日已打卡 · ${count}/${target}${unit}` : '今日已打卡')
+    ? (target > 1 ? `已打卡 ${count}/${target}${unit}` : '今日已打卡')
     : (count > 0 ? `${count}/${target}${unit} · 点勾补满` : '今日未打卡');
   const stateClass = done ? 'is-done' : (count > 0 ? 'is-progress' : '');
-  const meta = streak > 0 ? `已连续 ${streak} 天 · ${status}` : status;
+  // 每段不拆行，只在「·」处换行，最多两行
+  const meta = streak > 0 ? `<span>${status}</span> · <span>已连续 ${streak} 天</span>` : `<span>${status}</span>`;
   return `<div class="habit-swipe-wrap"><article class="habit-card ${stateClass}" data-habit-card="${habit.id}">
     <button type="button" class="habit-card-main" data-habit-open="${habit.id}" aria-label="查看${esc(habit.name)}详情">
       <span class="habit-card-copy">

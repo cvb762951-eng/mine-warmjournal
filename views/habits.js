@@ -2,7 +2,8 @@ import { $, $$, esc, uid, state, save, render, modal, closeModal, show, confirmD
 import { makeHabit, makeTodo, habitProgressForDate, habitGoalMet, todosForDate, dateKey, WEEK_DAYS } from '../model.js';
 import { repeatLabel, linkedHabitMinutes, updateHabitCompletion } from './common.js';
 import { dailyTodoGroups, habitClickValue, habitOneTapValue } from '../daily-workflow.js';
-import { celebrateHabitCheck } from '../motion.js';
+import { celebrateHabitCheck, autoStagger } from '../motion.js';
+import { habitDayStreak } from './today.js';
 
 // 打卡成功后的轻动效：render 会重建 DOM，先记下 id，绑定后再弹
 let pendingHabitCelebrateId = null;
@@ -62,20 +63,108 @@ export async function commitHabitProgress(habitId, nextValue, message = '') {
   }
 }
 
+// 一键打卡（今日行的小圆勾与详情页顶部的小圆勾共用）：未达标补满今日目标，已达标撤销回打卡前的值。
+function oneTapHabit(habit) {
+  const day = dateKey();
+  const key = `${day}|${habit.id}`;
+  const todayValue = Number(state.checks[day]?.[habit.id] || 0);
+  const result = habitOneTapValue(habit, todayValue, habitProgressForDate(state, habit, day), habitOneTapPrior.has(key) ? habitOneTapPrior.get(key) : null);
+  if (result.action === 'noop') { show(habit.goalPeriod === 'weekly' ? '本周已达标' : '本周期已达标'); return Promise.resolve(false); }
+  if (result.action === 'confirm') {
+    confirmDelete(`${esc(habit.name)}今天记下的 ${todayValue}${esc(habit.unit)} 会清零。`, () => { habitOneTapPrior.delete(key); return commitHabitProgress(habit.id, 0, `已清空${habit.name}今天的记录`); }, { title: '清空今天的记录？', note: '', confirmText: '清空', cancelText: '取消', light: true });
+    return Promise.resolve(false);
+  }
+  if (result.action === 'fill') habitOneTapPrior.set(key, result.prior);
+  else habitOneTapPrior.delete(key);
+  return commitHabitProgress(habit.id, result.next, result.action === 'fill' ? `${habit.name} 今日已打卡` : `已撤销${habit.name}今天的打卡`);
+}
+
+// 最近五周的小热力格：只读 habitHeatmapData（跨年时把两年拼起来），不另算。
+function habitRecentWeeks(habit, weeks = 5) {
+  const today = dateKey();
+  const end = new Date(`${today}T12:00:00`);
+  const start = new Date(end);
+  start.setDate(start.getDate() - ((end.getDay() + 6) % 7) - (weeks - 1) * 7);
+  const years = [...new Set([start.getFullYear(), end.getFullYear()])];
+  const byDate = new Map();
+  years.forEach(year => (callHelper('habitHeatmapData', habit.id, year)?.days || []).forEach(day => byDate.set(day.date, day)));
+  const rest = state.habitSkips || {};
+  const cells = [];
+  let active = 0;
+  for (let cursor = new Date(start); cells.length < weeks * 7; cursor.setDate(cursor.getDate() + 1)) {
+    const key = dateKey(cursor);
+    const future = key > today;
+    const resting = (rest[key] || []).includes(habit.id);
+    const level = future || resting ? 0 : Number(byDate.get(key)?.level || 0);
+    if (level > 0) active += 1;
+    cells.push(`<i class="hs-heat-cell level-${level}${future ? ' is-future' : ''}${resting ? ' is-rest' : ''}${key === today ? ' is-today' : ''}" title="${key}${resting ? ' · 休息' : ''}"></i>`);
+  }
+  return { html: cells.join(''), active };
+}
+
+// 习惯详情（点习惯名进入）：纸面、细线、留白；状态与连续天数用灰字，不做大色块。
 export function habitLogForm(habit) {
-  const todayValue = Number(state.checks[dateKey()]?.[habit.id] || 0);
-  const current = habitProgressForDate(state, habit, dateKey());
-  const linked = linkedHabitMinutes(dateKey(), habit.id);
-  const percent = Math.min(100, Math.round(current / habit.target * 100));
+  const day = dateKey();
+  const todayValue = Number(state.checks[day]?.[habit.id] || 0);
+  const current = habitProgressForDate(state, habit, day);
+  const linked = linkedHabitMinutes(day, habit.id);
+  const met = habitGoalMet(habit, current);
+  const resting = (state.habitSkips?.[day] || []).includes(habit.id);
+  const streak = habitDayStreak(habit, day);
+  const percent = Math.min(100, Math.round(current / Math.max(1, habit.target) * 100));
   const quickAmounts = habitQuickAmounts(habit);
-  const goalText = habit.goalType === 'range' ? `${habit.target}–${habit.targetMax}${esc(habit.unit)}` : `${habit.target}${esc(habit.unit)}`;
-  const remaining = habitGoalMet(habit, current) ? (habit.goalType === 'range' ? '当前处于理想区间' : '已达到目标，可以继续累计') : `还差 ${Math.max(0, habit.target - current)}${esc(habit.unit)}`;
-  modal(`<div class="habit-log-head"><span class="round-icon material-symbols-outlined">${habit.icon}</span><div><span class="eyebrow">${habit.goalPeriod === 'weekly' ? "THIS WEEK'S PROGRESS" : "TODAY'S PROGRESS"}</span><h2>记录${esc(habit.name)}</h2></div></div><div class="habit-log-progress"><div class="habit-log-numbers"><strong>${current}</strong><span>/ ${goalText}</span></div><small>${remaining}</small>${habit.goalPeriod === 'weekly' ? `<em>今天已记录 ${todayValue}${esc(habit.unit)}</em>` : ''}${linked ? `<em>其中 ${linked}${esc(habit.unit)} 来自专注计时</em>` : ''}<i><i style="width:${percent}%"></i></i></div><div class="habit-quick-log">${quickAmounts.map(amount => `<button type="button" data-habit-amount="${amount}"><strong>+${amount}</strong><small>${esc(habit.unit)}</small></button>`).join('')}</div><form id="habit-amount-form"><input type="hidden" name="id" value="${habit.id}"><label>本次完成量</label><div class="habit-amount-input"><input name="amount" type="number" inputmode="numeric" min="1" max="999999" required value="${quickAmounts[0] || 1}"><span>${esc(habit.unit)}</span></div>${/分钟/.test(habit.unit) ? '<button type="button" class="habit-focus-entry" id="habit-focus-start"><span class="material-symbols-outlined">timer</span>为这个习惯先专注 10 分钟</button>' : ''}<div class="habit-log-actions"><button type="button" id="adjust-habit-total">修改今日累计</button>${todayValue ? '<button type="button" class="danger-text" id="reset-habit-total">清除手动记录</button>' : ''}<button type="button" id="skip-habit-today">今天休息</button></div><div class="modal-actions"><button type="button" data-close>取消</button><button class="save">保存</button></div>`, 'habit-log-modal');
+  const step = quickAmounts[0] || 1;
+  const unit = esc(habit.unit);
+  const weekly = habit.goalPeriod === 'weekly';
+  const goalText = habit.goalType === 'range' ? `${habit.target}–${habit.targetMax}${unit}` : `${habit.target}${unit}`;
+  const periodWord = weekly ? '本周' : '今天';
+  const status = resting ? '今天休息，不影响连续'
+    : met ? `${periodWord}已完成 · ${current}/${goalText}`
+      : current > 0 ? `${periodWord} ${current}/${goalText} · 还差 ${Math.max(0, habit.target - current)}${unit}`
+        : `${periodWord}还没打卡 · 目标 ${goalText}`;
+  const quiet = [streak > 0 ? `已连续 ${streak} 天` : '还没有连续记录', weekly ? `今天记了 ${todayValue}${unit}` : '', linked ? `${linked}${unit} 来自专注` : ''].filter(Boolean).join(' · ');
+  const recent = habitRecentWeeks(habit);
+  const secondary = [
+    /分钟/.test(habit.unit) ? '<button type="button" id="habit-focus-start">专注 10 分钟</button>' : '',
+    '<button type="button" id="adjust-habit-total">改今日累计</button>',
+    resting ? '<button type="button" id="unskip-habit-today">恢复今天</button>' : '<button type="button" id="skip-habit-today">今天休息</button>',
+    todayValue ? '<button type="button" id="reset-habit-total">清除今日记录</button>' : '',
+    '<button type="button" id="habit-sheet-edit">编辑或删除</button>'
+  ].filter(Boolean).join('');
+  modal(`<header class="hs-head detail-sheet-row">
+    <div class="hs-title"><span class="hs-eyebrow">${weekly ? '每周习惯' : '每日习惯'}</span><h2>${esc(habit.name)}</h2><p class="hs-status">${status}</p><p class="hs-quiet">${quiet}</p></div>
+    <button type="button" class="hs-tick ${met ? 'is-done' : ''}" id="habit-sheet-tick" aria-pressed="${met}" aria-label="${met ? '撤销今天的打卡' : '一键打卡'}"><span class="hs-tick-dot" aria-hidden="true"><span class="material-symbols-outlined">check</span></span></button>
+  </header>
+  <div class="hs-progress detail-sheet-row" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${percent}"><i style="transform:scaleX(${percent / 100})"></i></div>
+  <section class="hs-section detail-sheet-row" aria-label="记一笔">
+    <div class="hs-label-row"><h3>记一笔</h3><small>记在今天</small></div>
+    <div class="habit-quick-log hs-chips">${quickAmounts.map(amount => `<button type="button" data-habit-amount="${amount}">+${amount}<small>${unit}</small></button>`).join('')}</div>
+    <form id="habit-amount-form" class="hs-stepper-form"><input type="hidden" name="id" value="${habit.id}">
+      <div class="hs-stepper"><button type="button" data-hs-step="-${step}" aria-label="减少"><span class="material-symbols-outlined">remove</span></button><label class="hs-stepper-value"><input name="amount" type="number" inputmode="numeric" min="1" max="999999" required value="${step}" aria-label="本次完成量"><span>${unit}</span></label><button type="button" data-hs-step="${step}" aria-label="增加"><span class="material-symbols-outlined">add</span></button></div>
+      <button class="save hs-commit">记上</button>
+    </form>
+  </section>
+  <section class="hs-section detail-sheet-row" aria-label="最近五周">
+    <div class="hs-label-row"><h3>最近五周</h3><small>${recent.active} 天有记录</small></div>
+    <div class="hs-heat-week" aria-hidden="true">${WEEK_DAYS.slice(1).concat(WEEK_DAYS[0]).map(name => `<span>${name}</span>`).join('')}</div>
+    <div class="hs-heat">${recent.html}</div>
+  </section>
+  <nav class="hs-secondary detail-sheet-row" aria-label="更多操作">${secondary}</nav>
+  <div class="modal-actions hs-actions"><button type="button" data-close>关闭</button></div>`, 'habit-log-modal detail-sheet habit-sheet');
+  const sheet = $('#modal-layer .habit-sheet');
+  autoStagger(sheet);
+  $('#habit-sheet-tick').onclick = () => oneTapHabit(habit);
   $$('[data-habit-amount]').forEach(button => button.onclick = () => commitHabitProgress(habit.id, todayValue + Number(button.dataset.habitAmount), `${habit.name} +${button.dataset.habitAmount}${habit.unit}`));
+  const amountInput = $('#habit-amount-form [name="amount"]');
+  $$('[data-hs-step]').forEach(button => button.onclick = () => {
+    amountInput.value = String(Math.max(1, Math.min(999999, (Number(amountInput.value) || 0) + Number(button.dataset.hsStep))));
+  });
   $('#adjust-habit-total').onclick = () => habitTotalForm(habit);
   $('#habit-focus-start')?.addEventListener('click', () => Promise.resolve(callHelper('startFocusForHabit', habit.id)).catch(error => show(error.message)));
-  $('#reset-habit-total')?.addEventListener('click', () => commitHabitProgress(habit.id, 0, `${habit.name}今日记录已归零`));
-  $('#skip-habit-today').onclick = () => setHabitRestDay(habit.id, true);
+  $('#reset-habit-total')?.addEventListener('click', () => confirmDelete(`${esc(habit.name)}今天记下的 ${todayValue}${esc(habit.unit)} 会清零，专注同步的部分保留。`, () => commitHabitProgress(habit.id, 0, `${habit.name}今日记录已清空`), { title: '清空今天的记录？', note: '', confirmText: '清空', cancelText: '取消', light: true }));
+  $('#skip-habit-today')?.addEventListener('click', () => setHabitRestDay(habit.id, true));
+  $('#unskip-habit-today')?.addEventListener('click', () => setHabitRestDay(habit.id, false));
+  $('#habit-sheet-edit').onclick = () => habitForm(habit);
 }
 
 export async function setHabitRestDay(habitId, resting) {
@@ -136,7 +225,35 @@ export function todoForm(todo = null) {
   const tomorrowKey = dateKey(tomorrow);
   const custom = item.date !== today && item.date !== tomorrowKey;
   const options = [[today, '今天', today.slice(5).replace('-', '月') + '日'], [tomorrowKey, '明天', tomorrowKey.slice(5).replace('-', '月') + '日'], ['custom', '指定日期', custom ? item.date.slice(5).replace('-', '月') + '日' : '自由选择']];
-  modal(`<form id="todo-form"><input type="hidden" name="id" value="${todo ? item.id : ''}"><span class="eyebrow">DAILY LIST</span><h2>${todo ? '编辑' : '新增'}待办</h2><label>要做什么</label><input name="title" maxlength="80" required value="${esc(item.title)}" placeholder="例如：整理本周读书笔记" autofocus><fieldset class="todo-date-field"><legend>安排日期</legend><div>${options.map(([value, label, detail]) => `<label><input type="radio" name="date" value="${value}" ${(custom ? value === 'custom' : item.date === value) ? 'checked' : ''}><span><strong>${label}</strong><small>${detail}</small></span></label>`).join('')}</div><label class="todo-custom-date" id="todo-custom-date-wrap" ${custom ? '' : 'hidden'}><span>选择具体日期</span><input name="customDate" id="todo-custom-date" type="date" value="${custom ? item.date : today}" ${custom ? 'required' : 'disabled'}></label></fieldset><div class="modal-actions">${todo ? '<button type="button" class="danger" id="delete-todo">删除</button>' : ''}<button type="button" data-close>取消</button><button class="save">保存待办</button></div></form>`, 'todo-form-modal');
+  const dateLabel = key => key === today ? '今天' : key === tomorrowKey ? '明天' : `${Number(key.slice(5, 7))}月${Number(key.slice(8, 10))}日`;
+  const quietMeta = todo ? [item.completed ? `${item.completedDate ? dateLabel(item.completedDate) : ''}已完成` : (item.date < today ? `原定${dateLabel(item.date)}，还没做完` : `安排在${dateLabel(item.date)}`), item.createdAt ? `写于${dateLabel(dateKey(new Date(item.createdAt)))}` : ''].filter(Boolean).join(' · ') : '写下具体的一小步就够了';
+  // 待办详情：标题行带小圆勾（只在编辑已有待办时出现），日期是三枚细线选项，删除收在左下角灰字。
+  modal(`<form id="todo-form" class="todo-sheet-form"><input type="hidden" name="id" value="${todo ? item.id : ''}">
+    <span class="hs-eyebrow detail-sheet-row">${todo ? '待办' : '新增待办'}</span>
+    <div class="ts-title-row detail-sheet-row">${todo ? `<button type="button" class="hs-tick ${item.completed ? 'is-done' : ''}" id="todo-sheet-tick" aria-pressed="${item.completed}" aria-label="${item.completed ? '恢复为未完成' : '标记完成'}"><span class="hs-tick-dot" aria-hidden="true"><span class="material-symbols-outlined">check</span></span></button>` : ''}<h2 class="ts-visually-hidden">${todo ? '编辑' : '新增'}待办</h2><label class="ts-title"><span class="ts-visually-hidden">要做什么</span><textarea name="title" maxlength="80" required rows="1" placeholder="例如：整理本周读书笔记" autofocus>${esc(item.title)}</textarea></label></div>
+    <p class="hs-quiet ts-meta detail-sheet-row" id="todo-sheet-meta">${quietMeta}</p>
+    <fieldset class="todo-date-field hs-section detail-sheet-row"><legend>安排日期</legend><div>${options.map(([value, label, detail]) => `<label><input type="radio" name="date" value="${value}" ${(custom ? value === 'custom' : item.date === value) ? 'checked' : ''}><span><strong>${label}</strong><small>${detail}</small></span></label>`).join('')}</div><label class="todo-custom-date" id="todo-custom-date-wrap" ${custom ? '' : 'hidden'}><span>选择具体日期</span><input name="customDate" id="todo-custom-date" type="date" value="${custom ? item.date : today}" ${custom ? 'required' : 'disabled'}></label></fieldset>
+    <div class="modal-actions ts-actions">${todo ? '<button type="button" class="danger" id="delete-todo">删除</button>' : ''}<span class="ts-spacer"></span><button type="button" data-close>取消</button><button class="save">保存</button></div></form>`, 'todo-form-modal detail-sheet todo-sheet');
+  autoStagger($('#modal-layer .todo-sheet'));
+  const titleInput = $('#todo-form [name="title"]');
+  const fitTitle = () => { titleInput.style.height = 'auto'; titleInput.style.height = `${titleInput.scrollHeight}px`; };
+  titleInput.addEventListener('input', fitTitle);
+  titleInput.addEventListener('keydown', event => { if (event.key === 'Enter' && !event.isComposing) { event.preventDefault(); $('#todo-form').requestSubmit(); } });
+  requestAnimationFrame(fitTitle);
+  $('#todo-sheet-tick')?.addEventListener('click', async event => {
+    const tick = event.currentTarget;
+    const current = state.todos.find(entry => entry.id === item.id);
+    if (!current) return;
+    try {
+      await setTodoCompleted(current.id, !current.completed);
+      tick.classList.toggle('is-done', current.completed);
+      tick.setAttribute('aria-pressed', String(current.completed));
+      tick.setAttribute('aria-label', current.completed ? '恢复为未完成' : '标记完成');
+      if (current.completed) celebrateHabitCheck(tick);
+      $('#todo-sheet-meta').textContent = current.completed ? '今天已完成' : `安排在${dateLabel(current.date)}`;
+      render();
+    } catch (error) { show(error.message); }
+  });
   const syncCustomDate = () => {
     const enabled = $('#todo-form [name="date"]:checked')?.value === 'custom';
     const wrap = $('#todo-custom-date-wrap');
@@ -226,18 +343,7 @@ function bindHabits() {
       if (habitSwipeSuppressedClick === button) { habitSwipeSuppressedClick = null; return; }
       const habit = state.habits.find(item => item.id === button.dataset.habit);
       if (!habit) return;
-      const day = dateKey();
-      const key = `${day}|${habit.id}`;
-      const todayValue = Number(state.checks[day]?.[habit.id] || 0);
-      const result = habitOneTapValue(habit, todayValue, habitProgressForDate(state, habit, day), habitOneTapPrior.has(key) ? habitOneTapPrior.get(key) : null);
-      if (result.action === 'noop') { show(habit.goalPeriod === 'weekly' ? '本周已达标' : '本周期已达标'); return; }
-      if (result.action === 'confirm') {
-        confirmDelete('清空今天的记录？', () => { habitOneTapPrior.delete(key); commitHabitProgress(habit.id, 0, `已清空${habit.name}今天的记录`); });
-        return;
-      }
-      if (result.action === 'fill') habitOneTapPrior.set(key, result.prior);
-      else habitOneTapPrior.delete(key);
-      commitHabitProgress(habit.id, result.next, result.action === 'fill' ? `${habit.name} 今日已打卡` : `已撤销${habit.name}今天的打卡`);
+      oneTapHabit(habit);
     };
   });
   // 卡面点进去看详情 / 记量；侧滑仍可用

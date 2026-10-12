@@ -1153,6 +1153,8 @@ body{background:var(--bg)}
 
 /* 确认操作 */
 .danger{color:#a24747!important;background:#f5e8e4!important}
+/* 详情页（detail-sheet）的删除/清空只用灰红字，不铺粉底；必须与上一条同在 module-legacy 层，分层 !important 才压得住 */
+#modal-layer .modal.detail-sheet .danger{background:transparent!important}
 
 /* 滚动条隐藏（莫兰迪区补全） */
 .calendar-filter::-webkit-scrollbar,

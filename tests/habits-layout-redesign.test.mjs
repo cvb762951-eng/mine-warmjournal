@@ -124,7 +124,7 @@ test('Weekly target met by earlier days with today 0 -> not undo', () => {
 });
 
 test('Check button: confirm uses existing dialog, noop shows toast', () => {
-  assert.match(habits, /confirmDelete\('清空今天的记录？'/);
+  assert.match(habits, /confirmDelete\([\s\S]{0,240}title: '清空今天的记录？'[\s\S]{0,80}confirmText: '清空'/);
   assert.match(habits, /本周已达标/);
 });
 

@@ -204,8 +204,10 @@ export function isModalOpen() {
   return Boolean($('#modal-layer')?.classList.contains('open'));
 }
 
-export function confirmDelete(message, action) {
-  modal(`<h2>确认删除</h2><p>${message}</p><p class="subtle">此操作无法撤销。</p><div class="modal-actions"><button type="button" data-close>取消</button><button class="danger" id="confirm-delete">删除</button></div>`);
+// 第三个参数可选：{ title, note, confirmText, cancelText, light }，不传时与旧版完全一致。
+export function confirmDelete(message, action, options = {}) {
+  const { title = '确认删除', note = '此操作无法撤销。', confirmText = '删除', cancelText = '取消', light = false } = options || {};
+  modal(`<h2>${title}</h2>${message ? `<p>${message}</p>` : ''}${note ? `<p class="subtle">${note}</p>` : ''}<div class="modal-actions">${light ? '<span class="ts-spacer"></span>' : ''}<button type="button" data-close>${cancelText}</button><button class="danger" id="confirm-delete">${confirmText}</button></div>`, light ? 'confirm-modal detail-sheet confirm-sheet' : '');
   $('#confirm-delete').onclick = async () => { closeModal(); await action(); };
 }
 
