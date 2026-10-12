@@ -295,9 +295,16 @@ function focusOutcome(sessionId, intent) {
   $('#focus-target-complete').onclick = async event => {
     const button = event.currentTarget; button.disabled = true;
     try {
-      if (todo) await callHelper('setTodoCompleted', todo.id, true);
-      else if (await callHelper('commitHabitProgress', habit.id, Number(state.checks[dateKey()]?.[habit.id] || 0) + 1, '已记下一次') !== true) throw new Error('习惯还没有保存，请重试');
-      button.textContent = '已记下这一步';
+      if (todo) {
+        await callHelper('setTodoCompleted', todo.id, true);
+        button.textContent = '已记下这一步';
+        const panel = button.closest('.daily-focus-outcome') || target;
+        button.hidden = true;
+        await callHelper('offerTodoJournalFootnote', todo.title, { host: panel });
+      } else {
+        if (await callHelper('commitHabitProgress', habit.id, Number(state.checks[dateKey()]?.[habit.id] || 0) + 1, '已记下一次') !== true) throw new Error('习惯还没有保存，请重试');
+        button.textContent = '已记下这一步';
+      }
     } catch (error) { button.disabled = false; show(error.message); }
   };
 }

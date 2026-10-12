@@ -8383,6 +8383,14 @@ body:has(.mine-view) #app{
 #subpage-journal-reader .journal-reader-section{margin-top:22px}
 #subpage-journal-reader .journal-reader-roman{margin-bottom:8px;font-size:10px;line-height:1.5;color:var(--terracotta-dark)}
 #subpage-journal-reader .journal-reader-quote{margin:22px 0 0;padding:10px;border:8px solid transparent;border-inline-width:10px;border-image:url('assets/quick-control-ivory-v1.png') 212 110 210 110 fill / 8px 10px / 0 stretch;background:none;font-family:'LXGW WenKai Screen R','Noto Serif SC',serif;font-size:14px;line-height:1.8;color:var(--ink-secondary);overflow-wrap:anywhere;white-space:pre-wrap}
+
+#subpage-journal-reader .journal-reader-footnotes{margin:10px 8px 14px;padding:12px 14px;border:10px solid transparent;border-image:url('assets/secondary-content-paper-v1.png') 84 96 84 96 fill / 10px / 0 stretch;background:none;color:var(--ink-secondary)}
+#subpage-journal-reader .journal-reader-footnotes>header{display:flex;align-items:center;gap:6px;margin-bottom:10px;color:var(--terracotta-dark)}
+#subpage-journal-reader .journal-reader-footnotes>header .material-symbols-outlined{font-size:18px}
+#subpage-journal-reader .journal-reader-footnotes>header strong{font:600 13px/1.5 var(--paper-heading-font);letter-spacing:.04em}
+#subpage-journal-reader .journal-reader-footnotes>header small{margin-left:auto;color:var(--ink-muted);font-size:11px}
+#subpage-journal-reader .journal-reader-footnotes ul{margin:0;padding:0;list-style:none;display:flex;flex-wrap:wrap;gap:8px}
+#subpage-journal-reader .journal-reader-footnote-tag{display:inline-flex;align-items:center;min-height:32px;padding:5px 11px;border:6px solid transparent;border-image:url('assets/quick-control-ivory-v1.png') 212 110 210 110 fill / 6px / 0 stretch;background:none;color:var(--ink-secondary);font:12px/1.5 var(--paper-body-font);overflow-wrap:anywhere}
 #subpage-journal-reader .journal-reader-footprints{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:2px 0 18px;padding-inline:24px;align-items:start}
 #subpage-journal-reader .journal-reader-footprints>span{min-width:0;display:grid;gap:4px;padding:4px 0;background:none;color:var(--ink-secondary)}
 #subpage-journal-reader .journal-reader-footprints small{font-size:11px;line-height:1.5;color:var(--ink-muted)}
@@ -8682,6 +8690,23 @@ body:has(.mine-view) #app{
 .habit-starter-choices button{min-height:44px;padding:6px 9px;border:6px solid transparent;border-image:url('assets/quick-control-ivory-v1.png') 212 110 210 110 fill / 6px / 0 stretch;background:none;color:var(--sage-green-dark);font:12px/1.5 var(--paper-body-font)}
 .habit-focus-entry{width:100%;margin-top:12px;display:flex;align-items:center;justify-content:center;gap:6px}
 .daily-focus-outcome>small:last-child{margin-top:10px;letter-spacing:0;font-family:var(--paper-body-font);color:var(--ink-secondary)}
+
+/* 收工留痕：完成待办后的可选纸签，默认不写，点头才进日记脚注。 */
+.todo-footnote-offer{margin-top:12px;padding:10px 8px 4px;border-top:1px dashed rgba(91,72,48,.22)}
+.todo-footnote-offer-kicker{display:block;color:var(--terracotta-dark);font:10px/1.5 var(--paper-heading-font);letter-spacing:.12em}
+.todo-footnote-offer-ask{margin:8px 0 6px;display:flex;align-items:center;gap:6px;color:var(--sage-green-dark);font:600 15px/1.5 var(--paper-heading-font)}
+.todo-footnote-offer-ask .material-symbols-outlined{font-size:20px}
+.todo-footnote-offer-preview{margin:0 0 10px;color:var(--ink-secondary);font:13px/1.6 var(--paper-body-font);overflow-wrap:anywhere}
+.todo-footnote-offer-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.todo-footnote-offer-actions button{min-height:44px;padding:6px 8px;border:8px solid transparent;border-radius:0;box-shadow:none;font:13px/1.5 var(--paper-body-font)}
+.todo-footnote-skip{border-image:url('assets/quick-control-ivory-v1.png') 212 110 210 110 fill / 8px / 0 stretch;background:none;color:var(--sage-green-dark)}
+.todo-footnote-accept{border-image:url('assets/quick-control-sage-v1.png') 204 110 202 110 fill / 8px / 0 stretch;background:none;color:var(--warm-sheet)}
+.todo-footnote-offer-note{display:block;margin-top:8px;color:var(--ink-muted);font:11px/1.6 var(--paper-body-font)}
+.todo-footnote-offer-done{margin:8px 0 0;display:flex;align-items:center;gap:6px;color:var(--sage-green-dark);font:13px/1.5 var(--paper-body-font)}
+.todo-footnote-offer-done .material-symbols-outlined{font-size:18px}
+.modal.todo-footnote-offer-modal{max-width:360px;padding:18px 16px;border:12px solid transparent;border-image:url('assets/secondary-content-paper-v1.png') 84 96 84 96 fill / 12px / 0 stretch;background:none;border-radius:0;box-shadow:none}
+.modal.todo-footnote-offer-modal .todo-footnote-offer{margin-top:0;padding:0;border-top:0}
+
 
 /* 私密文件夹封面：完整照片留在纸框内，名称独立于图片，空文件夹也可辨认。 */
 .private-vault-view .vault-folder-grid{gap:12px}

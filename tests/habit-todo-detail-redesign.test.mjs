@@ -20,7 +20,7 @@ test('habit detail is a light sheet reusing streak/heatmap data', () => {
 test('todo detail has small round tick and quiet delete', () => {
   assert.match(habits, /'todo-form-modal detail-sheet todo-sheet'/);
   assert.match(habits, /id="todo-sheet-tick"/);
-  assert.match(habits, /setTodoCompleted\(current\.id, !current\.completed\)/);
+  assert.match(habits, /setTodoCompleted\(current\.id, markingDone\)/);
 });
 
 test('confirmDelete stays backward compatible and accepts custom wording', () => {

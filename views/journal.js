@@ -602,6 +602,10 @@ function openJournalReader(day) {
   const lead = paragraphs[0] || '';
   const rest = paragraphs.slice(1);
   const quoteHtml = entry.summary?.trim() ? `<aside class="journal-reader-quote">${esc(entry.summary.trim())}</aside>` : '';
+  const footnoteList = Array.isArray(entry.footnotes) ? entry.footnotes.map(item => String(item || '').trim()).filter(Boolean) : [];
+  const footnotesHtml = footnoteList.length
+    ? `<section class="journal-reader-footnotes" aria-label="收工留痕"><header><span class="material-symbols-outlined" aria-hidden="true">sticky_note_2</span><strong>收工留痕</strong><small>${footnoteList.length} 条</small></header><ul>${footnoteList.map(item => `<li><span class="journal-reader-footnote-tag">${esc(item)}</span></li>`).join('')}</ul></section>`
+    : '';
   const html = `<div class="journal-reader-page">${subpageHeader('生活志画报阅读')}
     <article class="journal-reader-article">
       <header class="journal-reader-hero">
@@ -618,6 +622,7 @@ function openJournalReader(day) {
         ${quoteHtml}
       </div>
       <div class="journal-deck-host" id="journal-reader-deck"></div>
+      ${footnotesHtml}
       <footer class="journal-reader-footprints">
         <span><small>习惯</small><strong>${footprints.completed}/${footprints.total}</strong></span>
         <span><small>专注</small><strong>${footprints.minutes} <em>分钟</em></strong></span>

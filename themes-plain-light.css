@@ -1131,3 +1131,16 @@ button.danger) {
 :root[data-theme="plain"] .today-view .habit-check-btn{background:transparent !important;border-radius:50% !important;box-shadow:none !important}
 :root[data-theme="plain"] .today-view .habit-check-dot{border-color:rgba(79,118,189,0.5) !important}
 :root[data-theme="plain"] .today-view .habit-check-btn.is-done .habit-check-dot{background:var(--pl-blue,#4F76BD) !important;border-color:var(--pl-blue,#4F76BD) !important;color:#fff !important}
+
+
+/* 收工留痕：与 plain 主表一致的清简纸签。 */
+:root[data-theme="plain"] #subpage-journal-reader .journal-reader-footnotes,
+:root[data-theme="plain"] #subpage-journal-reader .journal-reader-footnote-tag,
+:root[data-theme="plain"] .todo-footnote-offer-actions button,
+:root[data-theme="plain"] .modal.todo-footnote-offer-modal {
+  border-image: none !important;
+}
+:root[data-theme="plain"] .todo-footnote-accept {
+  background: var(--warm-sage-strong, #4d7056) !important;
+  color: var(--warm-sheet, #fdfcf9) !important;
+}

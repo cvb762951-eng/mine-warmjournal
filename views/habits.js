@@ -1,5 +1,5 @@
 import { $, $$, esc, uid, state, save, render, modal, closeModal, show, confirmDelete, emptyState, registerBinder, registerSubmitHandler, registerHelper, callHelper, HABIT_ICONS } from '../core.js';
-import { makeHabit, makeTodo, habitProgressForDate, habitGoalMet, todosForDate, dateKey, WEEK_DAYS } from '../model.js';
+import { makeHabit, makeTodo, habitProgressForDate, habitGoalMet, todosForDate, dateKey, WEEK_DAYS, appendJournalFootnote } from '../model.js';
 import { repeatLabel, linkedHabitMinutes, updateHabitCompletion } from './common.js';
 import { dailyTodoGroups, habitClickValue, habitOneTapValue } from '../daily-workflow.js';
 import { celebrateHabitCheck, autoStagger } from '../motion.js';
@@ -261,6 +261,72 @@ export async function setTodoCompleted(id, completed = true) {
   catch (error) { Object.assign(todo, previous); throw error; }
 }
 
+/**
+ * 收工留痕：可选把待办标题写进今天日记脚注。
+ * 默认不写；用户点「写进日记」才追加。host 有则嵌在专注收工区，否则小纸签弹层。
+ */
+export function offerTodoJournalFootnote(title, { host = null } = {}) {
+  const label = String(title || '').trim().slice(0, 40);
+  if (!label) return Promise.resolve(false);
+  const slip = `<section class="todo-footnote-offer" role="group" aria-label="写进今天日记">
+    <span class="todo-footnote-offer-kicker">FOOTNOTE · 收工留痕</span>
+    <p class="todo-footnote-offer-ask"><span class="material-symbols-outlined" aria-hidden="true">sticky_note_2</span><span>写进今天日记？</span></p>
+    <p class="todo-footnote-offer-preview">${esc(label)}</p>
+    <div class="todo-footnote-offer-actions">
+      <button type="button" class="todo-footnote-skip" data-footnote-skip>先不</button>
+      <button type="button" class="todo-footnote-accept" data-footnote-accept>写进日记</button>
+    </div>
+    <small class="todo-footnote-offer-note">默认不写；点头才落一行脚注。取消完成不会自动删掉。</small>
+  </section>`;
+
+  const bind = (root, resolve) => {
+    const finish = async (agree) => {
+      root.querySelectorAll('button').forEach(btn => { btn.disabled = true; });
+      if (!agree) {
+        if (!host) closeModal();
+        else root.remove();
+        resolve(false);
+        return;
+      }
+      try {
+        const result = appendJournalFootnote(state, { title: label });
+        if (result.appended) {
+          await save();
+          if (!host) closeModal();
+          else {
+            root.innerHTML = `<p class="todo-footnote-offer-done"><span class="material-symbols-outlined" aria-hidden="true">check</span>已写进今天日记脚注</p>`;
+          }
+          show('已写进今天日记脚注');
+          resolve(true);
+          return;
+        }
+        if (!host) closeModal();
+        else root.remove();
+        if (result.reason === 'duplicate') show('今天日记里已有这条');
+        else if (result.reason === 'full') show('今天脚注已满 12 条');
+        resolve(false);
+      } catch (error) {
+        root.querySelectorAll('button').forEach(btn => { btn.disabled = false; });
+        show(error.message);
+      }
+    };
+    root.querySelector('[data-footnote-skip]')?.addEventListener('click', () => finish(false));
+    root.querySelector('[data-footnote-accept]')?.addEventListener('click', () => finish(true));
+  };
+
+  if (host) {
+    host.insertAdjacentHTML('beforeend', slip);
+    const root = host.querySelector('.todo-footnote-offer:last-of-type');
+    return new Promise(resolve => bind(root, resolve));
+  }
+
+  return new Promise(resolve => {
+    modal(`<div class="todo-footnote-offer-modal-inner">${slip}</div>`, 'todo-footnote-offer-modal');
+    const root = $('#modal-layer .todo-footnote-offer');
+    bind(root, resolve);
+  });
+}
+
 export function todoForm(todo = null) {
   const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
   const item = todo || makeTodo({ date: dateKey(), title: '' });
@@ -288,13 +354,15 @@ export function todoForm(todo = null) {
     const current = state.todos.find(entry => entry.id === item.id);
     if (!current) return;
     try {
-      await setTodoCompleted(current.id, !current.completed);
+      const markingDone = !current.completed;
+      await setTodoCompleted(current.id, markingDone);
       tick.classList.toggle('is-done', current.completed);
       tick.setAttribute('aria-pressed', String(current.completed));
       tick.setAttribute('aria-label', current.completed ? '恢复为未完成' : '标记完成');
       if (current.completed) celebrateHabitCheck(tick);
       $('#todo-sheet-meta').textContent = current.completed ? '今天已完成' : `安排在${dateLabel(current.date)}`;
       render();
+      if (markingDone && current.completed) await offerTodoJournalFootnote(current.title);
     } catch (error) { show(error.message); }
   });
   const syncCustomDate = () => {
@@ -424,11 +492,16 @@ function bindHabits() {
     const todo = state.todos.find(item => item.id === button.dataset.toggleTodo);
     if (!todo) return;
     const previous = structuredClone(todo);
+    const markingDone = !todo.completed;
     todo.completed = !todo.completed;
     todo.updatedAt = Date.now();
     todo.completedAt = todo.completed ? todo.updatedAt : 0;
     todo.completedDate = todo.completed ? dateKey(new Date(todo.completedAt)) : '';
-    try { await save(); render(); } catch (error) { Object.assign(todo, previous); show(error.message); }
+    try {
+      await save();
+      render();
+      if (markingDone && todo.completed) await offerTodoJournalFootnote(todo.title);
+    } catch (error) { Object.assign(todo, previous); show(error.message); }
   });
   // 旧版「我的」页里的 #manage-habits-mine / #new-todo-empty / #open-todos-mine 三个入口
   // 在当前 UI 里已不存在，绑定全是空转（?. 不会报错，只是永远不触发），已移除。
@@ -488,5 +561,6 @@ registerHelper('openTodoManager', todoManager);
 registerHelper('openTodoForm', () => todoForm());
 
 registerHelper('setTodoCompleted', setTodoCompleted);
+registerHelper('offerTodoJournalFootnote', offerTodoJournalFootnote);
 
 registerHelper('commitHabitProgress', commitHabitProgress);
