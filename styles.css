@@ -9435,6 +9435,3 @@ body #modal-layer .modal.confirm-sheet .modal-actions .danger { padding: 0 16px 
 :root[data-theme="plain"] .today-view .polaroid-frame.photo-blur-frame{background:#E8EDF5!important}
 .today-view .polaroid-frame.photo-blur-frame>img.photo-blur-still{inset:0!important;width:100%!important;height:100%!important;margin:0!important;border:0!important;border-radius:0!important;transform:none!important;object-fit:contain!important}
 .today-view .polaroid-frame.photo-blur-frame>img.photo-blur-pad{filter:none!important}
-/* 今日画页铺底朦胧：铺底换成长边约 120px 的缩小图（views/today.js），平滑放大即成轻雾；不加 filter。按条目 id 缓存在内存。缩图未好前铺底先藏着，只露纸色。 */
-.today-view .polaroid-frame.photo-blur-frame>img.photo-blur-pad.is-haze{image-rendering:auto!important;opacity:.55!important}
-.today-view .polaroid-frame.photo-blur-frame>img.photo-blur-pad.is-haze-pending{opacity:0!important}
