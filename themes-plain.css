@@ -3,7 +3,7 @@
    —— 本文件由 scripts/gen-plain-theme.mjs 自动生成，请勿手工编辑。
       改了 styles.css / performance.css 之后重新运行该脚本即可。
 
-   扫描 7061 条规则，命中素材规则 491 条。
+   扫描 7137 条规则，命中素材规则 494 条。
    只影响 [data-theme="plain"]，米白与暖阳两个主题完全不受影响。
    ========================================================================== */
 
@@ -90,6 +90,7 @@
 :root[data-theme="plain"] .calendar-view .cal-detail-head,
 :root[data-theme="plain"] .calendar-view.cal-screen .cal-cell.active,
 :root[data-theme="plain"] .calendar-view.cal-screen .cal-cell.today.active,
+:root[data-theme="plain"] .journal-deck-heading,
 :root[data-theme="plain"] .journal-view .journal-canvas-card #journal-title-input,
 :root[data-theme="plain"] .journal-view .journal-history-link,
 :root[data-theme="plain"] .journal-view .journal-history-title,
@@ -105,7 +106,9 @@
 :root[data-theme="plain"] .today-view .today-courses,
 :root[data-theme="plain"] .today-view .today-hero-actions,
 :root[data-theme="plain"] .today-view .weather-box,
-:root[data-theme="plain"] .weather-box {
+:root[data-theme="plain"] .weather-box,
+:root[data-theme="plain"] button.journal-deck-cut,
+:root[data-theme="plain"] button.journal-deck-open {
   -webkit-mask-image: none !important;
   mask-image: none !important;
 }
@@ -389,6 +392,8 @@
 :root[data-theme="plain"] .habit-starter-choices button,
 :root[data-theme="plain"] .heatmap-year-switch,
 :root[data-theme="plain"] .journal-date-control,
+:root[data-theme="plain"] .journal-deck-face,
+:root[data-theme="plain"] .journal-deck-heading,
 :root[data-theme="plain"] .journal-history-modal #journal-search,
 :root[data-theme="plain"] .journal-history-modal .journal-history>button,
 :root[data-theme="plain"] .journal-inline-snippet-apply,
@@ -727,7 +732,9 @@
 :root[data-theme="plain"] body:has(#screen-library) #app,
 :root[data-theme="plain"] body:has(.ai-companion-screen) #app,
 :root[data-theme="plain"] body:has(.focus-screen) #app,
-:root[data-theme="plain"] body:has(.mine-view) #app {
+:root[data-theme="plain"] body:has(.mine-view) #app,
+:root[data-theme="plain"] button.journal-deck-cut,
+:root[data-theme="plain"] button.journal-deck-open {
   background-image: none !important;
 }
 
@@ -806,6 +813,7 @@
 :root[data-theme="plain"] .habit-modal :is(.habit-tracking-picker,.habit-goal-picker) input:checked+span,
 :root[data-theme="plain"] .habit-modal input:checked+span,
 :root[data-theme="plain"] .heatmap-year-switch,
+:root[data-theme="plain"] .journal-deck-heading,
 :root[data-theme="plain"] .journal-inline-snippet-apply,
 :root[data-theme="plain"] .journal-inline-snippet-item:has(input:checked),
 :root[data-theme="plain"] .journal-reader-edit,
@@ -1290,6 +1298,10 @@
   background-color: #dce7d8 !important;
 }
 
+:root[data-theme="plain"] .journal-deck-face {
+  background-color: #fdfcf9 !important;
+}
+
 :root[data-theme="plain"] #app:has(.calendar-view),
 :root[data-theme="plain"] #app:has(.journal-view),
 :root[data-theme="plain"] #app:has(.ledger-view),
@@ -1309,6 +1321,7 @@
   background-color: var(--plain-canvas, #f7f9fc) !important;
 }
 
+:root[data-theme="plain"] .journal-deck-heading,
 :root[data-theme="plain"] .journal-view .journal-history-title,
 :root[data-theme="plain"] .journal-view .journal-photo-wall-head,
 :root[data-theme="plain"] .journal-view .picker-section-label>span,
@@ -1335,7 +1348,8 @@
 :root[data-theme="plain"] .snippets-view .snippet-add-btn,
 :root[data-theme="plain"] .snippets-view .snippet-filter-pill.active,
 :root[data-theme="plain"] .stats-masthead,
-:root[data-theme="plain"] .vault-bulk-bar {
+:root[data-theme="plain"] .vault-bulk-bar,
+:root[data-theme="plain"] button.journal-deck-open {
   background-color: var(--plain-sage-block, #4f76bd) !important;
 }
 
@@ -2497,3 +2511,15 @@ button.danger) {
 :root[data-theme="plain"] .journal-view :is(.mood-pick-item, .weather-pick-item).active :is(small, .material-symbols-outlined) {
   color: #fff !important;
 }
+
+
+/* 翻阅篇章牌组（清简）：标题条同「过往篇章」浅蓝章节条；纸面用清简卡片色与阴影；
+   胶带改成半透明浅蓝；按钮同清简主按钮（实心蓝 / 描边蓝）。 */
+:root[data-theme="plain"] .journal-deck-heading{background:var(--pl-blue-soft) !important;border:1px solid var(--pl-blue-line) !important;border-radius:12px !important;color:var(--pl-blue-deep) !important;-webkit-mask-image:none !important;mask-image:none !important}
+:root[data-theme="plain"] .journal-deck-face{background:#F4F7FC !important;background-image:none !important;border-color:rgba(85,96,108,.18) !important;box-shadow:var(--pl-card-shadow) !important;color:#2E343B !important}
+:root[data-theme="plain"] .journal-deck-face::before{background:rgba(79,118,189,.28)}
+:root[data-theme="plain"] :is(.journal-deck-kicker,.journal-deck-meta,.journal-deck-count){color:#55606c !important}
+:root[data-theme="plain"] .journal-deck-meta{border-top-color:var(--pl-line) !important}
+:root[data-theme="plain"] .journal-deck-photo{background:#E8EDF5 !important;border-color:rgba(85,96,108,.16) !important;box-shadow:none !important}
+:root[data-theme="plain"] button.journal-deck-open{background:var(--pl-blue) !important;color:#fff !important;border:0 !important;border-radius:0 !important;box-shadow:none !important;-webkit-mask-image:none !important;mask-image:none !important}
+:root[data-theme="plain"] button.journal-deck-cut{background:transparent !important;color:var(--pl-blue-deep) !important;border:1.5px solid var(--pl-blue) !important;border-radius:0 !important;box-shadow:none !important;-webkit-mask-image:none !important;mask-image:none !important}

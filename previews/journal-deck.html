@@ -6,6 +6,8 @@
   <title>日记牌组预览 · 清简</title>
   <link rel="stylesheet" href="../performance.css">
   <link rel="stylesheet" href="../styles.css?v=deck">
+  <link rel="stylesheet" href="../themes.css">
+  <link rel="stylesheet" href="../themes-plain.css">
   <style>
     html, body {
       height: auto !important;
@@ -92,7 +94,6 @@
       { id: '2026-10-03', kicker: '2026-10-03 · 星期六', title: '河岸', excerpt: '风把水面推平了一小会儿。', caption: '河岸 · 16:9 完整居中', photoSrc: drawing('河岸', '#E7EEF8', '#55606C'), meta: '松快 · 风', photoLabel: '查看河岸这张照片' }
     ], {
       heading: '翻阅篇章',
-      hint: '按住倾斜，左右滑过一段会吸到下一篇。焦点在牌组上时可以用方向键。点照片只在这里提示，不会改成长图滚动。',
       onOpen: entry => { status.textContent = `打开画报：${entry.title}`; },
       onPhoto: entry => { status.textContent = `照片交给原来的全屏查看器：${entry.title}。长图在那里上下滑动。`; }
     });

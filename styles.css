@@ -9078,3 +9078,28 @@ button.journal-deck-cut:disabled{opacity:.4;cursor:default}
 .journal-deck-card[data-depth="0"]{cursor:grab}
 .journal-deck-stage.is-dragging .journal-deck-card[data-depth="0"]{cursor:grabbing}
 .journal-history-modal .journal-deck-host{flex:none}
+
+/* 翻阅篇章牌组 · 暖色手账皮肤：卡片是一张日记纸（纸白 + 纸纹 multiply + 暖调阴影，直角），
+   顶部一截半透明和纸胶带；标题条与「过往篇章」同款砖红胶带；按钮用「保存生活日记」同款墨绿纸签。
+   照片在纸面上方的统一相框里 contain，文字都在照片下面的纸上。 */
+.journal-deck-heading{display:inline-flex;align-items:center;width:auto;min-width:130px;height:34px;margin:0 0 6px;padding:6px 17px;box-sizing:border-box;background-color:#a93f28;background-image:url('assets/today-paper-texture.png');background-size:160px 160px;background-blend-mode:multiply;color:#fff0d8;-webkit-mask-image:url('assets/today-actions-paper-thick.png');-webkit-mask-size:100% 100%;mask-image:url('assets/today-actions-paper-thick.png');mask-size:100% 100%;font-family:'Noto Serif SC','LXGW WenKai',serif;font-size:15px;font-weight:550}
+.journal-deck-hint{display:none}
+.journal-deck-stage{height:430px}
+.journal-deck-card{inset:56px 10px 14px}
+.journal-deck-card[data-depth="1"]{transform:translate3d(0,-18px,-10px) scale(.975)}
+.journal-deck-card[data-depth="2"]{transform:translate3d(0,-34px,-20px) scale(.95)}
+.journal-deck-face{overflow:visible;padding:16px 14px 12px;background-color:var(--warm-sheet,#fdfcf9);background-image:url('assets/today-paper-texture.png');background-size:180px 180px;background-blend-mode:multiply;border:var(--warm-card-border,1px solid rgba(220,212,198,.65));border-radius:0;color:var(--warm-ink,#181614);box-shadow:var(--warm-shadow-ambient,0 2px 10px rgba(32,24,15,.035),0 10px 28px rgba(32,24,15,.045))}
+.journal-deck-face::before{content:'';position:absolute;top:-8px;left:18px;width:74px;height:18px;background:rgba(196,126,104,.42);transform:rotate(-4deg);pointer-events:none}
+.journal-deck-kicker{font-family:'LXGW WenKai','Noto Serif SC',serif;font-size:12px;letter-spacing:.02em;color:#7a5a3a}
+.journal-deck-title{margin:3px 0 8px;font-family:'Newsreader','Noto Serif SC',serif;font-size:19px;color:var(--warm-ink,#181614)}
+.journal-deck-photo{aspect-ratio:4/3;padding:6px;box-sizing:border-box;background:#efe7d6;border:1px solid rgba(150,120,85,.22);box-shadow:2px 3px 0 rgba(67,45,26,.08)}
+.journal-deck-photo{overflow:hidden}
+.journal-deck-pad{display:block;inset:-12%;background:#3a3129}/* 按用户要求恢复：照片背后铺同图放大柔化底，留边不再空白 */
+.journal-deck-still{inset:6px;width:calc(100% - 12px);height:calc(100% - 12px);object-fit:contain}
+.journal-deck-excerpt{margin:8px 0 0;font-family:'LXGW WenKai','Noto Serif SC',serif;font-size:13px;line-height:1.6;color:var(--warm-ink-secondary,#4a453f);-webkit-line-clamp:3}
+.journal-deck-meta{font-family:'LXGW WenKai','Noto Serif SC',serif;font-size:12px;color:#8a6a48;border-top:1px dashed rgba(150,120,85,.3)}
+.journal-deck-count{font-family:'Newsreader','Noto Serif SC',serif;font-size:12px;color:#7a5a3a}
+button.journal-deck-cut,button.journal-deck-open{min-height:38px;padding:6px 16px;border:0;border-radius:0;background-color:#174536;background-image:url('assets/today-paper-texture.png');background-size:130px 130px;background-blend-mode:multiply;color:#fff0d8;box-shadow:3px 4px 0 rgba(67,45,26,.14);-webkit-mask-image:url('assets/today-actions-paper-thick.png');-webkit-mask-size:100% 100%;mask-image:url('assets/today-actions-paper-thick.png');mask-size:100% 100%;font-family:'LXGW WenKai','Noto Serif SC',serif;font-size:13px;font-weight:650}
+button.journal-deck-cut{background-color:transparent;background-image:none;color:#174536;box-shadow:inset 0 0 0 1.5px #174536;-webkit-mask-image:none;mask-image:none}
+button.journal-deck-open{margin-top:10px}
+.journal-deck-card:not([data-depth="0"]) .journal-deck-face::before{display:none}
