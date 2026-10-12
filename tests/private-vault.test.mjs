@@ -335,7 +335,8 @@ test('private videos use compact complete covers and keep encrypted editing in a
   assert.match(core, /layer\.innerHTML = ''/);
   assert.match(css, /vault-video-item \.[^{]*vault-media-box\{[^}]*aspect-ratio:16\/9/);
   // 列表封面走共用 photo-blur-frame：主图 contain，铺底 cover（不再用灰底 + 全 img contain）
-  assert.match(view, /video-contain-cover photo-blur-frame/);
+  assert.match(view, /photo-blur-frame is-edge/);
+  assert.match(view, /video-contain-cover/);
   assert.match(view, /photoFrameLayersHtml\(esc\((?:cached|url)\)/);
   assert.match(css, /vault-video-item \.video-contain-cover\{[^}]*aspect-ratio:16\/9/);
   assert.match(css, /\.photo-blur-frame>img\.photo-blur-still\{[^}]*object-fit:contain!important/);

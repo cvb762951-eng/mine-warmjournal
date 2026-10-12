@@ -154,7 +154,7 @@ function photoStackHtml(entries) {
     const photo = entry.photos?.length ? entry.photos[0] : entry.photo;
     const time = entry.createdAt ? new Date(entry.createdAt) : null;
     const timeText = time ? `${time.getMonth() + 1}/${time.getDate()} ${pad(time.getHours())}:${pad(time.getMinutes())}` : '';
-    return `<button type="button" class="stack-card card-pos-${i}" id="card-${i}" data-photo-stack-entry="${esc(entry.id)}"><span class="polaroid-frame photo-blur-frame">${photoStoryImage(photo, entry.text || '随手拍')}</span><span class="polaroid-meta"><span class="polaroid-time">${timeText}</span><span class="polaroid-caption">${handwrittenCaptionHtml(entry.text || '随手拍')}</span></span></button>`;
+    return `<button type="button" class="stack-card card-pos-${i}" id="card-${i}" data-photo-stack-entry="${esc(entry.id)}"><span class="polaroid-frame photo-blur-frame is-edge">${photoStoryImage(photo, entry.text || '随手拍')}</span><span class="polaroid-meta"><span class="polaroid-time">${timeText}</span><span class="polaroid-caption">${handwrittenCaptionHtml(entry.text || '随手拍')}</span></span></button>`;
   }).join('')}</div><div class="stack-dots">${Array.from({ length: count }, (_, i) => `<span class="stack-dot ${i === photoStackIndex % count ? 'active' : ''}" data-stack-dot="${i}"></span>`).join('')}</div></div>`;
 }
 

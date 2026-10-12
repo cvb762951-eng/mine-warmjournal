@@ -96,7 +96,7 @@ test('Moments portrait photos stay complete and large albums use a bounded mosai
   // 只换垫底 —— 照片格的高度与排布一律不动。
   assert.match(source, /function snippetPhotoImage/);
   assert.match(source, /photoFrameLayersHtml\(url, \{[^}]*padClass: 'snippet-photo-blur', stillClass: 'snippet-photo-main'/, '两层用同一张照片的地址（共用 photo-frame.js）');
-  assert.match(source, /class="photo-blur-frame snippet-photo-tile"/);
+  assert.match(source, /class="photo-blur-frame is-edge snippet-photo-tile"/);
   const photoBlur = css.match(/\.photo-blur-frame>img\.photo-blur-pad\{([^}]*)\}/)?.[1] || '';
   assert.match(photoBlur, /object-fit:cover/, '底层要铺满，不能留白');
   assert.match(photoBlur, /position:absolute/, '铺底层要脱离排版，不能影响格子尺寸');

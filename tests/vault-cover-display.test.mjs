@@ -57,7 +57,7 @@ test('留白用同一张画面放大铺底（与日记牌组同一份实现）�
   assert.match(pad, /transform:scale\(1\.08\)/);
   assert.match(pad, /opacity:\.5/);
   assert.match(pad, /inset:-12%/);
-  assert.match(vault, /vault-folder-cover photo-blur-frame/);
+  assert.match(vault, /vault-folder-cover photo-blur-frame is-edge/);
 });
 
 test('虚化层不会盖住相框（靠 overflow:hidden 裁到 padding 区）', () => {
@@ -77,8 +77,8 @@ test('三处渲染封面图的地方都走同一个函数', () => {
 
 
 test('列表缩略图视频封面也走共用 photo-blur-frame，不用灰底填两侧', () => {
-  assert.match(vault, /video-contain-cover photo-blur-frame/);
-  assert.match(vault, /item\.type === 'video' \? photoFrameLayersHtml/);
+  assert.match(vault, /photo-blur-frame is-edge[^`]*video-contain-cover/);
+  assert.match(vault, /photoFrameLayersHtml\(esc\(cached\)/);
   assert.match(vault, /new IntersectionObserver/);
   // 加载前纸色兜底，不再写死灰/深绿底（选择器可能与 is-portrait 写在同一条）
   assert.match(style, /vault-video-item \.vault-media-box(?:\.is-portrait-video-cover)?\.photo-blur-frame[^{]*\{[^}]*background:#efe7d6!important/);

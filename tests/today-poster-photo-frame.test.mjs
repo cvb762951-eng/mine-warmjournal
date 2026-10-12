@@ -5,7 +5,7 @@ import { readFile } from 'node:fs/promises';
 test('今日画页照片走共用 photo-blur-frame', async () => {
   const js = await readFile(new URL('../views/today.js', import.meta.url), 'utf8');
   assert.match(js, /import \{ photoFrameLayersHtml \} from '\.\.\/photo-frame\.js'/);
-  assert.match(js, /class="polaroid-frame photo-blur-frame"/);
+  assert.match(js, /class="polaroid-frame photo-blur-frame is-edge"/);
   assert.match(js, /photoFrameLayersHtml\(url, \{ alt, padClass: 'polaroid-blur', stillClass: 'polaroid-img' \}\)/);
   assert.doesNotMatch(js, /posterHaze|hazePosterPads|POSTER_HAZE|is-haze/);
 });

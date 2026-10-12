@@ -3,7 +3,8 @@
         └ img.photo-blur-pad   同一张图 inset:-12% / cover / opacity:.5 / scale(1.08)，无 filter
         └ img.photo-blur-still 同一张图 contain，完整不裁不拉伸
    两层同一地址，浏览器只下载一次；只用已有照片/封面缩略图，不读视频文件。
-   牌组（motion.js）、随手拍（views/snippets.js）、私密空间封面（views/private-vault.js）共用。 */
+   牌组（motion.js）、随手拍（views/snippets.js）、私密空间封面与照片项（views/private-vault.js）、今日画页共用。
+   需要贴满相框（无 6px 纸边）时加 .is-edge。 */
 export const PHOTO_FRAME_CLASS = 'photo-blur-frame';
 export const PHOTO_PAD_CLASS = 'photo-blur-pad';
 export const PHOTO_STILL_CLASS = 'photo-blur-still';
