@@ -197,7 +197,7 @@ function hazePosterPads(root = $('#photo-stack')) {
       if (posterHazeCache.has(src)) return settle(posterHazeCache.get(src));
       let haze = '';
       try { haze = posterHazeDataUrl(still); } catch { haze = ''; }
-      if (haze) posterHazeCache.set(src, haze);
+      if (haze) { posterHazeCache.set(src, haze); if (posterHazeCache.size > 30) posterHazeCache.delete(posterHazeCache.keys().next().value); }
       settle(haze);
     };
     if (!still) return settle('');
