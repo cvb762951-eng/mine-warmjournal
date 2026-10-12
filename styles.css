@@ -9092,10 +9092,6 @@ button.journal-deck-cut:disabled{opacity:.4;cursor:default}
 .journal-deck-face::before{content:'';position:absolute;top:-8px;left:18px;width:74px;height:18px;background:rgba(196,126,104,.42);transform:rotate(-4deg);pointer-events:none}
 .journal-deck-kicker{font-family:'LXGW WenKai','Noto Serif SC',serif;font-size:12px;letter-spacing:.02em;color:#7a5a3a}
 .journal-deck-title{margin:3px 0 8px;font-family:'Newsreader','Noto Serif SC',serif;font-size:19px;color:var(--warm-ink,#181614)}
-.journal-deck-photo{aspect-ratio:4/3;padding:6px;box-sizing:border-box;background:#efe7d6;border:1px solid rgba(150,120,85,.22);box-shadow:2px 3px 0 rgba(67,45,26,.08)}
-.journal-deck-photo{overflow:hidden}
-.journal-deck-pad{display:block;inset:-12%;background:#3a3129}/* 按用户要求恢复：照片背后铺同图放大柔化底，留边不再空白 */
-.journal-deck-still{inset:6px;width:calc(100% - 12px);height:calc(100% - 12px);object-fit:contain}
 .journal-deck-excerpt{margin:8px 0 0;font-family:'LXGW WenKai','Noto Serif SC',serif;font-size:13px;line-height:1.6;color:var(--warm-ink-secondary,#4a453f);-webkit-line-clamp:3}
 .journal-deck-meta{font-family:'LXGW WenKai','Noto Serif SC',serif;font-size:12px;color:#8a6a48;border-top:1px dashed rgba(150,120,85,.3)}
 .journal-deck-count{font-family:'Newsreader','Noto Serif SC',serif;font-size:12px;color:#7a5a3a}
@@ -9110,3 +9106,28 @@ img:is(.photo-blur-pad,.snippet-photo-blur,.snippet-cover-blur,.vault-cover-blur
 .private-vault-view .vault-video-item .video-contain-cover{position:relative;background:#2b2620}
 .private-vault-view .vault-video-item .video-contain-cover>img:not(.photo-blur-pad){position:relative;background:transparent!important}
 .snippets-view .snippet-photo-tile,.snippets-view .snippet-cover-frame,.private-vault-view .vault-folder-cover{background-color:#2b2620}
+/* 翻阅篇章牌组 · 文字排版收口：全卡统一一套能显示中文的手账字体（fonts.css 已加载的 LXGW WenKai Screen R，缺字回落思源宋体），
+   卡片高度固定（翻牌不跳）：标题一行省略、照片区固定 150px、正文固定 3 行（行高 1.6，max-height=3 行）、照片下留 12px，互不重叠。 */
+.journal-deck-face :is(.journal-deck-kicker,.journal-deck-title,.journal-deck-excerpt,.journal-deck-meta){font-family:'LXGW WenKai Screen R','Noto Serif SC',serif;font-weight:400;letter-spacing:.01em}
+.journal-deck-kicker{flex:none;font-size:12px;line-height:1.5}
+.journal-deck-title{flex:none;height:1.4em;margin:2px 0 8px;font-size:18px;line-height:1.4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.journal-deck-figure{flex:none;margin:0}
+.journal-deck-photo{aspect-ratio:auto!important;height:150px}
+.journal-deck-excerpt{flex:none;margin:12px 0 0;font-size:14px;line-height:1.6;height:calc(1.6em * 3);max-height:calc(1.6em * 3);display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden}
+.journal-deck-meta{flex:none;display:flex;align-items:center;gap:6px;min-height:20px;margin-top:auto;padding-top:8px;font-size:12px;line-height:1.4}
+
+/* ── 共用照片框：完整照片 + 背后同图放大铺底（唯一一份数值，见 photo-frame.js）──
+   来源是日记翻阅牌组的照片处理（用户指定参考），随手拍照片格/视频封面、私密空间视频封面与相册封面一律照搬，
+   不另做变体：铺底层无 filter、半透明 .5、放大 1.08；外框纸色兜底，封面没到之前不露白；
+   铺底是静态 img，不参与任何转场动画。 */
+.photo-blur-frame{position:relative!important;overflow:hidden!important;box-sizing:border-box!important;padding:6px!important;border:1px solid rgba(150,120,85,.22)!important;border-radius:0!important;background:#efe7d6!important;background-image:none!important;box-shadow:2px 3px 0 rgba(67,45,26,.08)!important}
+:root[data-theme="plain"] .photo-blur-frame.photo-blur-frame{background:#E8EDF5!important;border-color:rgba(85,96,108,.16)!important;box-shadow:none!important}
+.photo-blur-frame>img.photo-blur-pad{display:block!important;position:absolute!important;inset:-12%!important;width:124%!important;height:124%!important;max-width:none!important;max-height:none!important;object-fit:cover!important;opacity:.5!important;transform:scale(1.08)!important;filter:none!important;background:#3a3129!important;pointer-events:none}
+.photo-blur-frame>img.photo-blur-still{position:absolute!important;inset:6px!important;width:calc(100% - 12px)!important;height:calc(100% - 12px)!important;max-width:none!important;max-height:none!important;object-fit:contain!important;object-position:center!important;background:transparent!important}
+
+/* 牌组滑动跟手：只有正在拖的顶牌升合成层（is-active-drag），其余牌和照片框不升层、拖动中不改样式；
+   照片框 contain:paint，顶牌移动不会让后面的牌或铺底图重绘。 */
+.journal-deck-card{will-change:auto;transition:none}
+.journal-deck-card.is-active-drag{will-change:transform}
+.journal-deck-stage,.journal-deck-card{touch-action:pan-y}
+.journal-deck-photo,.photo-blur-frame{contain:paint}

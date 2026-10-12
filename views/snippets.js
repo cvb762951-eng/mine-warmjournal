@@ -1,3 +1,4 @@
+import { photoFrameLayersHtml } from '../photo-frame.js';
 import { withSharedTransition } from '../motion.js';
 import { Capacitor } from '@capacitor/core';
 import { Camera, CameraDirection, EncodingType } from '@capacitor/camera';
@@ -140,7 +141,7 @@ function snippetStreamCard(item) {
     const badge = videos.length ? `<span class="snippet-photo-badge"><span class="material-symbols-outlined">movie</span>${videos.length > 1 ? videos.length + ' 段' : '视频'}</span>` : liveStills ? `<span class="snippet-photo-badge"><span class="material-symbols-outlined">motion_photos_on</span>${liveStills > 1 ? liveStills + ' 张实况' : '实况'}</span>` : photos.length > 1 ? `<span class="snippet-photo-badge"><span class="material-symbols-outlined">photo_camera</span>${photos.length} 张</span>` : '<span class="snippet-photo-badge"><span class="material-symbols-outlined">photo_camera</span>拍立得</span>';
     const visual = photos.length
       ? snippetPhotoMosaic(entry, photos)
-      : cover ? `<div class="snippet-cover-frame is-video-cover">${snippetCoverImage(cover, entry.text || '随手拍')}</div>${videoDurationStamp(videos[0])}`
+      : cover ? `<div class="snippet-cover-frame is-video-cover photo-blur-frame">${snippetCoverImage(cover, entry.text || '随手拍')}</div>${videoDurationStamp(videos[0])}`
         : videos.length ? `<div class="snippet-video-stream-placeholder"><span class="material-symbols-outlined">live_tv</span><small>在线视频</small></div>${videoDurationStamp(videos[0])}` : '';
     const segments = videos.length > 1 ? `<div class="snippet-video-segments" aria-label="这条记录中的视频">${videos.map((item, index) => `<button type="button" data-play-snippet-video="${entry.id}" data-video-index="${index}">${item.poster ? `<img src="${imgSrc(item.poster)}" alt="第 ${index + 1} 段视频封面">` : '<span class="material-symbols-outlined">stream</span>'}<small>${index + 1}</small>${videoDurationStamp(item)}</button>`).join('')}</div>` : '';
     const localVideoIndex = videos.findIndex(item => item.sourceType !== 'hls' && !isHlsAddress(item.video));
@@ -167,7 +168,7 @@ function snippetStreamCard(item) {
    （与私密相册封面的做法一致，见 private-vault.js 的 vaultCoverImage。） */
 function snippetCoverImage(source, alt = '') {
   const url = imgSrc(source);
-  return `<img class="snippet-cover-blur" src="${url}" alt="" aria-hidden="true" loading="lazy"><img class="snippet-cover-main" src="${url}" alt="${esc(alt)}" loading="lazy">`;
+  return photoFrameLayersHtml(url, { alt, padClass: 'snippet-cover-blur', stillClass: 'snippet-cover-main', lazy: true });
 }
 
 /* 照片格用同一套做法（2026-10-09 用户要求「竖屏照片也按这个风格处理」）：
@@ -179,7 +180,7 @@ function snippetCoverImage(source, alt = '') {
    这样后面那个「+N」遮罩（同样是定位元素、且排在更后）才能正常盖在最上面。 */
 function snippetPhotoImage(source, alt = '') {
   const url = imgSrc(source);
-  return `<img class="snippet-photo-blur" src="${url}" alt="" aria-hidden="true" loading="lazy"><img class="snippet-photo-main" src="${url}" alt="${esc(alt)}" loading="lazy">`;
+  return photoFrameLayersHtml(url, { alt, padClass: 'snippet-photo-blur', stillClass: 'snippet-photo-main', lazy: true });
 }
 
 function snippetHasLive(entry) {
@@ -188,7 +189,7 @@ function snippetHasLive(entry) {
 
 function snippetPhotoMosaic(entry, photos) {
   const visible = photos.slice(0, 5);
-  return `<div class="snippet-photo-mosaic count-${Math.min(visible.length, 5)}" aria-label="${photos.length} 张照片">${visible.map((photo, index) => `<button type="button" class="snippet-photo-tile" data-view-snippet-photo="${entry.id}" data-photo-index="${index}" aria-label="查看第 ${index + 1} 张照片">${snippetPhotoImage(photo, entry.text || `随手拍 ${index + 1}`)}${photoHasLiveMark(photo, entry.livePhotos)}${index === visible.length - 1 && photos.length > visible.length ? `<span class="snippet-photo-more">+${photos.length - visible.length}</span>` : ''}</button>`).join('')}</div>`;
+  return `<div class="snippet-photo-mosaic count-${Math.min(visible.length, 5)}" aria-label="${photos.length} 张照片">${visible.map((photo, index) => `<button type="button" class="photo-blur-frame snippet-photo-tile" data-view-snippet-photo="${entry.id}" data-photo-index="${index}" aria-label="查看第 ${index + 1} 张照片">${snippetPhotoImage(photo, entry.text || `随手拍 ${index + 1}`)}${photoHasLiveMark(photo, entry.livePhotos)}${index === visible.length - 1 && photos.length > visible.length ? `<span class="snippet-photo-more">+${photos.length - visible.length}</span>` : ''}</button>`).join('')}</div>`;
 }
 
 function photoHasLiveMark(still, livePhotos) {

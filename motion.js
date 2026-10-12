@@ -1,3 +1,4 @@
+import { PHOTO_FRAME_CLASS, photoFrameLayers } from './photo-frame.js';
 /**
  * 动效核心（2026-10-10 创建，同日按业界做法重构）
  *
@@ -582,17 +583,8 @@ function deckCard(entry, depth) {
     photo.className = 'journal-deck-photo';
     photo.dataset.deckPhoto = entry.id || '';
     photo.setAttribute('aria-label', entry.photoLabel || '查看照片');
-    const pad = document.createElement('img');
-    pad.className = 'journal-deck-pad';
-    pad.alt = '';
-    pad.draggable = false;
-    pad.src = entry.photoSrc;
-    const still = document.createElement('img');
-    still.className = 'journal-deck-still';
-    still.alt = '';
-    still.draggable = false;
-    still.src = entry.photoSrc;
-    photo.append(pad, still);
+    photo.classList.add(PHOTO_FRAME_CLASS);
+    photo.append(...photoFrameLayers(entry.photoSrc, { padClass: 'journal-deck-pad', stillClass: 'journal-deck-still' }));
     figure.append(photo);
     face.append(figure);
   }
@@ -634,6 +626,7 @@ export function mountJournalDeck(host, entries = [], options = {}) {
     let startX = 0;
     let startY = 0;
     const trail = [];
+    let downTarget = null;
     const offset = new SpringODE({ mass: 1, stiffness: 210, damping: 24, precision: 0.6 });
     const pitch = new SpringODE({ mass: 0.8, stiffness: 240, damping: 20, precision: 0.15 });
     const yaw = new SpringODE({ mass: 0.8, stiffness: 240, damping: 20, precision: 0.15 });
@@ -686,12 +679,16 @@ export function mountJournalDeck(host, entries = [], options = {}) {
     open.textContent = '阅读这篇';
     host.append(stage, controls, open);
 
+    // 顶牌引用在 paint() 里缓存，拖动中不再 querySelector；姿态写入按 rAF 合并，一帧最多写一次 transform。
+    let topCard = null;
+    let poseFrame = 0;
     const applyPose = () => {
+      poseFrame = 0;
       if (!active || !host.isConnected) {
         deckApi?.destroy();
         return;
       }
-      const card = stage.querySelector('[data-depth="0"]');
+      const card = topCard;
       if (!card) return;
       const x = offset.current;
       const tiltX = pitch.current;
@@ -701,12 +698,19 @@ export function mountJournalDeck(host, entries = [], options = {}) {
       const gone = travel < 0.35 ? 0 : (travel - 0.35) / 0.65;
       const nextOpacity = prefersReducedMotion() || gone < 0.02 ? '' : (1 - gone * 0.45).toFixed(3);
       if (card.style.opacity !== nextOpacity) card.style.opacity = nextOpacity;
+      // 拖动中只动顶牌的 transform/opacity，阴影等松手后再跟上，避免每帧多一层写入
+      if (dragged && tracking) return;
       const shadow = card.querySelector('.journal-deck-shadow');
       if (shadow) shadow.style.transform = `translate3d(${(-tiltY * 0.45).toFixed(2)}px, ${(12 - tiltX * 0.3).toFixed(2)}px, 0)`;
     };
-    offset.onUpdate = applyPose;
-    pitch.onUpdate = applyPose;
-    yaw.onUpdate = applyPose;
+    const schedulePose = () => {
+      if (poseFrame) return;
+      poseFrame = requestAnimationFrame(applyPose);
+    };
+    offset.onUpdate = schedulePose;
+    pitch.onUpdate = schedulePose;
+    yaw.onUpdate = schedulePose;
+    const setActiveLayer = on => { topCard?.classList.toggle('is-active-drag', on); };
 
     const pool = new Map();
     let stageWidth = 1;
@@ -751,7 +755,10 @@ export function mountJournalDeck(host, entries = [], options = {}) {
           pool.delete(key);
         }
       }
-      stage.replaceChildren(...keys.map(key => pool.get(key)).reverse());
+      const nextOrder = keys.map(key => pool.get(key)).reverse();
+      if (nextOrder.length !== stage.children.length || nextOrder.some((card, at) => stage.children[at] !== card)) stage.replaceChildren(...nextOrder);
+      topCard?.classList.remove('is-active-drag');
+      topCard = pool.get(keys[0]) || null;
       const entry = list[index];
       const label = entry ? `${entry.title || '这一篇'}，第 ${index + 1} 篇，共 ${total} 篇` : '';
       const indexLabel = `${index + 1} / ${total}`;
@@ -762,6 +769,7 @@ export function mountJournalDeck(host, entries = [], options = {}) {
       prev.disabled = total < 2;
       next.disabled = total < 2;
       measureStage();
+      if (poseFrame) cancelAnimationFrame(poseFrame);
       applyPose();
     };
 
@@ -826,6 +834,8 @@ export function mountJournalDeck(host, entries = [], options = {}) {
       stage.classList.remove('is-dragging');
       measureStage();
       pointerId = event.pointerId;
+      downTarget = event.target;
+      stage.setPointerCapture?.(event.pointerId);
       startX = event.clientX;
       startY = event.clientY;
       trail.length = 0;
@@ -833,8 +843,9 @@ export function mountJournalDeck(host, entries = [], options = {}) {
     };
     const onMove = event => {
       if (!tracking || event.pointerId !== pointerId) {
-        if (!tracking && !prefersReducedMotion()) {
-          const rect = stage.getBoundingClientRect();
+        // 悬停倾斜只给鼠标；矩形在 pointerenter 时量一次，移动中不再读布局
+        if (!tracking && event.pointerType === 'mouse' && hoverRect && !prefersReducedMotion()) {
+          const rect = hoverRect;
           if (!rect.width || !rect.height) return;
           const nx = ((event.clientX - rect.left) / rect.width) * 2 - 1;
           const ny = ((event.clientY - rect.top) / rect.height) * 2 - 1;
@@ -852,11 +863,12 @@ export function mountJournalDeck(host, entries = [], options = {}) {
         if (Math.abs(dy) > Math.abs(dx)) {
           vertical = true;
           tracking = false;
+          if (stage.hasPointerCapture?.(event.pointerId)) stage.releasePointerCapture(event.pointerId);
           return;
         }
         dragged = true;
         stage.classList.add('is-dragging');
-        stage.setPointerCapture?.(event.pointerId);
+        setActiveLayer(true);
       }
       offset.set(dx);
       if (!prefersReducedMotion()) {
@@ -871,6 +883,11 @@ export function mountJournalDeck(host, entries = [], options = {}) {
       tracking = false;
       pointerId = null;
       stage.classList.remove('is-dragging');
+      if (wasDrag) {
+        // 松手后补一次阴影位置；will-change 等弹簧停下再撤
+        schedulePose();
+        setTimeout(() => { if (!tracking) setActiveLayer(false); }, 700);
+      }
       if (wasVertical || !wasDrag) {
         offset.to(0);
         yaw.to(0);
@@ -878,8 +895,10 @@ export function mountJournalDeck(host, entries = [], options = {}) {
         if (wasVertical || wasDrag) return;
         const entry = list[index];
         if (!entry) return;
-        if (event.target?.closest?.('[data-deck-photo]')) options.onPhoto?.(entry);
-        else if (event.target?.closest?.('.journal-deck-face')) options.onOpen?.(entry);
+        // 按下时就捕获了指针，pointerup 的 target 会变成 stage，所以用按下时记下的目标判断点了哪里
+        const hit = downTarget || event.target;
+        if (hit?.closest?.('[data-deck-photo]')) options.onPhoto?.(entry);
+        else if (hit?.closest?.('.journal-deck-face')) options.onOpen?.(entry);
         return;
       }
       let velocity = 0;
@@ -903,7 +922,10 @@ export function mountJournalDeck(host, entries = [], options = {}) {
     stage.addEventListener('pointermove', onMove, { signal });
     stage.addEventListener('pointerup', finish, { signal });
     stage.addEventListener('pointercancel', finish, { signal });
+    let hoverRect = null;
+    stage.addEventListener('pointerenter', event => { if (event.pointerType === 'mouse') hoverRect = stage.getBoundingClientRect(); }, { signal });
     stage.addEventListener('pointerleave', () => {
+      hoverRect = null;
       if (!tracking) {
         pitch.to(0);
         yaw.to(0);
@@ -929,6 +951,7 @@ export function mountJournalDeck(host, entries = [], options = {}) {
         offset.stop();
         pitch.stop();
         yaw.stop();
+        if (poseFrame) cancelAnimationFrame(poseFrame);
         liveJournalDecks.delete(api);
         if (journalDecks.get(host) === api) journalDecks.delete(host);
       }
