@@ -3300,3 +3300,122 @@ button.danger) {
   :root[data-theme="plain"] .calendar-view.cal-screen .cal-cell.active { animation: none !important; }
   :root[data-theme="plain"] :is(#screen-ledger, .ledger-view) .ledger-quick-type::before { transition: none; }
 }
+
+/* ==========================================================================
+   三十七 · 签名动效（方案 #36 §8：S1、S4–S12，原样照抄，选择器按真实 DOM 核对）
+   JS 在 motion-signature.js；档位 rich / lite / none 由 <html data-pl-motion> 决定。
+   只动 transform / opacity；照片表面不挂任何签名动效。
+   ========================================================================== */
+/* S1 刊头晨光：五行从遮罩里升起 620ms expo，行间 70ms；lite 保留，none 直接显示 */
+:root[data-theme="plain"] .pl-rv { display: inline-block; vertical-align: bottom; padding-bottom: .08em; margin-bottom: -.08em; clip-path: inset(-1em -1em 0 -1em); }   /* 只裁下缘：大日期字号大、行高紧，overflow:hidden 会裁掉字头 */
+:root[data-theme="plain"] .pl-rv-in { display: inline-block; }
+:root[data-theme="plain"] .magazine-title-date > .date-num > .pl-rv > .pl-rv-in { display: inline-flex; align-items: inherit; gap: inherit; }
+:root[data-theme="plain"] .magazine-brand-line > .pl-rv { display: flex; width: 100%; }
+:root[data-theme="plain"] .magazine-brand-line > .pl-rv > .pl-rv-in { display: flex; width: 100%; justify-content: inherit; align-items: center; gap: inherit; }
+:root[data-theme="plain"]:is([data-pl-motion="rich"], [data-pl-motion="lite"]) .today-view .magazine-header:is(.pl-mast-play, .pl-mast-done) > * { animation: none !important; }   /* 摘掉 play 类后不能让旧的 v3-masthead-rise 重播 */
+:root[data-theme="plain"]:is([data-pl-motion="rich"], [data-pl-motion="lite"]) .pl-mast-play .pl-rv-in {
+  animation: pl-rv-up 620ms var(--pl-ease-expo) both;
+  animation-delay: calc(var(--ri) * 70ms);
+}
+:root[data-theme="plain"]:is([data-pl-motion="rich"], [data-pl-motion="lite"]) .pl-mast-play .editorial-cover-motto::after {
+  transform-origin: left; animation: pl-rule-in 480ms var(--pl-ease-expo) 360ms both;
+}
+@keyframes pl-rv-up { from { transform: translateY(105%); } }
+@keyframes pl-rule-in { from { transform: scaleX(0); } }
+
+/* S4 视差页头：0–240px 滚动区间，合成线程驱动；只 rich；不支持 animation-timeline 时静止 */
+@supports (animation-timeline: scroll()) {
+  /* 真实滚动容器是 #app；页面自己的 .view 也是 overflow:auto 但不滚，scroll(nearest) 会落到它身上不动，所以给 #app 起名 */
+  :root[data-theme="plain"][data-pl-motion="rich"] #app { scroll-timeline: --pl-page block; }
+  :root[data-theme="plain"][data-pl-motion="rich"] :is(.subpage-header > .subpage-title, .ledger-page-header > .ledger-page-title, .cal-screen-head > .cal-screen-title) {
+    animation: pl-px-1 linear both; animation-timeline: --pl-page; animation-range: 0 240px; }
+  :root[data-theme="plain"][data-pl-motion="rich"] :is(.subpage-header > .subpage-subtitle, .ledger-page-header > .ledger-page-subtitle, .cal-screen-head > .cal-screen-subtitle) {
+    animation: pl-px-2 linear both; animation-timeline: --pl-page; animation-range: 0 240px; }
+  :root[data-theme="plain"][data-pl-motion="rich"] :is(.moments-corner-note, .ledger-corner-note, .cal-corner-note) {
+    animation: pl-px-3 linear both; animation-timeline: --pl-page; animation-range: 0 240px; }
+}
+@keyframes pl-px-1 { to { transform: translate3d(0, 96px, 0); opacity: .15; } }
+@keyframes pl-px-2 { to { transform: translate3d(0, 72px, 0); opacity: 0; } }
+@keyframes pl-px-3 { to { transform: translate3d(0, 40px, 0) rotate(10deg); } }   /* 起点 = 纸签自身的 rotate(4deg) */
+
+/* S5 磁吸游标：整张月网格只有一块 36px 蓝游标，magnet 弹簧滑行；文字 140ms 后变白 */
+:root[data-theme="plain"] .calendar-full-grid.pl-has-cursor { position: relative; }
+:root[data-theme="plain"] .pl-cal-cursor { position: absolute; left: 0; top: 0; width: 36px; height: 36px; border-radius: 10px;
+  background: var(--pl-blue); box-shadow: var(--pl-shadow-btn); pointer-events: none; z-index: 0;
+  transition: transform var(--pl-dur-magnet) var(--pl-ease-emph), opacity 180ms var(--pl-ease-out);
+  transition-timing-function: var(--pl-spring-magnet), var(--pl-ease-out); }
+:root[data-theme="plain"] .pl-cal-cursor.pl-cursor-jump { transition: none; }
+:root[data-theme="plain"] .pl-cal-cursor.pl-cursor-fade { transition: opacity 180ms var(--pl-ease-out); }
+:root[data-theme="plain"][data-pl-motion="none"] .pl-cal-cursor { transition: none; }
+:root[data-theme="plain"] .calendar-view.cal-screen .calendar-full-grid.pl-has-cursor .cal-cell { position: relative; z-index: 1; transition: color 0s; }
+:root[data-theme="plain"] .calendar-view.cal-screen .calendar-full-grid.pl-has-cursor .cal-cell.active {
+  background: transparent !important; animation: none !important; transition: color 0s 140ms; }
+:root[data-theme="plain"] .calendar-view.cal-screen .calendar-full-grid.pl-has-cursor.pl-cursor-sliding .cal-cell.active { color: inherit !important; }
+:root[data-theme="plain"] .calendar-view.cal-screen .calendar-full-grid.pl-has-cursor .cal-cell.today.active { box-shadow: none !important; }
+
+/* S6 弹性滑块：底栏选中块、账本支出/收入分段换 snappy 弹簧 */
+:root[data-theme="plain"] #floating-dock::before,
+:root[data-theme="plain"] :is(#screen-ledger, .ledger-view) .ledger-quick-type::before {
+  transition-duration: var(--pl-dur-snappy);
+  transition-timing-function: var(--pl-ease-emph);
+  transition-timing-function: var(--pl-spring-snappy);
+}
+
+/* S7 数字翻牌：每位 600ms magnet，从个位起每位 +40ms */
+:root[data-theme="plain"] .pl-reels { font-variant-numeric: tabular-nums; white-space: nowrap; }
+:root[data-theme="plain"] .pl-reel { display: inline-block; height: 1.1em; overflow: hidden; vertical-align: top; }
+:root[data-theme="plain"] .pl-reel > span { display: block; transform: translateY(calc(var(--d) * -1.1em));
+  transition: transform var(--pl-dur-magnet) var(--pl-ease-emph) calc(var(--di) * 40ms);
+  transition-timing-function: var(--pl-spring-magnet); }
+:root[data-theme="plain"] .pl-reel b { display: block; height: 1.1em; line-height: 1.1em; font: inherit; }
+:root[data-theme="plain"] .pl-reels { line-height: 1.1em; }
+:root[data-theme="plain"][data-pl-motion="none"] .pl-reel > span { transition: none; }
+
+/* S8 主角卡微光：900ms 起一道淡光 1100ms 掠过，只一次；只 rich */
+:root[data-theme="plain"][data-pl-motion="rich"] .halo-card { overflow: hidden; }
+:root[data-theme="plain"] .halo-card > :is(.pl-sheen, .pl-glare) { display: none; }
+:root[data-theme="plain"][data-pl-motion="rich"] .halo-card > .pl-sheen {
+  display: block; position: absolute; inset: 0 auto 0 0; width: 55%; z-index: 2; pointer-events: none;
+  background: linear-gradient(100deg, transparent 20%, rgba(79,118,189,.10) 45%, rgba(255,255,255,.7) 50%, rgba(79,118,189,.10) 55%, transparent 80%);
+  opacity: 0; transform: translateX(-110%);   /* 运动由 JS 的 animate() 播：translateX(-110% → 200%)，opacity 0 → 1（15%）→ 1（85%）→ 0，1100ms，900ms 起 */
+}
+
+/* S9 指尖倾斜：最多 5°，perspective 900，按下 140ms，松手 520ms release；按压缩放由 --pl-press 接管 */
+:root[data-theme="plain"][data-pl-motion="rich"] .halo-card.pl-tilt,
+:root[data-theme="plain"][data-pl-motion="rich"] .halo-card.pl-tilt[data-pressed] {
+  transform: perspective(900px) rotateX(var(--pl-rx, 0deg)) rotateY(var(--pl-ry, 0deg)) scale(var(--pl-press, 1)) !important;
+  transition: transform 520ms var(--spring-release);
+}
+:root[data-theme="plain"][data-pl-motion="rich"] .halo-card.pl-tilting { --pl-press: .988; transition-duration: 140ms; transition-timing-function: var(--pl-ease-out); }
+:root[data-theme="plain"][data-pl-motion="rich"] .halo-card > .pl-glare {
+  display: block; position: absolute; left: 0; top: 0; width: 160px; height: 160px; z-index: 1; pointer-events: none;
+  background: radial-gradient(closest-side, rgba(146, 183, 238, .28), transparent);
+  transform: translate(var(--pl-gx, 0), var(--pl-gy, 0)); opacity: 0; transition: opacity 200ms var(--pl-ease-out);
+}
+:root[data-theme="plain"][data-pl-motion="rich"] .halo-card.pl-tilting > .pl-glare { opacity: 1; }
+
+/* S10 墨晕：从落点晕开一圈 16% 的蓝，520ms；只 rich */
+:root[data-theme="plain"][data-pl-motion="rich"] :is(.setting-item-row, .cal-tool-btn, .qa-card, .snippet-tool-btn, .subpage-layer .detail-sheet-row) { position: relative; overflow: hidden; }
+:root[data-theme="plain"] .pl-ink { position: absolute; border-radius: 50%; background: var(--pl-blue); pointer-events: none; z-index: 0;
+  transform: scale(1); opacity: 0; animation: pl-ink 520ms var(--pl-ease-out) backwards; }
+@keyframes pl-ink { from { transform: scale(.1); opacity: .16; } }
+
+/* S11 三拍入场：页头 0ms → 主角卡 80ms（14px / 460ms）→ 其余 140ms + 序号 × 32ms；今日页头由 S1 接管 */
+:root[data-theme="plain"]:not([data-pl-motion="none"]) [data-stagger] { animation-delay: calc(140ms + min(var(--stagger-index, 0), 6) * 32ms); }
+:root[data-theme="plain"]:not([data-pl-motion="none"]) :is(.subpage-header, .ledger-page-header, .cal-screen-head) { animation: pl-head-in 420ms var(--spring-entrance) 0ms backwards; }
+:root[data-theme="plain"]:not([data-pl-motion="none"]) .halo-card { animation: pl-hero-in 460ms var(--spring-entrance) 80ms backwards; }
+@keyframes pl-head-in { from { opacity: 0; transform: translate3d(0, 8px, 0); } }
+@keyframes pl-hero-in { from { opacity: 0; transform: translate3d(0, 14px, 0); } }
+
+/* S12 Toast 弹性落位：进 460ms snappy，出 160ms ease-in */
+:root[data-theme="plain"] .toast { transform: translate(-50%, 14px) scale(.96);
+  transition: opacity 160ms var(--pl-ease-in), transform 160ms var(--pl-ease-in), visibility 160ms; }
+:root[data-theme="plain"] .toast.show { transform: translate(-50%, 0);
+  transition: opacity 200ms var(--pl-ease-out), transform 460ms var(--pl-ease-out), visibility 0s;
+  transition-timing-function: var(--pl-ease-out), var(--pl-spring-snappy), linear; }
+
+@media (prefers-reduced-motion: reduce) {
+  :root[data-theme="plain"] .pl-cal-cursor,
+  :root[data-theme="plain"] .pl-reel > span { transition: none !important; }
+  :root[data-theme="plain"] :is(.subpage-header, .ledger-page-header, .cal-screen-head, .halo-card) { animation: none !important; }
+}

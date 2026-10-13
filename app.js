@@ -4,6 +4,7 @@ import { Capacitor, registerPlugin } from '@capacitor/core';
 import { $, $$, state, cursor, selected, setState, setCursor, setSelected, defaults, render, go, goBack, save, show, confirmDelete, closeModal, getSubmitHandler, registerBinder, registerHelper, registerOnRender, callHelper, pushBackState, applyTheme, primeThemeFromNativeMirror, notifyPersistedKeySeal } from './core.js';
 import { installPressFeedback, installMagneticDock } from './motion.js';
 import { installLayerMotion } from './motion-layers.js';
+import { installSignatureMotion } from './motion-signature.js';
 import { migrateState, dateKey } from './model.js';
 import { externalizeStateMedia, recoverReferencedMedia } from './media-store.js';
 import { rebuildActivityLog } from './activity-log.js';
@@ -257,6 +258,7 @@ async function boot() {
   installPressFeedback();
   installMagneticDock();
   installLayerMotion();
+  installSignatureMotion();
   let autoSummaryLaunch = false;
   try {
     // 解析期没读到主题时，先用原生存储把清简/暖阳补上，避免数据库打开期间先露出暖色纸。
