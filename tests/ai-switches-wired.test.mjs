@@ -24,8 +24,9 @@ test('countdown node reminders are actually triggered on app foreground', () => 
 test('countdown node copy is only requested when the user enabled it', () => {
   const fn = aiSource.slice(aiSource.indexOf('async function checkCountdownNodes'));
   assert.match(fn.slice(0, 400), /!cfg\.nodeReminder/, '未开启节点提醒时必须直接返回');
-  // 通知失败不能写已提醒标记，否则用户永远收不到
-  assert.match(fn, /notifyNow[\s\S]{0,200}?delete notified\[key\]/, '通知发送失败时不应写入已提醒标记');
+  // 节点改由本地闹钟排程。检查函数自己不写已提醒标记，调度失败时标记留在 notifications.js 里不落盘。
+  assert.match(fn, /syncCountdownNodeAlarms/, '节点检查要把闹钟交给本地排程');
+  assert.doesNotMatch(fn, /notified\[key\]\s*=/, '检查函数失败时不能自己写入已提醒标记');
 });
 
 test('random reminder plan uses the same item shape the scheduler expects', () => {

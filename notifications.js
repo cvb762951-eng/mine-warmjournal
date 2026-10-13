@@ -1,16 +1,195 @@
 import { Capacitor, registerPlugin } from '@capacitor/core';
 import { LocalNotifications } from '@capacitor/local-notifications';
-import { registerHelper, state, save } from './core.js';
+import { registerHelper, callHelper, state, save } from './core.js';
+import {
+  DAILY_CHANNEL_ID,
+  DAILY_MAX_PER_DAY,
+  RANDOM_CHANNEL_ID,
+  IMMEDIATE_CHANNEL_ID,
+  COUNTDOWN_CHANNEL_ID,
+  buildDailyAlarms,
+  buildRandomAlarms,
+  buildCountdownAlarms,
+  toLocalNotification,
+  pendingIdsToCancel,
+  isDailyId,
+  isLegacyDailyId,
+  isRandomId,
+  isCountdownId,
+  isManagedReminderId,
+  formatHm,
+  formatYmd
+} from './reminder-plan.js';
 
 const TIMER_NOTIFICATION_ID = 25001;
 const TimerAlarm = registerPlugin('TimerAlarm');
+const APP_PACKAGE = 'com.mine.warmjournal';
 
-export async function prepareNotifications() {
-  if (!Capacitor.isNativePlatform()) return false;
-  const current = await LocalNotifications.checkPermissions();
-  if (current.display === 'granted') return true;
-  const requested = await LocalNotifications.requestPermissions();
-  return requested.display === 'granted';
+let lastError = null;
+let permissionTask = null;
+let permissionPrompted = false;
+let gate = Promise.resolve();
+let gateDepth = 0;
+let lastDailyAt = [];
+
+function unsupportedStatus() {
+  return { ok: false, permission: 'unsupported', exactAlarm: 'unavailable', scheduledCount: 0, lastError: null };
+}
+
+function statusResult({ ok, permission = 'unknown', exactAlarm = 'unknown', scheduledCount = 0, error = undefined }) {
+  if (error !== undefined) lastError = error;
+  return { ok: Boolean(ok), permission, exactAlarm, scheduledCount, lastError };
+}
+
+function withNotificationGate(task) {
+  if (gateDepth > 0) return Promise.resolve().then(task);
+  const run = gate.then(async () => {
+    gateDepth += 1;
+    try { return await task(); }
+    finally { gateDepth -= 1; }
+  });
+  gate = run.then(() => {}, () => {});
+  return run;
+}
+
+export function prepareNotifications({ request = true, userInitiated = false } = {}) {
+  if (!Capacitor.isNativePlatform()) return Promise.resolve(false);
+  if (userInitiated) permissionPrompted = false;
+  if (permissionTask) return permissionTask;
+  permissionTask = (async () => {
+    const current = await LocalNotifications.checkPermissions();
+    if (current.display === 'granted') return true;
+    if (!request || permissionPrompted) return false;
+    permissionPrompted = true;
+    const requested = await LocalNotifications.requestPermissions();
+    return requested.display === 'granted';
+  })().finally(() => { permissionTask = null; });
+  return permissionTask;
+}
+
+async function readPermissionLabel() {
+  if (!Capacitor.isNativePlatform()) return 'unsupported';
+  try {
+    const current = await LocalNotifications.checkPermissions();
+    return current.display || 'denied';
+  } catch (error) {
+    lastError = error?.message || '读不到通知权限';
+    return 'denied';
+  }
+}
+
+async function readExactAlarm() {
+  if (!Capacitor.isNativePlatform()) return 'unavailable';
+  try {
+    const result = await LocalNotifications.checkExactNotificationSetting();
+    return result?.exact_alarm || result?.exactAlarm || 'denied';
+  } catch (error) {
+    lastError = error?.message || '读不到精确闹钟权限';
+    return 'unavailable';
+  }
+}
+
+async function listPendingIds() {
+  const pending = await LocalNotifications.getPending();
+  return (pending?.notifications || []).map(item => item.id).filter(id => Number.isInteger(id));
+}
+
+async function listDeliveredIds() {
+  const delivered = await LocalNotifications.getDeliveredNotifications();
+  return (delivered?.notifications || []).map(item => item.id).filter(id => Number.isInteger(id));
+}
+
+async function cancelIds(ids) {
+  const unique = [...new Set(ids)];
+  if (!unique.length) return;
+  await LocalNotifications.cancel({ notifications: unique.map(id => ({ id })) });
+}
+
+async function ensureChannels() {
+  const channels = [
+    { id: DAILY_CHANNEL_ID, name: '日常记录提醒', description: '提醒你随手拍、记录今天的生活', importance: 4, vibration: true },
+    { id: RANDOM_CHANNEL_ID, name: '记录提醒', description: '随机记录提醒', importance: 4, vibration: true },
+    { id: IMMEDIATE_CHANNEL_ID, name: 'AI 陪伴提醒', description: '关键节点与陪伴提醒', importance: 4, vibration: true },
+    { id: COUNTDOWN_CHANNEL_ID, name: '倒数日节点', description: '倒数日 30、7、1 天和当天的提醒', importance: 4, vibration: true }
+  ];
+  for (const channel of channels) {
+    try { await LocalNotifications.createChannel(channel); }
+    catch (error) { console.warn('创建提醒频道失败', error); }
+  }
+}
+
+async function scheduleAlarms(alarms) {
+  const notifications = alarms.map(toLocalNotification);
+  const chunkSize = 40;
+  for (let index = 0; index < notifications.length; index += chunkSize) {
+    await LocalNotifications.schedule({ notifications: notifications.slice(index, index + chunkSize) });
+  }
+}
+
+function dailyOccupiedTimes() {
+  if (lastDailyAt.length) return lastDailyAt;
+  const { alarms } = buildDailyAlarms(state.settings?.dailyReminders || [], state.settings?.reminderAiCopy, new Date());
+  return alarms.map(alarm => alarm.at.getTime());
+}
+
+function plannedItem(alarm, pushed) {
+  return {
+    id: String(alarm.sourceIndex),
+    time: formatHm(alarm.at),
+    title: alarm.title,
+    body: alarm.body,
+    pushed
+  };
+}
+
+export async function getReminderStatus() {
+  if (!Capacitor.isNativePlatform()) return { permission: 'unsupported', exactAlarm: 'unavailable', scheduledCount: 0, lastError };
+  const permission = await readPermissionLabel();
+  const exactAlarm = await readExactAlarm();
+  let scheduledCount = 0;
+  try {
+    const ids = await listPendingIds();
+    scheduledCount = ids.filter(isManagedReminderId).length;
+  } catch (error) {
+    lastError = error?.message || '读不到已排闹钟';
+  }
+  return { permission, exactAlarm, scheduledCount, lastError };
+}
+
+export async function openExactAlarmSettings() {
+  if (!Capacitor.isNativePlatform()) {
+    lastError = '只能在安装后的 App 里打开精确闹钟设置';
+    return false;
+  }
+  try {
+    await LocalNotifications.changeExactNotificationSetting();
+    return true;
+  } catch (error) {
+    lastError = error?.message || '无法打开精确闹钟设置';
+    return false;
+  }
+}
+
+export async function openNotificationSettings() {
+  if (!Capacitor.isNativePlatform() || Capacitor.getPlatform() !== 'android') {
+    lastError = '只能在 Android 安装包里打开系统通知设置';
+    return false;
+  }
+  // 仓库里没有 Android 工程，不能注册原生插件。用系统 intent 打开本应用的通知设置。
+  const intent = `intent:#Intent;action=android.settings.APP_NOTIFICATION_SETTINGS;S.android.provider.extra.APP_PACKAGE=${APP_PACKAGE};end`;
+  try {
+    if (typeof document === 'undefined') throw new Error('没有页面可以打开设置');
+    const anchor = document.createElement('a');
+    anchor.href = intent;
+    anchor.rel = 'noopener';
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    return true;
+  } catch (error) {
+    lastError = error?.message || '打不开系统通知设置';
+    return false;
+  }
 }
 
 export async function scheduleTimerNotification(endAt, task, label = '专注') {
@@ -18,10 +197,10 @@ export async function scheduleTimerNotification(endAt, task, label = '专注') {
   if (Capacitor.getPlatform() === 'android') {
     // Android 用原生闹铃（AlarmManager），不依赖通知权限；先调度闹铃，权限异步请求避免阻塞
     await TimerAlarm.schedule({ at: endAt, task: task || label, label });
-    prepareNotifications().catch(() => {});
+    prepareNotifications({ userInitiated: true }).catch(() => {});
     return true;
   }
-  const allowed = await prepareNotifications();
+  const allowed = await prepareNotifications({ userInitiated: true });
   if (!allowed) return false;
   await cancelTimerNotification();
   await LocalNotifications.schedule({ notifications: [{
@@ -60,7 +239,9 @@ export async function isTimerAlarmRinging() {
 }
 
 export async function initializeNotificationChannel() {
-  // Android 的持续闹铃频道由原生服务创建；其他平台不需要预建频道。
+  if (!Capacitor.isNativePlatform()) return false;
+  await ensureChannels();
+  return true;
 }
 
 export async function setKeepAwake(keep) {
@@ -101,122 +282,120 @@ export async function updateCountdownWidget(payload) {
   }
 }
 
-const DAILY_REMINDER_BASE = 25100;
-const DAILY_REMINDER_MAX = 20;
-
-const REMINDER_COPY = {
-  photo: {
-    title: '随手拍',
-    bodies: [
-      '此刻的画面值得被记住，随手拍一张吧',
-      '抬头看看四周，有没有想拍下的瞬间？',
-      '给这一刻留个影，随手拍一张'
-    ]
-  },
-  journal: {
-    title: '记录今天',
-    bodies: [
-      '花一分钟，记下此刻的念头',
-      '今天有什么想记住的？写两句吧',
-      '此刻的心情如何？记下来留给自己'
-    ]
-  }
-};
-
-function pickReminder(type, aiCopy) {
-  if (type === 'photo') {
-    const pool = [...(aiCopy?.photo || []), ...REMINDER_COPY.photo.bodies];
-    return { title: '随手拍', body: pickOne(pool), route: 'snippet-photo' };
-  }
-  if (type === 'journal') {
-    const pool = [...(aiCopy?.journal || []), ...REMINDER_COPY.journal.bodies];
-    return { title: '记录今天', body: pickOne(pool), route: 'journal' };
-  }
-  const kind = Math.random() < 0.5 ? 'photo' : 'journal';
-  return pickReminder(kind, aiCopy);
+async function cancelStale(matches, keepIds) {
+  const pending = await listPendingIds();
+  const delivered = await listDeliveredIds();
+  const drop = pendingIdsToCancel(pending, delivered, keepIds, matches);
+  await cancelIds(drop);
 }
 
-function pickOne(list) {
-  return list[Math.floor(Math.random() * list.length)];
+async function cancelOrphanCountdownAlarms() {
+  const live = new Set((state.countdowns || []).map(item => String(item?.id || '')).filter(Boolean));
+  const pending = await LocalNotifications.getPending();
+  const delivered = new Set(await listDeliveredIds());
+  const ids = (pending?.notifications || [])
+    .filter(item => Number.isInteger(item.id) && isCountdownId(item.id) && item.extra?.countdownId && !live.has(String(item.extra.countdownId)) && !delivered.has(item.id))
+    .map(item => item.id);
+  await cancelIds(ids);
 }
 
-export async function scheduleDailyReminders(reminders, aiCopy = null) {
-  if (!Capacitor.isNativePlatform()) return false;
-  await cancelDailyReminders();
-  if (!reminders.length) return true;
-  const allowed = await prepareNotifications();
-  if (!allowed) return false;
-  try {
-    await LocalNotifications.createChannel({
-      id: 'daily-reminder',
-      name: '日常记录提醒',
-      description: '提醒你随手拍、记录今天的生活',
-      importance: 4
+export async function scheduleDailyReminders(reminders, aiCopy = null, options = {}) {
+  if (!Capacitor.isNativePlatform()) return unsupportedStatus();
+  return withNotificationGate(async () => {
+    const list = Array.isArray(reminders) ? reminders : [];
+    const permission = await readPermissionLabel();
+    const exactAlarm = await readExactAlarm();
+    if (!list.length) {
+      try {
+        await cancelStale(id => isDailyId(id) || isLegacyDailyId(id), []);
+        lastDailyAt = [];
+        return statusResult({ ok: true, permission, exactAlarm, scheduledCount: 0, error: null });
+      } catch (error) {
+        return statusResult({ ok: false, permission, exactAlarm, scheduledCount: 0, error: error?.message || '取消旧提醒失败' });
+      }
+    }
+    const allowed = await prepareNotifications({
+      request: options.requestPermission !== false,
+      userInitiated: options.userInitiated === true
     });
-  } catch (error) {
-    console.warn('创建提醒频道失败', error);
-  }
-  const notifications = reminders.map((reminder, index) => {
-    const copy = pickReminder(reminder.type, aiCopy);
-    return {
-      id: DAILY_REMINDER_BASE + index,
-      title: copy.title,
-      body: copy.body,
-      // Capacitor 8：on（cron 固定时刻）+ repeats 为每日定时标准写法；
-      // 不要同时写 every:'day'（内部按保存时刻 +24h 重排，与 on 冲突覆盖）。
-      schedule: { on: { hour: reminder.hour, minute: reminder.minute }, repeats: true, allowWhileIdle: true },
-      channelId: 'daily-reminder',
-      extra: { route: copy.route }
-    };
+    const permissionAfter = allowed ? 'granted' : await readPermissionLabel();
+    if (!allowed) {
+      return statusResult({
+        ok: false,
+        permission: permissionAfter,
+        exactAlarm,
+        scheduledCount: 0,
+        error: '通知权限未授予，原来的提醒还留着'
+      });
+    }
+    const { alarms, truncated, heldIds } = buildDailyAlarms(list, aiCopy, new Date());
+    const keepIds = [...alarms.map(alarm => alarm.id), ...(heldIds || [])];
+    if (!alarms.length && !keepIds.length) {
+      return statusResult({
+        ok: false,
+        permission: 'granted',
+        exactAlarm,
+        scheduledCount: 0,
+        error: '没有排出未来的每日提醒，原来的闹钟还留着'
+      });
+    }
+    if (!alarms.length) {
+      try {
+        await cancelStale(id => isDailyId(id) || isLegacyDailyId(id), keepIds);
+        return statusResult({ ok: true, permission: 'granted', exactAlarm, scheduledCount: 0, error: null });
+      } catch (error) {
+        return statusResult({ ok: false, permission: 'granted', exactAlarm, scheduledCount: 0, error: error?.message || '马上要响的提醒还留着' });
+      }
+    }
+    try {
+      await ensureChannels();
+      await scheduleAlarms(alarms);
+    } catch (error) {
+      return statusResult({
+        ok: false,
+        permission: 'granted',
+        exactAlarm,
+        scheduledCount: 0,
+        error: error?.message || '每日提醒没排上，原来的闹钟还留着'
+      });
+    }
+    let cancelNote = null;
+    try {
+      await cancelStale(id => isDailyId(id) || isLegacyDailyId(id), keepIds);
+    } catch (error) {
+      cancelNote = '新的每日提醒已经排上，有一条旧闹钟暂时没取消';
+      console.warn(cancelNote, error);
+    }
+    lastDailyAt = alarms.map(alarm => alarm.at.getTime());
+    const note = truncated > 0 ? `每天最多排 ${DAILY_MAX_PER_DAY} 条，多出来的 ${truncated} 条仍留在设置里` : cancelNote;
+    return statusResult({ ok: true, permission: 'granted', exactAlarm, scheduledCount: alarms.length, error: note });
   });
-  try {
-    await LocalNotifications.schedule({ notifications });
-    return true;
-  } catch (error) {
-    console.warn('日常提醒调度失败', error);
-    return false;
-  }
 }
 
 export async function cancelDailyReminders() {
-  if (!Capacitor.isNativePlatform()) return;
-  try {
-    const pending = await LocalNotifications.getPending();
-    const ids = pending.notifications
-      .filter(item => item.id >= DAILY_REMINDER_BASE && item.id < DAILY_REMINDER_BASE + DAILY_REMINDER_MAX)
-      .map(item => item.id);
-    if (ids.length) await LocalNotifications.cancel({ notifications: ids.map(id => ({ id })) });
-  } catch (error) {
-    console.warn('取消提醒失败', error);
-  }
+  if (!Capacitor.isNativePlatform()) return unsupportedStatus();
+  return scheduleDailyReminders([], null, { requestPermission: false });
 }
 
-/**
- * 立即发送一条测试通知，用于排查真机通知不弹的问题。
- * 返回状态字符串：'browser'（非原生平台）/ 'scheduled'（已排期）/ 权限状态 / 错误 message。
- */
+const TEST_NOTIFICATION_ID = 25999;
+
 export async function sendTestNotification() {
   if (!Capacitor.isNativePlatform()) return 'browser';
   try {
     let current = await LocalNotifications.checkPermissions();
     if (current.display !== 'granted') {
+      permissionPrompted = false;
       current = await LocalNotifications.requestPermissions();
     }
     if (current.display !== 'granted') return `权限未授予：${current.display}`;
-    await LocalNotifications.createChannel({
-      id: 'daily-reminder',
-      name: '日常记录提醒',
-      description: '提醒你随手拍、记录今天的生活',
-      importance: 4
-    }).catch(() => {});
-    // 固定测试 ID（25999 与既有通知 ID 段不冲突），重复发送覆盖同一条。
+    await ensureChannels();
     await LocalNotifications.schedule({
       notifications: [{
-        id: 25999,
+        id: TEST_NOTIFICATION_ID,
         title: 'Mine 测试通知',
         body: '如果你看到这条，通知链路正常',
         schedule: { at: new Date(Date.now() + 2000), allowWhileIdle: true },
-        channelId: 'daily-reminder'
+        channelId: DAILY_CHANNEL_ID
       }]
     });
     return 'scheduled';
@@ -236,32 +415,24 @@ export function onNotificationAction(callback) {
 const IMMEDIATE_BASE = 25200;
 let immediateSeq = 0;
 
-/**
- * 立即推送一条通知（标题+正文）。
- * 供 AI 岗位在 App 运行/回前台时推送节点提醒等；浏览器返回 false 不抛错。
- */
 export async function notifyNow(title, body, extra = {}) {
   if (!Capacitor.isNativePlatform()) return false;
-  const allowed = await prepareNotifications();
+  const allowed = await prepareNotifications({ userInitiated: true });
   if (!allowed) return false;
   try {
-    await LocalNotifications.createChannel({
-      id: 'immediate',
-      name: 'AI 陪伴提醒',
-      description: '关键节点与陪伴提醒',
-      importance: 4
-    }).catch(() => {});
+    await ensureChannels();
     const id = IMMEDIATE_BASE + ((immediateSeq = (immediateSeq + 1) % 100));
     await LocalNotifications.schedule({ notifications: [{
       id,
       title: String(title || 'Mine'),
       body: String(body || ''),
       schedule: { at: new Date(Date.now() + 250), allowWhileIdle: true },
-      channelId: 'immediate',
+      channelId: IMMEDIATE_CHANNEL_ID,
       extra
     }] });
     return true;
   } catch (error) {
+    lastError = error?.message || '立即通知推送失败';
     console.warn('立即通知推送失败', error);
     return false;
   }
@@ -269,135 +440,210 @@ export async function notifyNow(title, body, extra = {}) {
 
 registerHelper('notifyNow', notifyNow);
 
-// ---- AI 随机提醒（每天 2-4 次不定时，App 关闭也能推；文案由岗位④预生成当天计划）----
-const RANDOM_REMINDER_BASE = 25400;
-const RANDOM_REMINDER_MAX = 8;
-
-const todayKey = () => {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-};
-
-function persistRandomPlan() {
-  state.settings.aiRandomReminders = state.settings.aiRandomReminders || { date: '', items: [] };
-  save().catch(() => {});
+function todayKey(now = new Date()) {
+  return formatYmd(now);
 }
 
-/**
- * 调度当天 AI 随机提醒计划：plan = [{ time: 'HH:MM', title, body }]。
- * 同一天重复调用覆盖（先 cancel 再排）；计划与 pushed 标记写入 settings，供重启恢复。
- * 浏览器返回 false 不抛错。
- */
-export async function scheduleRandomReminders(plan) {
-  if (!Capacitor.isNativePlatform()) return false;
-  await cancelRandomReminders();
-  const items = (Array.isArray(plan) ? plan : []).filter(item => /^\d{2}:\d{2}$/.test(String(item?.time || ''))).slice(0, RANDOM_REMINDER_MAX);
-  state.settings.aiRandomReminders = {
-    date: todayKey(),
-    items: items.map((item, index) => ({ id: String(index), time: String(item.time), title: String(item.title || '记录生活'), body: String(item.body || ''), pushed: false }))
-  };
-  persistRandomPlan();
-  if (!items.length) return true;
-  const allowed = await prepareNotifications();
-  if (!allowed) return false;
-  try {
-    await LocalNotifications.createChannel({
-      id: 'random-reminder',
-      name: '记录提醒',
-      description: 'AI 为你挑选的随机记录提醒',
-      importance: 4
-    }).catch(() => {});
-    const notifications = items.map((item, index) => {
-      const [hour, minute] = String(item.time).split(':').map(Number);
-      const at = new Date();
-      at.setHours(hour, minute, 0, 0);
-      return {
-        id: RANDOM_REMINDER_BASE + index,
-        title: String(item.title || '记录生活'),
-        body: String(item.body || ''),
-        schedule: { at, allowWhileIdle: true },
-        channelId: 'random-reminder',
-        extra: { route: 'journal', randomReminder: true }
-      };
-    });
-    await LocalNotifications.schedule({ notifications });
-    return true;
-  } catch (error) {
-    console.warn('AI 随机提醒调度失败', error);
-    return false;
-  }
-}
-
-/** 取消全部 AI 随机提醒（含当天已排的） */
-export async function cancelRandomReminders() {
-  if (!Capacitor.isNativePlatform()) return;
-  try {
-    const pending = await LocalNotifications.getPending();
-    const ids = pending.notifications
-      .filter(item => item.id >= RANDOM_REMINDER_BASE && item.id < RANDOM_REMINDER_BASE + RANDOM_REMINDER_MAX)
-      .map(item => item.id);
-    if (ids.length) await LocalNotifications.cancel({ notifications: ids.map(id => ({ id })) });
-  } catch (error) {
-    console.warn('取消 AI 随机提醒失败', error);
-  }
-}
-
-/**
- * 启动/回前台时恢复当天剩余计划：未推且未过期的补排；已过期标记 pushed 不再推。
- * 当天已推过的不重复；计划日期不是今天则清空。
- */
-export async function restoreRandomReminders() {
-  if (!Capacitor.isNativePlatform()) return false;
-  const plan = state.settings?.aiRandomReminders;
-  if (!plan || !plan.items?.length) return true;
-  if (plan.date !== todayKey()) {
-    state.settings.aiRandomReminders = { date: '', items: [] };
-    persistRandomPlan();
-    return true;
-  }
-  if (!state.settings?.aiRandomRemindersEnabled) return true;
-  const now = new Date();
-  const nowMinutes = now.getHours() * 60 + now.getMinutes();
-  const pendingItems = [];
-  let changed = false;
-  plan.items.forEach(item => {
-    if (item.pushed) return;
-    const [hour, minute] = String(item.time).split(':').map(Number);
-    const atMinutes = hour * 60 + minute;
-    if (atMinutes <= nowMinutes) {
-      item.pushed = true; // 已过时间：跳过，标记防重复
-      changed = true;
-      return;
+export async function scheduleRandomReminders(plan, options = {}) {
+  if (!Capacitor.isNativePlatform()) return unsupportedStatus();
+  return withNotificationGate(async () => {
+    const now = new Date();
+    const sourceItems = (Array.isArray(plan) ? plan : []).filter(item => /^\d{2}:\d{2}$/.test(String(item?.time || ''))).slice(0, 8);
+    const built = buildRandomAlarms(sourceItems, now, dailyOccupiedTimes());
+    const alarms = built.alarms;
+    const keepIds = [...alarms.map(alarm => alarm.id), ...built.heldIds];
+    const exactAlarm = await readExactAlarm();
+    if (!alarms.length && !built.held.length) {
+      try {
+        await cancelStale(isRandomId, []);
+        state.settings.aiRandomReminders = {
+          date: todayKey(now),
+          armed: true,
+          items: sourceItems.map((item, index) => ({
+            id: String(item?.id || index),
+            time: String(item.time),
+            title: String(item.title || '记录生活').slice(0, 60),
+            body: String(item.body || '').slice(0, 120),
+            pushed: true
+          }))
+        };
+        await save();
+        return statusResult({ ok: true, permission: await readPermissionLabel(), exactAlarm, scheduledCount: 0, error: null });
+      } catch (error) {
+        return statusResult({ ok: false, permission: await readPermissionLabel(), exactAlarm, scheduledCount: 0, error: error?.message || '今天没有可排的随机提醒' });
+      }
     }
-    pendingItems.push(item);
-  });
-  if (changed) persistRandomPlan();
-  if (!pendingItems.length) return true;
-  const allowed = await prepareNotifications();
-  if (!allowed) return false;
-  try {
-    const notifications = pendingItems.map(item => {
-      const index = plan.items.indexOf(item);
-      const [hour, minute] = String(item.time).split(':').map(Number);
-      const at = new Date();
-      at.setHours(hour, minute, 0, 0);
-      return {
-        id: RANDOM_REMINDER_BASE + index,
-        title: String(item.title || '记录生活'),
-        body: String(item.body || ''),
-        schedule: { at, allowWhileIdle: true },
-        channelId: 'random-reminder',
-        extra: { route: 'journal', randomReminder: true }
-      };
+    const allowed = await prepareNotifications({
+      request: options.requestPermission !== false,
+      userInitiated: options.userInitiated === true
     });
-    await LocalNotifications.schedule({ notifications });
-    return true;
-  } catch (error) {
-    console.warn('AI 随机提醒恢复失败', error);
-    return false;
-  }
+    const permission = allowed ? 'granted' : await readPermissionLabel();
+    if (!allowed) {
+      state.settings.aiRandomReminders = {
+        date: todayKey(now),
+        armed: false,
+        items: sourceItems.map((item, index) => ({
+          id: String(item?.id || index),
+          time: String(item.time),
+          title: String(item.title || '记录生活').slice(0, 60),
+          body: String(item.body || '').slice(0, 120),
+          pushed: false
+        }))
+      };
+      try { await save(); }
+      catch (error) { console.warn('随机提醒没排上，计划也没记下', error); }
+      return statusResult({ ok: false, permission, exactAlarm, scheduledCount: 0, error: '通知权限未授予，随机提醒没有写成已排' });
+    }
+    try {
+      await ensureChannels();
+      if (alarms.length) await scheduleAlarms(alarms);
+    } catch (error) {
+      return statusResult({ ok: false, permission: 'granted', exactAlarm, scheduledCount: 0, error: error?.message || '随机提醒没排上' });
+    }
+    try {
+      await cancelStale(isRandomId, keepIds);
+    } catch (error) {
+      console.warn('新的随机提醒已经排上，旧的没取消干净', error);
+    }
+    state.settings.aiRandomReminders = {
+      date: todayKey(now),
+      armed: true,
+      items: [...alarms, ...built.held].map(alarm => plannedItem(alarm, false))
+    };
+    try {
+      await save();
+    } catch (error) {
+      return statusResult({ ok: false, permission: 'granted', exactAlarm, scheduledCount: alarms.length, error: error?.message || '随机提醒排上了，但计划没写进设置' });
+    }
+    return statusResult({ ok: true, permission: 'granted', exactAlarm, scheduledCount: alarms.length, error: null });
+  });
 }
 
+export async function cancelRandomReminders() {
+  if (!Capacitor.isNativePlatform()) return unsupportedStatus();
+  return withNotificationGate(async () => {
+    try {
+      await cancelStale(isRandomId, []);
+      if (state.settings?.aiRandomReminders && typeof state.settings.aiRandomReminders === 'object') {
+        state.settings.aiRandomReminders.armed = false;
+        await save();
+      }
+      return statusResult({ ok: true, permission: await readPermissionLabel(), exactAlarm: await readExactAlarm(), scheduledCount: 0, error: null });
+    } catch (error) {
+      return statusResult({ ok: false, permission: await readPermissionLabel(), exactAlarm: await readExactAlarm(), scheduledCount: 0, error: error?.message || '取消随机提醒失败' });
+    }
+  });
+}
+
+export async function restoreRandomReminders(options = {}) {
+  if (!Capacitor.isNativePlatform()) return unsupportedStatus();
+  const plan = state.settings?.aiRandomReminders;
+  if (!plan || plan.date !== todayKey() || !Array.isArray(plan.items) || !plan.items.length) {
+    return statusResult({ ok: true, permission: await readPermissionLabel(), exactAlarm: await readExactAlarm(), scheduledCount: 0, error: null });
+  }
+  if (state.settings?.aiRandomRemindersEnabled !== true) {
+    return statusResult({ ok: true, permission: await readPermissionLabel(), exactAlarm: await readExactAlarm(), scheduledCount: 0, error: null });
+  }
+  const result = await scheduleRandomReminders(plan.items, options);
+  if (result.ok === false && state.settings?.aiRandomReminders) {
+    state.settings.aiRandomReminders.armed = false;
+    try { await save(); } catch (error) { console.warn('随机提醒状态没写上', error); }
+  }
+  return result;
+}
+
+export async function syncCountdownNodeAlarms(options = {}) {
+  if (!Capacitor.isNativePlatform()) return unsupportedStatus();
+  return withNotificationGate(async () => {
+    const cfg = state.settings?.countdownAiReminders || {};
+    const exactAlarm = await readExactAlarm();
+    if (cfg.nodeReminder === false || cfg.nodeNotify === false) {
+      try {
+        await cancelStale(isCountdownId, []);
+        return statusResult({ ok: true, permission: await readPermissionLabel(), exactAlarm, scheduledCount: 0, error: null });
+      } catch (error) {
+        return statusResult({ ok: false, permission: await readPermissionLabel(), exactAlarm, scheduledCount: 0, error: error?.message || '取消倒数日提醒失败' });
+      }
+    }
+    const allowed = await prepareNotifications({
+      request: options.requestPermission !== false,
+      userInitiated: options.userInitiated === true
+    });
+    const permission = allowed ? 'granted' : await readPermissionLabel();
+    if (!allowed) {
+      try { await cancelOrphanCountdownAlarms(); }
+      catch (error) { console.warn('没能清掉已删除倒数日的闹钟', error); }
+      return statusResult({ ok: false, permission, exactAlarm, scheduledCount: 0, error: '通知权限未授予，倒数日提醒没有排上' });
+    }
+    const now = new Date();
+    const randomItems = state.settings?.aiRandomReminders?.date === todayKey(now) ? state.settings.aiRandomReminders.items : [];
+    const randomBuilt = buildRandomAlarms(randomItems, now, dailyOccupiedTimes());
+    const occupied = [
+      ...dailyOccupiedTimes(),
+      ...randomBuilt.alarms.map(alarm => alarm.at.getTime()),
+      ...randomBuilt.held.map(alarm => alarm.at.getTime())
+    ];
+    const { alarms, catchupKeys, heldIds } = buildCountdownAlarms(state.countdowns || [], {
+      now,
+      notified: state.meta?.aiCountdownNodes || {},
+      nodeReminder: cfg.nodeReminder !== false,
+      nodeNotify: cfg.nodeNotify !== false,
+      occupied
+    });
+    const keepIds = [...alarms.map(alarm => alarm.id), ...(heldIds || [])];
+    try {
+      await ensureChannels();
+      if (alarms.length) await scheduleAlarms(alarms);
+    } catch (error) {
+      return statusResult({ ok: false, permission: 'granted', exactAlarm, scheduledCount: 0, error: error?.message || '倒数日提醒没排上' });
+    }
+    try {
+      await cancelStale(isCountdownId, keepIds);
+      if (catchupKeys.length) {
+        state.meta = state.meta || {};
+        const notified = { ...(state.meta.aiCountdownNodes || {}) };
+        const today = todayKey(now);
+        catchupKeys.forEach(key => {
+          notified[key] = true;
+          const countdownId = key.split('|')[1];
+          if (countdownId) notified[`${today}|${countdownId}`] = true;
+        });
+        state.meta.aiCountdownNodes = notified;
+        try { await save(); }
+        catch (error) { console.warn('倒数日已排上，已提醒标记没写上', error); }
+      }
+      return statusResult({ ok: true, permission: 'granted', exactAlarm, scheduledCount: alarms.length, error: null });
+    } catch (error) {
+      return statusResult({
+        ok: true,
+        permission: 'granted',
+        exactAlarm,
+        scheduledCount: alarms.length,
+        error: '倒数日闹钟已经排上，已提醒标记或旧闹钟没处理完'
+      });
+    }
+  });
+}
+
+export async function syncScheduledReminders({ requestPermission = true } = {}) {
+  if (!Capacitor.isNativePlatform()) return unsupportedStatus();
+  await prepareNotifications({ request: requestPermission });
+  const quiet = { requestPermission: false };
+  const daily = await scheduleDailyReminders(state.settings?.dailyReminders || [], state.settings?.reminderAiCopy, quiet);
+  try {
+    await callHelper('ensureTodayRandomReminders', quiet);
+  } catch (error) {
+    console.warn('随机提醒没有续上', error);
+  }
+  await syncCountdownNodeAlarms(quiet);
+  return daily;
+}
+
+registerHelper('getReminderStatus', getReminderStatus);
+registerHelper('openExactAlarmSettings', openExactAlarmSettings);
+registerHelper('openNotificationSettings', openNotificationSettings);
 registerHelper('scheduleRandomReminders', scheduleRandomReminders);
 registerHelper('cancelRandomReminders', cancelRandomReminders);
 registerHelper('restoreRandomReminders', restoreRandomReminders);
+registerHelper('syncCountdownNodeAlarms', syncCountdownNodeAlarms);
+registerHelper('syncScheduledReminders', syncScheduledReminders);
