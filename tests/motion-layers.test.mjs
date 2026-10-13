@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import {
   LAYER_MOTION, motionTier, velocityOf, rubber, swipeZone, swipeIntent, swipeShouldComplete,
   sheetGeometry, sheetProgress, sheetFollow, sheetRelease, sheetCloseMs, canExpandFrom, ghostTransform, scrolledWithin,
+  swipePointerDownAction, sheetPointerDownAction, translateYOf,
 } from '../motion-layers.js';
 
 test('三档：减弱动态效果 → none，低端机 → lite，显式指定优先', () => {
@@ -129,4 +130,29 @@ test('复查修复：多指取消 / touchmove 只挂弹层 / 打断保护 / 免�
   const mine = readFileSync(new URL('../views/mine.js', import.meta.url), 'utf8');
   assert.match(mine, /id="background-preview" data-no-swipe-back/);
   assert.match(mine, /data-nav-drag data-no-swipe-back/);
+});
+
+test('右滑飞出不再被第二次按下弹回', () => {
+  assert.equal(swipePointerDownAction({ flyingOut: true, settling: true }), 'ignore');
+  assert.equal(swipePointerDownAction({ flyingOut: false, settling: true }), 'retake');
+  assert.equal(swipePointerDownAction({}), 'begin');
+  const src = readFileSync(new URL('../motion-layers.js', import.meta.url), 'utf8');
+  assert.match(src, /flyingOut: Boolean\(settle\?\.flyingOut\)/);
+  assert.match(src, /if \(action === 'ignore'\) return/);
+  assert.match(src, /flyingOut: done/);
+});
+
+test('弹层关闭锁拖动，回弹中途从当前位置接着拖', () => {
+  assert.deepEqual(sheetPointerDownAction({ closing: true, settling: true, currentY: 80 }), { kind: 'ignore' });
+  assert.deepEqual(sheetPointerDownAction({ settling: true, currentY: 80 }), { kind: 'resume', y: 80 });
+  assert.deepEqual(sheetPointerDownAction({}), { kind: 'begin' });
+  assert.equal(translateYOf('translate3d(0, 42.5px, 0)'), 42.5);
+  assert.equal(translateYOf('translateY(-3px)'), -3);
+  assert.equal(translateYOf(''), 0);
+  const src = readFileSync(new URL('../motion-layers.js', import.meta.url), 'utf8');
+  assert.match(src, /sheetClosing = true/);
+  assert.match(src, /translateYOf\(sheet\.style\.transform\)/);
+  assert.match(src, /decision\.kind === 'resume'/);
+  assert.match(src, /base = decision\.y/);
+  assert.doesNotMatch(src, /const start = \(x, y, target, id, t\) => \{\n    if \(!on\(\) \|\| g\) return;\n    stopSheetSettle\(\);/);
 });

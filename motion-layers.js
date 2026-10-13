@@ -17,6 +17,7 @@
  *   - 任何一步出错都只退化成"没有动画"，不影响返回和关闭本身。
  * ========================================================================== */
 import { SpringODE, prefersReducedMotion } from './motion.js';
+import { installVaultMotion } from './motion-vault.js';
 
 /* ── 参数（照抄方案 9.1）──────────────────────────────────────────── */
 export const LAYER_MOTION = {
@@ -100,6 +101,34 @@ export function sheetRelease({ y = 0, velocity = 0, geo }) {
   const pulled = y - medium;
   if (target === closed && !(velocity > s.closeV || pulled > Math.max(s.closeMin, (closed - medium) * s.closeRatio))) target = medium;
   return { target, close: target === closed };
+}
+
+/**
+ * 右滑返回进行中又按下：飞出阶段不接手（返回照常做完）；
+ * 只在往回弹时才停掉弹簧，改由新手势接管。
+ */
+export function swipePointerDownAction({ flyingOut = false, settling = false } = {}) {
+  if (flyingOut) return 'ignore';
+  if (settling) return 'retake';
+  return 'begin';
+}
+
+/** 从面板的 inline transform 读出当前 translateY。回弹中途接手时用它，而不是跳回档位。 */
+export function translateYOf(transform = '') {
+  const text = String(transform || '');
+  const d3 = /translate3d\(\s*[^,]+,\s*(-?[\d.]+)px/i.exec(text);
+  if (d3) return Number(d3[1]);
+  const y = /translateY\(\s*(-?[\d.]+)px/i.exec(text);
+  return y ? Number(y[1]) : 0;
+}
+
+/**
+ * 弹层关闭一开始就拒绝起手；回弹中途按下则从 currentY 接着拖，不清掉当前位置。
+ */
+export function sheetPointerDownAction({ closing = false, settling = false, currentY = 0 } = {}) {
+  if (closing) return { kind: 'ignore' };
+  if (settling) return { kind: 'resume', y: currentY };
+  return { kind: 'begin' };
 }
 
 /** 关闭补间时长：clamp(4 × 剩余 / v, 140, 260)ms —— 起始斜率 4 的曲线刚好接住手指速度。 */
@@ -404,7 +433,9 @@ function installSwipeBack() {
   };
   document.addEventListener('pointerdown', e => {
     if (!on() || e.button > 0 || g) return;
-    if (settle) { const p = settle; settle = null; p.stop(); tidy(p.s); }   // 新手势先停掉上一次回弹，不再触发它的返回
+    const action = swipePointerDownAction({ flyingOut: Boolean(settle?.flyingOut), settling: Boolean(settle) });
+    if (action === 'ignore') return;                                    // 飞出阶段不接受新手势，返回会做完
+    if (action === 'retake' && settle) { const p = settle; settle = null; p.stop(); tidy(p.s); }   // 只打断往回弹，不再触发它的返回
     const layer = e.target.closest?.('.subpage-layer.active');
     if (!layer || layer !== topLayer() || document.querySelector('#modal-layer.open')) return;
     if (e.target.closest(NO_SWIPE) || scrollsX(e.target, layer)) return;
@@ -444,7 +475,7 @@ function installSwipeBack() {
     const v = e.type === 'pointercancel' ? 0 : velocityOf(s.samples);
     const done = e.type !== 'pointercancel' && swipeShouldComplete({ x: s.x, width: s.W, velocity: v });
     const S = LAYER_MOTION.swipe;
-    const job = { s, stop: () => {} };
+    const job = { s, stop: () => {}, flyingOut: done };
     settle = job;
     job.stop = springTo(s.x, done ? s.W : 0, v, { stiffness: S.stiffness, damping: S.damping }, x => paintSwipe(s, x), () => {
       if (settle !== job) return;                                 // 已被新手势停掉
@@ -471,7 +502,7 @@ function swallowNextClick() {
 
 /* ── Z3 弹层下拉 + S3 景深后退 ─────────────────────────────────── */
 const SHEET_LAYER = '#modal-layer';
-const NO_DRAG = '.alarm-modal, .vault-feed-modal, .vault-video-preparing, .snippet-video-modal, [data-no-sheet-drag]';
+const NO_DRAG = '.alarm-modal, .vault-feed-modal, .vault-photo-modal, .vault-video-preparing, .snippet-video-modal, [data-no-sheet-drag]';
 const NO_DRAG_TARGET = 'input[type="range"], textarea, [contenteditable=""], [contenteditable="true"], canvas, video, [data-no-sheet-drag]';
 
 let sheetMoveHook = () => {};
@@ -524,6 +555,8 @@ function closeSheetLikeScrim(layer) {
 }
 
 let sheetSettle = null;                                           // 还在跑的弹层回弹：{ stop, s }
+let sheetClosing = false;                                          // 关闭补间全程为真：这段时间 start 不起手
+let sheetCloseToken = 0;
 
 function stopSheetSettle() {
   if (!sheetSettle) return;
@@ -538,6 +571,8 @@ function releaseSheet(s, y, v, restore = false) {
   const S = LAYER_MOTION.sheet;
   const { target, close } = restore ? { target: s.base, close: false } : sheetRelease({ y, velocity: v, geo: s.geo });
   if (close) {
+    const token = ++sheetCloseToken;
+    sheetClosing = true;                                               // 关闭一开始就锁住拖动，start 直接不起手
     const ms = moving() ? sheetCloseMs(s.geo.closed - y, v) : 0;
     const opts = { duration: ms, easing: 'cubic-bezier(.2,.8,.2,1)', fill: 'forwards' };
     const p0 = sheetProgress(y, s.geo);
@@ -546,15 +581,20 @@ function releaseSheet(s, y, v, restore = false) {
       s.scrim && s.scrim.animate([{ opacity: p0 }, { opacity: 0 }], opts),
       rich() && s.app && s.app.animate([{ transform: s.app.style.transform || 'none' }, { transform: 'none' }], opts),
     ].filter(Boolean);
+    const releaseClose = () => { if (token === sheetCloseToken) sheetClosing = false; };
+    setTimeout(releaseClose, ms + 480);                              // 动画被拆掉时也不要把拖动永久锁死
     Promise.all(anims.map(a => a.finished.catch(() => {}))).then(() => {
-      s.layer.classList.add('pl-dragged');                          // 跳过默认关闭过渡
-      root.classList.remove('pl-sheet-open');
-      closeSheetLikeScrim(s.layer);
-      requestAnimationFrame(() => {
-        anims.forEach(a => a.cancel());
-        clearSheet(s);
-        s.layer.classList.remove('pl-dragged');
-      });
+      try {
+        s.layer.classList.add('pl-dragged');                          // 跳过默认关闭过渡
+        root.classList.remove('pl-sheet-open');
+        closeSheetLikeScrim(s.layer);
+        requestAnimationFrame(() => {
+          anims.forEach(a => a.cancel());
+          clearSheet(s);
+          s.layer.classList.remove('pl-dragged');
+          releaseClose();
+        });
+      } catch { releaseClose(); }
     });
     return;
   }
@@ -573,16 +613,34 @@ function installSheetDrag() {
   let g = null;
   const start = (x, y, target, id, t) => {
     if (!on() || g) return;
-    stopSheetSettle();
     const layer = target.closest?.(`${SHEET_LAYER}.open.pl-sheet`);
     const sheet = layer && target.closest('.modal');
+    const settling = Boolean(sheet && sheetSettle?.s.sheet === sheet);
+    const decision = sheetPointerDownAction({
+      closing: sheetClosing,
+      settling,
+      currentY: settling ? translateYOf(sheet.style.transform) : 0,
+    });
+    if (decision.kind === 'ignore') return;                     // 关闭补间中：不起手
     if (!sheet || sheet.parentElement !== layer || target.closest(NO_DRAG_TARGET)) return;
     const r = sheet.getBoundingClientRect();
     const inHead = y - r.top <= LAYER_MOTION.sheet.head;
-    if (!inHead && scrolledWithin(target, sheet)) return;      // 面板或里面任何一层列表没滚到顶，先让它滚
+    if (!inHead && !settling && scrolledWithin(target, sheet)) return;      // 面板或里面任何一层列表没滚到顶，先让它滚
     const geo = sheetGeometry({ height: sheet.offsetHeight, viewport: innerHeight, detents: Boolean(sheet.dataset.plDetents) });
-    const base = sheet.dataset.plDetent === 'medium' ? geo.medium : geo.large;
-    g = { layer, sheet, geo, base, inHead, x0: x, y0: y, id, locked: false, samples: [[t, base]], y: base, raf: 0 };
+    let base = sheet.dataset.plDetent === 'medium' ? geo.medium : geo.large;
+    let carried = null;
+    if (decision.kind === 'resume' && sheetSettle) {
+      const p = sheetSettle;
+      sheetSettle = null;
+      p.stop();                                                   // 停弹簧，但保留当前位置的 transform
+      base = decision.y;
+      carried = p.s;
+    }
+    g = {
+      layer, sheet, geo, base, inHead: decision.kind === 'resume' || inHead, x0: x, y0: y, id,
+      locked: decision.kind === 'resume', samples: [[t, base]], y: base, raf: 0,
+      app: carried?.app, scrim: carried?.scrim,
+    };
   };
   const move = (x, y, t, prevent) => {
     if (!g) return;
@@ -663,6 +721,7 @@ export function installLayerMotion() {
     watchSheets();
     installSwipeBack();
     installSheetDrag();
+    installVaultMotion();
   });
 }
 
