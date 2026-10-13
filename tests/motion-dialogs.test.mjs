@@ -67,3 +67,8 @@ test('CSS：Z5 居中、Z6 叠层、Z8 轻推、Z9 箭头', () => {
   assert.match(light, /\.subpage-back-btn\[data-pressed\]/);
   assert.match(light, /backdrop-filter: blur\(10px\)/);
 });
+
+test('确认框默认聚焦取消钮，不自动聚焦删除', () => {
+  assert.match(core, /#modal-layer \.modal \[data-close\]/);
+  assert.match(dialogs, /cancel\.focus\?\.\(\{\s*preventScroll:\s*true\s*\}\)/);
+});

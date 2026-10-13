@@ -7,6 +7,8 @@
  * - 档位沿用 motion-layers.js 写在 <html data-pl-motion> 上的 rich / lite / none，本模块只读不写。
  * - 只动 transform / opacity；不碰数据、存储、提醒、加密；不碰任何照片表面。
  */
+import { beginJankWatch, endJankWatch } from './motion-layers.js';
+
 const root = typeof document !== 'undefined' ? document.documentElement : null;
 const tier = () => root?.dataset.plMotion || 'rich';
 const plain = () => root?.dataset.theme === 'plain';
@@ -58,7 +60,11 @@ function revealMasthead(scope) {
     line.append(wrap);
   });
   mast.classList.add('pl-mast-play');
-  setTimeout(() => mast.classList.remove('pl-mast-play'), 1400);
+  beginJankWatch();
+  setTimeout(() => {
+    mast.classList.remove('pl-mast-play');
+    endJankWatch();
+  }, 1400);
 }
 
 /* ── S5 磁吸游标：整个月网格只有一块蓝游标，点另一天带过冲滑过去 ── */

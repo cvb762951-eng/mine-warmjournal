@@ -1380,6 +1380,8 @@ function quickPhotoModal() {
     <div class="quick-modal-switch"><button type="button" id="quick-switch-memo">或写一条灵感速记 ›</button></div>
     <button type="button" class="quick-publish-btn snap" id="quick-save-snap"><span>收进今日生活相册</span><span class="material-symbols-outlined" aria-hidden="true">arrow_forward</span></button>
   </div>`, 'quick-modal');
+  const photoModal = $('#quick-photo-modal')?.closest('.modal');
+  if (photoModal) photoModal.dataset.plDetents = 'medium large';
   $('#quick-photo-preview')?.addEventListener('click', () => pickSnippetPhoto(true).catch(error => show(error.message)).then(refreshQuickPhotoPreview));
   $('#quick-photo-preview')?.addEventListener('keydown', event => {
     if (event.key !== 'Enter' && event.key !== ' ') return;
@@ -1445,6 +1447,8 @@ function quickMemoModal() {
     <div class="quick-modal-switch"><button type="button" id="quick-switch-snap">或发布一张随手拍 ›</button></div>
     <button type="button" class="quick-publish-btn memo" id="quick-save-memo"><span>贴在今日心流便签</span><span class="material-symbols-outlined" aria-hidden="true">push_pin</span></button>
   </div>`, 'quick-modal');
+  const memoModal = $('#quick-memo-modal')?.closest('.modal');
+  if (memoModal) memoModal.dataset.plDetents = 'medium large';
   $$('.quick-paper-tag').forEach(chip => chip.onclick = () => {
     pendingQuickTag = pendingQuickTag === chip.dataset.quickTag ? '' : chip.dataset.quickTag;
     $$('.quick-paper-tag').forEach(b => b.classList.toggle('active', b.dataset.quickTag === pendingQuickTag));
