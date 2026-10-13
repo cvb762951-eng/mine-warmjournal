@@ -2940,7 +2940,7 @@ button.danger) {
 /* M2 筛选标签：横向滚动 + scroll-snap，右缘渐隐；选中瞬时切换 */
 :root[data-theme="plain"] :is(#screen-snippets, .snippets-view) > .snippet-tabs-filter {
   display: flex !important; flex-wrap: nowrap !important; gap: 6px !important; overflow-x: auto !important; scroll-snap-type: x proximity; scrollbar-width: none;
-  margin-left: -14px !important; margin-right: -14px !important; padding: 2px 14px 6px !important;
+  margin-left: 0 !important; margin-right: 0 !important; padding: 2px 0 6px !important;
   -webkit-mask-image: linear-gradient(90deg, black 85%, transparent); mask-image: linear-gradient(90deg, black 85%, transparent);
 }
 :root[data-theme="plain"] :is(#screen-snippets, .snippets-view) > .snippet-tabs-filter::-webkit-scrollbar { display: none; }
