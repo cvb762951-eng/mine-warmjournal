@@ -11,14 +11,14 @@ import { prefersReducedMotion } from './motion.js';
 export const VAULT_MOTION = {
   folderDepth: false,
   aspectTolerance: 0.005,
-  unlockMs: 420,
+  unlockMs: 280,              // V1 §10.1：锁面分开 280ms，总时长 ≤ 430ms
   fadeMs: 160,
   openMs: 420,
   backMs: 340,
   liteOpenMs: 320,
   liteBackMs: 240,
   bulkMs: 220,
-  shieldMs: 260,
+  shieldMs: 240,              // V2 §10.1：遮罩 240ms --pl-ease-out 淡出；锁面 40ms 起 260ms
   p0Ms: 240,
   staggerStep: 24,
   staggerCap: 320,
@@ -60,6 +60,7 @@ export function ghostFrameTransform(from, to) {
   if (!(from?.width > 0) || !(to?.width > 0)) return null;
   const sx = to.width / from.width;
   const sy = to.height / from.height;
+  if (Math.abs(sx / sy - 1) > 0.25) return null;   // V3 §10.1：外框比例差太多就不用幽灵，免得圆角被拉变形
   return `translate(${(to.left - from.left).toFixed(2)}px, ${(to.top - from.top).toFixed(2)}px) scale(${sx.toFixed(4)}, ${sy.toFixed(4)})`;
 }
 
@@ -166,7 +167,6 @@ const tier = () => vaultMotionTier({
   localTier: localLite ? 'lite' : 'rich',
   inVault: hasDom && Boolean(document.querySelector('.private-vault-view')),
 });
-const SPRING = 'cubic-bezier(.34, 1.56, .64, 1)';
 const EMPH = 'cubic-bezier(.32, .72, 0, 1)';
 const OUT = 'cubic-bezier(.16, 1, .3, 1)';
 
@@ -329,19 +329,26 @@ function paperHost(paper, rect, split) {
   seam.className = 'pv-seam';
   host.append(top, bottom, seam);
   document.body.append(host);
-  const ease = 'cubic-bezier(.34, 1.45, .64, 1)';
+  // V1 §10.1：上半 −32px、下半 +32px，同时淡出，280ms (.4,0,.2,1)；中缝亮线 0–140ms scaleX(0 → 1)，之后随下半淡出；
+  // 锁徽 0–120ms scale(1 → 1.18) + 淡出。
+  const ease = 'cubic-bezier(.4, 0, .2, 1)';
+  const ms = VAULT_MOTION.unlockMs;
   top.animate(
-    [{ transform: 'none', opacity: 1 }, { transform: 'translate3d(0,-32px,0) scale(1.03)', opacity: 0 }],
-    { duration: VAULT_MOTION.unlockMs, easing: ease, fill: 'forwards' },
+    [{ transform: 'none', opacity: 1 }, { transform: 'translate3d(0,-32px,0)', opacity: 0 }],
+    { duration: ms, easing: ease, fill: 'forwards' },
   );
   bottom.animate(
-    [{ transform: 'none', opacity: 1 }, { transform: 'translate3d(0,32px,0) scale(1.03)', opacity: 0 }],
-    { duration: VAULT_MOTION.unlockMs, easing: ease, fill: 'forwards' },
+    [{ transform: 'none', opacity: 1 }, { transform: 'translate3d(0,32px,0)', opacity: 0 }],
+    { duration: ms, easing: ease, fill: 'forwards' },
   );
   seam.animate(
-    [{ transform: 'scaleX(.2)', opacity: 0 }, { transform: 'none', opacity: 1, offset: 0.35 }, { transform: 'none', opacity: 0 }],
-    { duration: VAULT_MOTION.unlockMs, easing: 'ease', fill: 'forwards' },
+    [{ transform: 'scaleX(0)', opacity: 1 }, { transform: 'none', opacity: 1, offset: 140 / ms }, { transform: 'none', opacity: 0 }],
+    { duration: ms, easing: ease, fill: 'forwards' },
   );
+  host.querySelectorAll('.vault-lock-mark').forEach(mark => mark.animate(
+    [{ transform: 'none', opacity: 1 }, { transform: 'scale(1.18)', opacity: 0 }],
+    { duration: 120, easing: ease, fill: 'forwards' },
+  ));
   return host;
 }
 
@@ -352,10 +359,7 @@ function playUnlock(removed, view) {
   noteVaultAnimation(mode === 'split' ? VAULT_MOTION.unlockMs + VAULT_MOTION.staggerCap : VAULT_MOTION.fadeMs);
   if (mode === 'split') {
     const host = paperHost(paper, lockRect, true);
-    view?.animate(
-      [{ opacity: 0, transform: 'scale(.94)' }, { opacity: 1, transform: 'none' }],
-      { duration: VAULT_MOTION.unlockMs, easing: SPRING, fill: 'backwards' },
-    );
+    // V1：内容不整体缩放，只按 90ms 起每项 +24ms 依次浮现（stagger），全程可点
     setTimeout(() => host?.remove(), VAULT_MOTION.unlockMs + 40);
     stagger(view?.querySelectorAll('.vault-folder-card, .vault-security-note, .vault-toolbar, .vault-folder-home-head'), { start: 90, step: 24, cols: 2 });
     return;
@@ -603,15 +607,15 @@ function hideShield(instant = false) {
     remove();
     return;
   }
-  node.animate([{ opacity: 1 }, { opacity: 0 }], { duration: VAULT_MOTION.shieldMs, easing: 'ease', fill: 'forwards' })
+  node.animate([{ opacity: 1 }, { opacity: 0 }], { duration: VAULT_MOTION.shieldMs, easing: OUT, fill: 'forwards' })
     .finished.catch(() => {}).then(remove);
   if (tier() === 'rich' && performance.now() - lockPaperAt > 500) {
     const paper = document.querySelector('.vault-locked-view .vault-lock-paper');
     if (paper) {
       lockPaperAt = performance.now();
       paper.animate(
-        [{ transform: 'scale(.98)' }, { transform: 'none' }],
-        { duration: VAULT_MOTION.shieldMs, delay: 40, easing: OUT, fill: 'backwards' },
+        [{ opacity: 0, transform: 'scale(.98)' }, { opacity: 1, transform: 'none' }],
+        { duration: 260, delay: 40, easing: OUT, fill: 'backwards' },
       );
     }
   }
