@@ -37,11 +37,13 @@ test('版本比较用 versionCode，不踩字符串比较的坑', () => {
   assert.equal(hasNewerVersion({}, 0), false);
 });
 
-test('前端版本常量与 build.gradle 严格同步', () => {
+test('前端版本常量与 build.gradle 严格同步', async () => {
   const gradleName = gradle.match(/versionName\s+"([^"]+)"/)?.[1] || '';
   const gradleCode = Number(gradle.match(/versionCode\s+(\d+)/)?.[1] || 0);
   assert.equal(APP_VERSION_NAME, gradleName, 'APP_VERSION_NAME 必须与 build.gradle 的 versionName 一致');
   assert.equal(APP_VERSION_CODE, gradleCode, 'APP_VERSION_CODE 必须与 build.gradle 的 versionCode 一致');
+  const pkg = JSON.parse(await read('package.json'));
+  assert.equal(pkg.version, gradleName, 'package.json version 必须与 build.gradle 的 versionName 一致');
   // 真正判断更新时以系统记录为准（currentVersion），常量只用于渲染
   assert.match(updater, /export async function currentVersion\(\)/);
   assert.match(updater, /AppUpdater\.getVersion\(\)/);
@@ -71,8 +73,10 @@ test('下载与安装的边界：缓存目录 + 系统安装器 + 完整性校�
   assert.match(plugin, /ACTION_MANAGE_UNKNOWN_APP_SOURCES/);
   assert.match(plugin, /public void canInstall\(PluginCall call\)/);
   assert.match(plugin, /public void openInstallSettings\(PluginCall call\)/);
-  // 清单给了 sha256 就要核对，不一致直接丢弃
-  assert.match(updater, /if \(manifest\.sha256\)/);
+  // sha256 不能缺、不能跳过：缺失在下载前拒绝，算不出来或不一致都丢弃
+  assert.match(updater, /版本信息缺少安装包校验值/);
+  assert.match(updater, /export function assertApkSha256\(expected, actual\)/);
+  assert.doesNotMatch(updater, /if \(manifest\.sha256\)/);
   assert.match(updater, /安装包校验不通过，已丢弃/);
   assert.match(plugin, /public void sha256\(PluginCall call\)/);
 });
