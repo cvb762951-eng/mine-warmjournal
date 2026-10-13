@@ -3072,3 +3072,41 @@ button.danger) {
 :root[data-theme="plain"] :is(.card, .bento-item, .stats-card, .settings-group-card, .ledger-account-card, .journal-card) {
   transition: transform .3s var(--pl-ease-out);
 }
+
+/* ==========================================================================
+   三十五 · 今日 + 我的（方案 #36 §4.2 / §4.7，照抄 preview 里 .a 的写法，选择器换成真实 DOM）
+   ========================================================================== */
+/* T1 首屏两卡：同一基线、同高 72px、间距 10px（原来右卡 margin 10px 0 0 -5px：差 10px、叠 5px） */
+:root[data-theme="plain"] .today-view .magazine-hero { display: grid !important; grid-template-columns: minmax(0,1fr) minmax(0,1fr) !important; gap: 10px !important; align-items: start; }
+:root[data-theme="plain"] .today-view .magazine-hero > .weather-box,
+:root[data-theme="plain"] .today-view .magazine-hero > .today-hero-actions {
+  height: 72px !important; min-height: 72px; margin: 0 !important; flex: none !important; width: auto !important; min-width: 0; box-sizing: border-box;
+}
+/* T2 快捷入口：四张独立 16px 圆角小卡，间距 8px，图标主题蓝，去掉竖线 */
+:root[data-theme="plain"] .today-view .quick-access-grid { gap: 8px !important; background: transparent !important; padding: 0 !important; }
+:root[data-theme="plain"] .today-view .quick-access-grid > .qa-card {
+  border: 1px solid var(--pl-line) !important; border-radius: var(--pl-r-md) !important;
+  background: var(--plain-surface) !important; box-shadow: var(--pl-shadow-card) !important;
+}
+:root[data-theme="plain"] .today-view .qa-card .material-symbols-outlined { color: var(--pl-blue) !important; }
+
+/* Me1 个人卡：上下内边距 16px，头像 64px，相机角标收进圆内 */
+:root[data-theme="plain"] .profile-hero-card { padding-top: 16px !important; padding-bottom: 16px !important; min-height: 0 !important; height: auto !important; }
+:root[data-theme="plain"] .profile-hero-card .profile-avatar-control { width: 64px !important; height: 64px !important; margin: 0 !important; flex: none; }
+:root[data-theme="plain"] .profile-hero-card .profile-avatar-box {
+  width: 64px !important; height: 64px !important; box-sizing: border-box !important; border: 2px solid var(--pl-blue) !important; box-shadow: none !important; overflow: hidden; background: var(--pl-blue-soft);
+}
+:root[data-theme="plain"] .profile-hero-card .avatar-camera-badge { right: 0 !important; bottom: 0 !important; width: 22px; height: 22px; }
+/* Me2 四项统计：白卡四等分 + 1px 直竖线（不再是弧形分隔），数字滚动沿用 rollNumbers */
+:root[data-theme="plain"] .mine-kpi-row {
+  display: grid !important; grid-template-columns: repeat(4, 1fr) !important; gap: 0 !important;
+  background: var(--plain-surface) !important; border-radius: var(--pl-r-lg) !important; box-shadow: var(--pl-shadow-card) !important; padding: 12px 0 !important;
+}
+:root[data-theme="plain"] .mine-kpi-row > .mine-kpi-card {
+  background: transparent !important; border: 0 !important; border-radius: 0 !important; box-shadow: none !important; margin: 0 !important;
+}
+:root[data-theme="plain"] .mine-kpi-row > .mine-kpi-card + .mine-kpi-card { border-left: 1px solid var(--pl-line) !important; }
+/* Me3 列表图标块：40px、12px 圆角、浅蓝底 */
+:root[data-theme="plain"] .setting-icon-box {
+  width: 40px !important; height: 40px !important; border-radius: var(--pl-r-sm) !important; background: var(--pl-blue-soft) !important; flex: none;
+}
