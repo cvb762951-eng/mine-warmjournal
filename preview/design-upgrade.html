@@ -462,7 +462,7 @@ html.rm .halo .sweep, html.rm .halo::after { animation: none !important; }
 .a .sheet { transition: transform calc(220ms * var(--k)) var(--ease-in), visibility calc(220ms * var(--k)); box-shadow: var(--sh-float); }
 .a .sheet::before { content: ''; display: block; width: 36px; height: 4px; margin: -8px auto 12px; border-radius: 2px; background: rgba(85,96,108,.22); }
 .ph.sheetopen .scrim { opacity: 1; visibility: visible; }
-.ph.sheetopen .sheet { transform: none; visibility: visible; }
+.ph.sheetopen .sheet { transform: translate3d(0, var(--sy, 0px), 0); visibility: visible; }
 .a.sheetopen .sheet { transition: transform calc(320ms * var(--k)) var(--ease-emph), visibility 0s; }
 .sheet h3 { margin: 0 0 12px; font: 800 20px/1.2 var(--f-serif); }
 .sheet .amt { font: 800 34px/1 var(--f-serif); color: var(--ink-2); padding: 12px 0; border-bottom: 1px solid var(--line); }
@@ -649,6 +649,154 @@ html.sig .a .scr { background-image: radial-gradient(120% 46% at 50% 0%, rgba(79
 .stage .halo.tilt-demo { top: 34px; height: 100px; }
 .stage .halo.tilt-demo p { font: 700 14px/1.4 var(--f-sans); color: var(--ink-2); }
 .stage .halo.tilt-demo b { display: block; font: 800 28px/1.1 var(--f-serif); color: var(--blue); }
+/* ============================================================
+   第 9 节 二级页与弹窗 · 第 10 节 私密空间与随手拍
+   ============================================================ */
+.sheet { max-height: 92%; }
+html.sig .a .sheet { touch-action: none; user-select: none; -webkit-user-select: none; }
+html.sig .a .sheet.tall { height: 92%; }
+html.sig .a .sub { touch-action: pan-y; }
+.ph.sdrag :is(.sheet, .scrim, .scr), .ph.swiping :is(.sub, .scr, .dim) { transition: none !important; }
+.ph.swiping .sub { animation: none !important; }
+@keyframes z-rise { from { opacity: 0; transform: translate3d(0, var(--zdy, 10px), 0); } }
+@keyframes z-rise-s { from { opacity: 0; transform: translate3d(0, var(--zdy, 8px), 0) scale(.96); } }
+/* Z4 内容依次浮现 */
+html.sig .a.sheetopen .sheet .sc { --zdy: 8px; animation: z-rise calc(220ms * var(--k)) var(--ease-out) calc((60ms + min(var(--ci, 0), 5) * 24ms) * var(--k)) backwards; }
+html.sig .a.subopen .sub .body > * { --zdy: 10px; animation: z-rise calc(240ms * var(--k)) var(--ease-out) calc((140ms + min(var(--ci, 0), 6) * 28ms) * var(--k)) backwards; }
+html.sig .a.xp.subopen .sub .body > * { animation-delay: calc((200ms + min(var(--ci, 0), 6) * 28ms) * var(--k)); }
+.pl-cascade { animation: z-rise calc(var(--cdur, 220ms) * var(--k)) var(--ease-out) calc(var(--cd, 0ms) * var(--k)) backwards; }
+.pl-cs { animation: z-rise-s calc(var(--cdur, 200ms) * var(--k)) var(--ease-out) calc(var(--cd, 0ms) * var(--k)) backwards; }
+/* Z1 标题飞行 */
+.fly-t { position: absolute; left: 0; top: 0; z-index: 31; margin: 0; line-height: normal; white-space: nowrap; transform-origin: 0 0; pointer-events: none; will-change: transform; }
+.sub-t { transition: opacity calc(80ms * var(--k)) var(--ease-out); }
+.ph.tfly .sub-t { opacity: 0; }
+/* Z7 锚点菜单 */
+.more { justify-self: end; width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; background: #fff; border: 1px solid rgba(85,96,108,.14); }
+.more .i { width: 18px; height: 18px; }
+.pop { position: absolute; right: 14px; top: 54px; z-index: 5; width: 156px; padding: 6px; border-radius: 16px; background: #fff; border: 1px solid var(--line); box-shadow: var(--sh-float); opacity: 0; visibility: hidden; }
+.pop button { display: block; width: 100%; padding: 10px 12px; border-radius: 10px; text-align: left; font-size: 12.5px; font-weight: 700; }
+.pop button:last-child { color: var(--danger); }
+.ph.popopen .pop { opacity: 1; visibility: visible; }
+html.sig .a .pop { transform-origin: calc(100% - 17px) -10px; transform: scale(.92); transition: opacity calc(120ms * var(--k)) var(--ease-in), transform calc(120ms * var(--k)) var(--ease-in), visibility 0s calc(120ms * var(--k)); }
+html.sig .a.popopen .pop { transform: none; transition: opacity calc(180ms * var(--k)) var(--ease-out), transform calc(180ms * var(--k)) var(--ease-out), visibility 0s; }
+html.sig .a.popopen .pop button { --zdy: 4px; animation: z-rise calc(180ms * var(--k)) var(--ease-out) calc(var(--ci, 0) * 18ms * var(--k)) backwards; }
+/* Z9 返回箭头 */
+.back .i { transition: transform calc(420ms * var(--k)) var(--spring-release); }
+html.sig .a .back.pressed .i { transform: translateX(-3px); transition-duration: calc(90ms * var(--k)); }
+/* Z5 确认框：现状是底部弹出 + 暖黑模糊；升级后居中轻缩放 */
+.cfm { position: absolute; inset: 0; z-index: 45; visibility: hidden; }
+.ph.cfmopen .cfm { visibility: visible; }
+.cfm-bg { position: absolute; inset: 0; opacity: 0; }
+.ph.cfmopen .cfm-bg { opacity: 1; }
+.ph.cfmclosing .cfm-bg { opacity: 0; }
+.cfm-card { position: absolute; left: 0; right: 0; bottom: 0; padding: 20px 18px 24px; background: #fff; border-radius: 28px 28px 0 0; transform: translateY(100%); }
+.ph.cfmopen .cfm-card { transform: none; }
+.cfm-card b { display: block; font: 800 18px/1.3 var(--f-serif); }
+.cfm-card p { margin: 6px 0 14px; font-size: 12.5px; line-height: 1.6; color: var(--ink-2); }
+.cfm-card .rowb { display: flex; gap: 8px; }
+.cfm-card .rowb button { flex: 1; height: 44px; border-radius: 999px; font-weight: 800; background: var(--blue-soft); color: var(--blue-deep); }
+.cfm-card .rowb .dan { background: var(--danger); color: #fff; }
+.b .cfm-bg { background: rgba(18,16,14,.65); -webkit-backdrop-filter: blur(14px) saturate(1.6); backdrop-filter: blur(14px) saturate(1.6); transition: opacity calc(280ms * var(--k)) var(--old-spring); }
+.b .cfm-card { transition: transform calc(350ms * var(--k)) var(--old-spring); }
+.a .cfm-bg { background: var(--scrim); transition: opacity calc(200ms * var(--k)) var(--ease-out); }
+.a .cfm-card { box-shadow: var(--sh-float); transition: transform calc(220ms * var(--k)) var(--ease-in); }
+.a.cfmopen .cfm-card { transition: transform calc(320ms * var(--k)) var(--ease-emph); }
+html.sig .a .cfm-bg { background: rgba(46,52,59,.40); }
+html.sig:not(.lite) .a .cfm-bg { background: rgba(46,52,59,.24); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
+html.sig .a.cfmclosing .cfm-bg { transition: opacity calc(140ms * var(--k)) var(--ease-in); }
+html.sig .a .cfm-card { left: 26px; right: 26px; bottom: auto; top: 50%; border-radius: 22px; padding: 20px 18px 16px; opacity: 0; transform: translateY(-50%) scale(.96); transition: none; }
+html.sig .a.cfmopen .cfm-card { opacity: 1; transform: translateY(-50%); animation: cfm-in calc(200ms * var(--k)) var(--ease-out) both; }
+html.sig .a.cfmclosing .cfm-card { animation: cfm-out calc(140ms * var(--k)) var(--ease-in) both; }
+@keyframes cfm-in { from { opacity: 0; transform: translateY(-50%) scale(.96); } to { opacity: 1; transform: translateY(-50%); } }
+@keyframes cfm-out { from { opacity: 1; transform: translateY(-50%); } to { opacity: 0; transform: translateY(-50%) scale(.98); } }
+/* 照片飞行：克隆摆在 contain 显示框上，只做等比缩放 */
+.fly { position: absolute; z-index: 70; margin: 0; object-fit: contain; transform-origin: 0 0; border-radius: 6px; box-shadow: var(--sh-float); pointer-events: none; will-change: transform; }
+.gframe { position: absolute; z-index: 69; transform-origin: 0 0; background: #fff; border-radius: 16px; box-shadow: var(--sh-float); pointer-events: none; will-change: transform; }
+.finger { position: absolute; left: 0; top: 0; z-index: 95; width: 28px; height: 28px; border-radius: 50%; background: rgba(79,118,189,.28); box-shadow: 0 0 0 2px rgba(255,255,255,.9), 0 4px 12px rgba(46,52,59,.2); pointer-events: none; }
+
+/* ---------- 私密空间 ---------- */
+.vhead { position: relative; display: flex; align-items: center; gap: 10px; padding: 6px 0 2px; }
+.vhead .vb { width: 36px; height: 36px; flex: none; border-radius: 50%; display: grid; place-items: center; background: #fff; border: 1px solid var(--line); }
+.vhead small { display: block; font: 700 10px/1 var(--f-serif); letter-spacing: .14em; color: var(--blue-deep); }
+.vhead strong { font: 800 22px/1.25 var(--f-serif); }
+.vhead .vl { margin-left: auto; height: 32px; padding: 0 12px; border-radius: 999px; display: inline-flex; gap: 4px; align-items: center; background: var(--blue-soft); color: var(--blue-deep); font-size: 12px; font-weight: 800; }
+.vhead .vl .i { width: 15px; height: 15px; }
+.vlock { position: relative; margin-top: 36px !important; padding: 30px 20px 18px; text-align: center; background: #fff; border: 1px solid var(--line); border-radius: 24px; box-shadow: var(--sh-card); }
+.vmark { width: 76px; height: 76px; margin: 0 auto 14px; border-radius: 24px; display: grid; place-items: center; background: var(--blue-soft); color: var(--blue); }
+.vmark .i { width: 38px; height: 38px; }
+.vlock b { display: block; font: 800 20px/1.3 var(--f-serif); }
+.vlock p { margin: 6px 0 18px; color: var(--ink-2); font-size: 12.5px; line-height: 1.6; }
+.vlock .pri { width: 100%; height: 46px; border-radius: 999px; display: inline-flex; gap: 6px; align-items: center; justify-content: center; background: var(--blue); color: #fff; font-weight: 800; box-shadow: var(--sh-btn); }
+.vlock .alt { width: 100%; height: 36px; margin-top: 6px; color: var(--blue-deep); font-size: 12.5px; font-weight: 700; }
+.vnote { position: relative; display: flex; gap: 10px; align-items: center; padding: 12px 14px; background: #fff; border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--sh-card); }
+.vnote .i { color: var(--blue); } .vnote b { display: block; font-size: 13px; }
+.vtools { position: relative; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.vtools button { height: 44px; border-radius: 14px; display: inline-flex; gap: 6px; align-items: center; justify-content: center; background: #fff; border: 1px solid var(--line); color: var(--blue-deep); font-size: 12px; font-weight: 800; }
+.vtools .i { width: 17px; height: 17px; }
+.vsec { display: flex; justify-content: space-between; align-items: flex-end; padding: 6px 2px 0; }
+.vsec small { display: block; font: 700 10px/1 var(--f-serif); letter-spacing: .14em; color: var(--blue-deep); }
+.vsec strong { font: 800 16px/1.4 var(--f-serif); }
+.vgrid { position: relative; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.vfold { display: block; width: 100%; padding: 8px; text-align: left; background: #fff; border: 1px solid var(--line); border-radius: 18px; box-shadow: var(--sh-card); }
+.vfold .pf { height: 118px; border-radius: 12px; }
+.vfold b { display: block; margin: 8px 2px 0; font-size: 13.5px; } .vfold small { margin: 0 2px; }
+.vitems { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.vitem { display: block; width: 100%; }
+.vitem .pf, .scell .pf { aspect-ratio: 1; height: auto; border-radius: 10px; }
+/* V1 解锁仪式：锁面残影从中缝分开 */
+.ulk { position: absolute; z-index: 35; pointer-events: none; }
+.ulk > .vlock { position: absolute; inset: 0; margin: 0 !important; animation: fade-out calc(160ms * var(--k)) var(--ease-in) both; }
+.ulk .half { position: absolute; left: 0; right: 0; height: 50%; overflow: hidden; }
+.ulk .half.t { top: 0; animation: split-up calc(280ms * var(--k)) cubic-bezier(.4,0,.2,1) both; }
+.ulk .half.btm { bottom: 0; animation: split-down calc(280ms * var(--k)) cubic-bezier(.4,0,.2,1) both; }
+.ulk .half > .vlock { position: absolute; left: 0; width: 100%; height: 200%; margin: 0 !important; box-shadow: none; }
+.ulk .half.t > .vlock { top: 0; } .ulk .half.btm > .vlock { bottom: 0; }
+.ulk .vmark { animation: mark-out calc(120ms * var(--k)) var(--ease-out) both; }
+.ulk .seam { position: absolute; left: 12%; right: 12%; top: 50%; height: 1px; background: #fff; box-shadow: 0 0 12px rgba(79,118,189,.6); animation: seam calc(280ms * var(--k)) var(--ease-out) both; }
+@keyframes split-up { to { transform: translate3d(0,-32px,0); opacity: 0; } }
+@keyframes split-down { to { transform: translate3d(0,32px,0); opacity: 0; } }
+@keyframes seam { 0% { transform: scaleX(0); opacity: 1; } 50% { transform: none; opacity: 1; } 100% { transform: none; opacity: 0; } }
+@keyframes mark-out { to { transform: scale(1.18); opacity: 0; } }
+/* V2 后台遮罩 */
+.shield { position: absolute; inset: 0; z-index: 80; display: grid; place-items: center; background: #EAF0F8; }
+html.sig:not(.lite) .a .shield.blur { background: rgba(234,240,248,.55); -webkit-backdrop-filter: blur(24px) saturate(1.1); backdrop-filter: blur(24px) saturate(1.1); }
+.shield .sm { width: 72px; height: 72px; border-radius: 22px; display: grid; place-items: center; background: #fff; color: var(--blue); box-shadow: var(--sh-float); }
+.shield .sm .i { width: 34px; height: 34px; }
+.shield.leave { animation: fade-out calc(240ms * var(--k)) var(--ease-out) both; }
+.offapp { position: absolute; inset: 0; z-index: 90; display: grid; place-items: center; background: #14181D; color: rgba(255,255,255,.82); font-size: 12.5px; font-weight: 700; opacity: 0; pointer-events: none; transition: opacity calc(160ms * var(--k)) var(--ease-out); }
+.ph.off .offapp { opacity: 1; }
+.relock { animation: relock calc(260ms * var(--k)) var(--ease-out) calc(40ms * var(--k)) both; }
+@keyframes relock { from { opacity: 0; transform: scale(.98); } }
+
+/* ---------- 随手拍：表单、列表、长按 ---------- */
+.sh-head { display: grid; grid-template-columns: 64px 1fr 64px; align-items: center; margin-bottom: 10px; }
+.sh-head b { text-align: center; font: 800 17px/1.2 var(--f-serif); }
+.sh-head button { height: 32px; border-radius: 999px; font-size: 12.5px; font-weight: 800; color: var(--ink-2); }
+.sh-head .pri { background: var(--blue); color: #fff; }
+.sgrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; min-height: 96px; }
+.sgrid .empty { grid-column: 1 / -1; height: 96px; border-radius: 14px; display: grid; place-content: center; justify-items: center; gap: 4px; background: var(--inset); color: var(--ink-3); font-size: 12px; }
+.sbtns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+.sbtns button { height: 44px; border-radius: 14px; display: inline-flex; gap: 6px; align-items: center; justify-content: center; background: var(--blue-soft); color: var(--blue-deep); font-weight: 800; }
+.sfield { margin-top: 10px; padding: 10px 12px; border-radius: 12px; background: var(--inset); font-size: 12.5px; color: var(--ink-3); }
+.sfield b { display: block; margin-bottom: 2px; font-size: 11px; color: var(--ink-2); }
+.mlist { display: grid; gap: 10px; }
+html.sig .a .mcard { -webkit-touch-callout: none; user-select: none; -webkit-user-select: none; transition: transform calc(420ms * var(--k)) var(--spring-release); }
+html.sig .a .mcard::after { content: ''; position: absolute; inset: 0; border-radius: inherit; box-shadow: 0 6px 14px rgba(46,52,59,.08), 0 22px 44px rgba(46,52,59,.16); opacity: 0; pointer-events: none; transition: opacity calc(260ms * var(--k)) var(--ease-out); }
+html.sig .a .mcard.lifted { z-index: 2; transform: translate3d(0,-4px,0) scale(1.012); transition: transform calc(180ms * var(--k)) var(--ease-out); }
+html.sig .a .mcard.lifted::after { opacity: 1; }
+html.sig .a .mcard.arrive { --zdy: 10px; animation: z-rise calc(220ms * var(--k)) var(--ease-out) calc(100ms * var(--k)) backwards; }
+html.sig .a .mcard.removing { animation: m-out calc(180ms * var(--k)) var(--ease-in) both; }
+@keyframes m-out { to { opacity: 0; transform: scale(.96); } }
+/* M3 分层淡入：只动框里两张 img 的 opacity / transform，不碰框的尺寸与 object-fit */
+html.sig:not(.lite) .a .mcard.sf .pf .pad { opacity: 0; }
+html.sig:not(.lite) .a .mcard.sf .pf .still { opacity: 0; transform: scale(.985); }
+html.sig:not(.lite) .a .mcard.sf :is(.mmeta, .mtitle, .mact) { opacity: 0; transform: translate3d(0,6px,0); }
+html.sig:not(.lite) .a .mcard.sf.sf-in .pf .pad { opacity: .5; transition: opacity calc(200ms * var(--k)) var(--ease-out) calc(var(--lag, 0ms) * var(--k)); }
+html.sig:not(.lite) .a .mcard.sf.sf-in .pf .still { opacity: 1; transform: none; transition: opacity calc(300ms * var(--k)) var(--ease-out) calc((var(--lag, 0ms) + 60ms) * var(--k)), transform calc(300ms * var(--k)) var(--ease-out) calc((var(--lag, 0ms) + 60ms) * var(--k)); }
+html.sig:not(.lite) .a .mcard.sf.sf-in :is(.mmeta, .mtitle, .mact) { opacity: 1; transform: none; transition: opacity calc(220ms * var(--k)) var(--ease-out) calc((var(--lag, 0ms) + 110ms) * var(--k)), transform calc(220ms * var(--k)) var(--ease-out) calc((var(--lag, 0ms) + 110ms) * var(--k)); }
+html.sig.lite .a .mcard.sf { opacity: 0; }
+html.sig.lite .a .mcard.sf.sf-in { opacity: 1; transition: opacity calc(220ms * var(--k)) var(--ease-out) calc(var(--lag, 0ms) * var(--k)); }
+.stars-h { margin: 14px 0 8px; font: 800 15px/1.3 var(--f-serif); color: var(--ink-2); }
 #fps { position: fixed; z-index: 200; right: 10px; bottom: 10px; padding: 6px 10px; border-radius: 10px; background: rgba(46,52,59,.9); color: #fff; font: 11px/1.4 ui-monospace, monospace; display: none; }
 html.showfps #fps { display: block; }
 @media (prefers-reduced-motion: reduce) {
@@ -697,6 +845,10 @@ html.showfps #fps { display: block; }
   <symbol id="rain" viewBox="0 0 24 24"><path d="M7 15h10a4 4 0 0 0 0-8 5.5 5.5 0 0 0-10.5 1.5A3.3 3.3 0 0 0 7 15zM8 18l-1 3M12 18l-1 3M16 18l-1 3"/></symbol>
   <symbol id="fire" viewBox="0 0 24 24"><path d="M12 3c1 4 5 5 5 10a5 5 0 0 1-10 0c0-3 2-4 2-7 1 1 2 2 3 4"/></symbol>
   <symbol id="list" viewBox="0 0 24 24"><path d="M9 7h11M9 12h11M9 17h11M4 7h.01M4 12h.01M4 17h.01"/></symbol>
+  <symbol id="finger" viewBox="0 0 24 24"><path d="M4.5 8.5a8.5 8.5 0 0 1 15 0M6.5 13v-2.5a5.5 5.5 0 0 1 11 0V13M9.5 20.5c.6-1.8 1-4 1-6.5v-3a1.5 1.5 0 0 1 3 0v2.5c0 2.8-.4 5.2-1.3 7M16.8 16.5c-.2 1.5-.6 2.9-1.1 4"/></symbol>
+  <symbol id="lock" viewBox="0 0 24 24"><rect x="5" y="10.5" width="14" height="10" rx="2.5"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5M12 14.5v2"/></symbol>
+  <symbol id="shield" viewBox="0 0 24 24"><path d="M12 3l7 3v5c0 4.5-3 8.2-7 10-4-1.8-7-5.5-7-10V6z"/><path d="M9 12l2 2 4-4"/></symbol>
+  <symbol id="dots" viewBox="0 0 24 24"><path d="M5 12h.01M12 12h.01M19 12h.01" stroke-width="3.2"/></symbol>
 </svg>
 
 <div class="intro">
@@ -725,6 +877,21 @@ html.showfps #fps { display: block; }
 <section class="blk">
   <h2 id="noteTitle">本页改了什么</h2>
   <div class="notes" id="notes"></div>
+</section>
+
+<section class="blk">
+  <h2>主角 · 私密空间与随手拍</h2>
+  <p class="lead">方案第 10 节。顶部标签切到"私密空间"或"随手拍"就能在手机里直接玩：指纹解锁、切出再回来、点文件夹封面；随手拍里点"记录"拍照 / 选图、保存，滚动列表，长按卡片。下面每张卡的按钮会自动演示一遍。所有照片飞行都按原始宽高比等比缩放；私密空间的加密、锁定、观看记录逻辑不改。</p>
+  <h3 class="stars-h">私密空间</h3>
+  <div class="sigs" id="starsV"></div>
+  <h3 class="stars-h">随手拍</h3>
+  <div class="sigs" id="starsM"></div>
+</section>
+
+<section class="blk">
+  <h2>二级页与弹窗 · 跟手、可打断</h2>
+  <p class="lead">方案第 9 节。在"升级后"手机里可以直接上手：进任意二级页后从左缘（或页面左侧 60%）向右拖，松手按速度完成或回弹；打开弹层后按住面板往下拉，随手拍的表单还能往上拉到高档。自动演示里的蓝色圆点是模拟的手指。</p>
+  <div class="sigs" id="layers"></div>
 </section>
 
 <section class="blk">
@@ -783,11 +950,23 @@ html.showfps #fps { display: block; }
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${a}"/><stop offset="1" stop-color="${b}"/></linearGradient></defs><rect width="${w}" height="${h}" fill="url(#g)"/><circle cx="${w * 0.68}" cy="${h * 0.3}" r="${r}" fill="#FFF3D6"/><circle cx="${w * 0.68}" cy="${h * 0.3}" r="${r * 0.55}" fill="none" stroke="#E9B46A" stroke-width="${r * 0.08}"/><path d="M0 ${h * 0.72} Q ${w * 0.3} ${h * 0.56} ${w * 0.6} ${h * 0.7} T ${w} ${h * 0.66} V ${h} H 0z" fill="${c}"/><path d="M0 ${h * 0.86} Q ${w * 0.45} ${h * 0.74} ${w} ${h * 0.88} V ${h} H 0z" fill="${d}"/><text x="${w * 0.05}" y="${h * 0.94}" font-family="sans-serif" font-weight="700" font-size="${Math.min(w, h) * 0.08}" fill="rgba(255,255,255,.9)">${label}</text></svg>`;
     return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
   }
-  const PH = { land: photo(800, 600, 0, '4:3'), port: photo(600, 800, 1, '3:4'), wide: photo(960, 540, 2, '16:9'), long: photo(500, 1200, 1, '1:2.4') };
+  const PHD = { land: [800, 600, 0, '4:3'], port: [600, 800, 1, '3:4'], wide: [960, 540, 2, '16:9'], long: [500, 1200, 1, '1:2.4'], sq: [720, 720, 2, '1:1'], pano: [1200, 500, 0, '12:5'] };
+  const PH = Object.fromEntries(Object.entries(PHD).map(([key, [w, h, p, l]]) => [key, photo(w, h, p, l)]));
+  const DIMS = new Map(Object.entries(PHD).map(([key, [w, h]]) => [PH[key], [w, h]]));
   const frame = (url, cls = '') => `<div class="pf ${cls}"><img class="pad" src="${url}" alt="" aria-hidden="true"><img class="still" src="${url}" alt=""></div>`;
 
   /* ---------- 页面模板 ---------- */
-  const PAGES = [['today', '今日'], ['snippets', '随手拍'], ['journal', '日记'], ['ledger', '账本'], ['calendar', '日历'], ['mine', '我的']];
+  const PAGES = [['today', '今日'], ['snippets', '随手拍'], ['vault', '私密空间'], ['journal', '日记'], ['ledger', '账本'], ['calendar', '日历'], ['mine', '我的']];
+  const VF = [
+    { n: '旅行', items: ['land', 'port', 'wide', 'sq', 'long', 'pano', 'port', 'land'], cover: 2 },
+    { n: '家人', items: ['port', 'sq', 'land', 'wide', 'port', 'long'], cover: 0 },
+    { n: '票据与证件', items: ['wide', 'pano', 'land', 'sq'], cover: 1 },
+    { n: '未分类', items: ['long', 'land', 'port'], cover: 0 }
+  ];
+  const snapCard = (s, i, st) => `
+      <div class="card mcard${st ? ' st' : ''}" data-id="${s.id}"><div style="position:relative">${i === 0 ? pin(5) : i === 1 ? pin(8) : ''}<span class="badge">${ic('camera')}${s.np > 1 ? s.np + ' 张' : '拍立得'}</span>${frame(PH[s.p])}</div>
+        <div class="mmeta"><span>${s.t} · 随手拍</span><em>${s.tag}</em></div><div class="mtitle">${s.n}</div>
+        <div class="mact">${i === 0 ? pin(6) : ''}<button data-press data-act="toast" data-msg="预览：编辑">编辑</button><button class="del" data-press data-act="confirm" data-id="${s.id}">删除</button><button data-press data-act="toast" data-msg="直接打开大图（不加入场动效）">查看照片</button></div></div>`;
   const DOCK = [['today', 'draw', 'Today'], ['calendar', 'cal', 'Calendar'], ['snippets', 'moments', 'Moments'], ['journal', 'journal', 'Journal'], ['ledger', 'wallet', 'Ledger']];
   const TALL = { snippets: 1, journal: 1, ledger: 1 };
 
@@ -799,7 +978,7 @@ html.showfps #fps { display: block; }
         <div class="mast-w"><span class="rv"><span style="--ri:3"><i>TUESDAY</i> / 星期二</span></span></div><div class="mast-m"><span class="rv"><span style="--ri:4">把每个今天，过成故事。</span></span></div></header>
       <div class="row2 st">
         <button class="card wx" data-press data-act="toast" data-msg="预览：点击获取天气">${pin(1)}${ic('loc')}<b>当地</b><small>点击获取<br>天气</small></button>
-        <div class="card acts"><button data-press data-act="sheet">${ic('camera')}拍照</button><button data-press data-act="sheet">${ic('note')}记一笔</button><button data-press data-act="toast" data-msg="预览：AI 助手">${ic('spark')}AI 助手</button></div>
+        <div class="card acts"><button data-press data-act="snap">${ic('camera')}拍照</button><button data-press data-act="sheet">${ic('note')}记一笔</button><button data-press data-act="toast" data-msg="预览：AI 助手">${ic('spark')}AI 助手</button></div>
       </div>
       <button class="card course st" data-press data-act="sub" data-title="课程表">${ic('cal')}<div><b>今日课程<small>今天没有课程</small></b><small>第 6 教学周 · 查看本周安排</small></div>${ic('arrow')}</button>
       <div class="card cd st">${ic('flag')}<div><b>还没有重要倒数日</b><small>添加倒数日，记录值得期待的日子</small></div><span class="cd-no">NO.<br>286</span></div>
@@ -827,13 +1006,25 @@ html.showfps #fps { display: block; }
       <div class="card halo st"><i class="ring"><i class="sweep"></i></i>${pin(2)}
         <div class="hero-t"><b>全景生活记忆库统计</b><small>${ic('fire').replace('class="i"', 'class="i" style="width:14px;height:14px;color:#C4704F"')} 连续记录 1 天</small></div>
         <div class="mini4"><div class="mini"><strong>3 张</strong><small>${ic('camera')}随手拍</small></div><div class="mini"><strong>0 条</strong><small>${ic('note')}速记</small></div><div class="mini"><strong>0 部</strong><small>${ic('book')}书影音</small></div><div class="mini"><strong>0 条</strong><small>${ic('img')}实况</small></div></div></div>
-      <div class="srch st"><div class="box">${ic('search')}搜索照片、灵感便签、书籍或电影…</div><button class="gal" data-press>${ic('img')}</button><button class="btn-p" data-press data-act="sheet">${ic('plus')}记录</button></div>
+      <div class="srch st"><div class="box">${ic('search')}搜索照片、灵感便签、书籍或电影…</div><button class="gal" data-press>${ic('img')}</button><button class="btn-p" data-press data-act="snap" style="position:relative">${pin(7)}${ic('plus')}记录</button></div>
       <div class="chips st">${pin(3)}<button class="chip on" data-act="chip">全部记录 (3)</button><button class="chip" data-act="chip">随手拍 (3)</button><button class="chip" data-act="chip">灵感速记 (0)</button><button class="chip" data-act="chip">书影音 (0)</button><button class="chip" data-act="chip">实况影像 (0)</button></div>
       <div class="dbar st">${pin(4)}<b>10月13日 · 今天 · 星期二</b><small>3 条记录</small></div>
-      ${[['land', '05:27', '傍晚散步时看到的光影', '#日常生活'], ['port', '04:27', '窗边的竖幅', '#学习心流'], ['wide', '03:27', '江边横幅', '#日常生活']].map(([p, t, n, tag], i) => `
-      <div class="card mcard st"><div style="position:relative">${i === 0 ? pin(5) : ''}<span class="badge">${ic('camera')}拍立得</span>${frame(PH[p])}</div>
-        <div class="mmeta"><span>${t} · 随手拍</span><em>${tag}</em></div><div class="mtitle">${n}</div>
-        <div class="mact">${i === 0 ? pin(6) : ''}<button data-press data-act="toast" data-msg="预览：编辑">编辑</button><button class="del" data-press data-act="toast" data-msg="预览：不会真的删除">删除</button><button data-press data-act="toast" data-msg="直接打开大图（不加入场动效）">查看照片</button></div></div>`).join('')}`,
+      <div class="mlist">${S.snaps.map((s, i) => snapCard(s, i, true)).join('')}</div>`,
+
+    vault: () => {
+      const V = S.vault;
+      const inFolder = !V.locked && V.folder >= 0;
+      const head = `<header class="vhead st">${inFolder ? `<button class="vb" data-act="vback" data-press>${ic('back')}</button>` : `<button class="vb" data-go="mine" data-press>${ic('back')}</button>`}<span><small>${inFolder ? 'PRIVATE COLLECTION' : 'PRIVATE ARCHIVE'}</small><strong>${inFolder ? VF[V.folder].n : '私密空间'}</strong></span>${V.locked ? '' : `<button class="vl" data-act="vlock" data-press>${ic('lock')}锁定</button>`}</header>`;
+      if (V.locked) return head + `<div class="vlock st">${pin(1)}<div class="vmark">${ic('finger')}</div><b>私密空间已锁定</b><p>验证指纹后进入。离开页面或切到后台会按原规则自动锁定。</p><button class="pri" data-act="vunlock" data-press>${ic('finger')}模拟指纹解锁</button><button class="alt" data-act="vunlock">使用密码</button></div>`;
+      if (inFolder) {
+        const f = VF[V.folder];
+        return head + `<div class="vsec st"><span><small>${f.items.length} ITEMS</small><strong>点照片直接开大图</strong></span><small>最近添加</small></div><div class="vitems">${f.items.map((p, i) => `<button class="vitem" data-act="vitem"${i === f.cover ? ' data-cover="1"' : ''}>${frame(PH[p])}</button>`).join('')}</div>`;
+      }
+      return head + `<div class="vnote vc st">${ic('shield')}<span><b>当前已解锁</b><small>离开页面或切到后台会自动锁定</small></span></div>
+        <div class="vtools vc st">${pin(2)}<button data-act="vbg" data-press>${ic('swap')}模拟切出再回来</button><button data-act="vlock" data-press>${ic('lock')}立即锁定</button></div>
+        <div class="vsec vc st"><span><small>PRIVATE ALBUMS</small><strong>私密文件夹</strong></span><small>最近更新</small></div>
+        <div class="vgrid st">${pin(3)}${VF.map((f, i) => `<button class="vfold vc" data-act="vfolder" data-f="${i}" data-press>${frame(PH[f.items[f.cover]])}<b>${f.n}</b><small>${f.items.length} 项 · 10月${13 - i}日更新</small></button>`).join('')}</div>`;
+    },
 
     journal: () => `
       <header class="phead st"><div class="t">Mine Journal</div><div class="s">Daily Moment · 暖色生活手记</div><span class="corner">${pin(1)}Write A Better Me Everyday.</span></header>
@@ -878,7 +1069,7 @@ html.showfps #fps { display: block; }
       <div class="card halo prof st"><i class="ring"><i class="sweep"></i></i>${pin(1)}<span class="av">户<span class="cam">${ic('camera')}</span></span><div><span class="lk">MY LIFE RECORD</span><b>用户</b><small>“今天也是充满光芒的一天。”</small></div><button class="ed" data-press data-act="sheet">${ic('draw')}编辑</button></div>
       <div class="st4 st">${pin(2)}<div><b>0m</b><small>累计专注</small></div><div><b>0</b><small>习惯打卡</small></div><div><b>0</b><small>完成待办</small></div><div><b>1</b><small>生活日记</small></div></div>
       <div class="sec st"><span class="no">01</span><span><b>我的生活</b><small>LIFE ARCHIVE</small></span></div>
-      <div class="card list st">${pin(3)}${[['fork', '味觉档案', '记录吃过的菜、零食和店铺', '去记录'], ['img', '本机相册播放器', '查看手机照片和视频 · 原件留在相册', '打开'], ['book', '我的书影音与资料流', '暂无记录 · 前往书影音资料库', '去记录'], ['folder', '资料库', 'Word、PDF，以及分享进来的文件', '去查看'], ['target', '习惯与节奏管理', '自定义目标量、重复周期与打卡', '管理']].map(([i, t, s, g]) => `<button class="row" data-press data-act="sub" data-title="${t}"><span class="ti">${ic(i)}</span><div><b>${t}</b><small>${s}</small></div><span class="go">${g}${ic('chev')}</span></button>`).join('')}</div>`
+      <div class="card list st">${pin(3)}<button class="row" data-press data-go="vault"><span class="ti">${ic('lock')}</span><div><b>私密空间</b><small>指纹解锁 · 照片与视频加密保存在本机</small></div><span class="go">进入${ic('chev')}</span></button>${[['fork', '味觉档案', '记录吃过的菜、零食和店铺', '去记录'], ['img', '本机相册播放器', '查看手机照片和视频 · 原件留在相册', '打开'], ['book', '我的书影音与资料流', '暂无记录 · 前往书影音资料库', '去记录'], ['folder', '资料库', 'Word、PDF，以及分享进来的文件', '去查看'], ['target', '习惯与节奏管理', '自定义目标量、重复周期与打卡', '管理']].map(([i, t, s, g]) => `<button class="row" data-press data-act="sub" data-title="${t}"><span class="ti">${ic(i)}</span><div><b>${t}</b><small>${s}</small></div><span class="go">${g}${ic('chev')}</span></button>`).join('')}</div>`
   };
 
   /* ---------- 说明 ---------- */
@@ -894,7 +1085,15 @@ html.showfps #fps { display: block; }
       [3, '筛选标签', '五个挤在一行，360 宽下贴边', '横向滚动 + scroll-snap，右缘渐隐提示还有更多'],
       [4, '日期条', '76px 高的蓝描边大胶囊，抢内容卡的视觉重心', '44px 高、浅蓝底、无描边'],
       [5, '拍立得角标', '直角深色块压在圆角照片上', '12px 圆角、半透明墨色、不模糊；照片框本身不动'],
-      [6, '操作按钮', '三颗胶囊间距 2px，挤在一起', '32px 高、间距 8px；删除用浅红底']
+      [6, '操作按钮', '三颗胶囊间距 2px，挤在一起', '32px 高、间距 8px；删除用浅红底；删除确认改成居中轻缩放卡片（Z5）'],
+      [7, '拍照 / 选图 / 保存', '照片直接出现在表单网格里；保存后弹层关闭、列表整页重绘', '照片从快门或相册按钮的位置飞进网格（等比缩放，520ms 弹簧）；保存后照片飞到列表顶部的新卡片，旧卡片让位下移。表单有中 / 高两档，可下拉关闭'],
+      [8, '列表与长按', '滚动时图片直接出现；长按没有反馈', '首屏以外的卡片进入视口时铺底 → 主图 → 文字分层淡入；长按 380ms 卡片浮起 4px、阴影加深，松手弹回。图集一叠牌不在列表里，不受影响']
+    ],
+    vault: [
+      [1, '解锁', '指纹通过后整页硬切到内容', '锁面从中缝上下分开、锁徽放大淡出，内容 90ms 起依次浮现；总长约 430ms，全程可点'],
+      [2, '切出再回来', '回来时先闪一下上次的内容，再硬切到锁屏', '切出瞬间盖上模糊遮罩；回来时锁屏已在遮罩下渲染好，遮罩 240ms 淡出、锁面轻轻放大到位'],
+      [3, '进文件夹', '整页替换，看不出点的是哪一夹', '封面照片按原始比例飞到详情里同一张照片的位置，其余照片按距离依次浮现；返回时飞回封面'],
+      [4, '加密 / 锁定 / 观看记录', '—', '逻辑一律不碰：锁定时机仍由 private-vault.js 决定，动效只旁听 DOM 与可见性事件', true]
     ],
     journal: [
       [1, '角注纸签', '超出屏幕右缘被裁掉（390 宽右缘 397px）', '内收，纸签保留'],
@@ -924,12 +1123,18 @@ html.showfps #fps { display: block; }
   const GLOBAL = [
     ['D', '底栏', '贴满屏宽贴底；高度在 64 / 72px 之间跳；选中胶囊 70px 高、顶出上沿；切页无过渡，图标弹到 1.22', '悬浮岛：左右 12px、离底 10px、统一 64px、22px 圆角；选中块是底栏自身的伪元素，用 :has() 定位、translateX 滑过去 260ms；图标 .92→1'],
     ['P', '页面入场', '整页 translateY 12px + scale .985，360ms；列表 640ms、16px + 缩放', '整页只淡入 + 8px 上移，280ms；列表 420ms、10px，不缩放'],
-    ['S', '底部弹层', '暖黑 65% 遮罩 + 全屏模糊，淡入每帧重算模糊', '冷墨 32% 实色遮罩只淡 opacity；面板开 320ms、关 220ms；顶部抓手条'],
-    ['T', 'Toast / 二级页', 'toast 不透明底上叠 20px 模糊；二级页推入没有前后层次', 'toast 实色；二级页左缘静态阴影 + 底下页面淡遮罩（只动 opacity）']
+    ['S', '底部弹层', '暖黑 65% 遮罩 + 全屏模糊，淡入每帧重算模糊', '冷墨 32% 实色遮罩只淡 opacity；面板开 320ms、关 220ms；顶部抓手条；可以跟手下拉，背后页面随进度缩小变暗'],
+    ['T', 'Toast / 二级页', 'toast 不透明底上叠 20px 模糊；二级页推入没有前后层次；只能点返回', 'toast 实色；二级页从被点的卡片原位展开、标题飞到导航栏；左缘右滑返回，松手按速度完成或回弹']
   ];
 
   /* ---------- 状态 ---------- */
-  const S = { page: 'today', v: 'a', day: 13, month: 10 };
+  const S = {
+    page: 'today', v: 'a', day: 13, month: 10,
+    vault: { locked: true, folder: -1 },
+    snaps: [['land', '05:27', '傍晚散步时看到的光影', '#日常生活'], ['port', '04:27', '窗边的竖幅', '#学习心流'], ['wide', '03:27', '江边横幅', '#日常生活'], ['sq', '昨天 21:10', '夜里的台灯', '#日常生活'], ['long', '昨天 18:02', '楼梯间的长条光', '#城市'], ['pano', '10-11 07:40', '早班车窗外', '#通勤'], ['port', '10-10 19:30', '雨后的路口', '#城市']]
+      .map(([p, t, n, tag], i) => ({ id: i + 1, p, np: 1, t, n, tag })),
+    sid: 7, draft: [], pick: 0, sheet: '', cfm: 0
+  };
   const phones = { b: $('#phB'), a: $('#phA') };
 
   function dockHtml(page) {
@@ -947,21 +1152,35 @@ html.showfps #fps { display: block; }
     return out;
   }
   function dropExpand(ph) {
-    if (ph._xp) { ph._xp.g.remove(); ph._xp.src.style.opacity = ''; ph._xp = null; }
-    ph.classList.remove('xp', 'xp-out');
+    if (ph._xp) { ph._xp.g.remove(); ph._xp.src.style.opacity = ''; ph._xp.title?.el.remove(); ph._xp = null; }
+    ph.classList.remove('xp', 'xp-out', 'tfly');
   }
+  function resetPhone(ph) {
+    dropExpand(ph);
+    ph._stop?.(); ph._stop = null;
+    ph.classList.remove('sheetopen', 'subopen', 'toasting', 'cfmopen', 'cfmclosing', 'popopen', 'sdrag', 'swiping', 'off');
+    $$('.fly, .gframe, .ulk, .shield, .finger, .fly-t', ph).forEach(n => n.remove());
+    $$('.scr, .sheet, .scrim, .sub, .dim', ph).forEach(n => { n.style.transform = ''; n.style.opacity = ''; });
+  }
+  const SUB_NOTE = {
+    b: '现状：从右侧推入（350ms），只能点"返回"。',
+    a: '升级后：从被点的卡片原位展开，标题飞到导航栏；返回时原路收回。从左缘（或页面左侧 60%）向右拖可以返回，松手按速度完成或回弹。右上角 ⋯ 是锚点菜单。'
+  };
   function mount(v) {
     const ph = phones[v];
-    dropExpand(ph);
-    ph.classList.remove('sheetopen', 'subopen', 'toasting');
+    resetPhone(ph);
     ph.innerHTML = `<div class="scr"><div class="pg pg-${S.page}">${T[S.page]()}</div></div>
       <nav class="dock${TALL[S.page] ? ' tall' : ''}">${pin('D')}${dockHtml(S.page)}</nav>
       <div class="dim"></div>
-      <div class="sub"><div class="subnav"><button class="back" data-act="back">${ic('back')}返回</button><b class="sub-t">二级页</b><span></span></div>
-        <div class="body"><div class="card"><b>二级页内容</b><p class="muted">现状与升级后都是从右侧推入（350ms）。升级后多了左缘静态阴影和底下页面的淡遮罩，推入时有前后层次。</p></div><div class="card" style="height:120px"></div><div class="card" style="height:160px"></div></div></div>
+      <div class="sub"><div class="subnav"><button class="back" data-act="back" data-press>${ic('back')}返回</button><b class="sub-t">二级页</b><button class="more" data-act="pop" data-press aria-label="更多">${ic('dots')}</button></div>
+        <div class="pop">${['分享', '置顶', '删除'].map((t, i) => `<button data-act="popi" style="--ci:${i}">${t}</button>`).join('')}</div>
+        <div class="body"><div class="card"><b>二级页内容</b><p class="muted">${SUB_NOTE[v]}</p></div><div class="card" style="height:84px"></div><div class="card" style="height:120px"></div><div class="card" style="height:160px"></div></div></div>
       <div class="scrim" data-act="close"></div>
-      <div class="sheet"><h3>记一笔</h3><div class="amt">¥ 0.00</div><p class="muted" style="font-size:12px">${v === 'b' ? '现状：暖黑 65% 遮罩 + 全屏模糊。' : '升级后：冷墨 32% 实色遮罩，不模糊；开 320ms、关 220ms。'}</p><div class="rowb"><button data-act="close">取消</button><button class="pri" data-act="close">保存</button></div></div>
-      <div class="toast"></div>`;
+      <div class="sheet"></div>
+      <div class="cfm"><div class="cfm-bg" data-act="cfm-bg"></div><div class="cfm-card"><b>删除这条随手拍？</b><p>删除后无法恢复。${v === 'b' ? '现状：底部弹出 + 暖黑 65% 遮罩 + 全屏模糊。' : '升级后：居中卡片 .96→1 轻缩放 200ms；背景静态模糊，只淡 opacity。点空白处卡片会轻推一下，不关闭。'}</p><div class="rowb"><button data-act="cfm-no">取消</button><button class="dan" data-act="cfm-yes">删除</button></div></div></div>
+      <div class="toast"></div>
+      <div class="offapp">已切到后台（模拟）</div>`;
+    $$('.sub .body > *', ph).forEach((el, i) => el.style.setProperty('--ci', i));
     if (S.page === 'calendar') { $('.gwrap', ph).outerHTML = calGrid(S.month, S.day); syncCalLabels(ph); }
     enter(ph);
   }
@@ -970,10 +1189,12 @@ html.showfps #fps { display: block; }
     $$('.st', pg).forEach((el, i) => el.style.setProperty('--si', i));
     pg.classList.remove('in'); void pg.offsetWidth; pg.classList.add('in');
     $$('.halo', ph).forEach(h => { h.classList.remove('go'); void h.offsetWidth; h.classList.add('go'); });
-    if (ph.classList.contains('ph') && ph.classList.contains('a')) sigEnhance(ph);
+    if (ph.classList.contains('ph') && ph.classList.contains('a')) { sigEnhance(ph); prepLayers(ph); }
   }
   function go(page) {
     if (!T[page]) return;
+    // App 里离开私密空间路由就会锁定（registerOnRender）；预览照此复刻
+    if (S.page === 'vault' && page !== 'vault') { S.vault.locked = true; S.vault.folder = -1; }
     S.page = page;
     for (const v of ['b', 'a']) {
       const ph = phones[v];
@@ -982,8 +1203,7 @@ html.showfps #fps { display: block; }
       // 和 App 的 renderNav() 一样整段重绘按钮；底栏容器本身不换，所以 ::before 的过渡照样触发
       dock.innerHTML = pin('D') + dockHtml(page);
       dock.classList.toggle('tall', !!TALL[page]);
-      dropExpand(ph);
-      ph.classList.remove('sheetopen', 'subopen', 'toasting');
+      resetPhone(ph);
       scr.innerHTML = `<div class="pg pg-${page}">${T[page]()}</div>`;
       scr.scrollTop = 0;
       if (page === 'calendar') { $('.gwrap', ph).outerHTML = calGrid(S.month, S.day); syncCalLabels(ph); }
@@ -1011,14 +1231,35 @@ html.showfps #fps { display: block; }
   function indexIn(el) { return [...el.parentElement.children].filter(c => c.tagName === el.tagName).indexOf(el); }
 
   document.addEventListener('click', e => {
+    if (!e.target.closest('.pop, .more')) both(p => p.classList.remove('popopen'));
     const el = e.target.closest('[data-go],[data-act]');
     if (!el) return;
     const ph = el.closest('.ph');
     if (el.dataset.go) { go(el.dataset.go); return; }
     if (!ph) return;
     const act = el.dataset.act;
-    if (act === 'sheet') both(p => p.classList.add('sheetopen'));
-    else if (act === 'close') both(p => p.classList.remove('sheetopen'));
+    if (act === 'sheet') openSheet('ledger');
+    else if (act === 'snap') openSheet('snap');
+    else if (act === 'close') {
+      if (el.classList.contains('scrim') && S.sheet === 'snap' && S.draft.length && sig()) {
+        nudge(phones.a, 'sheet'); toast(phones.a, '还有未保存的照片：点"取消"或下拉关闭');
+        phones.b.classList.remove('sheetopen'); toast(phones.b, '现状：点遮罩直接关闭，照片丢失');
+      } else both(p => p.classList.remove('sheetopen'));
+    }
+    else if (act === 'shot') snapShot(el.dataset.src);
+    else if (act === 'snapsave') snapSave();
+    else if (act === 'confirm') { S.cfm = Number(el.dataset.id); both(p => p.classList.add('cfmopen')); }
+    else if (act === 'cfm-no') closeConfirm();
+    else if (act === 'cfm-yes') confirmDelete();
+    else if (act === 'cfm-bg') { if (ph.classList.contains('a') && sig()) nudge(ph, 'cfm'); }
+    else if (act === 'pop') both(p => p.classList.toggle('popopen'));
+    else if (act === 'popi') both(p => { p.classList.remove('popopen'); toast(p, '预览：' + el.textContent); });
+    else if (act === 'vunlock') vaultUnlock();
+    else if (act === 'vlock') vaultLock();
+    else if (act === 'vbg') vaultBackground();
+    else if (act === 'vfolder') vaultOpen(Number(el.dataset.f));
+    else if (act === 'vback') vaultBack();
+    else if (act === 'vitem') both(p => toast(p, '直接打开大图（无入场动效）'));
     else if (act === 'sub') {
       const idx = $$('[data-act="sub"]', ph).indexOf(el);
       both(p => {
@@ -1100,6 +1341,7 @@ html.showfps #fps { display: block; }
       html.classList.toggle(t, on);
       const scr = $('.scr', phones.a);
       if (!STL) pxApply(scr);
+      resetPhone(phones.a);
       enter(phones.a);
     }
   });
@@ -1259,7 +1501,37 @@ html.showfps #fps { display: block; }
     p._xp = { src, g, to };
     p.classList.add('xp', 'subopen');
     g.animate([{ transform: 'none' }, { transform: to }], { duration: 440 * k(), easing: 'cubic-bezier(.32,.72,0,1)', fill: 'forwards' });
+    p._xp.title = flyTitle(p, src);
     return true;
+  }
+  /* Z1 标题飞行：来源文字按"导航字号 / 来源字号"等比缩放，中心对齐飞到导航栏，落地 80ms 交叉淡入 */
+  function firstText(el) {
+    const w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, { acceptNode: n => n.textContent.trim() ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP });
+    return w.nextNode();
+  }
+  function textBox(node, ph) {
+    const r = document.createRange(); r.selectNodeContents(node);
+    const b = r.getBoundingClientRect(), P = ph.getBoundingClientRect();
+    return { left: b.left - P.left, top: b.top - P.top, width: b.width, height: b.height };
+  }
+  function flyTitle(p, src) {
+    const tn = firstText(src), nav = $('.sub-t', p);
+    if (!tn || !nav || !nav.firstChild) return null;
+    const from = textBox(tn, p), dest = textBox(nav.firstChild, p);
+    const cs = getComputedStyle(tn.parentElement);
+    const s = parseFloat(getComputedStyle(nav).fontSize) / parseFloat(cs.fontSize);
+    const el = document.createElement('span');
+    el.className = 'fly-t'; el.textContent = tn.textContent.trim();
+    Object.assign(el.style, { font: cs.font, color: cs.color, letterSpacing: cs.letterSpacing });
+    p.append(el);
+    const a = `translate(${from.left}px, ${from.top}px)`;
+    const b = `translate(${dest.left + dest.width / 2 - from.width * s / 2}px, ${dest.top + dest.height / 2 - from.height * s / 2}px) scale(${s})`;
+    p.classList.add('tfly');
+    el.animate([{ transform: a }, { transform: b }], { duration: 440 * k(), easing: 'cubic-bezier(.32,.72,0,1)', fill: 'forwards' }).finished
+      .then(() => { p.classList.remove('tfly'); return el.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 80 * k(), fill: 'forwards' }).finished; })
+      .then(() => { if (!p._xp?.closing) el.style.visibility = 'hidden'; })
+      .catch(() => {});
+    return { el, a, b };
   }
   function expandClose(p) {
     const s = p._xp; if (!s || s.closing) return;
@@ -1267,12 +1539,19 @@ html.showfps #fps { display: block; }
     const K = k();
     p.classList.add('xp-out');
     setTimeout(() => {
-      p.classList.remove('subopen');
+      const t = s.title;
+      if (t) {
+        p.classList.add('tfly');
+        t.el.getAnimations().forEach(x => x.cancel());
+        t.el.style.visibility = '';
+        t.el.animate([{ transform: t.b, opacity: 0 }, { transform: t.b, opacity: 1, offset: .15 }, { transform: t.a, opacity: 1 }], { duration: 360 * K, easing: 'cubic-bezier(.32,.72,0,1)', fill: 'forwards' });
+      }
       s.g.animate([{ transform: s.to }, { transform: 'none' }], { duration: 360 * K, easing: 'cubic-bezier(.32,.72,0,1)', fill: 'forwards' }).finished
-        .then(() => { s.src.style.opacity = ''; return s.g.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 100 * K, fill: 'forwards' }).finished; })
-        .then(() => { s.g.remove(); p.classList.remove('xp', 'xp-out'); if (p._xp === s) p._xp = null; })
+        .then(() => { s.src.style.opacity = ''; t?.el.remove(); return s.g.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 100 * K, fill: 'forwards' }).finished; })
+        .then(() => { s.g.remove(); p.classList.remove('xp', 'xp-out', 'tfly'); if (p._xp === s) p._xp = null; })
         .catch(() => {});
-    }, 160 * K);
+    }, 80 * K);
+    setTimeout(() => { if (p._xp === s) p.classList.remove('subopen'); }, 160 * K);
   }
 
   /* S9 指尖倾斜：按住主角卡，只写 4 个 CSS 变量 */
@@ -1350,8 +1629,8 @@ html.showfps #fps { display: block; }
     const bar = $('.bar').offsetHeight;
     scrollTo({ top: $('.phones').getBoundingClientRect().top + scrollY - bar - 4, behavior: 'smooth' });
     await new Promise(r => setTimeout(r, 380));
-    if (page && page !== S.page) go(page);
-    else { both(p => { dropExpand(p); p.classList.remove('sheetopen', 'subopen'); $('.scr', p).scrollTop = 0; enter(p); }); }
+    if (page) go(page);
+    else { both(p => { resetPhone(p); $('.scr', p).scrollTop = 0; enter(p); }); }
     if (fn) { await wait(delay); fn(phones.a); }
   }
   async function smoothScroll(p) {
@@ -1408,6 +1687,523 @@ html.showfps #fps { display: block; }
   $$('[data-sig-stage="cursor"]').forEach(st => placeCursor(st, true));
   $$('[data-sig-stage="reels"] .big-amt').forEach(el => reels(el, el.textContent.trim(), 300));
   $$('[data-sig-stage="tilt"] .halo').forEach(h => h.classList.add('go'));
+
+  /* ============================================================
+     第 9 节 二级页与弹窗 · 第 10 节 私密空间与随手拍
+     ============================================================ */
+  const fx = () => sig() && k() > 0;
+  const FLY = 'cubic-bezier(.32,.72,0,1)';
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  const clamp01 = x => Math.min(1, Math.max(0, x));
+  const rubber = d => 40 * (1 - 1 / (1 + d / 120));
+  const MAGNET = CSS.supports('animation-timing-function', 'linear(0, 1)') ? getComputedStyle(html).getPropertyValue('--spring-magnet').trim() : 'cubic-bezier(.34,1.3,.64,1)';
+
+  /** 视觉位置（含正在进行的 transform），相对手机框 */
+  function relRect(el, ph) { const r = el.getBoundingClientRect(), P = ph.getBoundingClientRect(); return { left: r.left - P.left, top: r.top - P.top, width: r.width, height: r.height }; }
+  /** 终态布局位置（不受正在进行的 transform 影响），相对手机框 */
+  function layoutRect(el, ph) {
+    let x = 0, y = 0, n = el;
+    while (n && n !== ph) {
+      const op = n.offsetParent;
+      x += n.offsetLeft; y += n.offsetTop;
+      if (op && op !== ph) { x += op.clientLeft - op.scrollLeft; y += op.clientTop - op.scrollTop; }
+      n = op;
+    }
+    return { left: x, top: y, width: el.offsetWidth, height: el.offsetHeight };
+  }
+  /** contain 显示框：按原始宽高比实际显示照片的那块矩形 */
+  function containOf(box, img) {
+    const [nw, nh] = img.naturalWidth ? [img.naturalWidth, img.naturalHeight] : (DIMS.get(img.getAttribute('src')) || [0, 0]);
+    if (!box || !nw || !nh) return null;
+    const s = Math.min(box.width / nw, box.height / nh), w = nw * s, h = nh * s;
+    return { left: box.left + (box.width - w) / 2, top: box.top + (box.height - h) / 2, width: w, height: h };
+  }
+  const sameRatio = (a, b) => Math.abs(a.width / a.height / (b.width / b.height) - 1) <= 0.005;
+  /** 等比飞行：克隆摆在来源 contain 框上，translate + 单一 scale 飞到目标 contain 框 */
+  function flyPhoto(ph, src, from, to, dur = 480) {
+    if (!from || !to || !sameRatio(from, to)) return null;
+    const img = new Image();
+    img.src = src; img.className = 'fly'; img.alt = '';
+    Object.assign(img.style, { left: from.left + 'px', top: from.top + 'px', width: from.width + 'px', height: from.height + 'px' });
+    ph.append(img);
+    const a = img.animate([{ transform: 'none' }, { transform: `translate(${to.left - from.left}px, ${to.top - from.top}px) scale(${to.width / from.width})` }], { duration: dur * k(), easing: FLY, fill: 'forwards' });
+    a.finished.then(() => img.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 80 * k(), fill: 'forwards' }).finished).catch(() => {}).finally(() => img.remove());
+    return a;
+  }
+  /** 外框幽灵：只在 |sx/sy − 1| ≤ .25 时用，照片本身从不非等比缩放 */
+  function ghostFrame(ph, from, to, dur) {
+    const sx = to.width / from.width, sy = to.height / from.height;
+    if (Math.abs(sx / sy - 1) > 0.25) return;
+    const g = document.createElement('div');
+    g.className = 'gframe';
+    Object.assign(g.style, { left: from.left + 'px', top: from.top + 'px', width: from.width + 'px', height: from.height + 'px' });
+    ph.append(g);
+    g.animate([{ transform: 'none' }, { transform: `translate(${to.left - from.left}px, ${to.top - from.top}px) scale(${sx}, ${sy})` }], { duration: dur * k(), easing: FLY, fill: 'forwards' }).finished
+      .then(() => g.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 100 * k(), fill: 'forwards' }).finished).catch(() => {}).finally(() => g.remove());
+  }
+  /** 依次浮现；grid 内的元素在"第一个格子的时刻"之后按 (行 + 列) × 24ms 斜向错开 */
+  function cascade(nodes, { start, step, max, dur, dy, grid, scale }) {
+    if (!fx()) return;
+    const gi = grid ? nodes.findIndex(n => n.matches(grid)) : -1;
+    nodes.forEach((el, i) => {
+      let d = start + Math.min(i, max) * step;
+      if (gi >= 0 && el.matches(grid)) {
+        const sib = $$(grid, el.parentElement), idx = sib.indexOf(el);
+        const cols = getComputedStyle(el.parentElement).gridTemplateColumns.split(' ').length || 1;
+        d = start + Math.min(gi, max) * step + (Math.floor(idx / cols) + idx % cols) * 24;
+      }
+      el.style.setProperty('--cd', d + 'ms'); el.style.setProperty('--cdur', dur + 'ms'); el.style.setProperty('--zdy', dy + 'px');
+      el.classList.remove('pl-cascade', 'pl-cs'); void el.offsetWidth; el.classList.add(scale ? 'pl-cs' : 'pl-cascade');
+      el.addEventListener('animationend', () => el.classList.remove('pl-cascade', 'pl-cs'), { once: true });
+    });
+  }
+  /** 弹簧（m=1）：用松手速度作初速度；慢放时步长 ÷4，减弱动效时直接到终点 */
+  function spring({ from, to, v = 0, K, C, onUpdate, onDone }) {
+    if (k() === 0) { onUpdate(to); onDone?.(); return () => {}; }
+    let x = from, vel = v, last = performance.now(), raf = 0, dead = false;
+    const step = now => {
+      if (dead) return;
+      const dt = Math.min(1 / 30, (now - last) / 1000) / Math.max(1, k()); last = now;
+      for (let i = 0; i < 4; i++) { const h = dt / 4; vel += (-K * (x - to) - C * vel) * h; x += vel * h; }
+      if (Math.abs(x - to) < 0.5 && Math.abs(vel) < 20) { onUpdate(to); onDone?.(); return; }
+      onUpdate(x); raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+    return () => { dead = true; cancelAnimationFrame(raf); };
+  }
+  /** 最近 100ms 的平均速度（px/s） */
+  function velocityOf(samples) {
+    const last = samples[samples.length - 1];
+    const first = samples.find(s => last[0] - s[0] <= 100) || samples[0];
+    const dt = last[0] - first[0];
+    return dt > 0 ? (last[1] - first[1]) / dt * 1000 : 0;
+  }
+  const matrixOf = el => new DOMMatrix(getComputedStyle(el).transform === 'none' ? undefined : getComputedStyle(el).transform);
+  // 拖动结束后吞掉紧跟的那次 click（拖动不是轻点）
+  let swallowUntil = 0;
+  document.addEventListener('click', e => {
+    if (performance.now() < swallowUntil && e.target.closest('.ph.a')) { e.preventDefault(); e.stopPropagation(); swallowUntil = 0; }
+  }, true);
+
+  /* ---------- Z3 弹层：内容、分档、跟手下拉 ---------- */
+  const SHEETS = {
+    ledger: v => `<h3 class="sc">记一笔</h3><div class="amt sc">¥ 0.00</div><p class="muted sc" style="font-size:12px">${v === 'b' ? '现状：暖黑 65% 遮罩 + 全屏模糊；不能下拉关闭。' : '升级后：冷墨 32% 实色遮罩。按住面板往下拉：快甩或拉过 110px 关闭，否则回弹；背后页面跟着进度缩小变暗。'}</p><div class="rowb sc"><button data-act="close">取消</button><button class="pri" data-act="close">保存</button></div>`,
+    snap: v => `<div class="sh-head sc"><button data-act="close">取消</button><b>新增随手拍</b><button class="pri" data-act="snapsave">保存</button></div>
+      <div class="sgrid sc">${draftCells()}</div>
+      <div class="sbtns sc"><button data-act="shot" data-src="cam" data-press>${ic('camera')}拍照</button><button data-act="shot" data-src="gal" data-press>${ic('img')}相册</button></div>
+      <div class="sfield sc"><b>标题</b>给这一刻起个名字…</div><div class="sfield sc"><b>标签</b>#日常生活</div><div class="sfield"><b>日期</b>2026-10-13 · 星期二</div>
+      <p class="muted" style="font-size:11.5px;line-height:1.6;margin:10px 2px 0">${v === 'b' ? '现状：照片直接出现在网格里；保存后弹层关闭、列表整页重绘。' : '升级后：照片从按钮飞进网格；保存后飞到列表顶部。面板有中 / 高两档：往上拉到高档，往下拉回中档或关闭。'}</p>`
+  };
+  function draftCells() { return S.draft.length ? S.draft.map(p => `<div class="scell">${frame(PH[p])}</div>`).join('') : `<div class="empty">${ic('camera')}<span>拍下此刻，或从相册选择</span></div>`; }
+  function sheetGeo(p, sh) {
+    const H = p.clientHeight, h = sh.offsetHeight, d = !!sh.dataset.detents;
+    return { h, large: d ? Math.max(0, h - H * 0.92) : 0, medium: d ? Math.max(0, h - H * 0.52) : 0, closed: h };
+  }
+  function openSheet(kind) {
+    S.sheet = kind;
+    if (kind === 'snap') S.draft = [];
+    both((p, v) => {
+      p._stop?.(); p._stop = null;
+      p.classList.remove('sdrag');
+      const sh = $('.sheet', p);
+      sh.innerHTML = SHEETS[kind](v);
+      $$('.sc', sh).forEach((el, i) => el.style.setProperty('--ci', i));
+      const tall = v === 'a' && sig() && kind === 'snap';
+      sh.classList.toggle('tall', tall);
+      sh.dataset.detents = tall ? '1' : '';
+      sh.style.setProperty('--sy', tall ? sheetGeo(p, sh).medium + 'px' : '0px');
+      p.classList.add('sheetopen');
+    });
+  }
+  function paintSheet(s, y) {
+    const { medium, closed } = s.g;
+    const pr = clamp01(1 - (y - medium) / (closed - medium));
+    s.sh.style.transform = `translate3d(0, ${y.toFixed(1)}px, 0)`;
+    $('.scrim', s.p).style.opacity = pr.toFixed(3);
+    if (rich()) $('.scr', s.p).style.transform = `translateY(${(10 * pr).toFixed(2)}px) scale(${(1 - 0.06 * pr).toFixed(4)})`;
+  }
+  function clearSheet(p) { [$('.sheet', p), $('.scrim', p), $('.scr', p)].forEach(n => { n.style.transform = ''; n.style.opacity = ''; }); }
+  function releaseSheet(s, y, v) {
+    const { large, medium, closed } = s.g;
+    const proj = y + v * 0.18;
+    let target = [large, medium, closed].reduce((a, b) => Math.abs(b - proj) < Math.abs(a - proj) ? b : a);
+    const pulled = y - medium;
+    if (target === closed && !(v > 900 || pulled > Math.max(110, (closed - medium) * 0.28))) target = medium;
+    if (target === closed) {
+      const ms = Math.min(260, Math.max(140, 4 * (closed - y) / Math.max(v, 1) * 1000)) * k();
+      const opts = { duration: ms, easing: 'cubic-bezier(.2,.8,.2,1)', fill: 'forwards' };
+      const scrim = $('.scrim', s.p), scr = $('.scr', s.p);
+      const anims = [
+        s.sh.animate([{ transform: s.sh.style.transform || 'none' }, { transform: `translate3d(0, ${closed}px, 0)` }], opts),
+        scrim.animate([{ opacity: scrim.style.opacity || 1 }, { opacity: 0 }], opts)
+      ];
+      if (rich()) anims.push(scr.animate([{ transform: scr.style.transform || 'none' }, { transform: 'none' }], opts));
+      Promise.all(anims.map(a => a.finished)).then(() => {
+        s.p.classList.remove('sheetopen');
+        clearSheet(s.p); anims.forEach(a => a.cancel());
+        requestAnimationFrame(() => s.p.classList.remove('sdrag'));
+        phones.b.classList.remove('sheetopen');
+      }).catch(() => {});
+      return;
+    }
+    s.p._stop = spring({ from: y, to: target, v, K: 520, C: 40, onUpdate: yy => paintSheet(s, yy), onDone: () => {
+      s.p._stop = null;
+      s.sh.style.setProperty('--sy', target + 'px');
+      clearSheet(s.p);
+      requestAnimationFrame(() => s.p.classList.remove('sdrag'));
+    } });
+  }
+  let sd = null;
+  document.addEventListener('pointerdown', e => {
+    if (!sig() || e.button > 0) return;
+    const sh = e.target.closest('.ph.a.sheetopen .sheet');
+    if (!sh || e.target.closest('button, input')) return;
+    sd = { p: sh.closest('.ph'), sh, x0: e.clientX, y0: e.clientY, lock: false, samples: [[e.timeStamp, e.clientY]] };
+  }, { passive: true });
+  document.addEventListener('pointermove', e => {
+    if (!sd) return;
+    const dx = e.clientX - sd.x0, dy = e.clientY - sd.y0;
+    if (!sd.lock) {
+      if (Math.hypot(dx, dy) < 6) return;
+      if (Math.abs(dy) <= Math.abs(dx)) { sd = null; return; }
+      sd.p._stop?.(); sd.p._stop = null;
+      sd.lock = true; sd.ly = e.clientY; sd.base = matrixOf(sd.sh).m42; sd.g = sheetGeo(sd.p, sd.sh);
+      sd.p.classList.add('sdrag');
+    }
+    sd.samples.push([e.timeStamp, e.clientY]); if (sd.samples.length > 16) sd.samples.shift();
+    let y = sd.base + (e.clientY - sd.ly);
+    if (y < sd.g.large) y = sd.g.large - rubber(sd.g.large - y);
+    sd.y = y; paintSheet(sd, y);
+  }, { passive: true });
+  ['pointerup', 'pointercancel'].forEach(t => document.addEventListener(t, e => {
+    const s = sd; sd = null;
+    if (!s || !s.lock) return;
+    swallowUntil = performance.now() + 350;
+    releaseSheet(s, s.y ?? s.base, t === 'pointercancel' ? 0 : velocityOf(s.samples));
+  }, { passive: true }));
+
+  /* ---------- Z2 右滑返回 ---------- */
+  let sw = null;
+  document.addEventListener('pointerdown', e => {
+    if (!sig() || e.button > 0) return;
+    const sub = e.target.closest('.ph.a.subopen .sub');
+    if (!sub || e.target.closest('input, textarea, .pop, [data-noswipe]')) return;
+    const p = sub.closest('.ph');
+    if (p._xp?.closing) return;
+    const r = sub.getBoundingClientRect(), x = e.clientX - r.left;
+    const edge = x <= 24;
+    if (!edge && x > r.width * 0.6) return;
+    sw = { p, sub, W: r.width, x0: e.clientX, y0: e.clientY, edge, lock: false, samples: [[e.timeStamp, e.clientX]] };
+  }, { passive: true });
+  function paintSub(s, x) {
+    const pr = x / s.W;
+    s.sub.style.transform = `translate3d(${x.toFixed(1)}px, 0, 0)`;
+    $('.dim', s.p).style.opacity = (1 - pr).toFixed(3);
+    if (rich()) $('.scr', s.p).style.transform = `translate3d(${(-20 * (1 - pr)).toFixed(2)}%, 0, 0)`;
+  }
+  function clearSub(p) { [$('.sub', p), $('.dim', p), $('.scr', p)].forEach(n => { n.style.transform = ''; n.style.opacity = ''; }); }
+  document.addEventListener('pointermove', e => {
+    if (!sw) return;
+    const dx = e.clientX - sw.x0, dy = e.clientY - sw.y0;
+    if (!sw.lock) {
+      if (Math.hypot(dx, dy) < (sw.edge ? 8 : 12)) return;
+      if (!(sw.edge ? dx > Math.abs(dy) : dx > 2 * Math.abs(dy))) { sw = null; return; }
+      const p = sw.p;
+      p._stop?.(); p._stop = null;
+      p.classList.add('swiping');
+      if (p._xp) dropExpand(p);
+      p.classList.remove('popopen');
+      sw.lock = true; sw.lx = e.clientX; sw.base = matrixOf(sw.sub).m41;
+    }
+    sw.samples.push([e.timeStamp, e.clientX]); if (sw.samples.length > 16) sw.samples.shift();
+    sw.x = Math.max(0, sw.base + e.clientX - sw.lx); paintSub(sw, sw.x);
+  }, { passive: true });
+  ['pointerup', 'pointercancel'].forEach(t => document.addEventListener(t, () => {
+    const s = sw; sw = null;
+    if (!s || !s.lock) return;
+    swallowUntil = performance.now() + 350;
+    const v = t === 'pointercancel' ? 0 : velocityOf(s.samples), pr = (s.x || 0) / s.W;
+    const done = v > 520 || (pr > 0.35 && v > -160);
+    s.p._stop = spring({ from: s.x || 0, to: done ? s.W : 0, v, K: 360, C: 38, onUpdate: x => paintSub(s, x), onDone: () => {
+      s.p._stop = null;
+      if (done) { s.p.classList.remove('subopen'); phones.b.classList.remove('subopen'); }
+      clearSub(s.p);
+      requestAnimationFrame(() => s.p.classList.remove('swiping'));
+    } });
+  }, { passive: true }));
+
+  /* ---------- Z5 确认框 · Z8 防误关轻推 ---------- */
+  function closeConfirm(after) {
+    both((p, v) => {
+      if (v === 'a' && fx()) {
+        p.classList.add('cfmclosing');
+        setTimeout(() => { p.classList.remove('cfmopen', 'cfmclosing'); after?.(); }, 140 * k());
+      } else { p.classList.remove('cfmopen'); if (v === 'a') after?.(); }
+    });
+  }
+  function confirmDelete() {
+    const id = S.cfm;
+    S.snaps = S.snaps.filter(s => s.id !== id);
+    renderSnaps(phones.b);
+    closeConfirm(() => {
+      const A = phones.a, card = $(`.mcard[data-id="${id}"]`, A);
+      const finish = () => {
+        const before = new Map($$('.mcard', A).map(c => [c.dataset.id, layoutRect(c, A).top]));
+        renderSnaps(A);
+        if (rich()) $$('.mcard', A).forEach(c => {
+          const old = before.get(c.dataset.id); if (old == null) return;
+          const dy = old - layoutRect(c, A).top;
+          if (Math.abs(dy) > 1) c.animate([{ transform: `translate3d(0, ${dy}px, 0)` }, { transform: 'none' }], { duration: 300 * k(), easing: FLY });
+        });
+      };
+      if (card && fx()) { card.classList.add('removing'); setTimeout(finish, 180 * k()); } else finish();
+    });
+    both(p => toast(p, '已删除（预览不改数据）'));
+  }
+  function nudge(p, kind) {
+    if (!fx()) return;
+    if (kind === 'cfm') {
+      const c = $('.cfm-card', p);
+      c.animate([{ transform: 'translateY(-50%) scale(1)' }, { transform: 'translateY(-50%) scale(1.02)', offset: 0.35 }, { transform: 'translateY(-50%) scale(1)' }], { duration: 260 * k(), easing: 'cubic-bezier(.22,.61,.36,1)' });
+    } else {
+      const sh = $('.sheet', p), y = matrixOf(sh).m42;
+      sh.animate([{ transform: `translate3d(0, ${y}px, 0)` }, { transform: `translate3d(0, ${y + 8}px, 0)`, offset: 0.35 }, { transform: `translate3d(0, ${y}px, 0)` }], { duration: 260 * k(), easing: 'cubic-bezier(.22,.61,.36,1)' });
+    }
+  }
+
+  /* ---------- V1–V3 私密空间 ---------- */
+  function renderVault(p) {
+    const pg = $('.pg', p); if (!pg || S.page !== 'vault') return;
+    pg.classList.remove('in');
+    pg.innerHTML = T.vault();
+  }
+  function vaultUnlock() {
+    if (!S.vault.locked) return;
+    const A = phones.a, old = $('.vlock', A), r = old && relRect(old, A);
+    S.vault.locked = false; S.vault.folder = -1;
+    both(renderVault);
+    if (!fx() || !old) return;
+    const host = document.createElement('div');
+    host.className = 'ulk';
+    Object.assign(host.style, { left: r.left + 'px', top: r.top + 'px', width: r.width + 'px', height: r.height + 'px' });
+    if (rich()) {
+      host.innerHTML = '<div class="half t"></div><div class="half btm"></div><i class="seam"></i>';
+      $$('.half', host).forEach(h => h.append(old.cloneNode(true)));
+    } else host.append(old);
+    $$('.pin', host).forEach(n => n.remove());
+    A.append(host);
+    setTimeout(() => host.remove(), 340 * k());
+    cascade($$('.vc', A), { start: 90, step: 24, max: 6, dur: 220, dy: 12, grid: '.vfold' });
+  }
+  function vaultLock() {
+    S.vault.locked = true; S.vault.folder = -1;
+    both(renderVault);
+    if (fx()) $('.vlock', phones.a)?.classList.add('relock');
+  }
+  let vaultBusy = false;
+  async function vaultBackground() {
+    if (vaultBusy) return; vaultBusy = true;
+    const A = phones.a, B = phones.b;
+    let shield = null;
+    if (sig()) {
+      shield = document.createElement('div');
+      shield.className = 'shield' + (rich() ? ' blur' : '');
+      shield.innerHTML = `<span class="sm">${ic('lock')}</span>`;
+      A.append(shield);                                     // 切出瞬间盖上，不做动画
+    }
+    both(p => p.classList.add('off'));
+    await wait(900);
+    S.vault.locked = true; S.vault.folder = -1;
+    renderVault(A);                                        // 锁屏在遮罩下渲染好
+    both(p => p.classList.remove('off'));
+    setTimeout(() => renderVault(B), 220 * Math.max(1, k()));   // 现状：回来先闪一下上次的内容，再硬切
+    if (shield) {
+      await wait(160);
+      await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+      if (!fx()) shield.remove();
+      else {
+        $('.vlock', A)?.classList.add('relock');
+        shield.classList.add('leave');
+        setTimeout(() => shield.remove(), 260 * k());
+      }
+      setTimeout(() => shield.remove(), 1200 * Math.max(1, k()));
+    }
+    vaultBusy = false;
+  }
+  const dist = (a, b) => { const p = a.getBoundingClientRect(), q = b.getBoundingClientRect(); return Math.hypot(p.left - q.left, p.top - q.top); };
+  function vaultOpen(i) {
+    const A = phones.a, card = $$('.vfold', A)[i];
+    const still = card && $('.still', card);
+    const fromFrame = card && relRect($('.pf', card), A);
+    const fromPhoto = still && containOf(relRect(still, A), still);
+    S.vault.folder = i;
+    both(p => { renderVault(p); $('.scr', p).scrollTop = 0; });
+    if (!fx() || !still) return;
+    const items = $$('.vitem', A), target = $('.vitem[data-cover]', A) || items[0];
+    const tpf = $('.pf', target), tStill = $('.still', target);
+    if (rich()) ghostFrame(A, fromFrame, layoutRect(tpf, A), 420);
+    tpf.style.opacity = '0';
+    const a = flyPhoto(A, still.getAttribute('src'), fromPhoto, containOf(layoutRect(tStill, A), tStill), 420);
+    (a ? a.finished : Promise.resolve()).catch(() => {}).finally(() => { tpf.style.opacity = ''; });
+    cascade([$('.vsec', A)], { start: 60, step: 0, max: 0, dur: 220, dy: 8 });
+    cascade(items.filter(x => x !== target).sort((x, y) => dist(x, target) - dist(y, target)), { start: 120, step: 20, max: 8, dur: 200, dy: 8, scale: true });
+  }
+  function vaultBack() {
+    const A = phones.a, f = S.vault.folder, t = $('.vitem[data-cover]', A);
+    const tStill = t && $('.still', t);
+    const from = tStill && containOf(relRect(tStill, A), tStill);
+    S.vault.folder = -1;
+    both(renderVault);
+    if (!fx() || !from) return;
+    const card = $$('.vfold', A)[f], cs = $('.still', card), pf = $('.pf', card);
+    pf.style.opacity = '0';
+    const a = flyPhoto(A, tStill.getAttribute('src'), from, containOf(layoutRect(cs, A), cs), 340);
+    (a ? a.finished : Promise.resolve()).catch(() => {}).finally(() => { pf.style.opacity = ''; });
+    cascade($$('.vc', A).filter(x => x !== card), { start: 60, step: 24, max: 6, dur: 220, dy: 12, grid: '.vfold' });
+  }
+
+  /* ---------- M1–M4 随手拍 ---------- */
+  const POOL = ['port', 'land', 'wide', 'sq', 'long', 'pano'];
+  function renderSnaps(p) {
+    const list = $('.mlist', p); if (!list) return;
+    list.innerHTML = S.snaps.map((s, i) => snapCard(s, i, false)).join('');
+    if (p === phones.a) prepLayers(p);
+  }
+  function snapShot(src) {
+    if (S.draft.length >= 6) { both(p => toast(p, '最多 6 张照片')); return; }
+    const A = phones.a, btn = $(`.sheet [data-act="shot"][data-src="${src}"]`, A);
+    const br = btn && relRect(btn, A);
+    const before = S.draft.length;
+    const n = src === 'gal' ? Math.min(2, 6 - before) : 1;    // 相册一次选两张
+    for (let i = 0; i < n; i++) S.draft.push(POOL[S.pick++ % POOL.length]);
+    both(p => { const g = $('.sheet .sgrid', p); if (g) g.innerHTML = draftCells(); });
+    if (!fx() || !br) return;
+    const cx = br.left + br.width / 2, cy = br.top + br.height / 2;
+    $$('.sheet .scell', A).slice(before).forEach((cell, i) => {
+      const r = relRect(cell, A), s = 44 / Math.max(r.width, r.height);
+      cell.animate([
+        { transform: `translate(${cx - (r.left + r.width / 2)}px, ${cy - (r.top + r.height / 2)}px) scale(${s})`, opacity: 0 },
+        { opacity: 1, offset: 0.3 },
+        { transform: 'none', opacity: 1 }
+      ], { duration: 520 * k(), delay: i * 40 * k(), easing: MAGNET, fill: 'backwards' });
+    });
+  }
+  function snapSave() {
+    if (!S.draft.length) { both(p => toast(p, '先拍一张或从相册选一张')); return; }
+    const A = phones.a, first = $('.sheet .scell .still', A);
+    const from = first && containOf(relRect(first, A), first);
+    const before = new Map($$('.mcard', A).map(c => [c.dataset.id, layoutRect(c, A).top]));
+    const id = ++S.sid;
+    S.snaps.unshift({ id, p: S.draft[0], np: S.draft.length, t: '刚刚', n: '新的一刻', tag: '#日常生活' });
+    S.draft = [];
+    both(p => { p.classList.remove('sheetopen'); renderSnaps(p); toast(p, '已保存（预览不写数据）'); });
+    if (!fx() || S.page !== 'snippets') return;
+    const card = $(`.mcard[data-id="${id}"]`, A), still = $('.still', card);
+    const scr = $('.scr', A), to = containOf(layoutRect(still, A), still);
+    card.classList.add('arrive');
+    card.addEventListener('animationend', () => card.classList.remove('arrive'), { once: true });
+    if (from && to && to.top < scr.clientHeight && to.top + to.height > 0) {
+      still.style.opacity = '0';
+      const a = flyPhoto(A, first.getAttribute('src'), from, to, 480);
+      (a ? a.finished : Promise.resolve()).catch(() => {}).finally(() => { still.style.opacity = ''; });
+    }
+    if (rich()) $$('.mcard', A).filter(c => c !== card).slice(0, 6).forEach(c => {
+      const old = before.get(c.dataset.id); if (old == null) return;
+      const dy = old - layoutRect(c, A).top;
+      if (Math.abs(dy) > 1) c.animate([{ transform: `translate3d(0, ${dy}px, 0)` }, { transform: 'none' }], { duration: 360 * k(), easing: FLY });
+    });
+  }
+  /* M3：首屏以外的卡片进入视口时分层淡入 */
+  function prepLayers(p) {
+    p._io?.disconnect(); p._io = null;
+    if (!fx() || S.page !== 'snippets' || !('IntersectionObserver' in window)) return;
+    const scr = $('.scr', p), H = scr.clientHeight;
+    const io = new IntersectionObserver(entries => {
+      let n = 0;
+      entries.forEach(en => {
+        if (!en.isIntersecting) return;
+        io.unobserve(en.target);
+        const c = en.target;
+        c.style.setProperty('--lag', Math.min(n++, 3) * 40 + 'ms');
+        c.classList.add('sf-in');
+        setTimeout(() => c.classList.remove('sf', 'sf-in'), 700 * k());
+      });
+    }, { root: scr, rootMargin: '0px 0px -8% 0px', threshold: 0.01 });
+    $$('.mcard', p).forEach(c => {
+      if (layoutRect(c, p).top < H) return;
+      c.classList.add('sf'); io.observe(c);
+    });
+    p._io = io;
+  }
+  /* M4：长按 380ms 浮起 */
+  let lp = null, lpSwallow = false;
+  document.addEventListener('pointerdown', e => {
+    if (!sig() || e.button > 0) return;
+    const c = e.target.closest('.ph.a .mcard');
+    if (!c || e.target.closest('button, a, input')) return;
+    lp = { c, x: e.clientX, y: e.clientY, up: false };
+    lp.t = setTimeout(() => { if (lp && lp.c === c) { lp.up = true; c.classList.add('lifted'); } }, 380);
+  }, { passive: true });
+  document.addEventListener('pointermove', e => { if (lp && !lp.up && Math.hypot(e.clientX - lp.x, e.clientY - lp.y) > 8) dropLift(); }, { passive: true });
+  function dropLift() {
+    if (!lp) return;
+    clearTimeout(lp.t);
+    if (lp.up) { lp.c.classList.remove('lifted'); lpSwallow = true; setTimeout(() => { lpSwallow = false; }, 400); }
+    lp = null;
+  }
+  ['pointerup', 'pointercancel'].forEach(t => document.addEventListener(t, dropLift, { passive: true }));
+  document.addEventListener('click', e => { if (lpSwallow && e.target.closest('.ph.a .mcard')) { e.preventDefault(); e.stopPropagation(); lpSwallow = false; } }, true);
+  document.addEventListener('contextmenu', e => { if (lp?.up) e.preventDefault(); });
+
+  /* ---------- 自动演示：模拟手指 ---------- */
+  async function gesture(ph, tgt, pts, hold = 0) {
+    const P = ph.getBoundingClientRect();
+    const dot = document.createElement('i');
+    dot.className = 'finger'; ph.append(dot);
+    const fire = (type, [x, y]) => {
+      dot.style.transform = `translate(${x - 14}px, ${y - 14}px)`;
+      tgt.dispatchEvent(new PointerEvent(type, { bubbles: true, cancelable: true, clientX: P.left + x, clientY: P.top + y, pointerId: 7, pointerType: 'touch', isPrimary: true, button: type === 'pointermove' ? -1 : 0, buttons: type === 'pointerup' ? 0 : 1 }));
+    };
+    let cur = pts[0];
+    fire('pointerdown', cur);
+    if (hold) await sleep(hold);
+    for (const [x, y, ms] of pts.slice(1)) {
+      const from = cur, t0 = performance.now();
+      await new Promise(res => {
+        const f = now => { const t = Math.min(1, (now - t0) / ms); cur = [from[0] + (x - from[0]) * t, from[1] + (y - from[1]) * t]; fire('pointermove', cur); t < 1 ? requestAnimationFrame(f) : res(); };
+        requestAnimationFrame(f);
+      });
+    }
+    fire('pointerup', cur);
+    dot.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 220 }).finished.then(() => dot.remove());
+  }
+  const centerIn = (el, ph) => { const r = relRect(el, ph); return [r.left + r.width / 2, r.top + r.height / 2]; };
+
+  const STARS_V = [
+    ['V1', '解锁仪式', '指纹通过后，锁面从中缝上下分开、锁徽放大淡出，一道亮线一闪而过；内容紧接着依次浮现，封面网格斜向错开。整段约 430ms，全程可点。', '锁面上下各 ∓32px + 淡出 · 280ms cubic-bezier(.4,0,.2,1)\n锁徽 scale 1→1.18 + 淡出 120ms · 中缝亮线 scaleX 0→1\n内容 90ms 起每项 +24ms · 220ms · 12px；网格 (行+列)×24ms\nlite：锁面 160ms 淡出 + 浮现；none：直接显示', 'rich', () => { S.vault.locked = true; phoneDemo('vault', p => $('[data-act="vunlock"]', p)?.click(), 700); }],
+    ['V2', '切出再回来', '切出 App 的瞬间盖上一层模糊遮罩；回来时锁屏已经在遮罩下渲染好，遮罩淡出、锁面轻轻放大到位。现状是回来先闪一下上次的内容再硬切。锁定时机不变。', '切出：立即盖上，无动画 · blur(24px) + rgba(234,240,248,.55)\n回来：等两帧 → 遮罩 240ms 淡出；锁面 40ms 起 scale .98→1 · 260ms\nlite / none：实色遮罩；保险 1200ms 后无条件移除', '', () => { S.vault.locked = false; S.vault.folder = -1; phoneDemo('vault', p => $('[data-act="vbg"]', p)?.click(), 600); }],
+    ['V3', '封面原位展开', '点文件夹，封面照片按原始比例飞到详情里同一张照片的位置，外框同步变形；其余照片按到落点的距离依次浮现。返回时照片飞回封面。', '420ms cubic-bezier(.32,.72,0,1) · 等比 scale = 目标宽 / 来源宽\n外框幽灵仅在 |sx/sy − 1| ≤ .25 时使用\n其余 120ms 起每项 +20ms（封顶 8）· 200ms · 8px + scale .96→1\n返回 340ms', '', () => { S.vault.locked = false; S.vault.folder = -1; phoneDemo('vault', async p => { $$('.vfold', p)[0]?.click(); await wait(1600); $('[data-act="vback"]', p)?.click(); }, 600); }]
+  ];
+  const STARS_M = [
+    ['M1', '快门 / 相册飞入', '拍完或选完，照片从快门 / 相册按钮的位置飞进表单网格，带一点弹性落位。整个照片框等比缩放，里面的主图永远不变形。', '起点 = 按钮中心 · scale = 44 / max(格宽, 格高)\n520ms --spring-magnet（过冲 10%）· 前 30% 淡入\n多张每张 +40ms，最多 6 张；8s 内有效', '', () => phoneDemo('snippets', async p => { $('[data-act="snap"]', p).click(); await wait(700); $('.sheet [data-src="cam"]', p)?.click(); await wait(700); $('.sheet [data-src="gal"]', p)?.click(); }, 400)],
+    ['M2', '保存飞到列表顶部', '保存时第一张照片从表单飞到列表顶部新卡片的位置，弹层同时落下；旧卡片顺势下移让位。', '480ms cubic-bezier(.32,.72,0,1) · 两端 contain 框比例误差 > 0.5% 就只淡入\n新卡 100ms 起上移 10px + 淡入 220ms · 旧卡 FLIP 360ms（rich）', '', () => phoneDemo('snippets', async p => { $('[data-act="snap"]', p).click(); await wait(600); $('.sheet [data-src="gal"]', p)?.click(); await wait(800); $('.sheet [data-act="snapsave"]', p)?.click(); }, 400)],
+    ['M3', '滚动分层淡入', '首屏以外的卡片滑进视口时，先铺底、再主图、最后文字和按钮，像冲印出来一样一层层显影。', '铺底 opacity 0→.5 · 200ms\n主图 60ms 起 opacity + scale .985→1 · 300ms\n文字 110ms 起 6px + 淡入 220ms · 同批每张 +40ms（封顶 3）\nlite：整卡淡入', 'rich', () => phoneDemo('snippets', async p => { const s = $('.scr', p); s.scrollTo({ top: 1500, behavior: 'smooth' }); await wait(2400); s.scrollTo({ top: 0, behavior: 'smooth' }); }, 500)],
+    ['M4', '长按浮起', '按住卡片 380ms，卡片轻轻浮起、阴影加深；松手带一点回弹落回。按住期间移动超过 8px 视为滚动，不触发。', '按住 380ms · 移动 > 8px 取消\n浮起 translateY(−4px) scale(1.012) · 180ms\n阴影层 ::after 只淡 opacity · 松手 420ms --spring-release', '', () => phoneDemo('snippets', async p => { const c = $('.mcard .pf', p); if (c) await gesture(p, c, [centerIn(c, p)], 1100); }, 700)]
+  ];
+  const LAYERS = [
+    ['Z1', '原位展开 + 标题飞行', '点列表行，白卡从原位展开到二级页头卡，行标题按字号比等比缩放飞到导航栏，落地后和真标题交叉淡入；返回时原路收回。返回箭头按下时左移 3px（Z9）。', '展开 440ms cubic-bezier(.32,.72,0,1) · 标题同时长同曲线\n落地 80ms 交叉淡入 · 收回：内容 160ms 淡出，80ms 起 360ms 回程', '', () => phoneDemo('mine', async p => { $$('.row[data-act="sub"]', p)[0]?.click(); await wait(1500); $('.back', p)?.click(); }, 700)],
+    ['Z2', '右滑返回', '从左缘或页面左侧 60% 向右拖，二级页 1:1 跟手，底页从左边滑回、遮罩变淡；松手按速度完成或回弹。演示先慢拖 25% 松手（回弹），再快甩（完成）。', '边缘 ≤ 24px · 8px 判定 · dx > |dy|；全页 < 60% · 12px · dx > 2|dy|\n完成：v > 520px/s 或 p > .35 且 v > −160\n弹簧 k=360 c=38 · 底页 −20%×(1−p) · 遮罩 1−p', '', () => phoneDemo('mine', async p => { $$('.row[data-act="sub"]', p)[1]?.click(); await wait(900); const sub = $('.sub', p), W = p.clientWidth, y = p.clientHeight * 0.55; await gesture(p, sub, [[10, y], [W * 0.25, y + 6, 520]]); await wait(1000); await gesture(p, sub, [[10, y], [W * 0.2, y, 160], [W * 0.48, y + 4, 90]]); }, 700)],
+    ['Z3', '弹层跟手下拉', '按住面板往下拉，背后的页面跟着进度放大回位、遮罩变淡；松手时快甩或拉过阈值就关闭，否则弹回。演示先慢拉 70px（回弹），再快甩（关闭）。', '判定 6px · 投影 y + v×0.18s · 关闭：v > 900 或 > max(110px, 28%)\n关闭 clamp(4×剩余/v, 140, 260)ms cubic-bezier(.2,.8,.2,1)\n回弹 k=520 c=40 · 背景 translateY(10p) scale(1−.06p)', 'rich', () => phoneDemo('ledger', async p => { $('.ov [data-act="sheet"]', p)?.click(); await wait(800); const sh = $('.sheet', p), x = p.clientWidth / 2, y = relRect(sh, p).top + 40; await gesture(p, sh, [[x, y], [x, y + 70, 450]]); await wait(1000); await gesture(p, sh, [[x, y], [x, y + 60, 120], [x, y + 170, 80]]); }, 500)],
+    ['Z3+', '弹层两档', '随手拍的表单默认停在中档（屏高 52%），往上拉到高档（92%），往下拉回中档；从中档再往下甩才关闭。', '中档 = 屏高 52% · 高档 = 92% · 松手按投影点选最近一档\n上拉超出高档：橡皮筋 40×(1 − 1/(1 + d/120))', '', () => phoneDemo('snippets', async p => { $('[data-act="snap"]', p).click(); await wait(800); const sh = $('.sheet', p), x = p.clientWidth / 2; let y = relRect(sh, p).top + 12; await gesture(p, sh, [[x, y], [x, y - 220, 260]]); await wait(1000); y = relRect(sh, p).top + 12; await gesture(p, sh, [[x, y], [x, y + 190, 320]]); await wait(1000); y = relRect(sh, p).top + 12; await gesture(p, sh, [[x, y], [x, y + 80, 100], [x, y + 200, 70]]); }, 400)],
+    ['Z4', '内容依次浮现', '弹层和二级页打开时，里面的内容一项项浮上来，节奏短，按钮从第一帧起就能点。', '弹层 60ms 起每项 +24ms（最多 5 项）· 220ms · 8px\n二级页 140ms（展开时 200ms）起每项 +28ms（最多 6 项）· 240ms · 10px', '', () => phoneDemo('calendar', async p => { $('.ctools [data-act="sheet"]', p)?.click(); await wait(1300); $('.scrim', p)?.click(); await wait(600); $('.arch [data-act="sub"]', p)?.click(); }, 500)],
+    ['Z5', '确认框 + 轻推', '删除确认改成居中卡片：.96→1 轻缩放、背景静态模糊（只淡 opacity），没有大幅弹跳。点空白处不关闭，卡片轻推一下提示（Z8）。', '进 200ms (.22,.61,.36,1) scale .96→1 · 出 140ms → .98\nrich：rgba(46,52,59,.24) + 静态 blur(10px)；lite：.40 实色\n轻推 scale 1→1.02→1 · 260ms', '', () => phoneDemo('snippets', async p => { $('.mcard .del', p)?.click(); await wait(1100); $('.cfm-bg', p)?.click(); await wait(800); $('[data-act="cfm-no"]', p)?.click(); }, 600)],
+    ['Z7', '锚点菜单', '二级页右上角 ⋯ 弹出的菜单从按钮所在的角缩放出来，菜单项依次落位；点别处收起。', '从触发角 scale .92→1 + 淡入 180ms · 每项 +18ms · 出 120ms', '', () => phoneDemo('mine', async p => { $$('.row[data-act="sub"]', p)[2]?.click(); await wait(900); $('.more', p)?.click(); }, 600)]
+  ];
+  function renderCards(id, list) {
+    $(id).innerHTML = list.map(([n, t, d, spec, tier], i) => `<div class="sig-c"><h4><span><i>${n}</i>${t}${tier ? '<span class="tier">rich</span>' : ''}</span><button data-card="${i}">在手机里看</button></h4><p>${d}</p><div class="spec">${spec}</div></div>`).join('');
+    $(id).addEventListener('click', e => { const b = e.target.closest('[data-card]'); if (b) list[Number(b.dataset.card)][5](); });
+  }
+  renderCards('#starsV', STARS_V); renderCards('#starsM', STARS_M); renderCards('#layers', LAYERS);
 
   mount('b'); mount('a'); renderTabs(); renderNotes();
 })();
