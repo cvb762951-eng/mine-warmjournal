@@ -665,10 +665,11 @@ export class SpringODE {
   }
 }
 
-/** 松手时决定吸回、切到下一篇（更早）还是上一篇（更新）。dx 向左为负。 */
+/** 松手时决定吸回、切到下一篇（更早）还是上一篇（更新）。dx 向左为负。
+ * 松手翻牌阈值固定 56px（对齐 Opus 随手拍多图翻牌手感）；甩出速度阈值 700 不变。
+ * 保留 width 参数以兼容现有调用方。 */
 export function deckCutDecision({ dx = 0, width = 1, velocity = 0 } = {}) {
-  const span = Math.max(1, Number(width) || 1);
-  const threshold = Math.max(48, span * 0.22);
+  const threshold = 56;
   const flung = Math.abs(velocity) > 700;
   if (dx <= -threshold || (flung && velocity < 0 && dx < -12)) return 'next';
   if (dx >= threshold || (flung && velocity > 0 && dx > 12)) return 'prev';
