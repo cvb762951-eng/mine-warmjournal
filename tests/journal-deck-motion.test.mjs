@@ -100,3 +100,14 @@ test('统计数字和清简底栏接上弹簧，不新开样式表', async () =>
   assert.deepEqual(sheets, ['fonts.css', 'performance.css', 'styles.css', 'themes.css', 'themes-plain.css']);
   assert.match(indexHtml, /html\[data-theme="plain"\][\s\S]*#EAF0F8/);
 });
+
+test('deckCutDecision thresholds used by moments album (22% / 48px / 700px/s)', () => {
+  assert.equal(deckCutDecision({ dx: -47, width: 100, velocity: 0 }), 'stay');
+  assert.equal(deckCutDecision({ dx: -48, width: 100, velocity: 0 }), 'next');
+  assert.equal(deckCutDecision({ dx: -87, width: 400, velocity: 0 }), 'stay');
+  assert.equal(deckCutDecision({ dx: -88, width: 400, velocity: 0 }), 'next');
+  assert.equal(deckCutDecision({ dx: 88, width: 400, velocity: 0 }), 'prev');
+  assert.equal(deckCutDecision({ dx: -20, width: 400, velocity: -800 }), 'next');
+  assert.equal(deckCutDecision({ dx: 20, width: 400, velocity: 800 }), 'prev');
+  assert.equal(deckCutDecision({ dx: -20, width: 400, velocity: -600 }), 'stay');
+});

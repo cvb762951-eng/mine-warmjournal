@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>随手拍 · 翻牌与多图 演示（清简）</title>
+<style>
+:root{--bg:#F4F6F9;--ink:#2E343B;--muted:#7A838E;--line:rgba(85,96,108,.14);--card:#FBFCFE;--frame:#E8EDF5;--accent:#55606C}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 -apple-system,"PingFang SC","Noto Sans SC",sans-serif}
+.wrap{max-width:420px;margin:0 auto;padding:16px}
+h1{font-size:17px;margin:4px 0 2px}p.sub{color:var(--muted);font-size:12px;margin:0 0 12px}
+.tiers{display:flex;gap:6px;margin:0 0 14px}.tiers button{flex:1;padding:8px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--ink);font-size:13px}
+.tiers button.on{background:var(--accent);color:#fff}
+section{background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:14px}
+section h2{font-size:14px;margin:0 0 8px}small.n{color:var(--muted)}
+.thumbs{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}.thumb{aspect-ratio:1;border:0;border-radius:8px;padding:0;cursor:pointer;overflow:hidden;position:relative}
+.ph{position:absolute;inset:0;display:grid;place-items:center;color:rgba(255,255,255,.9);font-weight:600}
+/* album layer */
+.layer{position:fixed;inset:0;display:none;align-items:flex-end;justify-content:center;background:rgba(46,52,59,.38);z-index:9}
+.layer.open,.layer.closing{display:flex}.layer.closing{pointer-events:none}
+.sheet{width:min(100%,420px);background:var(--card);border-radius:14px 14px 0 0;padding:16px 16px 20px;display:grid;gap:10px;transform-origin:50% 50%}
+.head{display:flex;align-items:center;justify-content:space-between}.head button{border:0;background:none;font-size:18px;color:var(--muted)}
+.stage{position:relative;height:min(54dvh,400px);touch-action:pan-y;user-select:none}
+.stack{position:absolute;inset:0}
+.card{position:absolute;inset:18px 12px 10px;padding:10px;border:1px solid var(--line);border-radius:14px;background:var(--card);box-shadow:0 1px 2px rgba(46,52,59,.05),0 10px 22px rgba(46,52,59,.08);will-change:transform;cursor:pointer}
+.card[data-depth="0"]{z-index:3}.card[data-depth="1"]{z-index:2;transform:translate3d(0,-12px,0) scale(.972);opacity:.96}
+.card[data-depth="2"]{z-index:1;transform:translate3d(0,-24px,0) scale(.944);opacity:.9}.card[data-depth="out"]{z-index:4;pointer-events:none}
+.frame{position:relative;width:100%;height:100%;border-radius:5px;background:var(--frame);overflow:hidden;display:grid;place-items:center}
+.frame .img{border-radius:3px;max-width:100%;max-height:100%;display:grid;place-items:center;color:#fff;font-weight:600}
+.foot{display:flex;justify-content:space-between;color:var(--muted);font-size:11px}
+/* quick snap */
+.snap{position:relative;height:220px;border-radius:12px;background:var(--frame);overflow:hidden}
+.tile{position:absolute;border-radius:8px;box-shadow:0 6px 16px rgba(46,52,59,.12);display:grid;place-items:center;color:#fff;font-weight:600;border:3px solid #fff}
+.row{display:flex;gap:6px;margin-top:10px}.row button{flex:1;padding:9px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--ink)}
+.feed{margin-top:10px;height:90px;border-radius:10px;border:1px dashed var(--line);position:relative}
+.feed .slot{position:absolute;left:10px;top:10px;width:70px;height:70px}
+.edge{position:absolute;border-radius:8px}
+.note{font-size:12px;color:var(--muted);margin:8px 0 0}
+</style></head><body><div class="wrap">
+<h1>随手拍 · 翻牌 &amp; 多张照片</h1>
+<p class="sub">清简主题演示页（色块代替照片）。切换动效档位看降级效果。</p>
+<div class="tiers" id="tiers"><button data-t="rich" class="on">完整 rich</button><button data-t="lite">轻量 lite</button><button data-t="none">减弱动态</button></div>
+
+<section><h2>① 图集翻牌 <small class="n">点任一张 → 从这张的位置展开</small></h2>
+<div class="thumbs" id="thumbs"></div>
+<p class="note">左拖翻下一张、右拖回上一张：拖过卡宽 22%（至少 48px）或甩得快（&gt;700px/s）就翻，否则带回弹弹回。拖的时候后面两张跟着往前挪；松手从手指位置接着甩出去。轻触看大图（演示里只提示）。</p></section>
+
+<section><h2>② 随手拍多张照片</h2>
+<div class="snap" id="snap"></div>
+<div class="row"><button id="add">选 4 张（同比例）</button><button id="addMix">选 4 张（混合比例）</button><button id="save">保存</button></div>
+<div class="feed" id="feed"><div class="slot" id="slot"></div></div>
+<p class="note">选图：每张错开 40ms 飞入，最多铺 4 张。保存：先收成一叠，只有封面飞到下方列表；比例不一时叠边用纯色块；封面先到，叠边晚约 60ms。</p></section>
+</div>
+
+<div class="layer" id="layer"><div class="sheet" id="sheet">
+<div class="head"><strong>图集浏览</strong><button id="close" aria-label="关闭">✕</button></div>
+<div class="stage" id="stage"><div class="stack" id="stack"></div></div>
+<div class="foot"><span>轻触看大图 · 左右拖动翻下一张</span><span id="counter"></span></div></div></div>
+
+<script>
+const COLORS=[['#8FA6C1','#C9D6E6'],['#B7A58E','#E5DACB'],['#93B0A2','#D3E3DA'],['#B596A6','#E7D6DF'],['#A0A7C8','#DADDEF'],['#C2A982','#EEE1C9']];
+const RATIOS=[1,.75,1.33,.8,1.5,1];
+const items=COLORS.map((c,i)=>({c,r:RATIOS[i],n:i+1}));
+let tier='rich';const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;if(reduce)tier='none';
+document.querySelectorAll('#tiers button').forEach(b=>{b.classList.toggle('on',b.dataset.t===tier);b.onclick=()=>{tier=b.dataset.t;document.querySelectorAll('#tiers button').forEach(x=>x.classList.toggle('on',x===b))}});
+const grad=c=>`linear-gradient(135deg,${c[0]},${c[1]})`;
+const thumbs=document.getElementById('thumbs');
+items.forEach((it,i)=>{const b=document.createElement('button');b.className='thumb';b.innerHTML=`<span class="ph" style="background:${grad(it.c)}">${it.n}</span>`;b.onclick=()=>openAlbum(i,b);thumbs.appendChild(b)});
+// ---- deck (same logic as views/snippets.js) ----
+const DEPTH=[{y:0,s:1,o:1},{y:-12,s:.972,o:.96},{y:-24,s:.944,o:.9}];
+const OUT='cubic-bezier(.2,.8,.2,1)',SPRING='cubic-bezier(.34,1.56,.64,1)';
+function deckCutDecision({dx=0,width=1,velocity=0}){const t=Math.max(48,width*.22),f=Math.abs(velocity)>700;if(dx<=-t||(f&&velocity<0&&dx<-12))return'next';if(dx>=t||(f&&velocity>0&&dx>12))return'prev';return'stay'}
+const layer=document.getElementById('layer'),sheet=document.getElementById('sheet'),stack=document.getElementById('stack'),stage=document.getElementById('stage');
+let index=0,origin=null,closeTok=0;
+function cardEl(it,depth){const el=document.createElement('div');el.className='card';el.dataset.depth=depth;
+ // 照片按原比例放进相框（contain），不拉伸
+ const w=it.r>=1?'100%':(it.r*100)+'%';el.innerHTML=`<div class="frame"><div class="img" style="background:${grad(it.c)};aspect-ratio:${it.r};${it.r>=1?'width:100%':'height:100%'}">${it.n}</div></div>`;return el}
+function render(){stack.innerHTML='';for(let d=0;d<3;d++)stack.appendChild(cardEl(items[(index+d)%items.length],d));counter()}
+function counter(){document.getElementById('counter').textContent=`${index+1} / ${items.length}`}
+function frames(){const end={transform:'none',opacity:1};if(origin&&tier==='rich'){const a=origin.getBoundingClientRect(),b=sheet.getBoundingClientRect();const s=Math.max(.2,Math.min(1,a.width/b.width));return[{transform:`translate3d(${a.left+a.width/2-b.left-b.width/2}px,${a.top+a.height/2-b.top-b.height/2}px,0) scale(${s})`,opacity:.2},end]}return[{transform:'translate3d(0,24px,0)',opacity:0},end]}
+function openAlbum(i,el){closeTok++;layer.getAnimations().forEach(a=>a.cancel());sheet.getAnimations().forEach(a=>a.cancel());layer.classList.remove('closing');index=i;origin=el;layer.classList.add('open');render();
+ if(tier!=='none'){sheet.animate(frames(),{duration:tier==='lite'?180:320,easing:OUT});layer.animate([{opacity:0},{opacity:1}],{duration:200})}}
+function closeAlbum(){const tok=++closeTok;layer.classList.remove('open');const fin=()=>{if(tok!==closeTok)return;layer.classList.remove('closing');sheet.getAnimations().forEach(a=>a.cancel());layer.getAnimations().forEach(a=>a.cancel())};
+ if(tier==='none')return fin();layer.classList.add('closing');const a=sheet.animate(frames().reverse(),{duration:tier==='lite'?160:240,easing:OUT,fill:'forwards'});layer.animate([{opacity:1},{opacity:0}],{duration:200,fill:'forwards'});a.onfinish=fin}
+document.getElementById('close').onclick=closeAlbum;layer.onclick=e=>{if(e.target===layer)closeAlbum()};
+function settle(ms,ease=OUT){stack.querySelectorAll('.card').forEach(c=>{c.style.transition=ms?`transform ${ms}ms ${ease},opacity ${ms}ms ${ease}`:'none';c.style.transform='';c.style.opacity=''})}
+function flip(step,{fromX=0,velocity=0}={}){const n=items.length,ms=tier==='none'?0:tier==='lite'?200:300,w=stack.clientWidth||320;index=((index+step)%n+n)%n;
+ const cards=[...stack.querySelectorAll('.card')].filter(c=>c.dataset.depth!=='out').sort((a,b)=>a.dataset.depth-b.dataset.depth);
+ if(step>0){const out=cards.shift();cards.forEach((c,i)=>c.dataset.depth=i);const f=cardEl(items[(index+2)%n],2);stack.appendChild(f);
+  if(out){out.dataset.depth='out';if(!ms)out.remove();else{const dir=fromX>0||(fromX===0&&velocity>0)?1:-1;out.style.transition='none';out.style.transform=`translate3d(${fromX}px,0,0) rotate(${tier==='rich'?Math.max(-6,Math.min(6,fromX/30)):0}deg)`;void out.offsetWidth;out.style.transition=`transform ${ms}ms ${OUT},opacity ${ms}ms ${OUT}`;out.style.transform=`translate3d(${dir*w*1.15}px,0,0) rotate(${tier==='rich'?dir*10:0}deg)`;out.style.opacity='0';setTimeout(()=>out.remove(),ms+40)}}}
+ else{const f=cardEl(items[index],0);cards.forEach((c,i)=>c.dataset.depth=i+1);cards.pop()?.remove();stack.insertBefore(f,stack.firstChild);if(ms){f.style.transition='none';f.style.transform=`translate3d(${-w*1.1}px,0,0) rotate(${tier==='rich'?-8:0}deg)`;f.style.opacity='0';void f.offsetWidth}}
+ stack.querySelectorAll('.card').forEach(c=>{if(c.dataset.depth==='out')return;c.style.transition=ms?`transform ${ms}ms ${OUT},opacity ${ms}ms ${OUT}`:'none';c.style.transform='';c.style.opacity=''});counter()}
+let pid=null,sx=0,sy=0,dx=0,drag=false,moved=false,samples=[];
+const top0=()=>stack.querySelector('.card[data-depth="0"]');
+function paint(){const c=top0();if(!c||tier==='none')return;c.style.transition='none';c.style.transform=`translate3d(${dx}px,0,0) rotate(${tier==='rich'?Math.max(-6,Math.min(6,dx/30)):0}deg)`;if(tier!=='rich')return;
+ const p=dx<0?Math.min(1,-dx/Math.max(48,stage.clientWidth*.22)):0;[1,2].forEach(d=>{const b=stack.querySelector(`.card[data-depth="${d}"]`);if(!b)return;const a=DEPTH[d],t=DEPTH[d-1];b.style.transition='none';b.style.transform=`translate3d(0,${a.y+(t.y-a.y)*p}px,0) scale(${a.s+(t.s-a.s)*p})`;b.style.opacity=a.o+(t.o-a.o)*p})}
+function vel(){const now=performance.now(),r=samples.filter(s=>now-s.t<100);if(r.length<2)return 0;const dt=r.at(-1).t-r[0].t;return dt>0?(r.at(-1).x-r[0].x)/dt*1000:0}
+stage.addEventListener('pointerdown',e=>{if(pid!==null)return;pid=e.pointerId;sx=e.clientX;sy=e.clientY;dx=0;drag=true;moved=false;samples=[{x:e.clientX,t:performance.now()}];try{stage.setPointerCapture(pid)}catch{}});
+stage.addEventListener('pointermove',e=>{if(!drag||e.pointerId!==pid)return;dx=e.clientX-sx;const dy=e.clientY-sy;samples.push({x:e.clientX,t:performance.now()});if(samples.length>8)samples.shift();if(!moved&&Math.abs(dx)<6&&Math.abs(dy)<6)return;if(!moved&&Math.abs(dy)>Math.abs(dx)){drag=false;pid=null;return}moved=true;paint()});
+stage.addEventListener('pointerup',e=>{if(!drag||e.pointerId!==pid)return;drag=false;pid=null;if(!moved){top0()?.animate([{transform:'scale(1)'},{transform:'scale(.98)'},{transform:'scale(1)'}],{duration:180});return}
+ const v=vel(),d=deckCutDecision({dx,width:stage.clientWidth,velocity:v});if(d==='stay')return settle(tier==='none'?0:tier==='lite'?180:320,tier==='rich'?SPRING:OUT);flip(d==='next'?1:-1,{fromX:dx,velocity:v})});
+stage.addEventListener('pointercancel',()=>{drag=false;pid=null;settle(200)});
+// ---- quick snap multi-photo ----
+const snap=document.getElementById('snap'),slot=document.getElementById('slot'),feed=document.getElementById('feed');let picked=[];
+function layout(i,n){const W=snap.clientWidth,H=snap.clientHeight,tw=Math.min(120,(W-30)/Math.min(n,4)*1.1),gap=(W-tw)/Math.max(1,Math.min(n,4)-1||1);return{x:n===1?(W-tw)/2:10+i*(gap-8),y:(H-tw)/2+(i%2?10:-6),w:tw,rot:(i-1.5)*4}}
+function pick(mixed){snap.innerHTML='';feed.querySelectorAll('.tile,.edge').forEach(x=>x.remove());picked=items.slice(0,4).map((it,i)=>({...it,r:mixed?it.r:1}));
+ picked.forEach((it,i)=>{const L=layout(i,picked.length),el=document.createElement('div');el.className='tile';const h=L.w/it.r>L.w*1.3?L.w*1.3:L.w/it.r;el.style.cssText=`left:${L.x}px;top:${L.y}px;width:${L.w}px;height:${h}px;background:${grad(it.c)};transform:rotate(${L.rot}deg)`;el.textContent=it.n;snap.appendChild(el);
+  if(tier==='none')return;const d=tier==='lite'?0:i*40;el.animate([{transform:`translate3d(0,40px,0) rotate(${L.rot}deg) scale(.9)`,opacity:0},{transform:`rotate(${L.rot}deg)`,opacity:1}],{duration:tier==='lite'?180:320,delay:d,easing:tier==='rich'?SPRING:OUT,fill:'backwards'})})}
+document.getElementById('add').onclick=()=>pick(false);document.getElementById('addMix').onclick=()=>pick(true);
+document.getElementById('save').onclick=async()=>{const tiles=[...snap.querySelectorAll('.tile')];if(!tiles.length)return;const mixed=new Set(picked.map(p=>p.r)).size>1;const sr=snap.getBoundingClientRect(),cx=sr.width/2;
+ if(tier!=='none'){// 1. 收成一叠
+  await Promise.all(tiles.map((t,i)=>{const r=t.getBoundingClientRect();return t.animate([{transform:t.style.transform},{transform:`translate3d(${cx-(r.left-sr.left)-r.width/2+i*2}px,${-i*2}px,0) rotate(${(i-1)*2}deg)`}],{duration:tier==='lite'?160:260,easing:OUT,fill:'forwards'}).finished}))}
+ // 2. 只有封面飞到列表；叠边（比例不一时为纯色块）晚 60ms 出现
+ const cover=tiles[0],cr=cover.getBoundingClientRect(),fr=slot.getBoundingClientRect();
+ const edges=[2,1].map(k=>{const e=document.createElement('div');e.className='edge';e.style.cssText=`left:${10+k*4}px;top:${10-k*4}px;width:70px;height:70px;background:${mixed?['#DCE3EC','#E8EDF5'][k-1]:grad(picked[k].c)};z-index:${3-k}`;return e});
+ const fc=document.createElement('div');fc.className='tile';fc.style.cssText=`left:10px;top:10px;width:70px;height:70px;background:${grad(picked[0].c)};z-index:5;border-width:2px`;fc.textContent='1';
+ snap.innerHTML='';feed.querySelectorAll('.tile,.edge').forEach(x=>x.remove());edges.forEach(e=>feed.appendChild(e));feed.appendChild(fc);
+ if(tier==='none')return;
+ const s=cr.width/70;fc.animate([{transform:`translate3d(${cr.left-fr.left+(cr.width-70)/2}px,${cr.top-fr.top+(cr.height-70)/2}px,0) scale(${s})`},{transform:'none'}],{duration:tier==='lite'?200:380,easing:tier==='rich'?SPRING:OUT});
+ edges.forEach((e,i)=>e.animate([{opacity:0,transform:'scale(.9)'},{opacity:1,transform:'none'}],{duration:220,delay:(tier==='lite'?200:380)-160+60+i*30,easing:OUT,fill:'backwards'}))};
+</script></body></html>
