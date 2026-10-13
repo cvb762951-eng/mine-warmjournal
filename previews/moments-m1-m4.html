@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="plain" data-pl-motion="rich">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>随手拍 M1–M4 · 动效演示</title>
+<link rel="stylesheet" href="../themes-plain-light.css">
+<style>
+  :root { --app-safe-top: env(safe-area-inset-top, 0px); --app-safe-bottom: env(safe-area-inset-bottom, 0px); --spring-release: cubic-bezier(.32,.72,0,1); }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: #EEF2F7; font-family: system-ui, -apple-system, "PingFang SC", "Noto Sans SC", sans-serif; color: #2E343B; }
+  .phone-shell { position: relative; isolation: isolate; display: flex; flex-direction: column; width: min(100%, 420px); height: 100dvh; margin: 0 auto; overflow: hidden; background: #F4F6F9; }
+  #app { position: relative; z-index: 1; flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: calc(12px + var(--app-safe-top)) 14px 28px; }
+  h1 { font-size: 20px; margin: 0 0 4px; } .hint { font-size: 12.5px; color: #6b7480; line-height: 1.55; margin: 0 0 12px; }
+  .tier { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+  .tier button { min-height: 32px; padding: 0 12px; border-radius: 999px; border: 1px solid rgba(85,96,108,.2); background: #fff; font: inherit; font-size: 12px; }
+  .tier button[aria-pressed="true"] { background: #4F76BD; color: #fff; border-color: #4F76BD; }
+  .demo-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+  .demo-actions button { min-height: 40px; padding: 0 14px; border-radius: 999px; border: 1px solid #4F76BD; background: #fff; color: #4F76BD; font: inherit; font-size: 13px; }
+  .snippet-photo-grid { background: #fff; border-radius: 14px; border: 1px solid rgba(85,96,108,.12); padding: 10px; margin-bottom: 14px; }
+  .snippet-photo-grid-inner { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .snippet-photo-cell { position: relative; }
+  .snippet-photo-thumb.photo-blur-frame { position: relative; display: block; width: 100%; aspect-ratio: 1; overflow: hidden; border-radius: 10px; background: #dfe6ef; border: 0; padding: 0; }
+  .photo-blur-frame > img.photo-blur-pad { position: absolute; inset: -12%; width: 124%; height: 124%; object-fit: cover; opacity: .5; transform: scale(1.08); pointer-events: none; }
+  .photo-blur-frame > img.photo-blur-still { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+  .photo-blur-frame.is-edge > img.photo-blur-still { inset: 0; }
+  .snippets-view .snippet-item-card { margin-bottom: 12px; padding: 12px; border-radius: 16px; background: #fff; border: 1px solid rgba(85,96,108,.1); }
+  .snippet-visual-wrap { position: relative; }
+  .snippet-photo-tile.photo-blur-frame { position: relative; display: block; width: 100%; aspect-ratio: 4/3; overflow: hidden; border-radius: 12px; background: #dfe6ef; border: 0; padding: 0; }
+  .snippet-item-meta { display: flex; justify-content: space-between; margin: 8px 0 4px; font-size: 11px; color: #6b7480; }
+  .snippet-item-text { margin: 0 0 8px; font-size: 14px; line-height: 1.5; }
+  .snippet-item-actions { display: flex; gap: 8px; }
+  .snippet-item-actions button { min-height: 32px; padding: 0 10px; border-radius: 999px; border: 1px solid rgba(85,96,108,.18); background: #fff; font: inherit; font-size: 12px; }
+  .spacer { height: 70vh; }
+  .modal-layer { position: fixed; inset: 0; z-index: 240; display: none; align-items: flex-end; justify-content: center; background: rgba(18,16,14,.45); }
+  .modal-layer.open { display: flex; }
+  .quick-photo-preview { position: relative; height: 200px; border-radius: 14px; overflow: hidden; background: #dfe6ef; display: grid; place-items: center; margin-bottom: 12px; }
+  .quick-photo-preview > img { width: 100%; height: 100%; object-fit: contain; }
+  .quick-photo-overlay { position: absolute; left: 10px; bottom: 8px; font-size: 12px; color: #fff; background: rgba(46,52,59,.5); padding: 2px 8px; border-radius: 999px; }
+  .quick-publish-btn { width: 100%; min-height: 46px; border-radius: 14px; border: 0; background: #4F76BD; color: #fff; font: inherit; }
+  .opus { width: 100%; height: 760px; border: 1px solid rgba(85,96,108,.2); border-radius: 14px; margin-top: 12px; }
+  .modal { width: min(100%, 420px); max-height: 78vh; overflow: auto; background: #fff; border-radius: 22px 22px 0 0; padding: 16px 16px calc(20px + var(--app-safe-bottom)); }
+</style>
+</head>
+<body>
+<div class="phone-shell">
+  <main id="app" class="snippets-view">
+    <section id="screen-snippets">
+      <h1>随手拍 M1–M4</h1>
+      <p class="hint">调用 App 同一份 motion-moments.js、同一套 DOM（#quick-photo-preview / #quick-save-snap）。点「新增随手拍」→ 选照片看飞入；点「收进今日生活相册」看飞到新卡 + FLIP；往下滚看分层淡入；长按卡片浮起。不做收成一叠，100 张仍全保存。</p>
+      <div class="tier" id="tier">
+        <button data-tier="rich">完整</button>
+        <button data-tier="lite">低端机</button>
+        <button data-tier="none">减弱动态</button>
+      </div>
+      <div class="demo-actions">
+        <button type="button" id="open-form">新增随手拍（同 App 快捷弹窗）</button>
+        <button type="button" id="add-below">再加首屏外卡片</button>
+      </div>
+      <div class="snippets-stream-sheet" id="list"></div>
+      <div class="spacer" aria-hidden="true"></div>
+      <h1>对照：Opus #36 原版演示（第 10 节 M1–M4）</h1>
+      <iframe class="opus" loading="lazy" src="https://raw.githack.com/cvb762951-eng/mine-warmjournal/cursor/design-upgrade-plan-9c6d/preview/design-upgrade.html#m1"></iframe>
+    </section>
+  </main>
+</div>
+<div class="modal-layer" id="modal-layer">
+  <div class="modal quick-modal-card" id="quick-photo-modal">
+    <h2 style="margin:0 0 8px;font-size:18px">随手拍 留住此刻（与 App 快捷弹窗同 DOM）</h2>
+    <div class="quick-photo-preview" id="quick-photo-preview"></div>
+    <div class="demo-actions">
+      <button type="button" id="quick-capture-snap">拍一张</button>
+      <button type="button" id="quick-pick-snap">选照片</button>
+      <button type="button" data-close>关闭</button>
+    </div>
+    <button type="button" class="quick-publish-btn" id="quick-save-snap">收进今日生活相册</button>
+  </div>
+  <form class="modal" id="snippet-form" hidden><input type="hidden" name="id" value=""></form>
+</div>
+<script type="module">
+  import { installMomentsMotion } from '../motion-moments.js';
+
+  const COLORS = ['#7EA1D6', '#D68B7E', '#7ED6A1', '#D6C27E', '#A17ED6', '#7EC8D6', '#D67EAE', '#8FD67E'];
+  const svg = (i, w = 400, h = 300) => {
+    const c = COLORS[i % COLORS.length];
+    const svgText = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><rect width="100%" height="100%" fill="${c}"/><text x="50%" y="54%" text-anchor="middle" fill="#fff" font-size="42" font-family="sans-serif">${i + 1}</text></svg>`;
+    return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgText)}`;
+  };
+  const frame = (src, tile = false) =>
+    `<${tile ? 'button type="button" class="photo-blur-frame is-edge snippet-photo-tile" data-view-snippet-photo' : 'button type="button" class="snippet-photo-thumb photo-blur-frame is-edge"'}="x"><img class="photo-blur-pad" src="${src}" alt="" aria-hidden="true"><img class="photo-blur-still" src="${src}" alt=""></button>`;
+
+  let pending = 0;
+  let ids = 0;
+  const list = document.getElementById('list');
+  const gridInner = document.getElementById('grid-inner');
+  const modal = document.getElementById('modal-layer');
+  
+  function cardHtml(id, src, text) {
+    return `<article class="snippet-item-card">
+      <div class="snippet-visual-wrap">${frame(src, true).replace('data-view-snippet-photo="x"', `data-view-snippet-photo="${id}"`)}</div>
+      <div class="snippet-item-meta"><span>随手拍</span><span>#演示</span></div>
+      <p class="snippet-item-text">${text}</p>
+      <div class="snippet-item-actions"><button type="button">编辑</button><button type="button">删除</button></div>
+    </article>`;
+  }
+
+  const preview = document.getElementById('quick-photo-preview');
+  function renderPreview() {
+    preview.innerHTML = pending ? `<img src="${svg(0, 480, 360)}" alt="预览画面"><span class="quick-photo-overlay">${pending} 张照片 · 0 段视频</span>` : '<small>把这一刻留在这里</small>';
+  }
+  renderPreview();
+  document.getElementById('open-form').onclick = () => { pending = 0; renderPreview(); modal.classList.add('open'); };
+  document.querySelector('[data-close]').onclick = () => { modal.classList.remove('open'); };
+  // 真机选图是异步的（相机 / 文件选择器返回后才刷新预览），这里延迟 600ms 模拟
+  const add = n => setTimeout(() => { pending = Math.min(100, pending + n); renderPreview(); }, 600);
+  document.getElementById('quick-capture-snap').onclick = () => add(1);
+  document.getElementById('quick-pick-snap').onclick = () => add(3);
+  document.getElementById('quick-save-snap').onclick = () => {
+    if (!pending) return;
+    // 同 App saveQuickSnap：先异步落盘，再 closeModal + render
+    setTimeout(() => {
+      modal.classList.remove('open');
+      const id = `n${++ids}`;
+      list.insertAdjacentHTML('afterbegin', cardHtml(id, svg(0, 480, 360), `新建卡片 ${id}（应飞入）`));
+      pending = 0; renderPreview();
+    }, 120);
+  };
+  document.getElementById('add-below').onclick = () => {
+    const id = `b${++ids}`;
+    list.insertAdjacentHTML('beforeend', cardHtml(id, svg(ids + 3, 360, 480), `首屏外卡片 ${id}（滚动看分层）`));
+  };
+
+  // 先放几张首屏外的卡
+  for (let i = 0; i < 4; i++) {
+    const id = `s${i}`;
+    list.insertAdjacentHTML('beforeend', cardHtml(id, svg(i + 2, 400, 500), `滚动分层示例 ${i + 1}`));
+  }
+
+  function syncTier() {
+    document.querySelectorAll('[data-tier]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.tier === document.documentElement.dataset.plMotion)));
+  }
+  document.getElementById('tier').onclick = e => {
+    const t = e.target.closest('[data-tier]');
+    if (!t) return;
+    document.documentElement.dataset.plMotion = t.dataset.tier;
+    syncTier();
+  };
+  installMomentsMotion();
+  syncTier();
+</script>
+</body>
+</html>
