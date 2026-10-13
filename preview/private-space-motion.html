@@ -1,0 +1,653 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>私密空间 · 动效演示（清简）</title>
+<style>
+:root{
+  --bg:#EAF0F8;--ink:#2E343B;--muted:#7A838E;--line:rgba(85,96,108,.14);
+  --card:#FBFCFE;--paper:#F4F7FB;--accent:#55606C;--blue:#4F76BD;
+  --ease:cubic-bezier(.16,1,.3,1);--emph:cubic-bezier(.32,.72,0,1);
+  --spring:cubic-bezier(.34,1.56,.64,1);--snappy:cubic-bezier(.2,.9,.2,1.15);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 -apple-system,"PingFang SC","Noto Sans SC",sans-serif}
+.wrap{max-width:440px;margin:0 auto;padding:14px 14px 48px}
+h1{font-size:17px;margin:4px 0 2px}
+p.sub{color:var(--muted);font-size:12px;margin:0 0 10px}
+.tiers{display:flex;gap:6px;margin:0 0 12px}
+.tiers button{flex:1;padding:8px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--ink);font-size:13px}
+.tiers button.on{background:var(--accent);color:#fff}
+.hint{font-size:11px;color:var(--muted);margin:0 0 12px;padding:8px 10px;background:#fff;border:1px solid var(--line);border-radius:10px}
+.phone{
+  position:relative;height:min(72dvh,620px);border-radius:22px;overflow:hidden;
+  background:linear-gradient(180deg,#E8EEF6,#F4F7FB);border:1px solid var(--line);
+  box-shadow:0 12px 36px rgba(46,52,59,.1);isolation:isolate;
+}
+.screen{position:absolute;inset:0;display:none;flex-direction:column;padding:10px 12px 14px}
+.screen.on{display:flex}
+.hdr{display:grid;grid-template-columns:40px 1fr auto;align-items:center;gap:8px;min-height:44px}
+.hdr button{border:0;background:none;color:var(--accent);font-size:18px;width:40px;height:40px}
+.hdr span{text-align:center}
+.hdr small{display:block;font-size:8px;letter-spacing:.14em;color:#9AA3AD;font-weight:700}
+.hdr strong{font-size:16px;font-weight:600}
+.hdr .lock-btn{width:auto;padding:0 8px;font-size:11px;display:flex;align-items:center;gap:2px}
+.note{margin:8px 2px;padding:9px 11px;border-radius:12px;background:rgba(79,118,189,.08);display:flex;gap:8px;align-items:center;font-size:11px}
+.note b{display:block;font-size:12px}
+.tools{display:grid;grid-template-columns:1.2fr 1fr;gap:6px;margin:8px 0}
+.tools button,.row button,.demo-bar button{
+  min-height:40px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--ink);font-size:12px
+}
+.folder-head,.content-head{display:flex;align-items:center;justify-content:space-between;margin:6px 0 4px;padding:6px 4px}
+.folder-head strong,.content-head strong{font-size:14px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;overflow:auto;flex:1;padding-bottom:8px;align-content:start}
+.card{position:relative;border:0;padding:0;background:transparent;text-align:left;color:inherit;border-radius:12px}
+.cover{
+  position:relative;aspect-ratio:4/3;border-radius:12px;overflow:hidden;
+  background:#DCE3EC;display:grid;place-items:center;color:#fff;font-weight:600;font-size:18px
+}
+.cover .ph{position:absolute;inset:0;display:grid;place-items:center}
+.copy{padding:8px 6px 4px}
+.copy strong{display:block;font-size:12px}
+.copy small{color:var(--muted);font-size:10px}
+.media-grid .item{border-radius:10px;overflow:hidden;border:1px solid var(--line);background:var(--card);padding:0;position:relative}
+.media-grid .box{aspect-ratio:4/3;position:relative;display:grid;place-items:center;overflow:hidden;background:#CFD8E4}
+.media-grid .box .ph{position:absolute;inset:0;display:grid;place-items:center;color:#fff;font-weight:600}
+.media-grid .meta{padding:6px 7px 8px}
+.media-grid .meta strong{display:block;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.media-grid .meta small{color:var(--muted);font-size:9px}
+.media-grid .item.selected{outline:2px solid var(--blue);outline-offset:1px;transform:scale(1.02)}
+.filters{display:flex;gap:4px;margin:4px 0 8px;overflow:auto}
+.filters button{flex:none;padding:6px 10px;border-radius:999px;border:1px solid var(--line);background:#fff;font-size:11px}
+.filters button.on{background:var(--accent);color:#fff;border-color:transparent}
+.empty{
+  grid-column:1/-1;min-height:180px;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  text-align:center;padding:24px;border-radius:14px;background:rgba(255,255,255,.65);border:1px dashed var(--line)
+}
+.empty .ico{width:52px;height:52px;border-radius:16px;background:#fff;display:grid;place-items:center;font-size:24px;box-shadow:0 6px 16px rgba(46,52,59,.08)}
+.empty strong{margin-top:10px;font-size:14px}
+.empty small{margin-top:4px;color:var(--muted);font-size:11px;max-width:200px}
+/* lock */
+.lock-paper{
+  margin:48px 10px 0;padding:36px 22px 28px;border-radius:18px;background:rgba(255,255,255,.88);
+  text-align:center;box-shadow:0 10px 28px rgba(46,52,59,.08);border:1px solid var(--line)
+}
+.lock-mark{
+  width:64px;height:64px;margin:0 auto;border-radius:50%;background:#2E343B;color:#F4F7FB;
+  display:grid;place-items:center;font-size:30px;box-shadow:0 8px 20px rgba(46,52,59,.18)
+}
+.lock-paper>small{display:block;margin-top:14px;font-size:8px;letter-spacing:.16em;font-weight:800;color:#9AA3AD}
+.lock-paper h2{margin:6px 0;font-size:20px;font-weight:600}
+.lock-paper p{margin:0 auto;max-width:260px;color:var(--muted);font-size:12px}
+.lock-paper .fp{margin-top:18px;width:100%;min-height:44px;border:0;border-radius:12px;background:var(--accent);color:#fff;font-size:13px}
+/* today mock */
+.today{padding:18px 14px}
+.today .date{
+  display:inline-flex;flex-direction:column;align-items:flex-start;padding:10px 14px;border-radius:14px;
+  background:#fff;border:1px solid var(--line);user-select:none;touch-action:none
+}
+.today .date b{font-size:28px;line-height:1}
+.today .date span{font-size:11px;color:var(--muted)}
+.today .hold{margin-top:10px;font-size:11px;color:var(--muted)}
+.hold-bar{height:3px;width:0;margin-top:8px;border-radius:2px;background:var(--blue)}
+/* bulk */
+.bulk{
+  position:absolute;left:10px;right:10px;bottom:10px;display:none;align-items:center;justify-content:space-between;
+  padding:10px 12px;border-radius:14px;background:#fff;border:1px solid var(--line);
+  box-shadow:0 8px 24px rgba(46,52,59,.12);z-index:5
+}
+.bulk.on{display:flex}
+.bulk button{min-height:34px;padding:0 12px;border-radius:8px;border:1px solid var(--line);background:#fff;font-size:12px}
+.bulk button.danger{color:#B54A4A;border-color:rgba(181,74,74,.35)}
+/* sheet */
+.sheet-layer{
+  position:absolute;inset:0;display:none;align-items:flex-end;background:rgba(46,52,59,.32);z-index:20
+}
+.sheet-layer.open{display:flex}
+.sheet{
+  width:100%;max-height:70%;background:var(--card);border-radius:16px 16px 0 0;padding:10px 14px 18px;
+  border:1px solid var(--line);border-bottom:0
+}
+.sheet .grab{width:36px;height:4px;border-radius:2px;background:rgba(85,96,108,.25);margin:4px auto 10px}
+.sheet h3{margin:0 0 8px;font-size:15px}
+.sheet .rows{display:grid;gap:6px}
+.sheet .rows button{
+  display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;border:1px solid var(--line);
+  background:#fff;text-align:left;font-size:13px
+}
+.sheet .rows button small{display:block;color:var(--muted);font-size:10px;font-weight:400}
+/* photo viewer */
+.viewer{
+  position:absolute;inset:0;display:none;background:#020504;color:#fff;z-index:30;flex-direction:column
+}
+.viewer.open{display:flex}
+.viewer .stage{flex:1;display:grid;place-items:center;position:relative}
+.viewer .stage .ph{width:86%;max-height:70%;aspect-ratio:4/3;border-radius:4px;display:grid;place-items:center;font-size:28px;font-weight:700}
+.viewer .chrome{position:absolute;inset:0;pointer-events:none}
+.viewer .chrome header{
+  pointer-events:auto;display:flex;align-items:center;justify-content:space-between;
+  padding:14px 12px;background:linear-gradient(180deg,rgba(0,0,0,.7),transparent)
+}
+.viewer .chrome header button{border:0;background:rgba(255,255,255,.15);color:#fff;width:40px;height:40px;border-radius:50%}
+/* shield */
+.shield{
+  position:absolute;inset:0;z-index:50;display:none;place-items:center;background:#EAF0F8;color:var(--blue)
+}
+.shield.on{display:grid}
+.shield.blur{background:rgba(234,240,248,.55);-webkit-backdrop-filter:blur(24px) saturate(1.1);backdrop-filter:blur(24px) saturate(1.1)}
+.shield .badge{
+  width:72px;height:72px;border-radius:22px;background:#fff;display:grid;place-items:center;font-size:32px;
+  box-shadow:0 10px 28px rgba(46,52,59,.12)
+}
+/* unlock ghost */
+.pl-unlock{position:absolute;z-index:40;pointer-events:none;overflow:visible}
+.pl-unlock .half{position:absolute;left:0;right:0;height:50%;overflow:hidden}
+.pl-unlock .half.top{top:0}
+.pl-unlock .half.bottom{bottom:0}
+.pl-unlock .half > *{position:absolute;left:0;width:100%;height:200%;margin:0}
+.pl-unlock .half.top > *{top:0}
+.pl-unlock .half.bottom > *{bottom:0}
+.pl-unlock .seam{
+  position:absolute;left:12%;right:12%;top:50%;height:1px;background:rgba(255,255,255,.95);
+  box-shadow:0 0 12px rgba(79,118,189,.5);transform-origin:50% 50%
+}
+.pl-fly{position:absolute;z-index:45;pointer-events:none;border-radius:12px;overflow:hidden;transform-origin:0 0;box-shadow:0 12px 28px rgba(46,52,59,.18)}
+.pl-fly .ph{width:100%;height:100%;display:grid;place-items:center;color:#fff;font-weight:700;font-size:18px}
+.pl-ghost{position:absolute;z-index:44;pointer-events:none;border-radius:12px;background:#fff;box-shadow:0 10px 24px rgba(46,52,59,.12);transform-origin:0 0}
+.demo-bar{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:12px}
+.demo-bar button.wide{grid-column:1/-1}
+.legend{margin-top:12px;font-size:11px;color:var(--muted);line-height:1.6}
+.legend code{font-size:10px;background:rgba(85,96,108,.08);padding:1px 4px;border-radius:4px}
+@keyframes rise{from{opacity:0;transform:translate3d(0,var(--dy,10px),0)}}
+@keyframes fadeout{to{opacity:0}}
+@keyframes splitUp{to{transform:translate3d(0,-32px,0);opacity:0}}
+@keyframes splitDown{to{transform:translate3d(0,32px,0);opacity:0}}
+@keyframes seam{0%{transform:scaleX(0);opacity:1}50%{transform:none;opacity:1}100%{transform:none;opacity:0}}
+@keyframes markOut{to{transform:scale(1.18);opacity:0}}
+@keyframes breath{0%,100%{opacity:1}50%{opacity:.72}}
+@keyframes nudge{50%{transform:translate3d(0,6px,0)}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>私密空间 · 动效演示</h1>
+  <p class="sub">清简主题 · 色块代替照片 · 不改加密/锁定逻辑。对照 <code>docs/private-space-motion.md</code>。</p>
+  <div class="tiers" id="tiers">
+    <button data-t="rich" class="on">完整 rich</button>
+    <button data-t="lite">轻量 lite</button>
+    <button data-t="none">减弱动态</button>
+  </div>
+  <p class="hint">入口模拟今日日期长按；解锁后可进文件夹、开大图、切出遮罩、多选与导入弹层。切换档位再走一遍流程看降级。</p>
+
+  <div class="phone" id="phone">
+    <!-- TODAY -->
+    <div class="screen on" id="sc-today">
+      <div class="today">
+        <div class="date" id="secret" aria-label="长按进入私密空间">
+          <b>13</b><span>十月 · 长按进入私密空间</span>
+          <div class="hold-bar" id="holdBar"></div>
+        </div>
+        <p class="hold">按住约 0.6s（演示缩短）→ 进入锁面（P0）</p>
+      </div>
+    </div>
+
+    <!-- LOCK -->
+    <div class="screen" id="sc-lock">
+      <div class="hdr"><button type="button" id="lock-back" aria-label="返回">←</button><span><small>PRIVATE ARCHIVE</small><strong>私密空间</strong></span><i></i></div>
+      <div class="lock-paper" id="lockPaper">
+        <div class="lock-mark" id="lockMark">🔒</div>
+        <small>PRIVATE ARCHIVE LOCKED</small>
+        <h2>指纹解锁私密空间</h2>
+        <p id="lockStatus">演示：点下方按钮模拟指纹成功（V1）。锁徽会极慢呼吸（V10）。</p>
+        <button type="button" class="fp" id="btnUnlock">模拟指纹解锁</button>
+      </div>
+    </div>
+
+    <!-- FOLDERS -->
+    <div class="screen" id="sc-folders">
+      <div class="hdr">
+        <button type="button" id="folders-back" aria-label="返回">←</button>
+        <span><small>PRIVATE ARCHIVE</small><strong>私密空间</strong></span>
+        <button type="button" class="lock-btn" id="btnLock">🔒 锁定</button>
+      </div>
+      <div class="note"><span>🛡️</span><span><b>当前已解锁</b>离开页面或进后台会重新要求指纹（逻辑仍由 App 决定）</span></div>
+      <div class="tools">
+        <button type="button" id="btnImport">批量导入</button>
+        <button type="button" id="btnSelectMode">选择</button>
+      </div>
+      <div class="folder-head"><strong>私密文件夹</strong><button type="button" id="btnEmpty" style="border:0;background:none;color:var(--blue);font-size:12px">空态</button></div>
+      <div class="grid" id="folderGrid"></div>
+      <div class="bulk" id="bulk"><span>已选 <b id="selCount">0</b></span><span><button type="button" id="bulkCancel">取消</button> <button type="button" class="danger">删除</button></span></div>
+    </div>
+
+    <!-- CONTENT -->
+    <div class="screen" id="sc-content">
+      <div class="hdr">
+        <button type="button" id="content-back" data-no-swipe-back aria-label="返回文件夹">←</button>
+        <span><small>PRIVATE COLLECTION</small><strong id="folderTitle">旅行</strong></span>
+        <button type="button" class="lock-btn" id="btnLock2">🔒</button>
+      </div>
+      <div class="filters" id="filters">
+        <button type="button" data-f="all" class="on">全部</button>
+        <button type="button" data-f="photo">照片</button>
+        <button type="button" data-f="video">视频</button>
+      </div>
+      <div class="grid media-grid" id="mediaGrid"></div>
+    </div>
+
+    <!-- overlays -->
+    <div class="sheet-layer" id="sheetLayer">
+      <div class="sheet" id="sheet" data-no-sheet-drag>
+        <div class="grab"></div>
+        <h3>导入到私密空间</h3>
+        <div class="rows" id="sheetRows">
+          <button type="button"><span>📷</span><span><b>从相册选择</b><small>最多 100 项 · 加密后写入私有目录</small></span></button>
+          <button type="button"><span>🎞️</span><span><b>从随手拍加入</b><small>复制或移入并隐藏</small></span></button>
+          <button type="button"><span>📁</span><span><b>新建文件夹</b><small>整理私密影像</small></span></button>
+        </div>
+      </div>
+    </div>
+    <div class="viewer" id="viewer">
+      <div class="stage"><div class="ph" id="viewerPh"></div></div>
+      <div class="chrome" id="viewerChrome">
+        <header><button type="button" id="viewerClose">←</button><span>1 / 6</span><i style="width:40px"></i></header>
+      </div>
+    </div>
+    <div class="shield" id="shield"><div class="badge">🔒</div></div>
+  </div>
+
+  <div class="demo-bar">
+    <button type="button" id="demoBg">切出再回来（V2）</button>
+    <button type="button" id="demoFail">指纹失败 nudge</button>
+    <button type="button" class="wide" id="demoReset">回到今日入口</button>
+  </div>
+  <p class="legend">
+    <b>映射：</b> P0 入口 · V1 解锁分开 · V2 后台遮罩 · V3 封面飞行 · V4 空态 · V5 网格/筛选 · V6 大图 chrome · V7 锁定 · V8 弹层 · V9 多选底栏 · V10 锁徽呼吸。<br>
+    与 #40：文件夹返回 / 封面按钮带 <code>data-no-swipe-back</code>；大图层不参与弹层下拉。
+  </p>
+</div>
+
+<script>
+const COLORS=[
+  ['#8FA6C1','#C9D6E6'],['#B7A58E','#E5DACB'],['#93B0A2','#D3E3DA'],
+  ['#B596A6','#E7D6DF'],['#A0A7C8','#DADDEF'],['#C2A982','#EEE1C9']
+];
+const folders=[
+  {id:'f1',name:'旅行',n:'12 项',c:0},
+  {id:'f2',name:'家庭',n:'8 项',c:1},
+  {id:'f3',name:'工作备忘',n:'5 项',c:2},
+  {id:'f4',name:'未分类',n:'3 项',c:3}
+];
+const media=COLORS.map((c,i)=>({id:'m'+i,c,type:i%3===1?'video':'photo',name:(i%3===1?'视频':'照片')+' '+(i+1)}));
+
+let tier='rich';
+if(matchMedia('(prefers-reduced-motion: reduce)').matches) tier='none';
+const $=s=>document.querySelector(s);
+const phone=$('#phone');
+let selectMode=false, selected=new Set(), activeFolder=null, filter='all';
+let breathTimer=null;
+
+document.querySelectorAll('#tiers button').forEach(b=>{
+  b.classList.toggle('on',b.dataset.t===tier);
+  b.onclick=()=>{tier=b.dataset.t;document.querySelectorAll('#tiers button').forEach(x=>x.classList.toggle('on',x===b)); applyBreath();};
+});
+
+function ms(rich,lite,none){return tier==='none'?0:tier==='lite'?lite:rich}
+function ease(){return tier==='rich'? 'var(--emph)' : 'ease'}
+function show(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.toggle('on',s.id===id));
+  if(id!=='sc-folders'){selectMode=false;selected.clear();syncBulk()}
+  if(id==='sc-lock') applyBreath(); else stopBreath();
+}
+function grad(c){return `linear-gradient(135deg,${c[0]},${c[1]})`}
+
+/* ---- P0 entry from today ---- */
+let hold=null;
+const secret=$('#secret'), holdBar=$('#holdBar');
+function cancelHold(){if(hold?.t)clearTimeout(hold.t);hold=null;holdBar.style.width='0';holdBar.style.transition='none'}
+secret.addEventListener('pointerdown',e=>{
+  if(e.pointerType==='mouse'&&e.button!==0)return;
+  cancelHold();
+  hold={x:e.clientX,y:e.clientY};
+  holdBar.style.transition=`width ${ms(600,600,0)}ms linear`;
+  holdBar.style.width='100%';
+  hold.t=setTimeout(()=>{hold=null;enterLock()},ms(600,600,0)||1);
+});
+secret.addEventListener('pointermove',e=>{if(!hold)return;if(Math.hypot(e.clientX-hold.x,e.clientY-hold.y)>10)cancelHold()});
+['pointerup','pointercancel','pointerleave'].forEach(t=>secret.addEventListener(t,cancelHold));
+secret.addEventListener('contextmenu',e=>e.preventDefault());
+
+function enterLock(){
+  show('sc-lock');
+  const paper=$('#lockPaper');
+  if(tier==='none'){paper.style.opacity='';paper.style.transform='';return}
+  paper.style.transition='none';
+  paper.style.opacity='0';
+  paper.style.transform=tier==='rich'?'scale(.97)':'none';
+  void paper.offsetWidth;
+  paper.style.transition=`opacity ${ms(240,160,0)}ms ${ease()}, transform ${ms(240,160,0)}ms ${ease()}`;
+  paper.style.opacity='1';
+  paper.style.transform='none';
+}
+
+$('#lock-back').onclick=$('#demoReset').onclick=$('#folders-back').onclick=()=>{
+  closeSheet();closeViewer();hideShield(true);show('sc-today');cancelHold();
+};
+
+/* ---- V10 breath / nudge ---- */
+function applyBreath(){
+  stopBreath();
+  const mark=$('#lockMark');
+  if(!$('#sc-lock').classList.contains('on'))return;
+  if(tier==='rich') mark.style.animation='breath 1.6s ease-in-out infinite';
+  else mark.style.animation='';
+}
+function stopBreath(){const mark=$('#lockMark');if(mark)mark.style.animation=''}
+$('#demoFail').onclick=()=>{
+  show('sc-lock');
+  const paper=$('#lockPaper');
+  paper.style.animation='none';void paper.offsetWidth;
+  if(tier==='none'){$('#lockStatus').textContent='指纹未通过，请重试（无动效）';return}
+  paper.style.animation='nudge 260ms var(--snappy)';
+  $('#lockStatus').textContent='指纹未通过，请重试或使用密码。';
+  paper.addEventListener('animationend',()=>paper.style.animation='',{once:true});
+};
+
+/* ---- V1 unlock ---- */
+$('#btnUnlock').onclick=()=>playUnlock();
+
+function cascade(nodes,{start=90,step=24,max=6,dur=220,dy=12}={}){
+  if(tier==='none')return;
+  [...nodes].forEach((el,i)=>{
+    const delay=start+Math.min(i,max)*step;
+    el.style.animation='none';void el.offsetWidth;
+    el.style.setProperty('--dy',dy+'px');
+    el.style.animation=`rise ${ms(dur,160,0)}ms ${ease()} ${delay}ms both`;
+    el.addEventListener('animationend',()=>{el.style.animation=''},{once:true});
+  });
+}
+
+function playUnlock(){
+  stopBreath();
+  const paper=$('#lockPaper');
+  const rect=paper.getBoundingClientRect();
+  const phoneRect=phone.getBoundingClientRect();
+  const unlocked=()=>{
+    show('sc-folders');
+    renderFolders();
+    const items=[...phone.querySelectorAll('.note,.tools,.folder-head,#folderGrid .card')];
+    if(tier!=='none') cascade(items,{start:90,step:24,max:8,dur:220,dy:12});
+  };
+  if(tier==='none'){unlocked();return}
+  if(tier==='lite'){
+    const ghost=paper.cloneNode(true);
+    ghost.style.cssText=`position:absolute;left:${rect.left-phoneRect.left}px;top:${rect.top-phoneRect.top}px;width:${rect.width}px;height:${rect.height}px;margin:0;z-index:40;pointer-events:none`;
+    phone.appendChild(ghost);
+    unlocked();
+    ghost.animate([{opacity:1},{opacity:0}],{duration:160,easing:'ease',fill:'forwards'}).finished.then(()=>ghost.remove());
+    return;
+  }
+  // rich: split
+  const host=document.createElement('div');
+  host.className='pl-unlock';
+  host.style.cssText=`left:${rect.left-phoneRect.left}px;top:${rect.top-phoneRect.top}px;width:${rect.width}px;height:${rect.height}px`;
+  host.innerHTML='<div class="half top"></div><div class="half bottom"></div><i class="seam"></i>';
+  const clone=()=>{const c=paper.cloneNode(true);c.style.margin='0';c.style.boxShadow='none';return c};
+  host.querySelector('.top').appendChild(clone());
+  host.querySelector('.bottom').appendChild(clone());
+  phone.appendChild(host);
+  host.querySelector('.top').style.animation='splitUp 280ms cubic-bezier(.4,0,.2,1) both';
+  host.querySelector('.bottom').style.animation='splitDown 280ms cubic-bezier(.4,0,.2,1) both';
+  host.querySelector('.seam').style.animation='seam 280ms ease both';
+  const mark=host.querySelector('.lock-mark');
+  if(mark) mark.style.animation='markOut 120ms ease both';
+  unlocked();
+  setTimeout(()=>host.remove(),320);
+}
+
+/* ---- folders / V3 / V5 ---- */
+function renderFolders(empty=false){
+  const grid=$('#folderGrid');
+  grid.innerHTML='';
+  if(empty){
+    grid.innerHTML=`<div class="empty" id="emptyBox"><div class="ico">🗂️</div><strong>还没有私密文件夹</strong><small>新建文件夹，或从随手拍移入第一批内容。</small></div>`;
+    if(tier!=='none'){
+      const box=$('#emptyBox'), ico=box.querySelector('.ico');
+      ico.style.animation=`rise ${ms(200,160,0)}ms ${ease()} both`;
+      ico.style.setProperty('--dy','0px');
+      box.querySelector('strong').style.animation=`rise ${ms(220,160,0)}ms ${ease()} 40ms both`;
+      box.querySelector('strong').style.setProperty('--dy','8px');
+      box.querySelector('small').style.animation=`rise ${ms(220,160,0)}ms ${ease()} 70ms both`;
+      box.querySelector('small').style.setProperty('--dy','8px');
+    }
+    return;
+  }
+  folders.forEach((f,i)=>{
+    const btn=document.createElement('button');
+    btn.type='button';btn.className='card';btn.dataset.id=f.id;
+    btn.setAttribute('data-no-swipe-back','');
+    btn.innerHTML=`<span class="cover" data-cover="${f.id}"><span class="ph" style="background:${grad(COLORS[f.c])}">${f.name[0]}</span></span><span class="copy"><strong>${f.name}</strong><small>${f.n}</small></span>`;
+    btn.onclick=()=>openFolder(f,btn);
+    grid.appendChild(btn);
+    if(tier!=='none'){
+      const cols=2, delay=90+(Math.floor(i/cols)+(i%cols))*24;
+      btn.style.animation=`rise ${ms(220,160,0)}ms ${ease()} ${delay}ms both`;
+      btn.style.setProperty('--dy','12px');
+      btn.addEventListener('animationend',()=>{btn.style.animation=''},{once:true});
+    }
+  });
+}
+$('#btnEmpty').onclick=()=>renderFolders(true);
+
+function openFolder(f,btn){
+  activeFolder=f;
+  $('#folderTitle').textContent=f.name;
+  const cover=btn.querySelector('.cover');
+  const from=cover.getBoundingClientRect();
+  const phoneRect=phone.getBoundingClientRect();
+  show('sc-content');
+  renderMedia();
+  const target=$('#mediaGrid .item');
+  if(!target||tier==='none')return;
+  const box=target.querySelector('.box');
+  const to=box.getBoundingClientRect();
+  // ghost frame
+  if(tier==='rich'){
+    const g=document.createElement('div');g.className='pl-ghost';
+    g.style.cssText=`left:${from.left-phoneRect.left}px;top:${from.top-phoneRect.top}px;width:${from.width}px;height:${from.height}px`;
+    phone.appendChild(g);
+    const sx=to.width/from.width, sy=to.height/from.height;
+    g.animate([
+      {transform:'none',opacity:1},
+      {transform:`translate(${to.left-from.left}px,${to.top-from.top}px) scale(${sx},${sy})`,opacity:1}
+    ],{duration:420,easing:'cubic-bezier(.32,.72,0,1)',fill:'forwards'})
+    .finished.then(()=>g.animate([{opacity:1},{opacity:0}],{duration:100,fill:'forwards'}).finished).then(()=>g.remove());
+  }
+  // photo fly (same gradient tile)
+  const fly=document.createElement('div');fly.className='pl-fly';
+  fly.innerHTML=`<div class="ph" style="background:${grad(COLORS[f.c])}">${f.name[0]}</div>`;
+  fly.style.cssText=`left:${from.left-phoneRect.left}px;top:${from.top-phoneRect.top}px;width:${from.width}px;height:${from.height}px`;
+  phone.appendChild(fly);
+  const still=box.querySelector('.ph');
+  if(still) still.style.opacity='0';
+  const s=to.width/from.width;
+  fly.animate([
+    {transform:'none'},
+    {transform:`translate(${to.left-from.left}px,${to.top-from.top}px) scale(${s})`}
+  ],{duration:ms(420,320,0)||1,easing:'cubic-bezier(.32,.72,0,1)',fill:'forwards'})
+  .finished.then(()=>fly.animate([{opacity:1},{opacity:0}],{duration:80,fill:'forwards'}).finished)
+  .then(()=>{fly.remove();if(still)still.style.opacity=''});
+  // cascade rest
+  const items=[...$('#mediaGrid').querySelectorAll('.item')].slice(1);
+  cascade(items,{start:120,step:20,max:8,dur:200,dy:8});
+}
+
+function renderMedia(){
+  const grid=$('#mediaGrid');
+  grid.innerHTML='';
+  const list=media.filter(m=>filter==='all'||m.type===filter);
+  if(!list.length){
+    grid.innerHTML=`<div class="empty"><div class="ico">📷</div><strong>这里还没有内容</strong><small>切换筛选，或导入新的私密内容。</small></div>`;
+    return;
+  }
+  list.forEach((m,i)=>{
+    const b=document.createElement('button');
+    b.type='button';b.className='item'+(selected.has(m.id)?' selected':'');
+    b.innerHTML=`<span class="box"><span class="ph" style="background:${grad(m.c)}">${m.type==='video'?'▶':'◆'}</span></span><span class="meta"><strong>${m.name}</strong><small>${m.type==='video'?'视频':'照片'}</small></span>`;
+    b.onclick=()=>{
+      if(selectMode){if(selected.has(m.id))selected.delete(m.id);else selected.add(m.id);b.classList.toggle('selected',selected.has(m.id));syncBulk();return}
+      openViewer(m);
+    };
+    grid.appendChild(b);
+    if(tier!=='none' && !activeFolder){ /* initial already cascaded from V3 */ }
+  });
+}
+
+$('#content-back').onclick=()=>{
+  // V3 reverse: fly first media back to folder cover if possible
+  const first=$('#mediaGrid .item .box');
+  const f=activeFolder;
+  show('sc-folders');
+  renderFolders();
+  if(!first||!f||tier==='none')return;
+  const coverBtn=[...$('#folderGrid').querySelectorAll('.card')].find(c=>c.dataset.id===f.id);
+  if(!coverBtn)return;
+  const from=first.getBoundingClientRect();
+  const to=coverBtn.querySelector('.cover').getBoundingClientRect();
+  const phoneRect=phone.getBoundingClientRect();
+  const fly=document.createElement('div');fly.className='pl-fly';
+  fly.innerHTML=`<div class="ph" style="background:${grad(COLORS[f.c])}">${f.name[0]}</div>`;
+  fly.style.cssText=`left:${from.left-phoneRect.left}px;top:${from.top-phoneRect.top}px;width:${from.width}px;height:${from.height}px`;
+  phone.appendChild(fly);
+  const s=to.width/from.width;
+  fly.animate([
+    {transform:'none'},
+    {transform:`translate(${to.left-from.left}px,${to.top-from.top}px) scale(${s})`}
+  ],{duration:ms(340,240,0)||1,easing:'cubic-bezier(.32,.72,0,1)',fill:'forwards'})
+  .finished.then(()=>fly.animate([{opacity:1},{opacity:0}],{duration:80,fill:'forwards'}).finished)
+  .then(()=>fly.remove());
+  cascade($('#folderGrid').querySelectorAll('.card'),{start:60,step:24,max:6,dur:200,dy:10});
+};
+
+$('#filters').onclick=e=>{
+  const b=e.target.closest('button[data-f]');if(!b)return;
+  filter=b.dataset.f;
+  $('#filters').querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b));
+  const grid=$('#mediaGrid');
+  if(tier==='none'){renderMedia();return}
+  grid.animate([{opacity:1},{opacity:0}],{duration:120,fill:'forwards'}).finished.then(()=>{
+    renderMedia();
+    grid.animate([{opacity:0},{opacity:1}],{duration:160,fill:'forwards'});
+  });
+};
+
+/* ---- V6 viewer ---- */
+function openViewer(m){
+  const v=$('#viewer'), ph=$('#viewerPh'), chrome=$('#viewerChrome');
+  ph.style.background=grad(m.c);
+  ph.textContent=m.type==='video'?'▶':'◆';
+  v.classList.add('open');
+  chrome.style.opacity='0';
+  if(tier==='none'){chrome.style.opacity='1';return}
+  chrome.animate([{opacity:0},{opacity:1}],{duration:ms(180,120,0),fill:'forwards'});
+}
+function closeViewer(){
+  const v=$('#viewer'), chrome=$('#viewerChrome');
+  if(!v.classList.contains('open'))return;
+  if(tier==='none'){v.classList.remove('open');return}
+  chrome.animate([{opacity:1},{opacity:0}],{duration:120,fill:'forwards'}).finished.then(()=>v.classList.remove('open'));
+}
+$('#viewerClose').onclick=closeViewer;
+
+/* ---- V7 lock ---- */
+function doLock(){
+  closeSheet();closeViewer();
+  const from=$('#sc-folders').classList.contains('on')||$('#sc-content').classList.contains('on');
+  if(!from||tier==='none'){show('sc-lock');return}
+  const screen=$('#sc-folders').classList.contains('on')?$('#sc-folders'):$('#sc-content');
+  screen.animate([{opacity:1,transform:'none'},{opacity:0,transform:'translate3d(0,6px,0)'}],{duration:ms(160,120,0),easing:'ease',fill:'forwards'})
+    .finished.then(()=>{
+      show('sc-lock');
+      screen.style.opacity='';screen.style.transform='';
+      const paper=$('#lockPaper');
+      if(tier==='lite'){paper.style.opacity='';return}
+      paper.style.transition='none';paper.style.opacity='0';paper.style.transform='scale(.98)';
+      void paper.offsetWidth;
+      paper.style.transition=`opacity 220ms ${ease()} 40ms, transform 220ms ${ease()} 40ms`;
+      paper.style.opacity='1';paper.style.transform='none';
+    });
+}
+$('#btnLock').onclick=$('#btnLock2').onclick=doLock;
+
+/* ---- V2 shield ---- */
+function raiseShield(){
+  const s=$('#shield');
+  s.classList.add('on');
+  s.classList.toggle('blur',tier==='rich');
+  s.style.opacity='1';
+}
+function hideShield(instant){
+  const s=$('#shield');
+  if(!s.classList.contains('on'))return;
+  if(instant||tier==='none'){s.classList.remove('on','blur');s.style.opacity='';return}
+  s.animate([{opacity:1},{opacity:0}],{duration:240,easing:'ease',fill:'forwards'}).finished.then(()=>{
+    s.classList.remove('on','blur');s.style.opacity='';
+  });
+  const paper=$('#lockPaper');
+  if($('#sc-lock').classList.contains('on')&&tier!=='none'){
+    paper.style.animation='none';void paper.offsetWidth;
+    paper.style.animation=`rise 260ms ${ease()} 40ms both`;
+    paper.style.setProperty('--dy','0px');
+    paper.style.transform='scale(.98)';
+    requestAnimationFrame(()=>{paper.style.transition=`transform 260ms ${ease()}`;paper.style.transform='none'});
+  }
+}
+$('#demoBg').onclick=()=>{
+  if(!$('#sc-lock').classList.contains('on')&&!$('#sc-folders').classList.contains('on')&&!$('#sc-content').classList.contains('on')){
+    show('sc-folders');renderFolders();
+  }
+  raiseShield();
+  setTimeout(()=>{
+    // simulate app re-lock to gate
+    show('sc-lock');
+    hideShield(false);
+  },900);
+};
+
+/* ---- V8 sheet ---- */
+function openSheet(){
+  const layer=$('#sheetLayer'), sheet=$('#sheet');
+  layer.classList.add('open');
+  if(tier==='none')return;
+  sheet.animate([{transform:'translate3d(0,100%,0)'},{transform:'none'}],{duration:ms(320,220,0),easing:'cubic-bezier(.16,1,.3,1)'});
+  cascade(sheet.querySelectorAll('.rows button'),{start:80,step:30,max:6,dur:180,dy:10});
+}
+function closeSheet(){
+  const layer=$('#sheetLayer'), sheet=$('#sheet');
+  if(!layer.classList.contains('open'))return;
+  if(tier==='none'){layer.classList.remove('open');return}
+  sheet.animate([{transform:'none'},{transform:'translate3d(0,100%,0)'}],{duration:ms(220,160,0),easing:'ease',fill:'forwards'})
+    .finished.then(()=>{layer.classList.remove('open');sheet.style.transform=''});
+}
+$('#btnImport').onclick=openSheet;
+$('#sheetLayer').onclick=e=>{if(e.target===e.currentTarget)closeSheet()};
+
+/* ---- V9 select ---- */
+function syncBulk(){
+  const bulk=$('#bulk');
+  $('#selCount').textContent=String(selected.size);
+  const want=selectMode;
+  if(want&&!bulk.classList.contains('on')){
+    bulk.classList.add('on');
+    if(tier!=='none') bulk.animate([{transform:'translate3d(0,120%,0)'},{transform:'none'}],{duration:ms(220,180,0),easing:tier==='rich'?'var(--snappy)':'ease'});
+  }else if(!want){bulk.classList.remove('on');selected.clear()}
+}
+$('#btnSelectMode').onclick=()=>{selectMode=!selectMode;if(!selectMode){selected.clear();renderFolders()};syncBulk();$('#btnSelectMode').textContent=selectMode?'取消选择':'选择'};
+$('#bulkCancel').onclick=()=>{selectMode=false;selected.clear();renderFolders();syncBulk();$('#btnSelectMode').textContent='选择'};
+
+// boot
+renderFolders();
+</script>
+</body>
+</html>
