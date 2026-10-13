@@ -18,6 +18,7 @@
  * ========================================================================== */
 import { SpringODE, prefersReducedMotion } from './motion.js';
 import { installVaultMotion } from './motion-vault.js';
+import { installDialogMotion } from './motion-dialogs.js';
 import { installMomentsMotion } from './motion-moments.js';
 
 /* ── 参数（照抄方案 9.1）──────────────────────────────────────────── */
@@ -546,7 +547,7 @@ function swallowNextClick() {
 
 /* ── Z3 弹层下拉 + S3 景深后退 ─────────────────────────────────── */
 const SHEET_LAYER = '#modal-layer';
-const NO_DRAG = '.alarm-modal, .vault-feed-modal, .vault-photo-modal, .vault-video-preparing, .snippet-video-modal, [data-no-sheet-drag]';
+const NO_DRAG = '.alarm-modal, .confirm-sheet, .vault-feed-modal, .vault-photo-modal, .vault-video-preparing, .snippet-video-modal, [data-no-sheet-drag]';
 const NO_DRAG_TARGET = 'input[type="range"], textarea, [contenteditable=""], [contenteditable="true"], canvas, video, [data-no-sheet-drag]';
 
 let sheetMoveHook = () => {};
@@ -766,6 +767,7 @@ export function installLayerMotion() {
     installSwipeBack();
     installSheetDrag();
     installVaultMotion();
+    installDialogMotion();
     installMomentsMotion();
   });
 }
