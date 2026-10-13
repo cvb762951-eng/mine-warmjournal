@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="plain">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>二级页与弹层 · 动效底座演示（PR 1/4）</title>
+<!-- 真实样式：themes-plain-light.css 末尾「三十 · 二级页与弹层」那一节 -->
+<link rel="stylesheet" href="../themes-plain-light.css">
+<style>
+  /* 下面只是把 styles.css 里 .phone-shell / .subpage-layer / .modal-layer 的基础骨架照抄过来，方便单独打开 */
+  :root { --app-safe-top: env(safe-area-inset-top, 0px); --app-safe-bottom: env(safe-area-inset-bottom, 0px); --ease-spring: cubic-bezier(.16,1,.3,1); }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: #EEF2F7; font-family: system-ui, -apple-system, "PingFang SC", "Noto Sans SC", sans-serif; color: #2E343B; }
+  .phone-shell { position: relative; isolation: isolate; display: flex; flex-direction: column; width: min(100%, 480px); height: 100dvh; margin: 0 auto; overflow: hidden; background: #F4F6F9; }
+  #app { position: relative; z-index: 1; flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: calc(16px + var(--app-safe-top)) 16px 40px; background: #F4F6F9; }
+  .subpage-layer { position: absolute; z-index: 160; inset: 0; display: flex; flex-direction: column; overflow-x: hidden; overflow-y: auto; visibility: hidden; pointer-events: none; background: #F4F6F9; transform: translateX(100%); transition: transform .35s var(--ease-spring), visibility .35s; }
+  .subpage-layer.active { visibility: visible; pointer-events: auto; transform: translateX(0); }
+  .subpage-nav-bar { position: sticky; top: 0; z-index: 20; display: grid; grid-template-columns: minmax(74px,1fr) auto minmax(74px,1fr); align-items: center; padding: calc(12px + var(--app-safe-top)) 16px 12px; background: rgba(244,246,249,.94); }
+  .subpage-back-btn { justify-self: start; display: inline-flex; align-items: center; gap: 4px; min-height: 34px; padding: 0 12px; border: 1px solid rgba(85,96,108,.18); border-radius: 999px; background: #fff; color: #2E343B; font: inherit; font-size: 13px; }
+  .subpage-nav-title { font-size: 16px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .subpage-body { padding: 4px 16px 40px; display: grid; gap: 12px; }
+  .modal-layer { position: fixed; z-index: 240; inset: 0; display: flex; align-items: flex-end; justify-content: center; padding-top: 12px; visibility: hidden; opacity: 0; pointer-events: none; background: rgba(18,16,14,.65); transition: opacity .28s var(--ease-spring), visibility .28s; }
+  .modal-layer.open { visibility: visible; opacity: 1; pointer-events: auto; }
+  .modal { width: min(100%, 480px); max-height: calc(100dvh - 12px); padding: 20px 20px calc(28px + var(--app-safe-bottom)); overflow-y: auto; border-radius: 28px 28px 0 0; background: #fff; transform: translateY(100%); transition: transform .35s var(--ease-spring); }
+  .modal-layer.open .modal { transform: translateY(0); }
+  h1 { font-size: 22px; margin: 4px 0 4px; } .hint { font-size: 12.5px; color: #6b7480; line-height: 1.6; margin: 0 0 12px; }
+  .card { background: #fff; border-radius: 14px; border: 1px solid rgba(85,96,108,.12); padding: 14px 16px; }
+  .list { background: #fff; border-radius: 14px; border: 1px solid rgba(85,96,108,.12); overflow: hidden; margin-bottom: 14px; }
+  .settings-row { display: flex; align-items: center; justify-content: space-between; width: 100%; min-height: 54px; padding: 0 16px; border: 0; border-bottom: 1px solid rgba(85,96,108,.10); background: #fff; color: inherit; font: inherit; text-align: left; }
+  .settings-row:last-child { border-bottom: 0; } .settings-row b { font-size: 15px; font-weight: 600; } .settings-row small { color: #8a929c; }
+  .chips { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 6px; margin-bottom: 14px; }
+  .chips button, .tier button { flex: none; min-height: 34px; padding: 0 14px; border: 1px solid rgba(85,96,108,.2); border-radius: 999px; background: #fff; font: inherit; font-size: 13px; color: #2E343B; }
+  .tier { display: flex; gap: 6px; margin: 0 0 14px; flex-wrap: wrap; } .tier button[aria-pressed="true"] { background: #4F76BD; color: #fff; border-color: #4F76BD; }
+  .modal h2 { margin: 0 0 8px; font-size: 19px; } .modal p { margin: 0 0 10px; color: #5b636d; line-height: 1.6; }
+  .tall-item { padding: 14px 0; border-bottom: 1px solid rgba(85,96,108,.1); }
+</style>
+</head>
+<body>
+<div class="phone-shell">
+  <main id="app">
+    <h1>二级页与弹层</h1>
+    <p class="hint">清简主题 · PR 1/4 共用底座。用的是仓库里真正的 <code>motion-layers.js</code>。<br>
+      点下面任意一行 → 从这一行展开成二级页，标题飞到顶栏；点「返回」原路收回。<br>
+      在二级页里从左边往右拖：慢拖松手回弹，拖过 35% 或快甩就退出。<br>
+      打开弹层后按住往下拉：背后页面跟着缩小变暗，拉够或快甩就关。</p>
+    <div class="tier" id="tier">
+      <button data-tier="rich">完整（rich）</button><button data-tier="lite">低端机（lite）</button><button data-tier="none">减弱动态效果（none）</button>
+    </div>
+    <div class="list">
+      <button class="settings-row" data-open="sub-a"><b>提醒设置</b><small>已生效 2 项 ›</small></button>
+      <button class="settings-row" data-open="sub-b"><b>账户管理</b><small>3 个账户 ›</small></button>
+      <button class="settings-row" data-open="sub-c"><b>关于暖色生活志</b><small>›</small></button>
+    </div>
+    <div class="list">
+      <button class="settings-row" data-sheet="short"><b>打开一个普通弹层</b><small>下拉关闭 ›</small></button>
+      <button class="settings-row" data-sheet="tall"><b>打开一个分档弹层</b><small>中档 / 高档 ›</small></button>
+    </div>
+    <div class="card"><b>小提示</b><p class="hint" style="margin:6px 0 0">横向滚动的标签行、输入框里起手不会触发右滑返回。</p></div>
+  </main>
+  <div class="subpage-layer" id="subpage-demo"></div>
+</div>
+<div class="modal-layer" id="modal-layer"></div>
+
+<script type="module">
+  import { installLayerMotion } from '../motion-layers.js';
+  const $ = s => document.querySelector(s);
+  const pages = {
+    'sub-a': { title: '提醒设置', rows: ['每日提醒 · 21:30', '随机提醒 · 白天 2 次', '通知权限 · 已开启', '精确闹钟 · 已开启', '勿扰时段 · 23:00–07:30', '提醒声音 · 默认'] },
+    'sub-b': { title: '账户管理', rows: ['现金 · ¥320.00', '招商银行 · ¥8,210.50', '支付宝 · ¥1,024.00', '新建账户', '归档账户（2）'] },
+    'sub-c': { title: '关于暖色生活志', rows: ['版本 1.1.23', '本地优先，数据只存在手机里', '开源许可', '检查更新'] },
+  };
+  /* 下面三段照抄 core.js 的 openSubpage / closeSubpage / modal / closeModal 行为（只改 DOM，不含动效） */
+  function openSubpage(key) {
+    const p = pages[key], layer = $('#subpage-demo');
+    layer.innerHTML = `<nav class="subpage-nav-bar"><button type="button" class="subpage-back-btn" data-subpage-close>‹ 返回</button><span class="subpage-nav-title">${p.title}</span><span></span></nav>
+      <div class="subpage-body"><div class="card"><b>${p.title}</b><p class="hint" style="margin:6px 0 0">这张头卡就是展开的落点。</p></div>
+      <div class="chips"><button>全部</button><button>本周</button><button>本月</button><button>今年</button><button>自定义范围</button><button>更多筛选</button><button>导出</button></div>
+      ${p.rows.map(r => `<div class="card">${r}</div>`).join('')}
+      <div class="card"><input placeholder="输入框里横拖不会返回" style="width:100%;font:inherit;padding:8px;border:1px solid #dde3ea;border-radius:8px"></div></div>`;
+    layer.scrollTop = 0;
+    layer.classList.add('active');
+  }
+  function closeSubpage() { document.querySelectorAll('.subpage-layer.active').forEach(l => l.classList.remove('active')); }
+  function modal(html, cls = '') { const layer = $('#modal-layer'); layer.innerHTML = `<div class="modal ${cls}" role="dialog">${html}</div>`; layer.classList.add('open'); }
+  function closeModal() { const layer = $('#modal-layer'); layer.classList.remove('open'); layer.innerHTML = ''; }
+
+  document.addEventListener('click', e => {
+    const open = e.target.closest('[data-open]'); if (open) openSubpage(open.dataset.open);
+    if (e.target.closest('[data-subpage-close]')) closeSubpage();
+    const sheet = e.target.closest('[data-sheet]');
+    if (sheet?.dataset.sheet === 'short') modal(`<h2>记一笔</h2><p>按住这块面板往下拉。慢拉 100px 松手会弹回，拉过一段或快甩就关掉。</p><p>背后的页面会跟着缩小、变暗（低端机档只变暗）。</p><p><button data-close style="min-height:40px;padding:0 18px;border-radius:999px;border:1px solid #4F76BD;background:#fff;color:#4F76BD;font:inherit">完成</button></p>`);
+    if (sheet?.dataset.sheet === 'tall') modal(`<h2>分档弹层</h2><p>这块面板有中档（52%）和高档（92%）。从高档快速下甩会停在中档，再甩一次才关。</p>${Array.from({ length: 14 }, (_, i) => `<div class="tall-item">第 ${i + 1} 项内容</div>`).join('')}`, 'tall');
+    if (e.target.closest('[data-close]')) closeModal();
+    if (e.target.id === 'modal-layer') closeModal();
+    const t = e.target.closest('[data-tier]');
+    if (t) { document.documentElement.dataset.plMotion = t.dataset.tier; syncTierButtons(); }
+  });
+  // 分档弹层：打开时声明分档（真实 App 里由各弹层自己加 data-pl-detents）
+  new MutationObserver(() => { const m = $('#modal-layer .modal.tall'); if (m && !m.dataset.plDetents) m.dataset.plDetents = 'medium large'; }).observe($('#modal-layer'), { childList: true });
+  function syncTierButtons() { document.querySelectorAll('[data-tier]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.tier === document.documentElement.dataset.plMotion))); }
+  installLayerMotion();
+  syncTierButtons();
+</script>
+</body>
+</html>
