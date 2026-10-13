@@ -12,6 +12,7 @@ import { attachVideoSource, formatVideoDuration, isHlsAddress, normalizeHlsAddre
 import { showVideoFramePicker } from '../video-frame-picker.js';
 import { applyVideoCrop, croppedFrame } from '../video-crop.js';
 import { aiSuggestStructure, applySuggestion } from '../ai.js';
+import { deckCutDecision, prefersReducedMotion } from '../motion.js';
 import { openMediaDetail } from './media.js';
 
 // ---- 本地状态 ----
@@ -1524,6 +1525,26 @@ function momentAlbumItems(entry) {
   return items;
 }
 
+/** 动效档位：none = 系统减弱动态；lite = 低端机（只留位移，不跟手推后牌、不倾斜）；rich = 完整。 */
+function momentAlbumTier() {
+  if (prefersReducedMotion()) return 'none';
+  const nav = typeof navigator === 'object' ? navigator : {};
+  if ((nav.deviceMemory && nav.deviceMemory <= 3) || (nav.hardwareConcurrency && nav.hardwareConcurrency <= 4)) return 'lite';
+  return 'rich';
+}
+// 深度 0/1/2 的静止姿态（与 CSS 一致），拖动时后牌按进度在相邻两档之间插值
+const MOMENT_ALBUM_DEPTH = [{ y: 0, s: 1, o: 1 }, { y: -12, s: 0.972, o: 0.96 }, { y: -24, s: 0.944, o: 0.9 }];
+const MOMENT_ALBUM_THROW_MS = 300;
+const MOMENT_ALBUM_SPRING = 'cubic-bezier(.34,1.56,.64,1)';
+const MOMENT_ALBUM_OUT = 'cubic-bezier(.2,.8,.2,1)';
+let momentAlbumOrigin = null;
+let momentAlbumCloseToken = 0;
+
+function momentAlbumDepthTransform(depth) {
+  const d = MOMENT_ALBUM_DEPTH[Math.max(0, Math.min(2, depth))];
+  return { transform: `translate3d(0,${d.y}px,0) scale(${d.s})`, opacity: d.o };
+}
+
 function isMomentAlbumOpen() {
   return Boolean($('#moment-album-layer')?.classList.contains('open'));
 }
@@ -1532,12 +1553,49 @@ function closeMomentAlbum() {
   const layer = $('#moment-album-layer');
   if (!layer) return false;
   const wasOpen = layer.classList.contains('open');
+  const token = ++momentAlbumCloseToken;
+  const finish = () => {
+    if (token !== momentAlbumCloseToken) return;
+    layer.classList.remove('is-closing');
+    layer.innerHTML = '';
+    layer.hidden = true;
+  };
+  const sheet = layer.querySelector('.moment-album-sheet');
+  const origin = momentAlbumOrigin;
+  momentAlbumOrigin = null;
   layer.classList.remove('open');
-  layer.innerHTML = '';
-  layer.hidden = true;
   momentAlbumEntryId = '';
+  // 收回：缩回到当初点的那张缩略图（还在页面上才做），只动 transform / opacity
+  if (wasOpen && sheet && momentAlbumTier() !== 'none' && sheet.animate) {
+    layer.classList.add('is-closing');
+    const frames = momentAlbumOriginFrames(sheet, origin);
+    try {
+      const anim = sheet.animate(frames.reverse(), { duration: momentAlbumTier() === 'lite' ? 160 : 240, easing: MOMENT_ALBUM_OUT, fill: 'forwards' });
+      layer.animate?.([{ opacity: 1 }, { opacity: 0 }], { duration: 200, fill: 'forwards' });
+      anim.onfinish = finish;
+      setTimeout(finish, 400);
+    } catch { finish(); }
+  } else {
+    finish();
+  }
   callHelper('syncSystemBackConsumption');
   return wasOpen;
+}
+
+/** 从缩略图位置长出来的关键帧；缩略图不在了就退成轻微上浮。 */
+function momentAlbumOriginFrames(sheet, origin) {
+  const end = { transform: 'none', opacity: 1 };
+  if (origin?.isConnected && momentAlbumTier() === 'rich') {
+    const from = origin.getBoundingClientRect();
+    const to = sheet.getBoundingClientRect();
+    if (from.width && to.width) {
+      const s = Math.max(0.2, Math.min(1, from.width / to.width));
+      const x = (from.left + from.width / 2) - (to.left + to.width / 2);
+      const y = (from.top + from.height / 2) - (to.top + to.height / 2);
+      return [{ transform: `translate3d(${x}px,${y}px,0) scale(${s})`, opacity: 0.2 }, end];
+    }
+  }
+  return [{ transform: 'translate3d(0,24px,0)', opacity: 0 }, end];
 }
 
 function ensureMomentAlbumLayer() {
@@ -1578,24 +1636,6 @@ function momentAlbumStackHtml(items, entry, index) {
   return Array.from({ length: depthCount }, (_, depth) => momentAlbumCardHtml(items[(index + depth) % count], entry, depth)).join('');
 }
 
-/** 重画牌堆。animate 传 'next' / 'prev' 时补一次翻牌动画（只动 transform / opacity）。 */
-function renderMomentAlbumStack(entry, animate = '') {
-  const layer = $('#moment-album-layer');
-  const stack = layer?.querySelector('#moment-album-stack');
-  if (!stack) return;
-  const items = momentAlbumItems(entry);
-  const count = items.length || 1;
-  momentAlbumIndex = ((momentAlbumIndex % count) + count) % count;
-  stack.innerHTML = momentAlbumStackHtml(items, entry, momentAlbumIndex);
-  stack.classList.remove('is-flip-next', 'is-flip-prev');
-  if (animate) {
-    void stack.offsetWidth;
-    stack.classList.add(animate === 'next' ? 'is-flip-next' : 'is-flip-prev');
-  }
-  const counter = layer.querySelector('#moment-album-counter');
-  if (counter) counter.textContent = `${momentAlbumIndex + 1} / ${count}`;
-}
-
 /** 轻触牌面：看大图（视频则播放）。牌堆不动。 */
 function openMomentAlbumCurrent() {
   const entry = state.snippets.find(item => item.id === momentAlbumEntryId);
@@ -1610,29 +1650,159 @@ function openMomentAlbumCurrent() {
   photoLightbox(entry, item.index);
 }
 
-function flipMomentAlbum(step) {
-  const entry = state.snippets.find(item => item.id === momentAlbumEntryId);
-  if (!entry) return;
+/** 首次铺牌（打开时一次）。之后翻牌只换出那一张，不再整堆重画。 */
+function renderMomentAlbumStack(entry) {
+  const layer = $('#moment-album-layer');
+  const stack = layer?.querySelector('#moment-album-stack');
+  if (!stack) return;
   const items = momentAlbumItems(entry);
-  if (items.length < 2) return;
-  momentAlbumIndex = ((momentAlbumIndex + step) % items.length + items.length) % items.length;
-  renderMomentAlbumStack(entry, step > 0 ? 'next' : 'prev');
+  const count = items.length || 1;
+  momentAlbumIndex = ((momentAlbumIndex % count) + count) % count;
+  stack.innerHTML = momentAlbumStackHtml(items, entry, momentAlbumIndex);
+  momentAlbumUpdateCounter(count);
 }
 
-/** 牌堆手势：左右拖 = 翻下一张 / 上一张；没拖动（轻触）= 看大图。 */
+function momentAlbumUpdateCounter(count) {
+  const counter = $('#moment-album-layer')?.querySelector('#moment-album-counter');
+  if (counter) counter.textContent = `${momentAlbumIndex + 1} / ${count}`;
+}
+
+function momentAlbumCardNode(item, entry, depth) {
+  const holder = document.createElement('div');
+  holder.innerHTML = momentAlbumCardHtml(item, entry, depth);
+  const card = holder.firstElementChild;
+  // 预解码：新牌进场前把图片解好，翻牌时不卡在 decode 上
+  card?.querySelectorAll('img').forEach(img => { try { img.decoding = 'async'; img.decode?.().catch(() => {}); } catch { /* 忽略 */ } });
+  return card;
+}
+
+/** 把牌放回它 data-depth 的静止位（清掉拖动时的内联样式，交给 CSS 过渡）。 */
+function settleMomentAlbumCards(stack, ms, easing = MOMENT_ALBUM_OUT) {
+  stack.querySelectorAll('.moment-album-card').forEach(card => {
+    card.style.transition = ms ? `transform ${ms}ms ${easing}, opacity ${ms}ms ${easing}` : 'none';
+    card.style.transform = '';
+    card.style.opacity = '';
+  });
+}
+
+/**
+ * 翻一张。step=1 下一张：顶牌顺着手指方向甩出去，后两张各上前一档，牌底补一张；
+ * step=-1 上一张：上一张从左侧滑回顶上，原顶牌退一档，最深那张撤掉。
+ * fromX = 松手时顶牌已经在的位置（从那里接着甩，不先弹回原位）。
+ */
+function flipMomentAlbum(step, { fromX = 0, velocity = 0 } = {}) {
+  const entry = state.snippets.find(item => item.id === momentAlbumEntryId);
+  const stack = $('#moment-album-stack');
+  if (!entry || !stack) return;
+  const items = momentAlbumItems(entry);
+  if (items.length < 2) return;
+  const count = items.length;
+  const tier = momentAlbumTier();
+  const ms = tier === 'none' ? 0 : tier === 'lite' ? 200 : MOMENT_ALBUM_THROW_MS;
+  momentAlbumIndex = ((momentAlbumIndex + step) % count + count) % count;
+  const cards = [...stack.querySelectorAll('.moment-album-card')].sort((a, b) => a.dataset.depth - b.dataset.depth);
+  const width = stack.clientWidth || 320;
+  const depthCount = Math.min(3, count);
+
+  if (step > 0) {
+    const out = cards.shift();
+    cards.forEach((card, i) => { card.dataset.depth = String(i); });
+    if (depthCount > cards.length) {
+      const fresh = momentAlbumCardNode(items[(momentAlbumIndex + cards.length) % count], entry, cards.length);
+      if (fresh) { stack.appendChild(fresh); cards.push(fresh); }
+    }
+    if (out) {
+      out.dataset.depth = 'out';
+      if (!ms) out.remove();
+      else {
+        // 甩出：方向跟手；速度越快飞得越远，但时长固定，保证手感一致
+        const dir = fromX > 0 || (fromX === 0 && velocity > 0) ? 1 : -1;
+        const tilt = tier === 'rich' ? dir * 10 : 0;
+        out.style.transition = 'none';
+        out.style.transform = `translate3d(${fromX}px,0,0) rotate(${tier === 'rich' ? Math.max(-6, Math.min(6, fromX / 30)) : 0}deg)`;
+        void out.offsetWidth;
+        out.style.transition = `transform ${ms}ms ${MOMENT_ALBUM_OUT}, opacity ${ms}ms ${MOMENT_ALBUM_OUT}`;
+        out.style.transform = `translate3d(${dir * width * 1.15}px,0,0) rotate(${tilt}deg)`;
+        out.style.opacity = '0';
+        setTimeout(() => out.remove(), ms + 40);
+      }
+    }
+  } else {
+    const fresh = momentAlbumCardNode(items[momentAlbumIndex], entry, 0);
+    cards.forEach((card, i) => { card.dataset.depth = String(i + 1); });
+    if (cards.length >= depthCount) {
+      const drop = cards.pop();
+      drop?.remove();
+    }
+    if (fresh) {
+      stack.insertBefore(fresh, stack.firstChild);
+      if (ms) {
+        fresh.style.transition = 'none';
+        fresh.style.transform = `translate3d(${-width * 1.1}px,0,0) rotate(${tier === 'rich' ? -8 : 0}deg)`;
+        fresh.style.opacity = '0';
+        void fresh.offsetWidth;
+      }
+    }
+  }
+  // 其余牌从当前（可能被拖动带着走了一半）的位置过渡到新深度
+  [...stack.querySelectorAll('.moment-album-card')].forEach(card => {
+    if (card.dataset.depth === 'out') return;
+    card.style.transition = ms ? `transform ${ms}ms ${MOMENT_ALBUM_OUT}, opacity ${ms}ms ${MOMENT_ALBUM_OUT}` : 'none';
+    card.style.transform = '';
+    card.style.opacity = '';
+  });
+  momentAlbumUpdateCounter(count);
+  // 再往后一张也先解码好，下一次翻也不卡
+  const ahead = items[(momentAlbumIndex + 3) % count];
+  if (ahead?.kind === 'photo' && typeof Image === 'function') {
+    try { const img = new Image(); img.src = imgSrc(ahead.photo); img.decode?.().catch(() => {}); } catch { /* 忽略 */ }
+  }
+}
+
+/** 牌堆手势：左右拖 = 翻下一张 / 上一张；没拖动（轻触）= 看大图。阈值与日记牌组同一条规则（deckCutDecision）。 */
 function bindMomentAlbumDeck(layer) {
   const stage = layer.querySelector('#moment-album-stage');
-  if (!stage) return;
-  const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
-  const THRESHOLD = 56;
+  const stack = layer.querySelector('#moment-album-stack');
+  if (!stage || !stack) return;
   let pointerId = null;
   let startX = 0;
   let startY = 0;
   let dx = 0;
   let dragging = false;
   let moved = false;
-  const topCard = () => stage.querySelector('.moment-album-card[data-depth="0"]');
-  const resetTopCard = () => { const card = topCard(); if (card) card.style.transform = ''; };
+  let samples = [];
+  const topCard = () => stack.querySelector('.moment-album-card[data-depth="0"]');
+  const backCards = () => [1, 2].map(d => stack.querySelector(`.moment-album-card[data-depth="${d}"]`));
+
+  const paint = () => {
+    const tier = momentAlbumTier();
+    const card = topCard();
+    if (!card || tier === 'none') return;
+    const tilt = tier === 'rich' ? Math.max(-6, Math.min(6, dx / 30)) : 0;
+    card.style.transition = 'none';
+    card.style.transform = `translate3d(${dx}px,0,0) rotate(${tilt}deg)`;
+    if (tier !== 'rich') return;
+    // 后牌跟着拖动进度往前挪一档（只往左拖 = 下一张时；往右是「上一张」，后牌不动）
+    const width = stage.clientWidth || 1;
+    const p = dx < 0 ? Math.min(1, -dx / Math.max(48, width * 0.22)) : 0;
+    backCards().forEach((back, i) => {
+      if (!back) return;
+      const a = MOMENT_ALBUM_DEPTH[i + 1];
+      const b = MOMENT_ALBUM_DEPTH[i];
+      back.style.transition = 'none';
+      back.style.transform = `translate3d(0,${a.y + (b.y - a.y) * p}px,0) scale(${a.s + (b.s - a.s) * p})`;
+      back.style.opacity = String(a.o + (b.o - a.o) * p);
+    });
+  };
+  const velocityNow = () => {
+    const now = performance.now();
+    const recent = samples.filter(s => now - s.t < 100);
+    if (recent.length < 2) return 0;
+    const first = recent[0];
+    const last = recent[recent.length - 1];
+    const dt = last.t - first.t;
+    return dt > 0 ? ((last.x - first.x) / dt) * 1000 : 0;
+  };
 
   stage.addEventListener('pointerdown', event => {
     if (pointerId !== null) return;
@@ -1642,21 +1812,20 @@ function bindMomentAlbumDeck(layer) {
     dx = 0;
     dragging = true;
     moved = false;
+    samples = [{ x: event.clientX, t: performance.now() }];
     try { stage.setPointerCapture(pointerId); } catch { /* 捕获失败也能靠 pointerup 收尾 */ }
   });
   stage.addEventListener('pointermove', event => {
     if (!dragging || event.pointerId !== pointerId) return;
     dx = event.clientX - startX;
     const dy = event.clientY - startY;
+    samples.push({ x: event.clientX, t: performance.now() });
+    if (samples.length > 8) samples.shift();
     // 还没判定方向：竖向为主的滑动不抢（留给页面/其它手势）
     if (!moved && Math.abs(dx) < 6 && Math.abs(dy) < 6) return;
     if (!moved && Math.abs(dy) > Math.abs(dx)) { dragging = false; pointerId = null; return; }
     moved = true;
-    const card = topCard();
-    if (card && !reduceMotion) {
-      const tilt = Math.max(-6, Math.min(6, dx / 30));
-      card.style.transform = `translate3d(${dx}px,0,0) rotate(${tilt}deg)`;
-    }
+    paint();
   });
   const finish = event => {
     if (!dragging || (event && event.pointerId !== pointerId)) return;
@@ -1664,12 +1833,18 @@ function bindMomentAlbumDeck(layer) {
     if (pointerId !== null) { try { stage.releasePointerCapture(pointerId); } catch { /* 忽略 */ } }
     pointerId = null;
     if (!moved) { openMomentAlbumCurrent(); return; }
-    resetTopCard();
-    if (dx <= -THRESHOLD) flipMomentAlbum(1);
-    else if (dx >= THRESHOLD) flipMomentAlbum(-1);
+    const velocity = velocityNow();
+    const decision = deckCutDecision({ dx, width: stage.clientWidth || 1, velocity });
+    if (decision === 'stay') {
+      // 没过阈值：带一点回弹弹回原位
+      const tier = momentAlbumTier();
+      settleMomentAlbumCards(stack, tier === 'none' ? 0 : tier === 'lite' ? 180 : 320, tier === 'rich' ? MOMENT_ALBUM_SPRING : MOMENT_ALBUM_OUT);
+      return;
+    }
+    flipMomentAlbum(decision === 'next' ? 1 : -1, { fromX: dx, velocity });
   };
   stage.addEventListener('pointerup', finish);
-  stage.addEventListener('pointercancel', () => { dragging = false; pointerId = null; resetTopCard(); });
+  stage.addEventListener('pointercancel', () => { dragging = false; pointerId = null; settleMomentAlbumCards(stack, momentAlbumTier() === 'none' ? 0 : 200); });
   // 键盘/无障碍：左右方向键也能翻，回车/空格由按钮自身触发轻触
   stage.addEventListener('keydown', event => {
     if (event.key === 'ArrowRight') { event.preventDefault(); flipMomentAlbum(1); }
@@ -1677,7 +1852,7 @@ function bindMomentAlbumDeck(layer) {
   });
 }
 
-function openMomentAlbumBrowse(entry, focusPhotoIndex = 0) {
+function openMomentAlbumBrowse(entry, focusPhotoIndex = 0, originEl = null) {
   if (!entry) return;
   const items = momentAlbumItems(entry);
   if (!items.length) return;
@@ -1688,7 +1863,12 @@ function openMomentAlbumBrowse(entry, focusPhotoIndex = 0) {
   }
 
   const layer = ensureMomentAlbumLayer();
+  momentAlbumCloseToken += 1; // 上一次收回动画还没走完时重新打开：作废它的清场
+  layer.classList.remove('is-closing');
+  layer.getAnimations?.().forEach(anim => anim.cancel());
   momentAlbumEntryId = entry.id;
+  const active = typeof document === 'object' ? document.activeElement : null;
+  momentAlbumOrigin = originEl || (active?.closest?.('[data-view-snippet-photo]') ? active : null);
   const focusPos = items.findIndex(item => item.kind === 'photo' && item.index === (Number(focusPhotoIndex) || 0));
   momentAlbumIndex = focusPos >= 0 ? focusPos : 0;
   const time = entry.createdAt ? new Date(entry.createdAt) : null;
@@ -1713,15 +1893,23 @@ function openMomentAlbumBrowse(entry, focusPhotoIndex = 0) {
   layer.onclick = event => { if (event.target === layer || event.target.closest?.('[data-moment-album-close]')) closeMomentAlbum(); };
   renderMomentAlbumStack(entry);
   bindMomentAlbumDeck(layer);
+  // 打开：从点的那张缩略图位置长出来（rich）；lite 轻微上浮；减弱动态直接出现
+  const sheet = layer.querySelector('.moment-album-sheet');
+  if (sheet?.animate && momentAlbumTier() !== 'none') {
+    try {
+      sheet.animate(momentAlbumOriginFrames(sheet, momentAlbumOrigin), { duration: momentAlbumTier() === 'lite' ? 180 : 320, easing: MOMENT_ALBUM_OUT });
+      layer.animate?.([{ opacity: 0 }, { opacity: 1 }], { duration: 200 });
+    } catch { /* 动画失败不影响打开 */ }
+  }
   requestAnimationFrame(() => layer.querySelector('.moment-album-card[data-depth="0"]')?.focus?.({ preventScroll: true }));
   callHelper('syncSystemBackConsumption');
 }
 
 /** 多图/图+视频：先开相册；单张照片仍直接大图。 */
-function openMomentMediaBrowse(entry, photoIndex = 0) {
+function openMomentMediaBrowse(entry, photoIndex = 0, originEl = null) {
   if (!entry) return;
   const items = momentAlbumItems(entry);
-  if (items.length > 1) return openMomentAlbumBrowse(entry, photoIndex);
+  if (items.length > 1) return openMomentAlbumBrowse(entry, photoIndex, originEl);
   if (items[0]?.kind === 'video') return playSnippetVideo(items[0].video, entry, items[0].index);
   return photoLightbox(entry, photoIndex);
 }
@@ -1763,7 +1951,7 @@ function bindSnippets() {
   $$('[data-view-snippet-photo]').forEach(button => button.onclick = () => {
     // 多图/图+视频先进入相册浏览层；单张仍直接大图。大图本身不做进入 FLIP（2026-10-12）。
     const entry = state.snippets.find(item => item.id === button.dataset.viewSnippetPhoto);
-    openMomentMediaBrowse(entry, Number(button.dataset.photoIndex) || 0);
+    openMomentMediaBrowse(entry, Number(button.dataset.photoIndex) || 0, button);
   });
   $$('[data-play-snippet-video]').forEach(button => button.onclick = () => {
     const entry = state.snippets.find(item => item.id === button.dataset.playSnippetVideo);

@@ -30,10 +30,10 @@ test('Moments album is a card deck (journal-style flip), not a thumbnail grid', 
   assert.match(snippets, /photoFrameLayersHtml\(poster/);
   assert.match(snippets, /data-depth="\$\{depth\}"/, '后两张靠 depth 定位');
   assert.match(snippets, /function bindMomentAlbumDeck/, '手势：左右拖翻页、轻触看大图');
-  assert.match(snippets, /const THRESHOLD = 56/);
+  assert.match(snippets, /deckCutDecision\(\{ dx, width: stage\.clientWidth \|\| 1, velocity \}\)/, '阈值与日记牌组同一规则');
   assert.match(snippets, /if \(!moved\) \{ openMomentAlbumCurrent\(\); return; \}/, '没拖动就是轻触 → 看大图');
-  assert.match(snippets, /function flipMomentAlbum\(step\)/);
-  assert.match(snippets, /prefers-reduced-motion: reduce/);
+  assert.match(snippets, /function flipMomentAlbum\(step, \{ fromX = 0, velocity = 0 \} = \{\}\)/);
+  assert.match(snippets, /prefersReducedMotion\(\)/);
   assert.match(css, /\.moment-album-stage/);
   assert.match(css, /\.moment-album-card\[data-depth="1"\] \{ z-index: 2; transform: translate3d\(0, -12px, -10px\) scale\(0\.972\); opacity: 0\.96; \}/,
     '深度位移沿用日记牌组数值，并带层级与透明度阶梯');
@@ -77,4 +77,16 @@ test('Content photo surfaces migrated to shared photo-frame helper', () => {
   assert.match(gallery, /local-gallery-tile photo-blur-frame is-edge/);
   assert.match(vault, /vault-moment-preview photo-blur-frame is-edge/);
   assert.match(snippets, /snippet-photo-thumb photo-blur-frame is-edge/);
+});
+
+test('Album flip: throw continues from finger, no full re-render per flip, pre-decode, tiers', () => {
+  assert.doesNotMatch(snippets, /resetTopCard/, '松手不再先弹回原位');
+  assert.match(snippets, /flipMomentAlbum\(decision === 'next' \? 1 : -1, \{ fromX: dx, velocity \}\)/);
+  const flip = snippets.slice(snippets.indexOf('function flipMomentAlbum('), snippets.indexOf('function bindMomentAlbumDeck'));
+  assert.doesNotMatch(flip, /innerHTML|renderMomentAlbumStack/, '翻牌只换出一张，不整堆重画');
+  assert.match(snippets, /img\.decode\?\.\(\)/, '新牌预解码');
+  assert.match(snippets, /function momentAlbumTier\(\)/);
+  assert.match(snippets, /prefersReducedMotion\(\)\) return 'none'/);
+  assert.match(snippets, /momentAlbumOriginFrames/, '从点的缩略图位置展开/收回');
+  assert.match(css, /\.moment-album-layer\.is-closing/);
 });

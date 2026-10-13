@@ -9503,6 +9503,9 @@ body #modal-layer .modal.confirm-sheet .modal-actions .danger { padding: 0 16px 
   display: flex;
   pointer-events: auto;
 }
+/* 收回动画期间仍可见，但不再接手势 */
+.moment-album-layer.is-closing { display: flex; pointer-events: none; }
+.moment-album-sheet { transform-origin: 50% 50%; }
 .moment-album-sheet {
   width: min(100%, 560px);
   max-height: min(88dvh, 820px);
@@ -9620,6 +9623,8 @@ body #modal-layer .modal.confirm-sheet .modal-actions .danger { padding: 0 16px 
 .moment-album-card[data-depth="0"] { z-index: 3; }
 .moment-album-card[data-depth="1"] { z-index: 2; transform: translate3d(0, -12px, -10px) scale(0.972); opacity: 0.96; }
 .moment-album-card[data-depth="2"] { z-index: 1; transform: translate3d(0, -24px, -20px) scale(0.944); opacity: 0.9; }
+/* 正在甩出的那张盖在最上面，甩完由脚本移除 */
+.moment-album-card[data-depth="out"] { z-index: 4; pointer-events: none; }
 .moment-album-frame {
   position: relative;
   display: block;
