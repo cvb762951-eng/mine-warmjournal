@@ -8,6 +8,8 @@ import { aiKeyStorageMode } from '../ai-key-vault.js';
 import { clearJournalDraftCache } from '../journal-drafts.js';
 import { Capacitor } from '@capacitor/core';
 import { describeReminderStatus } from './reminder-status.js';
+import { getReminderStatus, openExactAlarmSettings, openNotificationSettings } from '../notifications.js';
+import { DAILY_MAX_PER_DAY } from '../reminder-plan.js';
 import { APP_VERSION_NAME, fetchUpdateManifest, hasNewerVersion, effectiveVersion, pendingResourceUpdate, downloadUpdate, installUpdate, canInstall, openInstallSettings, clearDownload, isUpdateSupported, formatBytes, fetchResourceManifest, applyResourceUpdate } from '../app-updater.js';
 
 // ---- 本地状态 ----
@@ -882,9 +884,9 @@ async function refreshReminderStatus() {
   const box = $('#settings-reminder-status');
   if (!box) return;
   const seq = ++reminderStatusSeq;
-  const configured = (state.settings?.dailyReminders || []).length;
+  const configured = Math.min(DAILY_MAX_PER_DAY, (state.settings?.dailyReminders || []).filter(item => item && item.enabled !== false).length);
   let status = null;
-  try { status = (await callHelper('getReminderStatus')) || null; } catch { status = null; }
+  try { status = (await getReminderStatus()) || null; } catch { status = null; }
   if (seq !== reminderStatusSeq || !box.isConnected) return;
   const view = describeReminderStatus(status, configured);
   const right = $('#settings-reminder-state');
@@ -895,17 +897,17 @@ async function refreshReminderStatus() {
   const button = box.querySelector('.setting-reminder-status-action');
   button.hidden = !view.action;
   button.onclick = view.action ? async () => {
-    const opener = view.action.kind === 'exact' ? 'openExactAlarmSettings' : 'openNotificationSettings';
+    const opener = view.action.kind === 'exact' ? openExactAlarmSettings : openNotificationSettings;
     let opened = false;
-    try { opened = await callHelper(opener); } catch { opened = false; }
+    try { opened = await opener(); } catch { opened = false; }
     if (!opened) show('这里打不开系统设置，请到手机「设置 › 应用 › 生活志」里开启');
   } : null;
 }
 
 if (typeof document !== 'undefined') {
-  document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible' && state.route === 'mine') setTimeout(refreshReminderStatus, 400);
-  });
+  // app.js 回前台时先 syncScheduledReminders，结束（成功或失败）后发 reminders:synced；
+  // 等它重排完再读状态，期间保留旧显示，不闪「还在排」。从系统设置返回也走这条路。
+  window.addEventListener('reminders:synced', () => { if (state.route === 'mine') refreshReminderStatus(); });
 }
 
 function bindMine() {

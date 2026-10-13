@@ -187,7 +187,9 @@ document.addEventListener('click', event => {
 document.addEventListener('visibilitychange', async () => {
   if (document.visibilityState !== 'visible') return;
   if (booted) {
-    syncScheduledReminders({ requestPermission: false }).catch(error => console.warn('回到前台时没有续上提醒', error));
+    syncScheduledReminders({ requestPermission: false })
+      .catch(error => console.warn('回到前台时没有续上提醒', error))
+      .finally(() => window.dispatchEvent(new Event('reminders:synced')));
   }
   if (await isTimerAlarmRinging().catch(() => false)) completionAlarmModal('计时');
 });
