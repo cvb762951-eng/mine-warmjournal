@@ -468,6 +468,8 @@ P :is(.card, .bento-item, .stats-card, .settings-group-card, .ledger-account-car
 - **照片比例**：竖图、横图、长图各一张放进共享相框的复刻版，页面会实时测量显示比例误差。
 - 预览是**示意复刻**，不是 App 本身：版式数字按第 2 节实测值还原，字体在没有内置字体的手机上会退回系统字体。
 - **签名动效**（第 8 节）：在"升级后"手机里默认开启。顶部"签名动效"开关可以关掉做对比，"低端机"开关模拟降级档；页面下方"签名动效"区每一项都有单独演示或"在手机里看"按钮。
+- **私密空间与随手拍**（第 10 节）：页签里的"私密空间"可以直接点"模拟指纹解锁""模拟切出再回来"、点文件夹封面进详情再返回；"随手拍"里点"记录"拍照 / 选图 / 保存，滚动列表看分层淡入，长按卡片看浮起，点"删除"看新确认框。页面下方"主角"区每一项都有自动演示。
+- **二级页与弹窗**（第 9 节）：进任意二级页后从左缘向右拖返回；打开弹层后按住面板下拉；随手拍表单可以上拉到高档。"二级页与弹窗"区的自动演示用蓝色圆点模拟手指。
 
 ---
 
@@ -1540,7 +1542,7 @@ P .pl-fly-photo, :root[data-theme="plain"] body > .pl-fly-photo { position: fixe
 
 | # | 项 | 关键参数 |
 |---|---|---|
-| V1 | 解锁仪式 | 锁面克隆从中缝上下分开：上半 `translateY(−32px)`、下半 `translateY(+32px)`，同时淡出，280ms `cubic-bezier(.4,0,.2,1)`；锁徽 0–120ms `scale(1 → 1.18)` + 淡出；中缝一道 1px 亮线 `scaleX(0 → 1)` 0–140ms 后随下半淡出；内容 90ms 起依次浮现，每项 +24ms，最多 6 项，单项 220ms `--pl-ease-out`，位移 12px；封面网格按 `(行 + 列) × 30ms` 斜向错开；**总时长 ≤ 430ms，全程可点**（克隆 `pointer-events: none`） |
+| V1 | 解锁仪式 | 锁面克隆从中缝上下分开：上半 `translateY(−32px)`、下半 `translateY(+32px)`，同时淡出，280ms `cubic-bezier(.4,0,.2,1)`；锁徽 0–120ms `scale(1 → 1.18)` + 淡出；中缝一道 1px 亮线 `scaleX(0 → 1)` 0–140ms 后随下半淡出；内容 90ms 起依次浮现，每项 +24ms，最多 6 项，单项 220ms `--pl-ease-out`，位移 12px；封面网格从"第一个格子轮到的时刻"起按 `(行 + 列) × 24ms` 斜向错开；**总时长 ≤ 430ms，全程可点**（克隆 `pointer-events: none`） |
 | V2 | 后台遮罩 | 切出（`visibilitychange → hidden` / `pagehide`）立即盖上，无动画；rich：`backdrop-filter: blur(24px) saturate(1.1)` + `rgba(234,240,248,.55)` + 居中锁徽；lite / none：实色 `#EAF0F8` + 锁徽；回来时等两帧（锁屏已在遮罩下渲染好），遮罩 240ms `--pl-ease-out` 淡出，锁面 40ms 起 `scale(.98 → 1)` + 淡入 260ms；保险：回来 1200ms 后无条件移除 |
 | V3 | 封面原位展开 | 点 `.vault-folder-open`：封面照片按 contain 框飞到详情里同一张照片（`[data-open-vault-item="封面项 id"]`）的 contain 框，420ms `cubic-bezier(.32,.72,0,1)`；封面外框幽灵同时长同曲线，`|sx/sy − 1| ≤ .25` 才用；其余照片按到落点的距离排序依次浮现，120ms 起每项 +20ms（封顶 8），单项 200ms，位移 8px + `scale(.96 → 1)`；返回文件夹列表时反向飞回，340ms |
 | M1 | 快门 / 相册飞入 | 记下被点的 `#capture-snippet-photo` / `#pick-snippet-photo` 中心；8s 内表单网格新增的 `.snippet-photo-cell` 从按钮中心飞入：`translate(按钮中心 − 格中心) scale(44 / max(格宽, 格高)) → none`，520ms `--pl-spring-magnet`（等比，过冲 10% 只发生在等比缩放上），前 30% 淡入；多张每张 +40ms，最多 6 张 |
@@ -1618,16 +1620,19 @@ P .pl-unlock, :root[data-theme="plain"] body > .pl-unlock { position: fixed; z-i
 共用的依次浮现（V1 / V3 / Z4 都用）：
 
 ```js
-/** 依次浮现：只写 animation-delay 与一个类，动画本身在 CSS。grid 选择器内的元素按 (行 + 列) 斜向错开。 */
+/** 依次浮现：只写 animation-delay 与一个类，动画本身在 CSS。
+ *  grid 选择器内的元素从"第一个格子轮到的时刻"起，按 (行 + 列) × 24ms 斜向错开。 */
 function cascade(nodes, { start, step, max, dur, dy, grid }) {
   if (!moving()) return;
+  nodes = [...nodes];
+  const gi = grid ? nodes.findIndex(n => n.matches(grid)) : -1;
   let i = 0;
   for (const el of nodes) {
     let delay = start + Math.min(i, max) * step;
-    if (grid && el.matches(grid)) {
+    if (gi >= 0 && el.matches(grid)) {
       const cols = getComputedStyle(el.parentElement).gridTemplateColumns.split(' ').length || 1;
-      const idx = [...el.parentElement.children].indexOf(el);
-      delay = start + (Math.floor(idx / cols) + (idx % cols)) * 30;
+      const idx = [...el.parentElement.querySelectorAll(':scope > ' + grid)].indexOf(el);
+      delay = start + Math.min(gi, max) * step + (Math.floor(idx / cols) + (idx % cols)) * 24;
     }
     el.style.setProperty('--pl-cd', delay + 'ms');
     el.style.setProperty('--pl-cdur', dur + 'ms');
