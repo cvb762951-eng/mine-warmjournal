@@ -11,6 +11,7 @@
 - **只动清简（plain）主题。** 所有新规则都写在 `themes-plain-light.css`，并且一律带 `:root[data-theme="plain"]` 前缀，然后重跑 `scripts/gen-plain-theme.mjs` 产出 `themes-plain.css`。经典 / 暖阳主题一行都不受影响，`styles.css` / `performance.css` 也不改（改了要连带重生成近 2000 条选择器，影响面太大）。
 - **只用 CSS 能做完的，就不写 JS。** 除了两项可选（日历切月方向、下拉关闭弹层），全部是纯 CSS；可选的 JS 也不碰通知相关文件。
 - **写到能照抄。** 第 3.0 节是完整 token 表，第 5.1 节是关键动效的 CSS 写法，第 5.2 节是手势阈值；其他模型落地时按这三节执行即可。
+- **再加一层有记忆点的签名动效（第 8 节）。** 共 12 项，包括刊头晨光、卡片展开成二级页、景深后退、视差页头、日历磁吸游标、弹性滑块、数字翻牌、主角卡微光与指尖倾斜、墨晕、三拍入场。仍然只动 transform / opacity，分 rich / lite / none 三档，卡顿时会自动降档；只新增一个 JS 文件，不改任何视图文件。
 - **动效只动 `transform` / `opacity`。** 颜色、底色、描边的变化一律瞬时切换，不做补间。全部尊重 `prefers-reduced-motion`。
 - **先减负、再加料。** 第一步是"几乎零视觉变化"的性能减负：去掉不透明底上看不见却每帧都要算的背景模糊（底栏、天气卡、课程卡、日期条等）、把主角卡光晕的旋转层从 1641×1911px（账本页 2259×2377px）缩小到约 440×440px、旋转一圈后停下。之后才动版式。
 - **按块落地、可单独撤回。** 之前 #15 清简对齐因为局部不满意被整包撤回（#16），所以落地时每一步在 `themes-plain-light.css` 里各占一个独立小节，哪一块不喜欢就只删那一节。
@@ -463,6 +464,605 @@ P :is(.card, .bento-item, .stats-card, .settings-group-card, .ledger-account-car
 - **动效实验室**：每个动效一张卡，点"播放"看现状与升级后对比；顶部开关可以慢放 4 倍、模拟"减弱动态效果"、打开帧率表。
 - **照片比例**：竖图、横图、长图各一张放进共享相框的复刻版，页面会实时测量显示比例误差。
 - 预览是**示意复刻**，不是 App 本身：版式数字按第 2 节实测值还原，字体在没有内置字体的手机上会退回系统字体。
+- **签名动效**（第 8 节）：在"升级后"手机里默认开启。顶部"签名动效"开关可以关掉做对比，"低端机"开关模拟降级档；页面下方"签名动效"区每一项都有单独演示或"在手机里看"按钮。
+
+---
+
+## 8. 签名动效：有记忆点的高级感
+
+第 3–6 节解决"统一、干净、不卡"。这一节在此基础上加一层**有记忆点**的动效。它们都只用 transform / opacity，有三档降级，而且不经过任何照片表面（照片过渡、图集一叠牌、日记牌组、点照片开大图都不动）。
+
+### 8.0 总原则
+
+1. **一页最多一个主角动效。** 今日是刊头晨光（S1），账本是数字翻牌（S7），日历是磁吸游标（S5），随手拍和我的是主角卡微光（S8）。其他都是辅助节奏。
+2. **快进慢出。** 进入用强减速曲线或弹簧，退出一律 160–220ms 的 `--pl-ease-in`，不在退出上抢戏。
+3. **弹簧只用两条**（`linear()` 由弹簧方程采样生成，见 8.1）：`snappy` 过冲 5%，用于滑块；`magnet` 过冲 10%，用于游标和数字。不另造。
+4. **三档运动等级**，写在 `<html data-pl-motion="rich|lite|none">` 上：
+   - `rich`：全部开启。
+   - `lite`：关掉 S3 页面缩放（遮罩保留）、S4 视差、S8 微光、S9 倾斜、S10 墨晕，其余保留。
+   - `none`：系统开了减弱动效。全部直接到终态，也包括第 5 节的基础动效。
+5. **自适应降级。** 第一次页面入场时数 1 秒里的长帧，超过 3 帧大于 32ms 就本次会话切到 `lite`，不写存储。
+6. **图层纪律。** `will-change` 只在动画进行中挂、结束就撤。同时存在的大图层（≥ 半屏）不超过 2 个。`installMagneticDock` 的注释里写过：清简主题下透明底的按钮被提升图层会在 WebView 里垫出白块，所以 S9 / S10 只用在白底卡片上。
+
+### 8.1 新增令牌
+
+```css
+:root[data-theme="plain"] {
+  /* 弹簧：m=1, k=420, c=28 采样 24 点；约 513ms 落定，过冲 5.2% */
+  --pl-spring-snappy: linear(0, 0.0811 4.2%, 0.2578 8.3%, 0.4613 12.5%, 0.6460 16.7%, 0.8003 20.8%, 0.9133 25%, 0.9874 29.2%, 1.0290 33.3%, 1.0482 37.5%, 1.0517 41.7%, 1.0462 45.8%, 1.0367 50%, 1.0262 54.2%, 1.0167 58.3%, 1.0091 62.5%, 1.0037 66.7%, 1.0002 70.8%, 0.9982 75%, 0.9974 79.2%, 0.9973 83.3%, 0.9977 87.5%, 0.9982 91.7%, 0.9987 95.8%, 1);
+  --pl-dur-snappy: 520ms;
+  /* 弹簧：m=1, k=320, c=21；约 609ms 落定，过冲 10.2% */
+  --pl-spring-magnet: linear(0, 0.0882 4.2%, 0.2846 8.3%, 0.5130 12.5%, 0.7199 16.7%, 0.8878 20.8%, 1.0037 25%, 1.0707 29.2%, 1.0984 33.3%, 1.0994 37.5%, 1.0842 41.7%, 1.0619 45.8%, 1.0395 50%, 1.0199 54.2%, 1.0053 58.3%, 0.9959 62.5%, 0.9911 66.7%, 0.9897 70.8%, 0.9905 75%, 0.9925 79.2%, 0.9948 83.3%, 0.9970 87.5%, 0.9987 91.7%, 1.0000 95.8%, 1);
+  --pl-dur-magnet: 600ms;
+  --pl-ease-expo: cubic-bezier(.22, 1, .36, 1);   /* 刊头揭幕、共享展开的减速段 */
+  --pl-depth-scale: .94;                          /* S3 页面后退比例 */
+  --pl-tilt-max: 5deg;                            /* S9 倾斜上限 */
+}
+```
+
+`linear()` 需要 Chromium 113+（Android System WebView 跟随 Chrome 更新）。不支持时整条声明无效，退回第 3.4 节的 `--pl-ease-emph`：写成 `transition-timing-function: var(--pl-ease-emph); transition-timing-function: var(--pl-spring-snappy);` 两行即可。
+
+### 8.2 一览
+
+| # | 名称 | 在哪 | 时长 / 曲线 | 降级 |
+|---|---|---|---|---|
+| S1 | 刊头晨光 | 今日刊头，每次启动首次进入今日 | 每行 620ms `--pl-ease-expo`，行间 70ms；横线 480ms，360ms 起 | lite 保留；none 直接显示 |
+| S2 | 卡片展开 | 课程卡、快捷入口、我的列表行、账本"管理" → 二级页头卡 | 展开 440ms `--pl-ease-emph`；整页 200ms 淡入，220ms 起；收回 360ms | lite 保留；none 走原来的推入 |
+| S3 | 景深后退 | 底部弹层打开时页面后退；二级页推入时底页左移 | 弹层 320ms / 220ms；推入 350ms | lite 只留遮罩 |
+| S4 | 视差页头 | 各页页头随滚动分层上移、渐隐 | 跟随滚动，0–240px 区间 | lite / none 关 |
+| S5 | 磁吸游标 | 日历选中日：一块蓝色游标在日期间滑行 | `--pl-dur-magnet` `--pl-spring-magnet` | lite 保留；none 瞬移 |
+| S6 | 弹性滑块 | 底栏选中块、账本支出/收入分段 | `--pl-dur-snappy` `--pl-spring-snappy` | 不支持 linear() 时退回 260ms emph |
+| S7 | 数字翻牌 | 账本净资产、随手拍四项统计、日历三项 | 每位 600ms `magnet`，从个位起每位延后 40ms | lite 保留；none 直接显示 |
+| S8 | 主角卡微光 | 光晕扫完后，一道淡光从左到右掠过卡面 | 1100ms `cubic-bezier(.4,0,.2,1)`，900ms 起，只一次 | lite / none 关 |
+| S9 | 指尖倾斜 | 按住主角卡，卡面朝手指方向微倾，带一团跟手的柔光 | 按下 140ms；松手 520ms `--spring-release` | lite / none 关 |
+| S10 | 墨晕 | 列表行、工具卡：从手指落点晕开一圈极淡的蓝 | 520ms `--pl-ease-out` | lite / none 关 |
+| S11 | 三拍入场 | 所有主页面：页头 → 主角卡 → 其余 | 0 / 80 / 140ms 起，其余每项 +32ms | none 关 |
+| S12 | Toast 弹性落位 | 全局 toast | 进 460ms `snappy`，出 160ms `ease-in` | 不支持 linear() 时 200ms ease-out |
+
+### 8.3 落点：只新增，不改视图
+
+- **CSS**：在 `themes-plain-light.css` 新增小节"二十九 · 签名动效"，重跑生成器。
+- **JS**：新增 `motion-signature.js`，导出 `installSignatureMotion()`，在 `app.js` 的 `boot()` 里紧跟 `installMagneticDock();` 加一行调用（这是全文件唯一一处改动，在通知接线上方，不碰通知代码）。
+- **不改任何 `views/*.js`。** S1、S5、S7 用一个 `MutationObserver` 观察 `#app` 的子树变化，每帧最多跑一次 `enhance(root)`，按选择器给新渲染出来的节点加效果。S2、S9、S10 用 document 级事件委托。
+- 所有选择器都要在落地前用无头 Chrome 对真实 DOM 核一遍，下文选择器是**示意名**（用 `/* 核对 */` 标出）。
+
+```js
+// motion-signature.js 骨架
+const root = document.documentElement;
+const reduce = matchMedia('(prefers-reduced-motion: reduce)');
+let tier = 'rich';
+
+export function motionTier() {
+  if (reduce.matches) return 'none';
+  const mem = navigator.deviceMemory || 4;
+  const cores = navigator.hardwareConcurrency || 4;
+  if (mem <= 3 || cores <= 4 || navigator.connection?.saveData) return 'lite';
+  return 'rich';
+}
+const plain = () => root.dataset.theme === 'plain';
+const rich = () => plain() && tier === 'rich';
+const moving = () => plain() && tier !== 'none';
+
+function watchJank() {               // 自适应降级：只在启动后观测 1 秒
+  let last = performance.now(), long = 0;
+  const end = last + 1000;
+  const tick = now => {
+    if (now - last > 32) long++;
+    last = now;
+    if (now < end) requestAnimationFrame(tick);
+    else if (long > 3 && tier === 'rich') { tier = 'lite'; root.dataset.plMotion = tier; }
+  };
+  requestAnimationFrame(tick);
+}
+
+export function installSignatureMotion() {
+  tier = motionTier();
+  root.dataset.plMotion = tier;
+  reduce.addEventListener?.('change', () => { tier = motionTier(); root.dataset.plMotion = tier; });
+  const app = document.getElementById('app');
+  let queued = false;
+  new MutationObserver(() => {
+    if (queued) return;
+    queued = true;
+    requestAnimationFrame(() => { queued = false; if (moving()) enhance(app); });
+  }).observe(app, { childList: true, subtree: true });
+  installExpand(); installTilt(); installInk();   // S2 / S9 / S10
+  watchJank();
+}
+
+function enhance(scope) {
+  revealMasthead(scope);   // S1
+  placeCalendarCursor(scope); // S5
+  rollDigits(scope);       // S7
+}
+```
+
+CSS 侧所有签名规则统一挂在等级选择器下：
+
+```css
+/* P = :root[data-theme="plain"] */
+P:is([data-pl-motion="rich"], [data-pl-motion="lite"]) …   /* lite 也开的 */
+P[data-pl-motion="rich"] …                                  /* 只在 rich 开的 */
+```
+
+### 8.4 逐项规格
+
+#### S1 刊头晨光（今日）
+
+刊头五行（期号、年份、大日期、星期、格言）分别从各自的遮罩里**升起**，像铅字被推上版面；格言下的短横线从左向右画出。每次启动只在第一次进入今日时播，之后切回今日走普通入场。
+
+| 参数 | 值 |
+|---|---|
+| 单行 | `translateY(105%) → 0`，620ms `--pl-ease-expo` |
+| 行间 | 70ms，按 kicker → 年 → 日期 → 星期 → 格言 |
+| 横线 | `scaleX(0) → 1`，`transform-origin: left`，480ms `--pl-ease-expo`，360ms 起 |
+| 遮罩 | 外层 `overflow: hidden; padding-bottom: .08em; margin-bottom: -.08em`（防衬线体下缘和斜体被裁） |
+| 只播一次 | 内存变量 `mastPlayed`，不写存储 |
+
+```js
+let mastPlayed = false;
+function revealMasthead(scope) {
+  if (mastPlayed) return;
+  const mast = scope.querySelector('.today-masthead');                 /* 核对 */
+  if (!mast) return;
+  mastPlayed = true;
+  const lines = mast.querySelectorAll(':scope > .mast-line');          /* 核对：五个行级子元素 */
+  lines.forEach((line, i) => {
+    if (line.querySelector(':scope > .pl-rv')) return;
+    const inner = document.createElement('span');
+    inner.className = 'pl-rv-in';
+    inner.style.setProperty('--ri', i);
+    inner.append(...line.childNodes);
+    const wrap = document.createElement('span');
+    wrap.className = 'pl-rv';
+    wrap.append(inner);
+    line.append(wrap);
+  });
+  mast.classList.add('pl-mast-play');
+  setTimeout(() => mast.classList.remove('pl-mast-play'), 1400);
+}
+```
+
+```css
+P .pl-rv { display: inline-block; overflow: hidden; vertical-align: bottom; padding-bottom: .08em; margin-bottom: -.08em; }
+P .pl-rv-in { display: inline-block; }
+P:is([data-pl-motion="rich"],[data-pl-motion="lite"]) .pl-mast-play .pl-rv-in {
+  animation: pl-rv-up 620ms var(--pl-ease-expo) both;
+  animation-delay: calc(var(--ri) * 70ms);
+}
+P:is([data-pl-motion="rich"],[data-pl-motion="lite"]) .pl-mast-play .today-motto::after {   /* 核对 */
+  transform-origin: left; animation: pl-rule-in 480ms var(--pl-ease-expo) 360ms both;
+}
+@keyframes pl-rv-up { from { transform: translateY(105%); } to { transform: none; } }
+@keyframes pl-rule-in { from { transform: scaleX(0); } to { transform: none; } }
+```
+
+#### S2 卡片展开（容器共享元素）
+
+点课程卡这类"入口卡"时，一块与卡片同形的白色"幽灵"从原位置飞到二级页**头卡**（首张卡片）的位置并展开，原卡同时隐去，整个二级页随后淡入、正好接住幽灵。返回时幽灵从头卡缩回原卡。手机上看起来就是"这张卡打开了，变成了下一页的头卡"。
+
+- **只用于非照片入口。** 习惯卡已经在用 `withSharedTransition`（`views/stats.js`），保持原样，用 `:not([data-habit-detail])` 排除。
+- 幽灵是空白容器，只做 `translate + scale`，不缩放文字（避免文字被拉伸）。内容是二级页自己的，靠 opacity 出现。
+- **为什么落在头卡而不是全屏**：入口卡通常 80px 高，放大到全屏要纵向放大约 8 倍，圆角会被拉成很长的椭圆（预览里实测过，很明显）。落到头卡时纵向只放大约 2 倍，圆角基本看不出变形。
+
+| 参数 | 值 |
+|---|---|
+| 触发 | 来源元素点击（`capture` 阶段记录矩形），随后 400ms 内出现 `.subpage-layer.active` |
+| 落点 | 该二级页的首张卡片 `EXPAND_TO`；找不到就放弃，走原来的推入 |
+| 展开 | 幽灵 `translate(dx,dy) scale(sx,sy)`（`transform-origin: 0 0`），440ms `--pl-ease-emph` |
+| 原卡 | `opacity: 0`，直到收回结束 |
+| 二级页 | 去掉推入位移，`opacity 0 → 1`，200ms `--pl-ease-out`，220ms 起 |
+| 收回 | 内容 160ms 淡出 → 幽灵 360ms 缩回原位 → 原卡复现 → 幽灵 100ms 淡出 |
+| 放弃条件 | 原卡不完全在视口内；原卡面积 > 屏幕 60%；正在动画中（再次点击忽略）；400ms 内没等到二级页 → 什么都不做，走原来的推入 |
+| 底页 | 同时 `scale(.97)`（S3 的轻量版），收回时还原 |
+
+```js
+const EXPAND_FROM = '.today-course-card, .quick-access-item, .mine-entry-row, .ledger-account-manage'; /* 核对 */
+const EXPAND_TO = ':scope .subpage-body > .card:first-of-type, :scope .subpage-hero';       /* 核对：二级页头卡 */
+let expanding = null;
+
+function installExpand() {
+  document.addEventListener('click', event => {
+    if (!moving() || expanding) return;
+    const src = event.target.closest(EXPAND_FROM);
+    if (!src || src.matches('[data-habit-detail]')) return;
+    const r = src.getBoundingClientRect();
+    const vw = innerWidth, vh = innerHeight;
+    if (r.top < 0 || r.bottom > vh || r.width * r.height > vw * vh * 0.6) return;
+    const ghost = Object.assign(document.createElement('div'), { className: 'pl-expand-ghost' });
+    Object.assign(ghost.style, { left: r.left + 'px', top: r.top + 'px', width: r.width + 'px', height: r.height + 'px' });
+    document.body.append(ghost);
+    expanding = { src, ghost, rect: r };
+    waitForLayer(400).then(layer => {
+      const head = layer?.querySelector(EXPAND_TO);
+      if (!head) { ghost.remove(); expanding = null; return; }
+      layer.classList.add('pl-expand-in');           // 先去掉推入位移，头卡矩形才是终点位置
+      const t = head.getBoundingClientRect();
+      src.style.opacity = '0';
+      const to = `translate(${t.left - r.left}px, ${t.top - r.top}px) scale(${t.width / r.width}, ${t.height / r.height})`;
+      Object.assign(expanding, { layer, to });
+      ghost.animate([{ transform: 'none' }, { transform: to }], { duration: 440, easing: 'cubic-bezier(.32,.72,0,1)', fill: 'forwards' })
+        .finished.then(() => { ghost.style.opacity = '0'; });
+    });
+  }, true);
+}
+
+function waitForLayer(timeout) {
+  return new Promise(resolve => {
+    const found = () => document.querySelector('.subpage-layer.active');
+    if (found()) return resolve(found());
+    const mo = new MutationObserver(() => { if (found()) { mo.disconnect(); resolve(found()); } });
+    mo.observe(document.body, { subtree: true, attributes: true, attributeFilter: ['class'] });
+    setTimeout(() => { mo.disconnect(); resolve(found()); }, timeout);
+  });
+}
+// 收回：监听该 layer 失去 .active（同一个 MutationObserver 写法），
+// 原卡仍 isConnected 时 ghost.style.opacity = '1'，从 expanding.to 反向播放到 'none'（360ms），
+// 然后 src.style.opacity = ''、ghost 100ms 淡出后 remove()、expanding = null；
+// 原卡已被重绘掉时直接清理，让二级页走原来的推出。
+```
+
+```css
+P .pl-expand-ghost { position: fixed; z-index: 190; transform-origin: 0 0; background: var(--plain-surface);
+  border-radius: var(--pl-r-lg); box-shadow: var(--pl-shadow-float); pointer-events: none; will-change: transform; }
+P .subpage-layer.pl-expand-in { transition: none !important; transform: none !important;
+  animation: pl-fade-in 200ms var(--pl-ease-out) 220ms both; }
+@keyframes pl-fade-in { from { opacity: 0; } to { opacity: 1; } }
+```
+
+#### S3 景深后退
+
+打开底部弹层时，整个页面向后退一步（缩到 .94、下沉 10px、出现圆角），后面露出深色"桌面"。推入二级页时，底页向左让出 20%，有前后两层的纵深感。
+
+| 参数 | 值 |
+|---|---|
+| 弹层开 | `#app`：`scale(var(--pl-depth-scale)) translateY(10px)`，320ms `--pl-ease-emph` |
+| 弹层关 | 220ms `--pl-ease-in` |
+| 圆角 | 开始时一次性给 `#app` 加 `border-radius: 18px; overflow: hidden`（只重绘一次，不补间） |
+| 桌面色 | `.phone-shell` 背景 `#1E232A`，只在弹层打开期间 |
+| 二级页推入 | 底页 `translateX(-20%)`，350ms 与二级页同曲线；再叠第 5.1 节的 6% 遮罩 |
+| lite | 不缩放、不位移，只留遮罩 |
+
+```css
+P[data-pl-motion="rich"] #app { transition: transform 220ms var(--pl-ease-in); transform-origin: 50% 0; }
+P[data-pl-motion="rich"] .phone-shell:has(.modal-layer.open) { background: #1E232A; }
+P[data-pl-motion="rich"] .phone-shell:has(.modal-layer.open) > #app {
+  transform: translateY(10px) scale(var(--pl-depth-scale));
+  border-radius: 18px; overflow: hidden;
+  transition: transform 320ms var(--pl-ease-emph);
+}
+P[data-pl-motion="rich"] .phone-shell:has(> .subpage-layer.active:not(.pl-expand-in)) > #app {
+  transform: translate3d(-20%, 0, 0);
+  transition: transform 350ms cubic-bezier(.16, 1, .3, 1);
+}
+/* 照片 / 私密弹窗不后退，保持它们现有的"无动效"约定 */
+P .phone-shell:has(.modal-layer.open :is(.photo-viewer, .private-modal)) > #app { transform: none !important; }  /* 核对 */
+```
+
+注意：`#app` 带 transform 后，里面 `position: fixed` 的子元素会以 `#app` 为参照。底栏如果在 `#app` 内会跟着一起后退（这正是想要的）；toast、弹层、二级页必须在 `#app` 外，落地时核对一次。
+
+#### S4 视差页头
+
+页头的标题、副标题、角注纸签以不同速度跟随滚动，越"远"的层动得越少，同时渐隐，像翻杂志时刊头留在后面。
+
+| 层 | 0 → 240px 滚动区间内的变化 |
+|---|---|
+| 主标题 / 大日期 | `translateY(0 → 96px)`，`opacity 1 → .15` |
+| 副标题 / 星期 | `translateY(0 → 72px)`，`opacity 1 → 0` |
+| 角注纸签 | `translateY(0 → 40px) rotate(4deg → 10deg)` |
+
+```css
+@supports (animation-timeline: scroll()) {
+  P[data-pl-motion="rich"] :is(.page-title, .today-date) {                 /* 核对 */
+    animation: pl-px-1 linear both; animation-timeline: scroll(nearest block); animation-range: 0 240px; }
+  P[data-pl-motion="rich"] :is(.page-subtitle, .today-weekday) {           /* 核对 */
+    animation: pl-px-2 linear both; animation-timeline: scroll(nearest block); animation-range: 0 240px; }
+  P[data-pl-motion="rich"] .page-corner-note {                               /* 核对 */
+    animation: pl-px-3 linear both; animation-timeline: scroll(nearest block); animation-range: 0 240px; }
+}
+@keyframes pl-px-1 { to { transform: translate3d(0, 96px, 0); opacity: .15; } }
+@keyframes pl-px-2 { to { transform: translate3d(0, 72px, 0); opacity: 0; } }
+@keyframes pl-px-3 { from { transform: rotate(4deg); } to { transform: translate3d(0, 40px, 0) rotate(10deg); } }
+```
+
+- 由合成线程按滚动驱动，不需要 JS、不监听 scroll。不支持 `animation-timeline`（Chromium < 115）时页头保持静止，不做 JS 兜底。
+- 这些元素不能同时挂入场动画（同一个 `animation` 属性会互相覆盖）。入场动画挂在它们的父容器上，视差挂在子元素上。
+
+#### S5 磁吸游标（日历）
+
+选中日不再是每格各画一块，而是整个月网格里**只有一块**蓝色游标。点另一天，游标带一点过冲滑过去、吸住。日期数字在游标快到时才变白。
+
+| 参数 | 值 |
+|---|---|
+| 游标 | 36×36px，10px 圆角，`--pl-blue`；`transform: translate(x, y)` |
+| 移动 | `--pl-dur-magnet` `--pl-spring-magnet`（同月内任意距离都滑） |
+| 文字变白 | `transition: color 0s 140ms`（离散切换，只重绘一次；弹簧在约 25% 处已到位） |
+| 首次 / 切月 | 不滑，直接定位后 `opacity 0 → 1`，180ms |
+| 今天 | 保留第 4.6 节的细环 |
+
+```js
+function placeCalendarCursor(scope) {
+  const grid = scope.querySelector('.calendar-grid');                       /* 核对 */
+  if (!grid) return;
+  let cursor = grid.querySelector(':scope > .pl-cal-cursor');
+  const fresh = !cursor;
+  if (fresh) {
+    cursor = Object.assign(document.createElement('i'), { className: 'pl-cal-cursor' });
+    cursor.setAttribute('aria-hidden', 'true');
+    grid.prepend(cursor);
+    grid.classList.add('pl-has-cursor');
+  }
+  const day = grid.querySelector('.calendar-day.selected');                 /* 核对 */
+  if (!day) { cursor.style.opacity = '0'; return; }
+  const x = day.offsetLeft + (day.offsetWidth - 36) / 2;
+  const y = day.offsetTop + (day.offsetHeight - 36) / 2;
+  if (fresh) cursor.classList.add('pl-cursor-jump');
+  cursor.style.transform = `translate(${x}px, ${y}px)`;
+  cursor.style.opacity = '1';
+  if (fresh) requestAnimationFrame(() => requestAnimationFrame(() => cursor.classList.remove('pl-cursor-jump')));
+}
+```
+
+如果日历点选时整网格重绘（游标会随之重建、只淡入不滑行），让 `placeCalendarCursor` 在重建前读出旧游标的 `transform`，新游标以旧位置为起点再设目标位置。这是一个 12 行以内的补丁，仍在 `motion-signature.js` 里完成，不改 `views/calendar.js`。
+
+```css
+P .calendar-grid.pl-has-cursor { position: relative; }
+P .pl-cal-cursor { position: absolute; left: 0; top: 0; width: 36px; height: 36px; border-radius: 10px;
+  background: var(--pl-blue); box-shadow: var(--pl-shadow-btn); pointer-events: none; z-index: 0;
+  transition: transform var(--pl-dur-magnet) var(--pl-ease-emph), opacity 180ms var(--pl-ease-out);
+  transition-timing-function: var(--pl-spring-magnet), var(--pl-ease-out); }
+P .pl-cal-cursor.pl-cursor-jump { transition: none; }
+P .calendar-grid.pl-has-cursor .calendar-day.selected::before { opacity: 0; }
+P .calendar-grid.pl-has-cursor .calendar-day { position: relative; z-index: 1; transition: color 0s; }
+P .calendar-grid.pl-has-cursor .calendar-day.selected { transition: color 0s 140ms; }
+```
+
+#### S6 弹性滑块
+
+第 5.1 节 ③ 的底栏选中块和第 4.5 节的支出/收入分段，曲线换成 `snappy`：滑到位时多走约 5% 再回来，像被弹簧拉住。`installMagneticDock` 只推当前格的按钮本身，和滑块（底栏伪元素）互不干扰。
+
+```css
+P #floating-dock::before, P .ledger-segment-thumb {                          /* 核对 */
+  transition-duration: var(--pl-dur-snappy);
+  transition-timing-function: var(--pl-ease-emph);
+  transition-timing-function: var(--pl-spring-snappy);
+}
+```
+
+#### S7 数字翻牌
+
+金额和统计数字的每一位是一条竖排 0–9 的"转轮"，进入页面时从 0 转到目标数字，个位先停、高位后停，像机械计数器。和现有 `rollNumbers`（每帧改文字 → 每帧重新排版）不同，翻牌只动 transform，排版只发生一次。
+
+| 参数 | 值 |
+|---|---|
+| 每位 | `translateY(calc(var(--d) * -1.1em))`，600ms `--pl-spring-magnet` |
+| 位间 | 从个位起每位延后 40ms |
+| 非数字 | `¥ , . + -` 原样静态显示 |
+| 字体 | 容器 `font-variant-numeric: tabular-nums`，每位宽度固定，不抖 |
+| 可访问性 | 容器 `aria-label` 是真实文本，转轮 `aria-hidden` |
+| 范围 | 账本净资产、随手拍四项统计、日历三项；**复盘统计页仍用 `rollNumbers`，不改** |
+| 再次触发 | 数值变化时只转变化的那几位 |
+
+```js
+const ROLL_TARGETS = '.ledger-net-amount, .snippets-stat-value, .calendar-kpi-value'; /* 核对 */
+function rollDigits(scope) {
+  scope.querySelectorAll(ROLL_TARGETS).forEach(el => {
+    const text = el.textContent.trim();
+    if (el.dataset.plRolled === text) return;
+    el.dataset.plRolled = text;
+    el.setAttribute('aria-label', text);
+    el.classList.add('pl-reels');
+    const chars = [...text];
+    let digitIndex = chars.filter(c => /\d/.test(c)).length;
+    el.innerHTML = chars.map(c => {
+      if (!/\d/.test(c)) return `<span class="pl-reel-static" aria-hidden="true">${c}</span>`;
+      digitIndex -= 1;
+      return `<span class="pl-reel" aria-hidden="true" style="--d:0;--di:${digitIndex}"><span>${'0123456789'.split('').map(n => `<b>${n}</b>`).join('')}</span></span>`;
+    }).join('');
+    const digits = chars.filter(c => /\d/.test(c));
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      el.querySelectorAll('.pl-reel').forEach((reel, i) => reel.style.setProperty('--d', digits[i]));
+    }));
+  });
+}
+```
+
+```css
+P .pl-reels { font-variant-numeric: tabular-nums; white-space: nowrap; }
+P .pl-reel { display: inline-block; height: 1.1em; overflow: hidden; vertical-align: top; }
+P .pl-reel > span { display: block; transform: translateY(calc(var(--d) * -1.1em));
+  transition: transform var(--pl-dur-magnet) var(--pl-ease-emph) calc(var(--di) * 40ms);
+  transition-timing-function: var(--pl-spring-magnet); }
+P .pl-reel b { display: block; height: 1.1em; line-height: 1.1em; font: inherit; }
+P[data-pl-motion="none"] .pl-reel > span { transition: none; }
+```
+
+`MutationObserver` 自己写 innerHTML 会再触发一次观察；`dataset.plRolled === text` 这一行就是为此做的防重入，不能删。
+
+#### S8 主角卡微光
+
+光晕扫完一圈后（第 5.1 节 ④），一道很淡的光带从左到右掠过整张卡，经过数字时数字会"亮"一下，然后一切静止。只播一次。
+
+| 参数 | 值 |
+|---|---|
+| 光带 | 宽 = 卡宽 55%；`linear-gradient(100deg, transparent 20%, rgba(79,118,189,.10) 45%, rgba(255,255,255,.7) 50%, rgba(79,118,189,.10) 55%, transparent 80%)` |
+| 运动 | `translateX(-110% → 200%)`，1100ms `cubic-bezier(.4,0,.2,1)`，900ms 起（扫光过半时开始） |
+| 透明度 | 0 → 1（15%）→ 1（85%）→ 0 |
+
+```css
+P[data-pl-motion="rich"] .halo-card { overflow: hidden; }
+P[data-pl-motion="rich"] .halo-card > .pl-sheen {                          /* JS 插入一个空 <i class="pl-sheen" aria-hidden> */
+  position: absolute; inset: 0 auto 0 0; width: 55%; z-index: 2; pointer-events: none;
+  background: linear-gradient(100deg, transparent 20%, rgba(79,118,189,.10) 45%, rgba(255,255,255,.7) 50%, rgba(79,118,189,.10) 55%, transparent 80%);
+  animation: pl-sheen 1100ms cubic-bezier(.4, 0, .2, 1) 900ms both;
+}
+@keyframes pl-sheen { 0% { opacity: 0; transform: translateX(-110%); } 15%, 85% { opacity: 1; } 100% { opacity: 0; transform: translateX(200%); } }
+```
+
+`.halo-card` 的 `::after` 已被呼吸背光占用，`::before` 是否空闲需要核对，所以统一用一个插入的空节点（放在 `enhance()` 里，每张卡只插一次）。动画结束后可以 `remove()`。
+
+**质感底纹（静态）**：清简画布叠一层 3% 不透明度的细噪点，让大面积冷蓝不显得"屏幕味"。噪点是 160px 的 PNG（约 2KB）平铺在 `body` 背景上，只绘制一次、不动、不放进合成层。卡片保持纯白，不叠噪点。
+
+```css
+P body { background-image: url("assets/plain-grain-160.png"); background-size: 160px; }   /* 新增素材 */
+```
+
+#### S9 指尖倾斜（主角卡）
+
+按住主角卡时，卡面朝手指所在方向微微下沉（最多 5°），一团极淡的蓝色柔光跟着手指走；松手时带一点回弹恢复。这一项最有"拿在手里"的质感。
+
+| 参数 | 值 |
+|---|---|
+| 角度 | `rotateY = (px - .5) × 2 × 5deg`，`rotateX = (.5 - py) × 2 × 5deg`（px / py 为手指在卡内的 0–1 位置） |
+| 透视 | `perspective(900px)`，与按压缩放合成：`scale(.988)` |
+| 按下 | 140ms `--pl-ease-out` |
+| 跟手 | `pointermove` 用 rAF 节流，只写两个 CSS 变量 |
+| 松手 | 角度归零，520ms `--spring-release`；结束后撤掉 `transform`，不留常驻 3D 图层 |
+| 让位给滚动 | 按下后 150ms 内移动 > 10px 视为滚动，立刻取消倾斜 |
+| 柔光 | 160px 圆形 `radial-gradient(closest-side, rgba(146,183,238,.28), transparent)`，`translate` 到手指位置，`opacity 0 → 1` |
+
+```js
+function installTilt() {
+  let card = null, rect = null, start = null, raf = 0, px = .5, py = .5;
+  const apply = () => {
+    raf = 0;
+    if (!card) return;
+    card.style.setProperty('--pl-rx', `${((.5 - py) * 2 * 5).toFixed(2)}deg`);
+    card.style.setProperty('--pl-ry', `${((px - .5) * 2 * 5).toFixed(2)}deg`);
+    card.style.setProperty('--pl-gx', `${(px * rect.width - 80).toFixed(1)}px`);
+    card.style.setProperty('--pl-gy', `${(py * rect.height - 80).toFixed(1)}px`);
+  };
+  const release = () => {
+    if (!card) return;
+    const done = card;
+    done.classList.remove('pl-tilting');
+    done.style.setProperty('--pl-rx', '0deg');
+    done.style.setProperty('--pl-ry', '0deg');
+    setTimeout(() => done.classList.remove('pl-tilt'), 540);
+    card = null;
+  };
+  document.addEventListener('pointerdown', e => {
+    if (!rich()) return;
+    const c = e.target.closest('.halo-card');
+    if (!c) return;
+    card = c; rect = c.getBoundingClientRect(); start = { x: e.clientX, y: e.clientY, t: performance.now() };
+    px = (e.clientX - rect.left) / rect.width; py = (e.clientY - rect.top) / rect.height;
+    c.classList.add('pl-tilt', 'pl-tilting');
+    apply();
+  }, { passive: true });
+  document.addEventListener('pointermove', e => {
+    if (!card) return;
+    if (performance.now() - start.t < 150 && Math.hypot(e.clientX - start.x, e.clientY - start.y) > 10) { release(); return; }
+    px = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
+    py = Math.min(1, Math.max(0, (e.clientY - rect.top) / rect.height));
+    if (!raf) raf = requestAnimationFrame(apply);
+  }, { passive: true });
+  ['pointerup', 'pointercancel'].forEach(t => document.addEventListener(t, release, { passive: true }));
+}
+```
+
+```css
+P[data-pl-motion="rich"] .halo-card.pl-tilt {
+  transform: perspective(900px) rotateX(var(--pl-rx, 0deg)) rotateY(var(--pl-ry, 0deg)) scale(var(--pl-press, 1));
+  transition: transform 520ms var(--spring-release);
+}
+P[data-pl-motion="rich"] .halo-card.pl-tilting { --pl-press: .988; transition-duration: 140ms; transition-timing-function: var(--pl-ease-out); }
+P[data-pl-motion="rich"] .halo-card.pl-tilt > .pl-glare {                     /* JS 与 .pl-sheen 一起插入 */
+  position: absolute; left: 0; top: 0; width: 160px; height: 160px; z-index: 1; pointer-events: none;
+  background: radial-gradient(closest-side, rgba(146, 183, 238, .28), transparent);
+  transform: translate(var(--pl-gx, 0), var(--pl-gy, 0)); opacity: 0; transition: opacity 200ms var(--pl-ease-out);
+}
+P[data-pl-motion="rich"] .halo-card.pl-tilting > .pl-glare { opacity: 1; }
+```
+
+`.halo-card` 如果同时被按压反馈命中（`[data-pressed]`），按压缩放由上面的 `--pl-press` 接管。落地时把 `.halo-card` 的 `[data-pressed]` 规则去掉，避免两条 transform 打架。
+
+#### S10 墨晕
+
+点列表行或工具卡时，从手指落点晕开一圈极淡的主题蓝，像墨滴落在纸上。比 Material 涟漪更淡更慢，不留按下态。
+
+| 参数 | 值 |
+|---|---|
+| 直径 | `2 × hypot(宽, 高)`，一次性设定，不补间尺寸 |
+| 运动 | `scale(.1) → 1`，`opacity .16 → 0`，520ms `--pl-ease-out` |
+| 颜色 | `--pl-blue` |
+| 适用 | 白底卡片里的行和卡：我的列表行、日历工具卡、快捷入口、设置行（**不含**提醒设置区）、二级页列表 |
+| 不适用 | 透明底按钮、底栏、任何照片表面 |
+
+```js
+const INK_ON = '.mine-entry-row, .calendar-tool-card, .quick-access-item, .settings-row'; /* 核对；排除提醒区 */
+function installInk() {
+  document.addEventListener('pointerdown', e => {
+    if (!rich()) return;
+    const host = e.target.closest(INK_ON);
+    if (!host || host.closest('.reminder-settings')) return;                  /* 核对 */
+    const r = host.getBoundingClientRect();
+    const d = 2 * Math.hypot(r.width, r.height);
+    const ink = document.createElement('i');
+    ink.className = 'pl-ink';
+    ink.style.cssText = `width:${d}px;height:${d}px;left:${e.clientX - r.left - d / 2}px;top:${e.clientY - r.top - d / 2}px`;
+    host.append(ink);
+    ink.addEventListener('animationend', () => ink.remove(), { once: true });
+  }, { passive: true });
+}
+```
+
+```css
+P[data-pl-motion="rich"] :is(.mine-entry-row, .calendar-tool-card, .quick-access-item, .settings-row) { position: relative; overflow: hidden; }
+P .pl-ink { position: absolute; border-radius: 50%; background: var(--pl-blue); pointer-events: none;
+  animation: pl-ink 520ms var(--pl-ease-out) forwards; }
+@keyframes pl-ink { from { transform: scale(.1); opacity: .16; } to { transform: scale(1); opacity: 0; } }
+```
+
+#### S11 三拍入场
+
+所有主页面的入场分成三拍，让视线有先后：**页头先到 → 主角卡跟上 → 其余内容依次落位**。替换第 5.1 节 ② 的延迟算法，时长与位移不变。
+
+| 拍 | 元素 | 起始 | 位移 / 时长 |
+|---|---|---|---|
+| 1 | 页头 | 0ms | 8px，420ms `--spring-entrance`（今日由 S1 接管） |
+| 2 | 主角卡（`.halo-card`） | 80ms | 14px，460ms `--spring-entrance` |
+| 3 | 其余 `[data-stagger]` | 140ms + 序号 × 32ms（序号封顶 6） | 10px，420ms `--spring-entrance` |
+
+```css
+P [data-stagger] { animation-delay: calc(140ms + min(var(--stagger-index, 0), 6) * 32ms); }
+P :is(.page-header, .today-masthead)[data-stagger] { animation-delay: 0ms; }                /* 核对 */
+P .halo-card[data-stagger] { animation-name: pl-hero-in; animation-duration: 460ms; animation-delay: 80ms; }
+@keyframes pl-hero-in { from { opacity: 0; transform: translate3d(0, 14px, 0); } to { opacity: 1; transform: none; } }
+```
+
+#### S12 Toast 弹性落位
+
+```css
+P .toast { transform: translate(-50%, 14px) scale(.96);
+  transition: opacity 160ms var(--pl-ease-in), transform 160ms var(--pl-ease-in), visibility 160ms; }
+P .toast.show { transform: translate(-50%, 0);
+  transition: opacity 200ms var(--pl-ease-out), transform 460ms var(--pl-ease-out), visibility 0s;
+  transition-timing-function: var(--pl-ease-out), var(--pl-spring-snappy), linear; }
+```
+
+### 8.5 性能预算（签名动效）
+
+| # | 合成层 | 面积 | 持续 | 主线程 |
+|---|---|---|---|---|
+| S1 | 5 个文字行 | 各约 350×60px | 1.1s | 无 |
+| S2 | 幽灵 1 个 | 由入口卡放大到头卡（≤ 屏宽 × 200px） | 0.44s | 点击时读两次矩形 |
+| S3 | `#app` 1 个 | 全屏 | 0.32s，结束后保持静止的变换 | 无 |
+| S4 | 页头 3 个子元素 | 各 < 400×80px | 跟随滚动 | 无（滚动时间线在合成线程） |
+| S5 | 游标 1 个 | 36×36px | 0.6s | 读一次 offsetLeft/Top |
+| S7 | 每位 1 个 | 每位约 20×44px，≤ 12 位 | 0.6s + 位差 | 首次 innerHTML 一次 |
+| S8 | 光带 1 个 | 约 200×200px | 1.1s，仅一次 | 无 |
+| S9 | 卡片 1 个 | 约 360×200px | 按住期间 | rAF 内写 4 个变量 |
+| S10 | 墨晕 1 个 | ≤ 卡片尺寸 | 0.52s | 插入 / 删除一个节点 |
+
+验收在第 6 节清单之外再加两条：
+
+1. 6 倍 CPU 降速下打开今日（S1 + S11）、日历连点 5 个日期（S5）、账本入场（S7）：连续长帧（> 16.7ms）不超过 2 个。
+2. `data-pl-motion` 切到 `lite` / `none` 后逐项点一遍，对应项确实关掉，页面直接到终态。
+
+### 8.6 落地顺序补充
+
+签名动效排在第 6 节的步骤 A–F **之后**，作为步骤 G 一次落完：`motion-signature.js`（新文件）+ `themes-plain-light.css`"二十九 · 签名动效" + `app.js` 一行调用 + `assets/plain-grain-160.png`。建议新增测试 `tests/plain-signature-motion.test.mjs`，锁住三件事：签名规则都带 plain 前缀；所有 `@keyframes` 只出现 `transform` / `opacity`；`motion-signature.js` 不 import `model.js` / `storage.js` / `notifications.js`。
 
 ---
 
