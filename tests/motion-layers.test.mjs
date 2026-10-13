@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
   LAYER_MOTION, motionTier, velocityOf, rubber, swipeZone, swipeIntent, swipeShouldComplete,
-  sheetGeometry, sheetProgress, sheetFollow, sheetRelease, sheetCloseMs, canExpandFrom, ghostTransform,
+  sheetGeometry, sheetProgress, sheetFollow, sheetRelease, sheetCloseMs, canExpandFrom, ghostTransform, scrolledWithin,
 } from '../motion-layers.js';
 
 test('三档：减弱动态效果 → none，低端机 → lite，显式指定优先', () => {
@@ -104,4 +104,29 @@ test('接线：app.js 启动时安装；不碰 core / snippets / 通知', () => 
   const src = readFileSync(new URL('../motion-layers.js', import.meta.url), 'utf8');
   assert.doesNotMatch(src, /from '\.\/(core|storage|notifications|private-vault)\.js'/);
   assert.doesNotMatch(src, /views\/snippets/);
+});
+
+test('弹层下拉：触点到面板之间任何一层滚过就不接管', () => {
+  const modal = { scrollTop: 0, parentElement: { scrollTop: 50, parentElement: null } };
+  const list = { scrollTop: 30, parentElement: modal };
+  const item = { scrollTop: 0, parentElement: list };
+  assert.equal(scrolledWithin(item, modal), true);
+  list.scrollTop = 0;
+  assert.equal(scrolledWithin(item, modal), false);   // 面板外层滚动不算
+  modal.scrollTop = 5;
+  assert.equal(scrolledWithin(item, modal), true);
+});
+
+test('复查修复：多指取消 / touchmove 只挂弹层 / 打断保护 / 免右滑区', () => {
+  const src = readFileSync(new URL('../motion-layers.js', import.meta.url), 'utf8');
+  assert.ok(!/document\.addEventListener\('touchmove'/.test(src), 'document 上不应再有 touchmove');
+  assert.match(src, /e\.touches\.length !== 1\) \{ if \(g\) end\(true\)/);
+  assert.match(src, /releaseSheet\(s, s\.y, cancelled \? 0 : velocityOf\(s\.samples\), cancelled\)/);
+  assert.match(src, /s\.layer === topLayer\(\)/);
+  assert.match(src, /stopExpand\(layer\);/);
+  assert.match(src, /#background-preview, \[data-nav-drag\]/);
+  assert.ok(!/attributes: true, attributeFilter: \['class'\], childList: true \}\);\n\}\n\n\/\* ── Z2/.test(src));
+  const mine = readFileSync(new URL('../views/mine.js', import.meta.url), 'utf8');
+  assert.match(mine, /id="background-preview" data-no-swipe-back/);
+  assert.match(mine, /data-nav-drag data-no-swipe-back/);
 });

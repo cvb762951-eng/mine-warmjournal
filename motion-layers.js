@@ -211,12 +211,23 @@ const EXPAND_TO = layer => {
 
 let pendingSource = null;           // { el, rect, at }
 const expanded = new WeakMap();      // layer → { source, title }
+const running = new WeakMap();       // layer → { anims, nodes }：还在跑的展开动画，收回时先停掉
+
+function stopExpand(layer) {
+  const r = running.get(layer);
+  if (!r) return;
+  running.delete(layer);
+  r.anims.forEach(a => safe(() => a.cancel()));
+  r.nodes.forEach(n => n.remove());
+  layer.classList.remove('pl-expand-in', 'pl-title-pending');
+}
 
 function rememberSource(event) {
   if (!on() || tier() === 'none') return;
   const el = event.target.closest?.(SOURCE);
   if (!el || el.closest(NO_EXPAND) || !el.closest('#app')) return;
-  pendingSource = { el, rect: el.getBoundingClientRect(), at: performance.now() };
+  // 按下时只记元素，位置在 click 时才量（按下不一定是点击，省一次强制布局）。
+  pendingSource = { el, rect: event.type === 'click' ? el.getBoundingClientRect() : null, at: performance.now() };
 }
 
 function textRect(el) {
@@ -273,7 +284,9 @@ function playExpand(layer) {
   pendingSource = null;
   if (!src || performance.now() - src.at > LAYER_MOTION.expand.waitMs || !moving()) return false;
   const viewport = { width: innerWidth, height: innerHeight };
-  if (!src.el.isConnected || !canExpandFrom(src.rect, viewport)) return false;
+  if (!src.el.isConnected) return false;
+  src.rect = src.rect || src.el.getBoundingClientRect();
+  if (!canExpandFrom(src.rect, viewport)) return false;
   const target = EXPAND_TO(layer);
   if (!target) return false;
   return Boolean(safe(() => {
@@ -282,12 +295,17 @@ function playExpand(layer) {
     const to = target.getBoundingClientRect();
     const ghost = makeGhost(to, src.el);
     src.el.classList.add('pl-expand-source');
-    flyTitle(src.el, layer);
-    ghost.animate([{ transform: ghostTransform(src.rect, to) }, { transform: 'none' }], { duration: E.ms, easing: E.ease, fill: 'both' })
-      .finished.catch(() => {}).then(() => ghost.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 100, fill: 'forwards' }).finished)
+    const title = flyTitle(src.el, layer);
+    const g1 = ghost.animate([{ transform: ghostTransform(src.rect, to) }, { transform: 'none' }], { duration: E.ms, easing: E.ease, fill: 'both' });
+    const f1 = layer.animate([{ opacity: 0 }, { opacity: 1 }], { duration: E.fadeMs, delay: E.fadeDelay, easing: 'cubic-bezier(.22,.61,.36,1)', fill: 'backwards' });
+    const rec = { anims: [g1, f1, title].filter(Boolean), nodes: [ghost] };
+    running.set(layer, rec);
+    g1.finished.then(() => ghost.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 100, fill: 'forwards' }).finished)
       .catch(() => {}).then(() => ghost.remove());
-    layer.animate([{ opacity: 0 }, { opacity: 1 }], { duration: E.fadeMs, delay: E.fadeDelay, easing: 'cubic-bezier(.22,.61,.36,1)', fill: 'backwards' })
-      .finished.catch(() => {}).then(() => layer.classList.remove('pl-expand-in'));
+    f1.finished.catch(() => {}).then(() => {
+      if (running.get(layer) === rec) running.delete(layer);
+      layer.classList.remove('pl-expand-in');
+    });
     expanded.set(layer, { source: src.el });
     return true;
   }));
@@ -296,6 +314,7 @@ function playExpand(layer) {
 function playCollapse(layer, info) {
   const E = LAYER_MOTION.expand;
   const source = info.source;
+  stopExpand(layer);                                              // 展开还没跑完就返回：先停掉，避免两个影子块
   const done = () => { source.classList.remove('pl-expand-source'); layer.classList.remove('pl-collapse-out'); };
   if (!moving() || !source.isConnected || layer.classList.contains('pl-swiped')) {
     // 右滑出去的页面不再缩回原卡：原卡 160ms 淡入。
@@ -337,18 +356,28 @@ function watchSubpages() {
       if (info) playCollapse(layer, info);
     }
   };
-  new MutationObserver(records => {
-    if (!on()) return;
-    for (const r of records) {
-      if (r.type === 'attributes' && r.target.classList?.contains('subpage-layer')) handle(r.target);
-      if (r.type === 'childList') r.addedNodes.forEach(n => n.classList?.contains('subpage-layer') && handle(n));
-    }
-  }).observe(document.body, { subtree: true, attributes: true, attributeFilter: ['class'], childList: true });
+  // 只盯 .subpage-layer 自己的 class；body 只看增删节点，不再监听全页所有元素的 class 变化。
+  const watched = new WeakSet();
+  const classes = new MutationObserver(records => { if (on()) records.forEach(r => handle(r.target)); });
+  const track = layer => {
+    if (watched.has(layer)) return;
+    watched.add(layer);
+    classes.observe(layer, { attributes: true, attributeFilter: ['class'] });
+    if (on()) handle(layer);
+  };
+  const scan = n => {
+    if (n.nodeType !== 1) return;
+    if (n.classList.contains('subpage-layer')) track(n);
+    n.querySelectorAll?.('.subpage-layer').forEach(track);
+  };
+  document.querySelectorAll('.subpage-layer').forEach(track);
+  new MutationObserver(records => records.forEach(r => r.addedNodes.forEach(scan)))
+    .observe(document.body, { subtree: true, childList: true });
 }
 
 /* ── Z2 右滑返回 ─────────────────────────────────────────────── */
 const BACK_BUTTON = '.subpage-back-btn, [data-subpage-close]';
-const NO_SWIPE = 'input, textarea, select, [contenteditable=""], [contenteditable="true"], [data-no-swipe-back], .journal-deck, .moment-album-stack, #moment-album-layer, video, canvas, img';
+const NO_SWIPE = 'input, textarea, select, [contenteditable=""], [contenteditable="true"], [data-no-swipe-back], #background-preview, [data-nav-drag], .journal-deck, .moment-album-stack, #moment-album-layer, video, canvas, img';
 
 function scrollsX(el, stop) {
   for (let n = el; n && n !== stop; n = n.parentElement) {
@@ -367,8 +396,15 @@ function paintSwipe(s, x) {
 
 function installSwipeBack() {
   let g = null;
+  let settle = null;                                              // 还在跑的回弹：{ stop, s }
+  const tidy = s => {
+    [s.layer, s.under, s.dim].forEach(el => { if (el) { el.style.transform = ''; el.style.opacity = ''; } });
+    s.layer.classList.remove('pl-swiping', 'pl-swiped');
+    shell()?.classList.remove('pl-swiping');
+  };
   document.addEventListener('pointerdown', e => {
     if (!on() || e.button > 0 || g) return;
+    if (settle) { const p = settle; settle = null; p.stop(); tidy(p.s); }   // 新手势先停掉上一次回弹，不再触发它的返回
     const layer = e.target.closest?.('.subpage-layer.active');
     if (!layer || layer !== topLayer() || document.querySelector('#modal-layer.open')) return;
     if (e.target.closest(NO_SWIPE) || scrollsX(e.target, layer)) return;
@@ -408,18 +444,19 @@ function installSwipeBack() {
     const v = e.type === 'pointercancel' ? 0 : velocityOf(s.samples);
     const done = e.type !== 'pointercancel' && swipeShouldComplete({ x: s.x, width: s.W, velocity: v });
     const S = LAYER_MOTION.swipe;
-    springTo(s.x, done ? s.W : 0, v, { stiffness: S.stiffness, damping: S.damping }, x => paintSwipe(s, x), () => {
-      if (done) {
+    const job = { s, stop: () => {} };
+    settle = job;
+    job.stop = springTo(s.x, done ? s.W : 0, v, { stiffness: S.stiffness, damping: S.damping }, x => paintSwipe(s, x), () => {
+      if (settle !== job) return;                                 // 已被新手势停掉
+      settle = null;
+      // 回弹期间可能已被实体返回键 / 点返回关掉：这一层不再是最上层就不再点返回，免得多关一层。
+      if (done && s.layer.classList.contains('active') && s.layer === topLayer()) {
         s.layer.classList.add('pl-swiped');                         // 跳过默认推出动画
         const back = s.layer.querySelector(BACK_BUTTON);
         if (back) back.click();
         else if (typeof globalThis.Mine?.closeSubpage === 'function') globalThis.Mine.closeSubpage();
       }
-      requestAnimationFrame(() => requestAnimationFrame(() => {
-        [s.layer, s.under, s.dim].forEach(el => { if (el) { el.style.transform = ''; el.style.opacity = ''; } });
-        s.layer.classList.remove('pl-swiping', 'pl-swiped');
-        shell()?.classList.remove('pl-swiping');
-      }));
+      requestAnimationFrame(() => requestAnimationFrame(() => tidy(s)));
     });
   };
   document.addEventListener('pointerup', end, { passive: true });
@@ -437,6 +474,17 @@ const SHEET_LAYER = '#modal-layer';
 const NO_DRAG = '.alarm-modal, .vault-feed-modal, .vault-video-preparing, .snippet-video-modal, [data-no-sheet-drag]';
 const NO_DRAG_TARGET = 'input[type="range"], textarea, [contenteditable=""], [contenteditable="true"], canvas, video, [data-no-sheet-drag]';
 
+let sheetMoveHook = () => {};
+
+/** 从触点往上查到 stop（含）：任何一层已经往下滚过就返回 true。 */
+export function scrolledWithin(el, stop) {
+  for (let n = el; n; n = n.parentElement) {
+    if (n.scrollTop > 0) return true;
+    if (n === stop) break;
+  }
+  return false;
+}
+
 function watchSheets() {
   let lastSheet = null;
   new MutationObserver(() => {
@@ -448,6 +496,7 @@ function watchSheets() {
       const bottom = Boolean(sheet && !sheet.matches(NO_DRAG) && getComputedStyle(layer).alignItems === 'flex-end' && sheet.offsetHeight < innerHeight * 0.97);
       root.classList.toggle('pl-sheet-open', bottom);
       layer?.classList.toggle('pl-sheet', bottom);
+      sheetMoveHook(bottom ? layer : null);
       if (sheet && sheet !== lastSheet) cascade(sheet, 'sheet');
       lastSheet = sheet;
     });
@@ -474,9 +523,20 @@ function closeSheetLikeScrim(layer) {
   layer.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
 }
 
-function releaseSheet(s, y, v) {
+let sheetSettle = null;                                           // 还在跑的弹层回弹：{ stop, s }
+
+function stopSheetSettle() {
+  if (!sheetSettle) return;
+  const p = sheetSettle;
+  sheetSettle = null;
+  p.stop();
+  clearSheet(p.s);
+}
+
+/** restore=true 表示手势被取消（多指 / 系统打断）：不关闭，回到起手时的位置。 */
+function releaseSheet(s, y, v, restore = false) {
   const S = LAYER_MOTION.sheet;
-  const { target, close } = sheetRelease({ y, velocity: v, geo: s.geo });
+  const { target, close } = restore ? { target: s.base, close: false } : sheetRelease({ y, velocity: v, geo: s.geo });
   if (close) {
     const ms = moving() ? sheetCloseMs(s.geo.closed - y, v) : 0;
     const opts = { duration: ms, easing: 'cubic-bezier(.2,.8,.2,1)', fill: 'forwards' };
@@ -498,7 +558,11 @@ function releaseSheet(s, y, v) {
     });
     return;
   }
-  springTo(y, target, v, { stiffness: S.stiffness, damping: S.damping }, yy => paintSheet(s, yy), () => {
+  const job = { s, stop: () => {} };
+  sheetSettle = job;
+  job.stop = springTo(y, target, v, { stiffness: S.stiffness, damping: S.damping }, yy => paintSheet(s, yy), () => {
+    if (sheetSettle !== job) return;
+    sheetSettle = null;
     if (s.geo.large !== s.geo.medium) s.sheet.dataset.plDetent = target === s.geo.large ? 'large' : 'medium';
     if (target === 0) clearSheet(s);
     else { s.scrim?.remove(); s.layer.classList.remove('pl-dragging'); root.classList.remove('pl-sheet-dragging'); }
@@ -509,12 +573,13 @@ function installSheetDrag() {
   let g = null;
   const start = (x, y, target, id, t) => {
     if (!on() || g) return;
+    stopSheetSettle();
     const layer = target.closest?.(`${SHEET_LAYER}.open.pl-sheet`);
     const sheet = layer && target.closest('.modal');
     if (!sheet || sheet.parentElement !== layer || target.closest(NO_DRAG_TARGET)) return;
     const r = sheet.getBoundingClientRect();
     const inHead = y - r.top <= LAYER_MOTION.sheet.head;
-    if (!inHead && sheet.scrollTop > 0) return;
+    if (!inHead && scrolledWithin(target, sheet)) return;      // 面板或里面任何一层列表没滚到顶，先让它滚
     const geo = sheetGeometry({ height: sheet.offsetHeight, viewport: innerHeight, detents: Boolean(sheet.dataset.plDetents) });
     const base = sheet.dataset.plDetent === 'medium' ? geo.medium : geo.large;
     g = { layer, sheet, geo, base, inHead, x0: x, y0: y, id, locked: false, samples: [[t, base]], y: base, raf: 0 };
@@ -551,22 +616,31 @@ function installSheetDrag() {
     if (s.raf) cancelAnimationFrame(s.raf);
     if (!s.locked) return;
     swallowNextClick();
-    releaseSheet(s, s.y, cancelled ? 0 : velocityOf(s.samples));
+    releaseSheet(s, s.y, cancelled ? 0 : velocityOf(s.samples), cancelled);
   };
+  const ownTouch = e => g && [...e.changedTouches].some(tt => tt.identifier === g.id);
 
   // 触摸走 touch 事件：只有它能在接管时 preventDefault 掉面板自己的滚动。
   document.addEventListener('touchstart', e => {
-    if (e.touches.length !== 1) { g = null; return; }
+    if (e.touches.length !== 1) { if (g) end(true); return; }   // 第二根手指：按取消收回遮罩和位移
     const t = e.touches[0];
     start(t.clientX, t.clientY, e.target, t.identifier, e.timeStamp);
   }, { capture: true, passive: true });
-  document.addEventListener('touchmove', e => {
+  // 非 passive 的 touchmove 只在贴底弹层打开时挂在 #modal-layer 上，平时不拖慢页面滚动。
+  const onMove = e => {
     if (!g) return;
     const t = [...e.changedTouches].find(tt => tt.identifier === g.id);
     if (t) move(t.clientX, t.clientY, e.timeStamp, () => e.cancelable && e.preventDefault());
-  }, { capture: true, passive: false });
-  document.addEventListener('touchend', () => end(false), { capture: true, passive: true });
-  document.addEventListener('touchcancel', () => end(true), { capture: true, passive: true });
+  };
+  let host = null;
+  sheetMoveHook = layer => {
+    if (layer === host) return;
+    host?.removeEventListener('touchmove', onMove, { capture: true });
+    host = layer;
+    host?.addEventListener('touchmove', onMove, { capture: true, passive: false });
+  };
+  document.addEventListener('touchend', e => { if (ownTouch(e)) end(false); }, { capture: true, passive: true });   // 只在最早那根手指抬起时结束
+  document.addEventListener('touchcancel', e => { if (ownTouch(e)) end(true); }, { capture: true, passive: true });
 
   // 鼠标（电脑上看预览页）走 pointer。
   document.addEventListener('pointerdown', e => { if (e.pointerType === 'mouse' && e.button === 0) start(e.clientX, e.clientY, e.target, 'mouse', e.timeStamp); }, { capture: true, passive: true });
