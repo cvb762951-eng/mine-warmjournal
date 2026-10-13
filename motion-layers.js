@@ -18,6 +18,7 @@
  * ========================================================================== */
 import { SpringODE, prefersReducedMotion } from './motion.js';
 import { installVaultMotion } from './motion-vault.js';
+import { installMomentsMotion } from './motion-moments.js';
 
 /* ── 参数（照抄方案 9.1）──────────────────────────────────────────── */
 export const LAYER_MOTION = {
@@ -722,6 +723,7 @@ export function installLayerMotion() {
     installSwipeBack();
     installSheetDrag();
     installVaultMotion();
+    installMomentsMotion();
   });
 }
 
