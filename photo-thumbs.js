@@ -198,5 +198,26 @@ export function watchThumbImages(scope = typeof document !== 'undefined' ? docum
   });
 }
 
+/** 恢复备份后清掉整个缩略图缓存（原图文件可能已被同名替换，旧缩略图会过期）。
+ *  只删 Directory.Data/MineWarmJournalThumbs 和 IndexedDB mine_warmjournal_thumbs，绝不碰媒体 / 私密空间目录。
+ *  永不抛错：清不掉也只是继续用旧缓存或原图，不能让恢复失败。 */
+export async function clearThumbCache() {
+  thumbUrls.forEach(url => { if (String(url).startsWith('blob:')) { try { URL.revokeObjectURL(url); } catch { /* ignore */ } } });
+  thumbUrls.clear(); failed.clear(); queue.length = 0; queued.clear();
+  try {
+    if (Capacitor.isNativePlatform()) {
+      await Filesystem.rmdir({ path: THUMB_ROOT, directory: Directory.Data, recursive: true });
+    } else if (typeof indexedDB !== 'undefined') {
+      const db = await dbPromise?.catch(() => null);
+      db?.close?.();
+      dbPromise = null;
+      await new Promise(resolve => {
+        const req = indexedDB.deleteDatabase(THUMB_DB);
+        req.onsuccess = req.onerror = req.onblocked = () => resolve();
+      });
+    }
+  } catch { /* 目录不存在或删不掉：忽略 */ }
+}
+
 /** 测试用 */
 export function _resetThumbsForTest() { thumbUrls.clear(); failed.clear(); queue.length = 0; queued.clear(); running = false; }

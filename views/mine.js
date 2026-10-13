@@ -6,6 +6,7 @@ import { createSafetySnapshot, listSafetySnapshots, readSafetySnapshot, storageH
 import { mediaHealth, externalizeStateMedia } from '../media-store.js';
 import { aiKeyStorageMode } from '../ai-key-vault.js';
 import { clearJournalDraftCache } from '../journal-drafts.js';
+import { clearThumbCache } from '../photo-thumbs.js';
 import { Capacitor } from '@capacitor/core';
 import { describeReminderStatus } from './reminder-status.js';
 import { getReminderStatus, openExactAlarmSettings, openNotificationSettings } from '../notifications.js';
@@ -1032,6 +1033,8 @@ registerSubmitHandler('restore-form', async (data, form) => {
     const persisted = await replaceState(state);
     await finalizeImportedBackup();
     clearJournalDraftCache();
+    // 原生恢复会同名替换媒体文件，旧缩略图可能对不上；清缓存失败不影响恢复结果。
+    await clearThumbCache().catch(() => {});
     closeModal(); render(); show('数据恢复完成');
     notifyPersistedKeySeal(persisted);
   } catch (error) {
