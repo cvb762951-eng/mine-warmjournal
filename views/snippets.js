@@ -7,6 +7,7 @@ import { makeSnippet, makeTodo, snippetEntries, dateKey, WEEK_DAYS, activeStreak
 import { photoViewer, micButtonHtml, bindVoiceInput } from './common.js';
 import { compressSnippetPhoto, captureVideoFrame, importPhotoBatch, isSupportedJournalPhoto } from '../photo-utils.js';
 import { livePhotoMarkHtml, photosWithLiveMotion } from '../motion-photo.js';
+import { thumbSource, thumbKeyFor, watchThumbImages } from '../photo-thumbs.js';
 import { mediaSource, saveMediaFile, saveNativeMediaSource } from '../media-store.js';
 import { attachVideoSource, formatVideoDuration, isHlsAddress, normalizeHlsAddress, presentWatchSession, summarizeWatchSession } from '../video-player.js';
 import { showVideoFramePicker } from '../video-frame-picker.js';
@@ -167,8 +168,10 @@ function snippetStreamCard(item) {
    两层用同一个地址，浏览器只下载一次 —— 不额外占存储，也不用重新处理图片。
    （与私密相册封面的做法一致，见 private-vault.js 的 vaultCoverImage。） */
 function snippetCoverImage(source, alt = '') {
-  const url = imgSrc(source);
-  return photoFrameLayersHtml(url, { alt, padClass: 'snippet-cover-blur', stillClass: 'snippet-cover-main', lazy: true });
+  // 列表封面：有缩略图用缩略图，没有回退原图（大图浏览 / 导出仍用原图）。
+  const thumbRef = thumbKeyFor(source) ? source : '';
+  const url = thumbRef ? esc(thumbSource(source)) : imgSrc(source);
+  return photoFrameLayersHtml(url, { alt, padClass: 'snippet-cover-blur', stillClass: 'snippet-cover-main', lazy: true, thumbRef });
 }
 
 /* 照片格用同一套做法（2026-10-09 用户要求「竖屏照片也按这个风格处理」）：
@@ -178,9 +181,10 @@ function snippetCoverImage(source, alt = '') {
    两层同地址，浏览器只下载一次，不额外占存储。
    注意：上层用 position 但不给 z-index，靠 DOM 顺序压住虚化层，
    这样后面那个「+N」遮罩（同样是定位元素、且排在更后）才能正常盖在最上面。 */
-function snippetPhotoImage(source, alt = '') {
-  const url = imgSrc(source);
-  return photoFrameLayersHtml(url, { alt, padClass: 'snippet-photo-blur', stillClass: 'snippet-photo-main', lazy: true });
+function snippetPhotoImage(source, alt = '', { thumb = false } = {}) {
+  const thumbRef = thumb && thumbKeyFor(source) ? source : '';
+  const url = thumbRef ? esc(thumbSource(source)) : imgSrc(source);
+  return photoFrameLayersHtml(url, { alt, padClass: 'snippet-photo-blur', stillClass: 'snippet-photo-main', lazy: true, thumbRef });
 }
 
 function snippetHasLive(entry) {
@@ -189,7 +193,7 @@ function snippetHasLive(entry) {
 
 function snippetPhotoMosaic(entry, photos) {
   const visible = photos.slice(0, 5);
-  return `<div class="snippet-photo-mosaic count-${Math.min(visible.length, 5)}" aria-label="${photos.length} 张照片">${visible.map((photo, index) => `<button type="button" class="photo-blur-frame is-edge snippet-photo-tile" data-view-snippet-photo="${entry.id}" data-photo-index="${index}" aria-label="查看第 ${index + 1} 张照片">${snippetPhotoImage(photo, entry.text || `随手拍 ${index + 1}`)}${photoHasLiveMark(photo, entry.livePhotos)}${index === visible.length - 1 && photos.length > visible.length ? `<span class="snippet-photo-more">+${photos.length - visible.length}</span>` : ''}</button>`).join('')}</div>`;
+  return `<div class="snippet-photo-mosaic count-${Math.min(visible.length, 5)}" aria-label="${photos.length} 张照片">${visible.map((photo, index) => `<button type="button" class="photo-blur-frame is-edge snippet-photo-tile" data-view-snippet-photo="${entry.id}" data-photo-index="${index}" aria-label="查看第 ${index + 1} 张照片">${snippetPhotoImage(photo, entry.text || `随手拍 ${index + 1}`, { thumb: true })}${photoHasLiveMark(photo, entry.livePhotos)}${index === visible.length - 1 && photos.length > visible.length ? `<span class="snippet-photo-more">+${photos.length - visible.length}</span>` : ''}</button>`).join('')}</div>`;
 }
 
 function photoHasLiveMark(still, livePhotos) {
@@ -2007,3 +2011,10 @@ registerHelper('isMomentAlbumOpen', isMomentAlbumOpen);
 registerHelper('closeMomentAlbum', closeMomentAlbum);
 registerHelper('closeVideoPlayer', stopActiveVideoPlayer);
 registerHelper('playSnippetVideo', playSnippetVideo);
+
+// 列表缩略图：进页面后只给看得到的卡片在空闲时补，不在渲染这一帧做任何解码。
+registerOnRender(() => {
+  if (state.route !== 'snippets') return;
+  const scope = document.getElementById('screen-snippets');
+  if (scope) watchThumbImages(scope);
+});
