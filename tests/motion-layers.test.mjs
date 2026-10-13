@@ -156,3 +156,19 @@ test('弹层关闭锁拖动，回弹中途从当前位置接着拖', () => {
   assert.match(src, /base = decision\.y/);
   assert.doesNotMatch(src, /const start = \(x, y, target, id, t\) => \{\n    if \(!on\(\) \|\| g\) return;\n    stopSheetSettle\(\);/);
 });
+
+test('Z1 收回不让 #app 左移回弹：pending/open 标记与收尾顺序', () => {
+  const src = readFileSync(new URL('../motion-layers.js', import.meta.url), 'utf8');
+  const css = readFileSync(new URL('../themes-plain-light.css', import.meta.url), 'utf8');
+  assert.match(src, /markZ1Pending\(\)/);
+  assert.match(src, /markZ1Open\(\)/);
+  assert.match(src, /clearZ1\(\)/);
+  assert.match(src, /ghost\.style\.willChange = 'auto'/);
+  assert.match(src, /layer\.style\.opacity = '0'/);
+  assert.match(src, /revealSource\(\)/);
+  // 左移 / 遮罩只给普通推入，Z1 打开时排除
+  assert.match(css, /:has\(\.subpage-layer\.active\):not\(\.pl-z1-open\):not\(\.pl-z1-pending\) > \.pl-subpage-dim/);
+  assert.match(css, /:has\(\.subpage-layer\.active\):not\(\.pl-z1-open\):not\(\.pl-z1-pending\) > #app/);
+  // 旧的「凡 active 就左移」写法不能再出现，否则收回仍会卡
+  assert.doesNotMatch(css, /\.phone-shell:has\(\.subpage-layer\.active\) > #app \{ transform: translate3d\(-20%/);
+});

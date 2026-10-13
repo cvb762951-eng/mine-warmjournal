@@ -1475,6 +1475,13 @@
   /* 柔角：和今日页卡片（16px 一档）对齐的中等圆角 */
   --radius-soft: 14px;
   --radius-soft-sm: 8px;
+  --pl-spring-snappy: linear(0, 0.0811 4.2%, 0.2578 8.3%, 0.4613 12.5%, 0.6460 16.7%, 0.8003 20.8%, 0.9133 25%, 0.9874 29.2%, 1.0290 33.3%, 1.0482 37.5%, 1.0517 41.7%, 1.0462 45.8%, 1.0367 50%, 1.0262 54.2%, 1.0167 58.3%, 1.0091 62.5%, 1.0037 66.7%, 1.0002 70.8%, 0.9982 75%, 0.9974 79.2%, 0.9973 83.3%, 0.9977 87.5%, 0.9982 91.7%, 0.9987 95.8%, 1);
+  --pl-ease-out: cubic-bezier(.22, .61, .36, 1);
+  --pl-ease-in: cubic-bezier(.4, 0, 1, 1);
+  /* 签名 / 随手拍弹簧（方案 8.1）；不支持 linear() 时整条无效，动画退回 emph */
+  --pl-spring-magnet: linear(0, 0.0882 4.2%, 0.2846 8.3%, 0.5130 12.5%, 0.7199 16.7%, 0.8878 20.8%, 1.0037 25%, 1.0707 29.2%, 1.0984 33.3%, 1.0994 37.5%, 1.0842 41.7%, 1.0619 45.8%, 1.0395 50%, 1.0199 54.2%, 1.0053 58.3%, 0.9959 62.5%, 0.9911 66.7%, 0.9897 70.8%, 0.9905 75%, 0.9925 79.2%, 0.9948 83.3%, 0.9970 87.5%, 0.9987 91.7%, 1.0000 95.8%, 1);
+  --pl-ease-emph: cubic-bezier(.32, .72, 0, 1);
+  --pl-shadow-float: 0 2px 6px rgba(46, 52, 59, 0.05), 0 16px 36px rgba(46, 52, 59, 0.12);
 }
 
 /* ---------------------------------------------------------------------------
@@ -2650,15 +2657,17 @@ button.danger) {
 :root[data-theme="plain"] .subpage-layer { box-shadow: -12px 0 32px rgba(46, 52, 59, 0.08); }
 :root[data-theme="plain"] .subpage-layer:not(.active):not(.pl-collapse-out) { box-shadow: none; }
 
-/* Z2 / S3：二级页推入时底页左移 20%（rich），盖一层只动 opacity 的 12% 遮罩 */
+/* Z2 / S3：二级页推入时底页左移 20%（rich），盖一层只动 opacity 的 12% 遮罩。
+   Z1 原位展开（.pl-z1-pending / .pl-z1-open）不加左移与遮罩：方案里左移只给「推入」，
+   收回时若 #app 从 -20% 弹回，会和固定定位的幽灵抢位置，收完回主页那一下就会卡。 */
 :root[data-theme="plain"] .phone-shell > .pl-subpage-dim {
   position: absolute; inset: 0; z-index: 159; pointer-events: none;
   background: rgba(46, 52, 59, 0.12); opacity: 0;
   transition: opacity 350ms cubic-bezier(.16, 1, .3, 1);
 }
-:root[data-theme="plain"] .phone-shell:has(.subpage-layer.active) > .pl-subpage-dim { opacity: 1; }
+:root[data-theme="plain"] .phone-shell:has(.subpage-layer.active):not(.pl-z1-open):not(.pl-z1-pending) > .pl-subpage-dim { opacity: 1; }
 :root[data-theme="plain"] .phone-shell > #app { transition: transform 350ms cubic-bezier(.16, 1, .3, 1); }
-:root[data-theme="plain"][data-pl-motion="rich"] .phone-shell:has(.subpage-layer.active) > #app { transform: translate3d(-20%, 0, 0); }
+:root[data-theme="plain"][data-pl-motion="rich"] .phone-shell:has(.subpage-layer.active):not(.pl-z1-open):not(.pl-z1-pending) > #app { transform: translate3d(-20%, 0, 0); }
 :root[data-theme="plain"] .subpage-layer:is(.pl-swiping, .pl-swiped) { transition: none !important; }
 :root[data-theme="plain"] .phone-shell.pl-swiping > :is(#app, .pl-subpage-dim) { transition: none !important; }
 
@@ -2804,4 +2813,175 @@ button.danger) {
   :root[data-theme="plain"] .vault-lock-paper.pv-nudge,
   :root[data-theme="plain"] .vault-item.pv-pop,
   :root[data-theme="plain"] .vault-item.selected { animation: none !important; }
+}
+
+/* ==========================================================================
+   三十三 · 确认框与小弹窗（motion-dialogs.js · 方案 #36 §9.7–9.11 Z5–Z9）
+   清简主题。点确认框遮罩不关闭，走 Z8 轻推。返回箭头选择器是 .subpage-back-btn。
+   ========================================================================== */
+
+/* Z5 确认框：居中卡片 */
+:root[data-theme="plain"] #modal-layer .modal.confirm-sheet {
+  position: fixed; left: 50%; top: 50%; bottom: auto; right: auto; margin: 0;
+  width: min(320px, calc(100% - 48px)); max-width: min(320px, calc(100% - 48px));
+  border-radius: 22px; padding: 20px;
+  box-shadow: var(--pl-shadow-float, 0 16px 36px rgba(46, 52, 59, 0.12));
+  transform: translate(-50%, -50%) scale(.98); opacity: 0;
+  transition: transform 140ms var(--pl-ease-in, ease-in), opacity 140ms var(--pl-ease-in, ease-in);
+  align-self: center;
+}
+:root[data-theme="plain"] #modal-layer.open .modal.confirm-sheet {
+  transform: translate(-50%, -50%); opacity: 1;
+  animation: pl-dialog-in 200ms var(--pl-ease-out, ease) both;
+}
+:root[data-theme="plain"][data-pl-motion="none"] #modal-layer.open .modal.confirm-sheet { animation: none; }
+@keyframes pl-dialog-in { 0% { opacity: 0; transform: translate(-50%, -50%) scale(.96); } }
+:root[data-theme="plain"][data-pl-motion="rich"] #modal-layer:has(.confirm-sheet),
+:root[data-theme="plain"][data-pl-motion="rich"] #modal-layer.pl-confirm-open {
+  background: rgba(46, 52, 59, .24);
+  -webkit-backdrop-filter: blur(10px) saturate(1.1);
+  backdrop-filter: blur(10px) saturate(1.1);
+}
+:root[data-theme="plain"]:not([data-pl-motion="rich"]) #modal-layer:has(.confirm-sheet),
+:root[data-theme="plain"]:not([data-pl-motion="rich"]) #modal-layer.pl-confirm-open {
+  background: rgba(46, 52, 59, .40);
+  -webkit-backdrop-filter: none; backdrop-filter: none;
+}
+:root[data-theme="plain"] #modal-layer .confirm-sheet .danger-icon {
+  animation: pl-pop-in 160ms var(--pl-ease-out, ease) 60ms both;
+}
+:root[data-theme="plain"][data-pl-motion="none"] #modal-layer .confirm-sheet .danger-icon { animation: none; }
+@keyframes pl-pop-in { 0% { opacity: 0; transform: scale(.9); } }
+:root[data-theme="plain"] #modal-layer .confirm-sheet .danger {
+  background: var(--pl-danger); color: var(--plain-surface); border-color: transparent;
+}
+
+/* Z6 二级页叠层：非最上层左移 20% */
+:root[data-theme="plain"][data-pl-motion="rich"] .subpage-layer.active:has(~ .subpage-layer.active) {
+  transform: translate3d(-20%, 0, 0);
+  transition: transform 350ms cubic-bezier(.16, 1, .3, 1);
+}
+:root[data-theme="plain"][data-pl-motion="rich"] .subpage-layer.active:has(~ .subpage-layer.active)::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: rgba(46, 52, 59, 0.12);
+}
+
+/* Z7 锚点菜单（日记牌组 ⋯ 不加 .pl-popover，保持原样） */
+:root[data-theme="plain"] .pl-popover { transform-origin: var(--pl-origin, 100% 0); }
+:root[data-theme="plain"]:not([data-pl-motion="none"]) .pl-popover.open {
+  animation: pl-pop-menu 180ms var(--pl-ease-out, ease) both;
+}
+:root[data-theme="plain"]:not([data-pl-motion="none"]) .pl-popover.open > * {
+  animation: pl-rise 160ms var(--pl-ease-out, ease) backwards;
+  animation-delay: calc(40ms + var(--pl-ci, 0) * 18ms);
+}
+:root[data-theme="plain"]:not([data-pl-motion="none"]) .pl-popover.closing {
+  animation: pl-pop-out 120ms var(--pl-ease-in, ease) both;
+}
+@keyframes pl-pop-menu { 0% { opacity: 0; transform: scale(.92); } }
+@keyframes pl-pop-out { 100% { opacity: 0; transform: scale(.96); } }
+
+/* Z8 防误关轻推 */
+:root[data-theme="plain"] .modal.confirm-sheet.pl-nudge {
+  animation: pl-nudge-dialog 260ms var(--pl-spring-snappy, var(--pl-ease-emph, ease));
+}
+:root[data-theme="plain"] .modal.pl-nudge:not(.confirm-sheet) {
+  animation: pl-nudge-sheet 260ms var(--pl-spring-snappy, var(--pl-ease-emph, ease));
+}
+@keyframes pl-nudge-dialog { 50% { transform: translate(-50%, -50%) scale(1.02); } }
+@keyframes pl-nudge-sheet { 50% { transform: translate3d(0, 8px, 0); } }
+
+/* Z9 返回箭头（main 上是 .subpage-back-btn，不是方案里的 .subpage-back） */
+:root[data-theme="plain"] .subpage-back-btn .material-symbols-outlined {
+  transition: transform 420ms var(--spring-release, cubic-bezier(.32, .72, 0, 1));
+}
+:root[data-theme="plain"] .subpage-back-btn[data-pressed] .material-symbols-outlined {
+  transform: translateX(-3px); transition-duration: 90ms;
+}
+:root[data-theme="plain"][data-pl-motion="none"] .subpage-back-btn .material-symbols-outlined { transition: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  :root[data-theme="plain"] #modal-layer.open .modal.confirm-sheet { animation: none !important; }
+  :root[data-theme="plain"] .pl-popover.open,
+  :root[data-theme="plain"] .pl-popover.open > *,
+  :root[data-theme="plain"] .modal.pl-nudge { animation: none !important; }
+  :root[data-theme="plain"] .subpage-back-btn .material-symbols-outlined { transition: none !important; }
+}
+
+/* ==========================================================================
+   三十二 · 随手拍动效（motion-moments.js · 方案 #36 第 10.5–10.8 节 M1–M4）
+   只旁听 DOM。照片飞行只用 translate + 单一 scale。不做「收成一叠」。
+   100 张上限与保存流程仍在 views/snippets.js，此处不改。
+   ========================================================================== */
+:root[data-theme="plain"] body > .pl-fly-photo,
+:root[data-theme="plain"] .pl-fly-photo {
+  position: fixed; z-index: 2147483000; object-fit: contain; transform-origin: 0 0;
+  pointer-events: none; will-change: transform; box-shadow: var(--pl-shadow-float, 0 16px 36px rgba(46, 52, 59, 0.12));
+}
+
+/* M2 新卡到达 */
+:root[data-theme="plain"]:not([data-pl-motion="none"]) .snippet-item-card.pl-arrive {
+  animation: pl-moments-arrive 220ms var(--pl-ease-out, cubic-bezier(.22,.61,.36,1)) 100ms backwards;
+}
+@keyframes pl-moments-arrive { from { opacity: 0; transform: translate3d(0, 10px, 0); } }
+
+/* M3 滚动分层淡入：只动照片框里两张 img 与文字区的 opacity / transform */
+:root[data-theme="plain"] .snippet-item-card.pl-pre.pl-layers .photo-blur-pad { opacity: 0 !important; }
+:root[data-theme="plain"] .snippet-item-card.pl-pre.pl-layers .photo-blur-still {
+  opacity: 0; transform: scale(.985);
+}
+:root[data-theme="plain"] .snippet-item-card.pl-pre.pl-layers .snippet-item-meta,
+:root[data-theme="plain"] .snippet-item-card.pl-pre.pl-layers .snippet-item-text,
+:root[data-theme="plain"] .snippet-item-card.pl-pre.pl-layers .snippet-item-actions {
+  opacity: 0; transform: translate3d(0, 6px, 0);
+}
+:root[data-theme="plain"] .snippet-item-card.pl-pre.pl-flat { opacity: 0; }
+:root[data-theme="plain"] .snippet-item-card.pl-in.pl-layers .photo-blur-pad {
+  opacity: .5 !important;
+  transition: opacity 200ms var(--pl-ease-out, ease) var(--pl-lag, 0ms);
+}
+:root[data-theme="plain"] .snippet-item-card.pl-in.pl-layers .photo-blur-still {
+  opacity: 1; transform: none;
+  transition: opacity 300ms var(--pl-ease-out, ease) calc(var(--pl-lag, 0ms) + 60ms),
+              transform 300ms var(--pl-ease-out, ease) calc(var(--pl-lag, 0ms) + 60ms);
+}
+:root[data-theme="plain"] .snippet-item-card.pl-in.pl-layers .snippet-item-meta,
+:root[data-theme="plain"] .snippet-item-card.pl-in.pl-layers .snippet-item-text,
+:root[data-theme="plain"] .snippet-item-card.pl-in.pl-layers .snippet-item-actions {
+  opacity: 1; transform: none;
+  transition: opacity 220ms var(--pl-ease-out, ease) calc(var(--pl-lag, 0ms) + 110ms),
+              transform 220ms var(--pl-ease-out, ease) calc(var(--pl-lag, 0ms) + 110ms);
+}
+:root[data-theme="plain"] .snippet-item-card.pl-in.pl-flat {
+  opacity: 1; transition: opacity 220ms var(--pl-ease-out, ease) var(--pl-lag, 0ms);
+}
+
+/* M4 长按浮起：阴影只补间 opacity，不补间 box-shadow */
+:root[data-theme="plain"] .snippets-view .snippet-item-card {
+  position: relative;
+  -webkit-touch-callout: none;
+  transition: transform 420ms var(--spring-release, cubic-bezier(.32,.72,0,1));
+}
+:root[data-theme="plain"] .snippets-view .snippet-item-card::after {
+  content: ''; position: absolute; inset: 0; border-radius: inherit;
+  box-shadow: var(--pl-shadow-float, 0 16px 36px rgba(46, 52, 59, 0.12));
+  opacity: 0; pointer-events: none;
+  transition: opacity 260ms var(--pl-ease-out, ease);
+}
+:root[data-theme="plain"] .snippets-view .snippet-item-card.pl-lifted {
+  transform: translate3d(0, -4px, 0) scale(1.012);
+  transition: transform 180ms var(--pl-ease-out, ease);
+  z-index: 2;
+}
+:root[data-theme="plain"] .snippets-view .snippet-item-card.pl-lifted::after { opacity: 1; }
+:root[data-theme="plain"][data-pl-motion="none"] .snippets-view .snippet-item-card { transition: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  :root[data-theme="plain"] .snippet-item-card.pl-arrive { animation: none !important; }
+  :root[data-theme="plain"] .snippet-item-card.pl-pre .photo-blur-pad,
+  :root[data-theme="plain"] .snippet-item-card.pl-pre .photo-blur-still,
+  :root[data-theme="plain"] .snippet-item-card.pl-pre .snippet-item-meta,
+  :root[data-theme="plain"] .snippet-item-card.pl-pre .snippet-item-text,
+  :root[data-theme="plain"] .snippet-item-card.pl-pre .snippet-item-actions,
+  :root[data-theme="plain"] .snippet-item-card.pl-pre.pl-flat { opacity: 1 !important; transform: none !important; transition: none !important; }
 }

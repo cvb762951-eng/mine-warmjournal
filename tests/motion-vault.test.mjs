@@ -136,6 +136,14 @@ test('锁定过渡不克隆已解锁页面', () => {
   assert.equal(shieldShouldHold({ hiddenMs: 300, locked: false, waitedMs: 0 }), true);
   assert.equal(shieldShouldHold({ hiddenMs: 400, locked: true, waitedMs: 0 }), false);
   assert.equal(shieldShouldHold({ hiddenMs: 400, locked: false, waitedMs: 600 }), false);
+  assert.equal(shieldShouldHold({ hiddenMs: 400, locked: false, waitedMs: 0, passwordless: true }), false);
+  assert.equal(shieldShouldHold({ hiddenMs: 900, locked: false, waitedMs: 0, passwordless: true }), false);
+  assert.equal(shieldShouldHold({ hiddenMs: 400, locked: false, waitedMs: 0, passwordless: false }), true);
+  const vis = motion.slice(motion.indexOf('function passwordlessThisRun'), motion.indexOf('function onDown'));
+  assert.match(vis, /getElementById\('vault-passwordless'\)/);
+  assert.match(vis, /getAttribute\('aria-pressed'\) === 'true'/);
+  assert.match(vis, /if \(passwordless\) \{\s*hideShield\(false\);\s*return;\s*\}/);
+  assert.match(vis, /shieldWait = requestAnimationFrame\(tick\)/);
   for (const css of [plain, light]) {
     const block = css.slice(css.indexOf('三十一 · 私密空间动效'));
     assert.match(block, /blur\(8px\)/);
