@@ -808,6 +808,8 @@ html.showfps #fps { display: block; }
 .real-shot img{display:block;width:100%;max-width:260px;height:auto;border-radius:14px;box-shadow:0 2px 10px rgba(46,52,59,.1)}
 .m5-reel{width:195px;height:222px;border-radius:14px;box-shadow:0 2px 10px rgba(46,52,59,.1);background:url(gemini-assets/m5-strip.jpg) 0 0/2535px 222px no-repeat;animation:m5reel 1.6s steps(13) infinite}
 @keyframes m5reel{to{background-position:-2535px 0}}
+.s-reel{width:195px;border-radius:14px;box-shadow:0 2px 10px rgba(46,52,59,.1);background-repeat:no-repeat;background-position:0 0;animation:sreel var(--t) steps(var(--n)) infinite}
+@keyframes sreel{to{background-position:var(--x) 0}}
 </style>
 </head>
 <body>
@@ -895,6 +897,8 @@ html.showfps #fps { display: block; }
   <div class="sigs" id="landedP"></div>
   <h3 class="stars-h">#39 随手拍多图翻牌（已在 main）</h3>
   <div class="sigs" id="landedM5"></div>
+  <h3 class="stars-h">签名动效 S1、S4–S12（草稿 PR，叠在 #51 上）</h3>
+  <div class="sigs" id="landedS"></div>
 </section>
 
 <section class="blk">
@@ -2247,7 +2251,7 @@ html.showfps #fps { display: block; }
     ['g8', 'G8', 'Toast 实色落位', '实色墨块 rgba(46,52,59,.92)、不模糊，translateY 8px + opacity。', '200ms --pl-ease-out', '', () => phoneDemo('today', async p => { $('[data-act="toast"]', p)?.click(); }, 500), G47, '#47'],
   ];
   function renderLanded(id, list) {
-    $(id).innerHTML = list.map(([a, n, t, d, spec, tier, , url, pr, shot], i) => `<div class="sig-c" id="${a}"><h4><span><i>${n}</i>${t}${tier ? '<span class="tier">rich</span>' : ''}</span><button data-land="${i}">在手机里看</button></h4><p>${d}</p>${shot === 'm5' ? '<div class="real-shot"><small>App 真实代码录制（390px 无头 Chrome，左滑翻下一张）</small><div class="m5-reel"></div></div>' : shot ? `<div class="real-shot"><small>App 真实 CSS 截图（390px 无头 Chrome）</small><img loading="lazy" src="gemini-assets/${shot}" alt=""></div>` : ''}<div class="spec">${spec}</div><p style="margin:8px 0 0;font-size:12px"><b>${pr}</b>${url ? ` · <a href="${url}" target="_blank" rel="noopener">App 代码预览 ↗</a>` : ''} · <a href="#${a}">#${a}</a></p></div>`).join('');
+    $(id).innerHTML = list.map(([a, n, t, d, spec, tier, , url, pr, shot], i) => `<div class="sig-c" id="${a}"><h4><span><i>${n}</i>${t}${tier ? '<span class="tier">rich</span>' : ''}</span><button data-land="${i}">在手机里看</button></h4><p>${d}</p>${String(shot).startsWith('reel:') ? (([, f, n, w, h, t, cap]) => `<div class="real-shot"><small>App 真实代码录制（390px 无头 Chrome，${cap}）</small><div class="s-reel" style="height:${h}px;background-image:url(gemini-assets/${f}.jpg);background-size:${w}px ${h}px;--x:-${w}px;--n:${n};--t:${t}"></div></div>`)(shot.split(':')) : shot === 'm5' ? '<div class="real-shot"><small>App 真实代码录制（390px 无头 Chrome，左滑翻下一张）</small><div class="m5-reel"></div></div>' : shot ? `<div class="real-shot"><small>App 真实 CSS 截图（390px 无头 Chrome）</small><img loading="lazy" src="gemini-assets/${shot}" alt=""></div>` : ''}<div class="spec">${spec}</div><p style="margin:8px 0 0;font-size:12px"><b>${pr}</b>${url ? ` · <a href="${url}" target="_blank" rel="noopener">App 代码预览 ↗</a>` : ''} · <a href="#${a}">#${a}</a></p></div>`).join('');
     $(id).addEventListener('click', e => { const b = e.target.closest('[data-land]'); if (b) list[Number(b.dataset.land)][6](); });
   }
   const LANDED_T = [
@@ -2269,6 +2273,21 @@ html.showfps #fps { display: block; }
   const LANDED_M5 = [
     ['m5', 'M5', '多图翻牌（图集一叠牌）', '随手拍多图卡点「查看照片」→ 图集一叠牌，左右拖动翻下一张，照片等比 contain 不拉伸；翻页阈值保持 #39 的规则（约 86px）。下面是 app 真实代码录的帧。', 'views/snippets.js flipMomentAlbum · 真实入口 [data-view-snippet-photo] → openMomentMediaBrowse', '', () => { const r = $('#m5 .m5-reel'); if (r) { r.style.animation = 'none'; void r.offsetWidth; r.style.animation = ''; } }, '', '#39', 'm5'],
   ];
+  const PS = '#53';
+  const reReel = id => { const r = document.querySelector(`#${id} .s-reel`); if (r) { r.style.animation = 'none'; void r.offsetWidth; r.style.animation = ''; } };
+  const LANDED_S = [
+    ['s1', 'S1', '刊头晨光', '今日刊头五行（期号、年份、大日期、星期、格言）从各自的遮罩里升起，格言下短横线从左画出。每次启动只播第一次。', '每行 translateY(105%)→0 · 620ms --pl-ease-expo · 行间 70ms · 横线 scaleX 480ms 360ms 起', '', () => reReel('s1'), '', PS, 'reel:s1:18:3510:100:2.4s:冷启动进今日，动画放慢到 0.35 倍'],
+    ['s4', 'S4', '视差页头', '账本 / 日历 / 随手拍页头随滚动分层下沉、渐隐，纸签多转几度。滚动时间线驱动，不跑 JS。', '0–240px · 标题 96px / .15 · 副标题 72px / 0 · 纸签 40px rotate(10deg)', 'rich', () => reReel('s4'), '', PS, 'reel:s4:13:2535:150:1.6s:账本页从 0 滚到 240px'],
+    ['s5', 'S5', '磁吸游标', '日历整张月网格只有一块蓝游标，点另一天带过冲滑过去、吸住，数字 140ms 后变白。', '36px r10 · --pl-dur-magnet --pl-spring-magnet · 首次 / 切月淡入 180ms', '', () => reReel('s5'), '', PS, 'reel:s5:30:5850:135:3s:先点 4 日，再点 25 日，放慢到 0.35 倍'],
+    ['s6', 'S6', '弹性滑块', '账本支出/收入分段和底栏选中块换 snappy 弹簧，到位多走一点再回来。', '--pl-dur-snappy 520ms · --pl-spring-snappy', '', () => reReel('s6'), '', PS, 'reel:s6:34:6630:80:3.2s:收入 → 支出 → 切到日历，放慢到 0.35 倍'],
+    ['s7', 'S7', '数字翻牌', '账本净资产、随手拍四项统计、日历三项：每位一条 0–9 转轮，个位先停。只动 transform。', '每位 600ms --pl-spring-magnet · 位间 40ms · tabular-nums · aria-label 是真实文本', '', () => reReel('s7'), '', PS, 'reel:s7:30:5850:75:3s:记一笔收入 2486.50 后净资产翻牌，放慢到 0.35 倍'],
+    ['s8', 'S8', '主角卡微光', '光晕扫完后，一道淡光从左到右掠过主角卡，只一次。', '宽 55% · translateX(−110%→200%) · 1100ms (.4,0,.2,1) · 900ms 起', 'rich', () => reReel('s8'), '', PS, 'reel:s8:48:9360:65:4s:进随手拍，放慢到 0.5 倍'],
+    ['s9', 'S9', '指尖倾斜', '按住主角卡，卡面朝手指方向微倾（最多 5°），一团柔光跟着手指；松手回弹。', 'perspective 900 · scale .988 · 按下 140ms · 松手 520ms --spring-release · 150ms 内移动 >10px 让给滚动', 'rich', () => reReel('s9'), '', PS, 'reel:s9:25:4875:80:2.5s:按住从左上拖到右下再松手'],
+    ['s10', 'S10', '墨晕', '点列表行、工具卡，从落点晕开一圈 16% 的主题蓝。不含提醒区、底栏、照片。', '直径 2 × hypot(宽, 高) · scale .1→1 · opacity .16→0 · 520ms', 'rich', () => reReel('s10'), '', PS, 'reel:s10:9:1755:45:1s:按日历「搜索日记」'],
+    ['s11', 'S11', '三拍入场', '页头先到 → 主角卡 80ms 跟上 → 其余 140ms 起每项 +32ms。', '页头 8px 420ms · 主角卡 14px 460ms · 其余 10px 420ms，序号封顶 6', '', () => reReel('s11'), '', PS, 'reel:s11:20:3900:210:2s:从今日切到随手拍，放慢到 0.5 倍'],
+    ['s12', 'S12', 'Toast 弹性落位', 'Toast 从下方 14px、.96 弹到位；出场 160ms ease-in。', '进 460ms --pl-spring-snappy · 出 160ms', '', () => reReel('s12'), '', PS, 'reel:s12:30:5850:77:3s:记一笔后的「已记一笔」，放慢到 0.35 倍'],
+  ];
+  renderLanded('#landedS', LANDED_S);
   renderLanded('#landedSP', LANDED_SP); renderLanded('#landedP', LANDED_P); renderLanded('#landedM5', LANDED_M5);
   renderLanded('#landedM', LANDED_M); renderLanded('#landedG', LANDED_G); renderLanded('#landedT', LANDED_T);
   /* Opus 原有卡片也挂上锚点：#s1… #z1… #v1… */
