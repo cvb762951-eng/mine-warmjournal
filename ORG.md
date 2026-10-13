@@ -41,7 +41,7 @@ Mine 项目
 > 每个文件只归一个岗位，岗位之间改的文件**永不重叠**，因此可以并行开发、互不冲突。
 >
 > 样式文件 `styles.css` / `performance.css` 是全局样式：各岗位可加**自己模块**的样式类（只加不改别人的），标清楚注释。
-> 版本号（index.html `?v=`、build.gradle versionCode/versionName）由主对话统一维护。
+> 版本号（`package.json`、`app-updater.js`、build.gradle 的 versionCode/versionName、index.html `?v=`、`release-notes.js` 当前条目）由主对话统一维护。漏改 `index.html` 或 `release-notes.js` 时，`scripts/check-versions.mjs` 会在打包前失败。
 
 ---
 

@@ -46,7 +46,7 @@ cd android && export JAVA_HOME="<你的 JDK 21 安装路径>" && ./gradlew assem
 
 1. **持久化白名单 SECTIONS**：`storage.js` 里的 `SECTIONS` 数组决定原生 SQLite 存哪些字段。**新增 state 顶层字段必须同步加进 SECTIONS**，否则「浏览器正常、真机丢数据」。
 2. **构建前停 gradle**：`cap sync` / `build-web` 偶发文件锁（safe-delete / ETIMEDOUT），先 `cd android && ./gradlew --stop` 再重试。
-3. **版本号三处同步**：`index.html` 的 `?v=`、`android/app/build.gradle` 的 `versionCode`(+1) / `versionName`。当前 2.17.4 / versionCode 46。
+3. **版本号五处一起改**：`package.json`、`app-updater.js`、`android/app/build.gradle` 的 `versionCode`(+1) / `versionName`、`index.html` 的 `?v=`、`release-notes.js` 里当前 versionCode 的条目。`scripts/check-versions.mjs` 在打包前核对，漏改 `index.html` 或 `release-notes.js` 会直接失败。
 4. **AI Provider 可插拔**：文字/视觉模型经 `ai/provider.js` 的 `PROVIDERS` 表路由（deepseek/qwen/moonshot/zhipu/openai/gemini/custom，都是 OpenAI 兼容 `/chat/completions`）。settings 存 `aiProvider/aiBaseUrl/aiModel/visionProvider/visionBaseUrl` + 两个 key。记忆 `aiMemory` 是纯文本、与模型解耦，**换模型不丢记忆**。
 5. **配色**：莫兰迪暖色，sage 绿主色 `#8a9a8c`。
 6. **用户偏好**：中文交流；要「越来越懂他的 AI 朋友」不是问答工具；涉及持久化/联网/通知必须真机验证；**先调研再动手**（新需求先用选择题式问题确认方向，再拆任务下发）。
