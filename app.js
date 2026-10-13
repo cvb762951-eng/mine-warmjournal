@@ -8,7 +8,7 @@ import { externalizeStateMedia } from './media-store.js';
 import { rebuildActivityLog } from './activity-log.js';
 import { openReleaseNotes } from './views/common.js';
 import { ensureReleaseActivities } from './release-activity.js';
-import { initializeNotificationChannel, prepareNotifications, scheduleDailyReminders, restoreRandomReminders, onNotificationAction, isTimerAlarmRinging } from './notifications.js';
+import { initializeNotificationChannel, syncScheduledReminders, onNotificationAction, isTimerAlarmRinging } from './notifications.js';
 import './orientation.js';
 import './voice.js';
 import './daily-summary.js';
@@ -50,6 +50,7 @@ import { recoverJournalDraftCache } from './journal-drafts.js';
 let booted = false;
 let pendingJournalReminder = false;
 let pendingPhotoReminder = false;
+let pendingCountdownReminder = false;
 let pendingIncomingShare = false;
 const SystemBack = registerPlugin('SystemBack');
 
@@ -165,7 +166,7 @@ document.addEventListener('submit', async event => {
     const handled = await handler(data, form);
     if (handled !== false) {
       await save();
-      closeModal(); render(); show('已保存');
+      closeModal(); render(); show(typeof handled === 'string' && handled ? handled : '已保存');
     }
   } catch (error) {
     show(error.message);
@@ -184,7 +185,13 @@ document.addEventListener('click', event => {
 });
 
 document.addEventListener('visibilitychange', async () => {
-  if (document.visibilityState === 'visible' && await isTimerAlarmRinging().catch(() => false)) completionAlarmModal('计时');
+  if (document.visibilityState !== 'visible') return;
+  if (booted) {
+    syncScheduledReminders({ requestPermission: false })
+      .catch(error => console.warn('回到前台时没有续上提醒', error))
+      .finally(() => window.dispatchEvent(new Event('reminders:synced')));
+  }
+  if (await isTimerAlarmRinging().catch(() => false)) completionAlarmModal('计时');
 });
 
 /* 主题自检（2026-10-10；2026-10-11 不再整页重载）
@@ -273,6 +280,11 @@ async function boot() {
       } catch (error) {
         console.warn('每日小结静默生成失败', error);
       } finally {
+        try {
+          await syncScheduledReminders({ requestPermission: false });
+        } catch (error) {
+          console.warn('静默唤醒时没有续上提醒', error);
+        }
         await callHelper('finishAutoSummary');
       }
       return;
@@ -280,11 +292,11 @@ async function boot() {
     // 每次打开默认今日页（仅影响本次打开，之后手动切页不受影响）。
     state.route = 'today';
     await initializeNotificationChannel().catch(console.warn);
-    prepareNotifications().catch(() => {});
-    if (state.settings.dailyReminders.length) {
-      scheduleDailyReminders(state.settings.dailyReminders, state.settings.reminderAiCopy).catch(() => {});
-    }
-    restoreRandomReminders().catch(() => {});
+    // 排闹钟不挡住第一帧。权限只在这一次启动里问一次，和页面渲染并行。
+    syncScheduledReminders({ requestPermission: true }).then(result => {
+      if (result?.lastError) console.warn('提醒排程', result.lastError);
+    }).catch(error => console.warn('提醒没有排上', error))
+      .finally(() => window.dispatchEvent(new Event('reminders:synced')));
     syncCountdownWidget();
     if (state.timer.running && state.timer.mode !== 'stopwatch' && state.timer.endAt <= Date.now()) await completeTimer(true);
     else {
@@ -303,6 +315,10 @@ async function boot() {
     if (pendingJournalReminder) {
       pendingJournalReminder = false;
       setTimeout(() => journalForm(dateKey()), 300);
+    }
+    if (pendingCountdownReminder) {
+      pendingCountdownReminder = false;
+      setTimeout(() => go('countdown'), 300);
     }
   } catch (error) {
     booted = false;
@@ -348,6 +364,11 @@ onNotificationAction(route => {
   if (route === 'snippet-photo') {
     if (booted) snippetForm(null, 'photo', true);
     else pendingPhotoReminder = true;
+    return;
+  }
+  if (route === 'countdown') {
+    if (booted) go('countdown');
+    else pendingCountdownReminder = true;
     return;
   }
   if (route !== 'journal') return;

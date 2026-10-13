@@ -1,5 +1,5 @@
 import { $, $$, esc, uid, state, save, render, modal, closeModal, show, confirmDelete, imgSrc, emptyState, go, registerView, registerBinder, registerOnRender, registerSubmitHandler, registerHelper, callHelper } from '../core.js';
-import { aiChat, aiChatStream, runAiStreamLifecycle, aiDescribeImage, aiExtractFromData, aiExtractMemories, aiRememberPhoto, aiReminderCopy, aiDailyInsight, aiGenerateWeeklyInsight, calculateWeeklyFlowScore, findReadyWeeklyInsightReport, upsertWeeklyInsightReport, aiDailySummary, aiCountdownNodeCopy, aiSuggestStructure, applySuggestion, aiParseLedger, aiLedgerAnalysis, aiRecognizeLedgerImage, aiFocusCoach, detectLedgerIntent, aiReadImageWithLedger, aiRandomReminderCopies, aiDailyEncouragement } from '../ai.js';
+import { aiChat, aiChatStream, runAiStreamLifecycle, aiDescribeImage, aiExtractFromData, aiExtractMemories, aiRememberPhoto, aiReminderCopy, aiDailyInsight, aiGenerateWeeklyInsight, calculateWeeklyFlowScore, findReadyWeeklyInsightReport, upsertWeeklyInsightReport, aiDailySummary, aiSuggestStructure, applySuggestion, aiParseLedger, aiLedgerAnalysis, aiRecognizeLedgerImage, aiFocusCoach, detectLedgerIntent, aiReadImageWithLedger, aiRandomReminderCopies, genericRandomReminderCopies, aiDailyEncouragement } from '../ai.js';
 import { insightDataFingerprint } from '../ai/context.js';
 import { addMemories, exportMemories, importMemories, isDuplicate } from '../ai/memory.js';
 import { PROVIDERS } from '../ai/provider.js';
@@ -7,7 +7,8 @@ import { retrieveSemanticContext, semanticRecordLabel } from '../ai/semantic.js'
 import { dateKey, makeDailySummary, todayCompletion, daysUntil, makeTransaction, LEDGER_CATEGORIES, ledgerSummary, upsertMerchantCategoryRule } from '../model.js';
 import { micButtonHtml, bindVoiceInput } from './common.js';
 import { mediaSource } from '../media-store.js';
-import { scheduleDailyReminders, cancelDailyReminders, sendTestNotification, cancelRandomReminders } from '../notifications.js';
+import { scheduleDailyReminders, cancelDailyReminders, sendTestNotification, cancelRandomReminders, scheduleRandomReminders, restoreRandomReminders } from '../notifications.js';
+import { futureRandomMinutes, pickCopy } from '../reminder-plan.js';
 import { compressPhoto, isSupportedJournalPhoto } from '../photo-utils.js';
 import { isNativeAndroid } from '../storage.js';
 import { aiKeyStorageMode, clearApiKey } from '../ai-key-vault.js';
@@ -1125,13 +1126,8 @@ export function scheduleAiRefresh() {
 const MEMORY_SOURCE_LABELS = { conversation: '来自对话', data: '来自数据', photo: '来自照片', sync: '同步提炼', manual: '手动添加', suggestion: '来自建议采纳' };
 
 // ---- R1：倒数日节点（30/7/1 天及当天）提醒 ----
-// 同一次页面会话只真正检查一次（countdownCheckRun），跨会话靠 state.meta.aiCountdownNodes 去重，已提醒节点当天不重复。
+// 节点日算出后由本地闹钟在当天 9 点响。同一次前台会话只检查一次。
 let countdownCheckRun = false;
-
-function fallbackCountdownCopy(countdown, daysLeft) {
-  if (daysLeft === 0) return countdown.note ? `${countdown.note}，就是今天，好好度过这一天。` : '就是今天，值得好好纪念。';
-  return countdown.note ? `${countdown.note}，还剩 ${daysLeft} 天。` : `还剩 ${daysLeft} 天，可以提前准备起来了。`;
-}
 
 // force=true 时忽略「本次会话已检查」标记，供设置页「立即检查」按钮验证链路是否通。
 async function checkCountdownNodes(force = false) {
@@ -1139,34 +1135,21 @@ async function checkCountdownNodes(force = false) {
   const cfg = settings.countdownAiReminders || {};
   if (!cfg.nodeReminder || (countdownCheckRun && !force)) return { checked: false, notified: 0, reason: cfg.nodeReminder ? 'already-checked' : 'disabled' };
   countdownCheckRun = true;
-  const today = dateKey();
-  const notified = (state.meta && state.meta.aiCountdownNodes) ? state.meta.aiCountdownNodes : {};
   const due = (state.countdowns || [])
     .map(c => ({ c, d: daysUntil(c.date) }))
     .filter(x => x.c.date && [0, 1, 7, 30].includes(x.d));
-  let changed = false;
-  let sent = 0;
-  for (const { c, d } of due) {
-    const key = `${today}|${c.id}`;
-    if (notified[key]) continue;
-    notified[key] = true;
-    changed = true;
-    const copy = await aiCountdownNodeCopy(state, c, d).catch(() => '');
-    const title = d === 0 ? `「${c.title}」就是今天` : `「${c.title}」还有 ${d} 天`;
-    const body = copy || fallbackCountdownCopy(c, d);
-    if (cfg.nodeNotify) {
-      // 通知必须真的送达才算数；失败不写标记，用户下次仍可重试。
-      const ok = await Promise.resolve(callHelper('notifyNow', title, body)).then(r => r !== false).catch(() => false);
-      if (!ok) { delete notified[key]; continue; }
-    }
-    sent += 1;
-  }
-  if (changed) {
-    state.meta = state.meta || {};
-    state.meta.aiCountdownNodes = notified;
-    save().catch(() => {});
-  }
-  return { checked: true, notified: sent, candidates: due.length, reason: '' };
+  // 节点日算出后交给本地闹钟。调度失败不在这里写已提醒标记。
+  const result = await callHelper('syncCountdownNodeAlarms', force
+    ? { requestPermission: true, userInitiated: true }
+    : { requestPermission: false });
+  const scheduled = result?.ok !== false && cfg.nodeNotify !== false && due.length > 0 && (result?.scheduledCount || 0) > 0;
+  return {
+    checked: true,
+    notified: scheduled ? due.length : 0,
+    candidates: due.length,
+    scheduledCount: result?.scheduledCount || 0,
+    reason: result?.ok === false ? (result.lastError || 'schedule-failed') : ''
+  };
 }
 
 // R7：当天随机提醒计划——生成 2-4 条不同文案 + 8:00-22:00 随机不重叠时段，交给岗位②调度。
@@ -1177,39 +1160,48 @@ async function checkCountdownNodes(force = false) {
 // 导致生成出的文案一条都排不出去。这里统一为调度器的形状。
 // 单一数据源：启用开关只存在 aiRandomRemindersEnabled，计划只存在 aiRandomReminders。
 // 旧版本把同一个字段 aiRandomReminders 同时当布尔开关和计划对象用，保存开关会把计划清空。
-async function scheduleTodayRandomReminders() {
+async function scheduleTodayRandomReminders(options = {}) {
   const settings = state?.settings || {};
-  if (settings.aiRandomRemindersEnabled !== true) return;
+  if (settings.aiRandomRemindersEnabled !== true) return { ok: true, scheduledCount: 0, lastError: null };
   const today = dateKey();
   const planned = settings.aiRandomReminders;
-  if (planned && planned.date === today && Array.isArray(planned.items) && planned.items.length) return;
+  if (planned?.date === today && !options.force) return restoreRandomReminders(options);
   const count = 2 + Math.floor(Math.random() * 3); // 2-4 条
-  const copies = await aiRandomReminderCopies(state, count);
-  // 8:00-22:00 之间排 count 条互不重叠的随机时段。
-  const spanMinutes = 14 * 60;
-  const startMinutes = 8 * 60;
-  const step = Math.max(30, Math.floor(spanMinutes / count));
-  const items = copies.slice(0, count).map((body, i) => {
-    const minute = startMinutes + step * i + Math.floor(Math.random() * Math.max(1, step - 30));
+  let copies = [];
+  try {
+    copies = await Promise.race([
+      aiRandomReminderCopies(state, count),
+      new Promise((_, reject) => setTimeout(() => reject(Object.assign(new Error('timeout'), { code: 'timeout' })), 12000))
+    ]);
+  } catch (error) {
+    if (error?.code !== 'timeout') {
+      return { ok: false, scheduledCount: 0, lastError: error?.message || '随机提醒文案没有生成' };
+    }
+    copies = genericRandomReminderCopies(count, new Date());
+  }
+  const now = new Date();
+  const minutes = futureRandomMinutes(copies.length || count, now);
+  const pool = copies.length ? copies : genericRandomReminderCopies(count, now);
+  const items = minutes.map((minute, i) => {
     const hour = Math.floor(minute / 60);
     const minuteOfHour = minute % 60;
     return {
       time: `${String(hour).padStart(2, '0')}:${String(minuteOfHour).padStart(2, '0')}`,
       title: '随手记一下',
-      body: String(body || '')
+      body: pickCopy(pool, i, now)
     };
   });
-  const ok = await Promise.resolve(callHelper('scheduleRandomReminders', items)).catch(() => false);
-  // 调度成功才落库：scheduleRandomReminders 内部会自己写 state.settings.aiRandomReminders，
-  // 这里只在它失败时清理，保证下次启动仍可重试（不伪造成功）。
-  if (ok === false && planned && planned.date === today) {
-    settings.aiRandomReminders = { date: '', items: [] };
-    await save();
-  }
-  return ok;
+  // 权限失败时 scheduleRandomReminders 不会把计划写成「已排」。
+  return scheduleRandomReminders(items, options);
 }
 
-// 仅维护 AI 页面层级；禁止 render / 页面进入 / 回前台时自动外发 AI 请求。
+async function ensureTodayRandomReminders(options = {}) {
+  const settings = state?.settings || {};
+  if (settings.aiRandomRemindersEnabled !== true) return cancelRandomReminders();
+  return scheduleTodayRandomReminders(options);
+}
+
+// 仅维护 AI 页面层级。render 和进入页面不生成提醒、不联网。
 registerOnRender(() => {
   const routeActive = state.route === 'ai';
   if (!routeActive && aiRouteWasActive) {
@@ -1219,11 +1211,8 @@ registerOnRender(() => {
   }
   aiRouteWasActive = routeActive;
 });
-// R1：倒数日节点（30/7/1 天及当天）提醒。
-// 触发时机 = 用户把 App 切回前台的那一刻（不是定时器、不进 AI 页），
-// 因为发系统通知本身就要求用户已授权；且一天最多跑一次，受 countdownCheckRun 与
-// state.meta.aiCountdownNodes 双重去重，不会反复打扰。
-// 无 Key 时 aiCountdownNodeCopy 直接返回空串并回退内置文案，全程不联网。
+// 切回前台时再对一次倒数日闹钟。文案用本地句子，不在这里请求模型。
+// 这一步只排本地闹钟，和上面的页面层级回调无关。
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState !== 'visible') return;
   countdownCheckRun = false;
@@ -1434,7 +1423,7 @@ function aiSettingsForm() {
   const s = state.settings;
   const key = s.aiApiKey;
   const providerOptions = Object.entries(PROVIDERS).map(([id, p]) => `<option value="${id}" ${s.aiProvider === id ? 'selected' : ''}>${p.label}</option>`).join('');
-  modal(`<form id="ai-settings-form"><span class="eyebrow">MULTIMODAL AI</span><h2>AI 助手</h2><p class="subtle">只需配置一套多模态模型：同一模型负责文字对话、图片理解、周报、每日小结与记忆提炼。所选模型必须支持 OpenAI 兼容的图片输入格式。</p><label class="confirm-line"><input name="aiEnabled" type="checkbox" ${s.aiEnabled ? 'checked' : ''}> 启用 AI 助手</label><label>多模态模型</label><div class="ai-model-row"><select name="aiProvider" aria-label="AI 模型提供商">${providerOptions}</select><input name="aiModel" type="text" autocomplete="off" value="${esc(s.aiModel)}" placeholder="模型名，如 ${esc(PROVIDERS[s.aiProvider]?.defaultModel || 'deepseek-chat')}"></div><div id="ai-base-url-wrap" ${s.aiProvider === 'custom' ? '' : 'hidden'}><label>AI 模型接口地址（Base URL）</label><input name="aiBaseUrl" type="text" autocomplete="off" value="${esc(s.aiBaseUrl)}" placeholder="https://…/v1/chat/completions"><small class="field-help">自定义提供商时必填，需为支持图片输入的 OpenAI 兼容 /chat/completions 端点。</small></div><label>AI 模型 API Key</label><input name="aiApiKey" type="password" autocomplete="off" value="${esc(key)}" placeholder="sk-…"><small class="field-help">${keyStorageHint(s)}</small><div class="ai-care-block"><div class="ai-care-title"><strong>AI 陪伴</strong><small>让它更懂你的状态</small></div><label class="confirm-line"><input name="aiEmotionCare" type="checkbox" ${s.aiEmotionCare !== false ? 'checked' : ''}> 情绪陪伴</label><small class="field-help">AI 会感知日记中的心情，在聊天和问候时温柔关心你。心情数据只用于陪伴，不参与打卡或统计。</small><label class="confirm-line"><input name="aiConversationMemoryEnabled" type="checkbox" ${s.aiConversationMemoryEnabled === true ? 'checked' : ''}> 聊天后自动提炼记忆</label><small class="field-help">默认关闭。开启后，每次成功回复会额外发送最近最多 6 条消息与最多 24 条已有记忆给模型；关闭后仍可在记忆页手动提炼。</small><div class="ai-care-title"><strong>倒数日 AI 联动</strong><small>关键节点主动陪着你</small></div><label class="confirm-line"><input name="cdNodeReminder" type="checkbox" ${s.countdownAiReminders?.nodeReminder ? 'checked' : ''}> 节点提醒（倒计时 30/7/1 天及当天）</label><small class="field-help">在倒计时到 30 / 7 / 1 天以及当天，打开 App 时会收到一句提醒。</small><label class="confirm-line"><input name="cdNodeNotify" type="checkbox" ${s.countdownAiReminders?.nodeNotify ? 'checked' : ''}> 节点提醒发系统通知</label><button type="button" id="cd-node-check-now" class="reminder-add">立即检查是否有节点</button><label class="confirm-line"><input name="cdDailyMention" type="checkbox" ${s.countdownAiReminders?.dailyMention ? 'checked' : ''}> 每日问候顺带提最近倒计时</label><label class="confirm-line"><input name="cdAnniversaryBlessing" type="checkbox" ${s.countdownAiReminders?.anniversaryBlessing ? 'checked' : ''}> 纪念日「写给今天」祝福</label><div><button type="button" id="gen-daily-encouragement" class="reminder-add" ${s.aiApiKey ? '' : 'disabled'}>${s.aiApiKey ? '生成今日鼓励' : '配置 Key 后可生成'}</button><small class="field-help">${encouragementHint(s)}</small></div></div><div class="modal-actions"><button type="button" data-close>取消</button><button class="save">保存</button></div></form>`, 'ai-settings-modal');
+  modal(`<form id="ai-settings-form"><span class="eyebrow">MULTIMODAL AI</span><h2>AI 助手</h2><p class="subtle">只需配置一套多模态模型：同一模型负责文字对话、图片理解、周报、每日小结与记忆提炼。所选模型必须支持 OpenAI 兼容的图片输入格式。</p><label class="confirm-line"><input name="aiEnabled" type="checkbox" ${s.aiEnabled ? 'checked' : ''}> 启用 AI 助手</label><label>多模态模型</label><div class="ai-model-row"><select name="aiProvider" aria-label="AI 模型提供商">${providerOptions}</select><input name="aiModel" type="text" autocomplete="off" value="${esc(s.aiModel)}" placeholder="模型名，如 ${esc(PROVIDERS[s.aiProvider]?.defaultModel || 'deepseek-chat')}"></div><div id="ai-base-url-wrap" ${s.aiProvider === 'custom' ? '' : 'hidden'}><label>AI 模型接口地址（Base URL）</label><input name="aiBaseUrl" type="text" autocomplete="off" value="${esc(s.aiBaseUrl)}" placeholder="https://…/v1/chat/completions"><small class="field-help">自定义提供商时必填，需为支持图片输入的 OpenAI 兼容 /chat/completions 端点。</small></div><label>AI 模型 API Key</label><input name="aiApiKey" type="password" autocomplete="off" value="${esc(key)}" placeholder="sk-…"><small class="field-help">${keyStorageHint(s)}</small><div class="ai-care-block"><div class="ai-care-title"><strong>AI 陪伴</strong><small>让它更懂你的状态</small></div><label class="confirm-line"><input name="aiEmotionCare" type="checkbox" ${s.aiEmotionCare !== false ? 'checked' : ''}> 情绪陪伴</label><small class="field-help">AI 会感知日记中的心情，在聊天和问候时温柔关心你。心情数据只用于陪伴，不参与打卡或统计。</small><label class="confirm-line"><input name="aiConversationMemoryEnabled" type="checkbox" ${s.aiConversationMemoryEnabled === true ? 'checked' : ''}> 聊天后自动提炼记忆</label><small class="field-help">默认关闭。开启后，每次成功回复会额外发送最近最多 6 条消息与最多 24 条已有记忆给模型；关闭后仍可在记忆页手动提炼。</small><div class="ai-care-title"><strong>倒数日 AI 联动</strong><small>关键节点主动陪着你</small></div><label class="confirm-line"><input name="cdNodeReminder" type="checkbox" ${s.countdownAiReminders?.nodeReminder ? 'checked' : ''}> 节点提醒（倒计时 30/7/1 天及当天）</label><small class="field-help">在倒计时到 30 / 7 / 1 天以及当天早上 9 点，手机会自己响一声。</small><label class="confirm-line"><input name="cdNodeNotify" type="checkbox" ${s.countdownAiReminders?.nodeNotify ? 'checked' : ''}> 节点提醒发系统通知</label><button type="button" id="cd-node-check-now" class="reminder-add">立即检查是否有节点</button><label class="confirm-line"><input name="cdDailyMention" type="checkbox" ${s.countdownAiReminders?.dailyMention ? 'checked' : ''}> 每日问候顺带提最近倒计时</label><label class="confirm-line"><input name="cdAnniversaryBlessing" type="checkbox" ${s.countdownAiReminders?.anniversaryBlessing ? 'checked' : ''}> 纪念日「写给今天」祝福</label><div><button type="button" id="gen-daily-encouragement" class="reminder-add" ${s.aiApiKey ? '' : 'disabled'}>${s.aiApiKey ? '生成今日鼓励' : '配置 Key 后可生成'}</button><small class="field-help">${encouragementHint(s)}</small></div></div><div class="modal-actions"><button type="button" data-close>取消</button><button class="save">保存</button></div></form>`, 'ai-settings-modal');
   bindAiSettingsForm();
 }
 
@@ -1457,17 +1446,21 @@ function bindAiSettingsForm() {
     button.textContent = '检查中…';
     try {
       const cfg = state.settings.countdownAiReminders || {};
-      const preview = { ...cfg, nodeReminder: form.querySelector('[name="cdNodeReminder"]')?.checked !== false, nodeNotify: form.querySelector('[name="cdNodeNotify"]')?.checked === 'on' };
+      const preview = { ...cfg, nodeReminder: form.querySelector('[name="cdNodeReminder"]')?.checked === true, nodeNotify: form.querySelector('[name="cdNodeNotify"]')?.checked === true };
       if (!preview.nodeReminder) { show('请先勾选「节点提醒」'); return; }
-      if (!state.settings.aiApiKey) { show('配置 AI Key 后才会用 AI 生成提醒文案'); return; }
+      if (!preview.nodeNotify) { show('勾选「节点提醒发系统通知」后，才会排进手机闹钟'); return; }
       const previous = state.settings.countdownAiReminders;
       state.settings.countdownAiReminders = preview;
-      const result = await callHelper('checkAiCountdowns', true);
-      state.settings.countdownAiReminders = previous;
-      if (!result?.candidates) show('目前没有倒数日正好在 30 / 7 / 1 天或当天，稍后再来看');
+      let result;
+      try {
+        result = await callHelper('checkAiCountdowns', true);
+      } finally {
+        state.settings.countdownAiReminders = previous;
+      }
+      if (!result?.candidates) show(result?.scheduledCount ? `今天没有正好到期的节点，之后的 ${result.scheduledCount} 个节点已排进闹钟` : '目前没有倒数日正好在 30 / 7 / 1 天或当天，稍后再来看');
       else if (!preview.nodeNotify) show(`找到 ${result.candidates} 个节点，点上面的「节点提醒发系统通知」可让它发到手机通知栏`);
-      else if (result.notified) show(`已发出 ${result.notified} 条节点通知，请在通知栏查看`);
-      else show('节点通知没有发出去，请检查通知权限');
+      else if (result.notified) show(`已排上 ${result.notified} 条节点提醒`);
+      else show(result.reason || '节点提醒没有排上，请检查通知权限');
     } finally {
       button.disabled = false;
       button.textContent = '立即检查是否有节点';
@@ -1498,8 +1491,17 @@ function timeStr(hour, minute) {
 // 让用户看到随机提醒「今天真的排上了几条、几点」，否则这个开关等于黑盒。
 function randomReminderPlanHint() {
   const plan = state.settings?.aiRandomReminders;
+  if (plan?.date === dateKey() && plan.armed === true && Array.isArray(plan.items) && !plan.items.length) return '今天没有可排的时段';
   if (!plan || plan.date !== dateKey() || !Array.isArray(plan.items) || !plan.items.length) return '尚未生成';
-  const pending = plan.items.filter(item => !item.pushed);
+  if (plan.armed !== true) return '还没排进系统闹钟';
+  const now = new Date();
+  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+  const pending = plan.items.filter(item => {
+    if (item.pushed) return false;
+    const [hour, minute] = String(item.time || '').split(':').map(Number);
+    if (!Number.isInteger(hour) || !Number.isInteger(minute)) return false;
+    return hour * 60 + minute > nowMinutes;
+  });
   if (!pending.length) return `${plan.items.length} 条已全部提醒`;
   return `今天已排 ${plan.items.length} 条（${pending.map(item => item.time).join('、')}）`;
 }
@@ -1561,15 +1563,32 @@ function bindReminderList() {
     // 开关只写 aiRandomRemindersEnabled；计划对象 aiRandomReminders 由调度器独占维护。
     // 未勾选、或开关不在页面上，都写成 false，避免缺省被当成开启。
     state.settings.aiRandomRemindersEnabled = $('#random-reminders-toggle')?.checked === true;
-    await save();
-    if (reminderDraft.length) scheduleDailyReminders(reminderDraft, state.settings.reminderAiCopy).catch(() => {});
-    else cancelDailyReminders().catch(() => {});
-    // 用户刚在设置里开启随机提醒 → 这里才生成并排程，属于「用户显式操作」，
-    // 符合「零自动联网」约束（打开 App / 进 AI 页都不会自己联网）。
-    if (state.settings.aiRandomRemindersEnabled === true) scheduleTodayRandomReminders().catch(() => {});
-    else cancelRandomReminders().catch(() => {});
+    try { await save(); }
+    catch (error) { show(error.message || '提醒设置没有保存'); return; }
+    const ask = { requestPermission: true, userInitiated: true };
+    const follow = { requestPermission: true, userInitiated: false };
+    const daily = reminderDraft.length
+      ? await scheduleDailyReminders(reminderDraft, state.settings.reminderAiCopy, ask)
+      : await cancelDailyReminders();
+    const random = state.settings.aiRandomRemindersEnabled === true
+      ? await scheduleTodayRandomReminders(reminderDraft.length ? follow : ask)
+      : await cancelRandomReminders();
     closeModal(); render();
-    show(reminderDraft.length ? `已设置 ${reminderDraft.length} 个每日提醒` : '已关闭每日提醒');
+    const base = reminderDraft.length ? `已设置 ${reminderDraft.length} 个每日提醒` : '已关闭每日提醒';
+    if (daily?.permission === 'unsupported') {
+      show(`${base}。当前环境排不了系统闹钟，装到手机上才会响`);
+      return;
+    }
+    if (daily?.ok === false || random?.ok === false) {
+      const reason = daily?.lastError || random?.lastError || '系统没有收下这次提醒';
+      show(reminderDraft.length ? `提醒已保存在设置里，但闹钟没排上：${reason}` : `每日提醒已关闭。${reason}`);
+      return;
+    }
+    const warnings = [];
+    if (daily?.exactAlarm === 'denied' || random?.exactAlarm === 'denied') warnings.push('系统还没允许精确闹钟，到点可能推迟');
+    if (daily?.lastError) warnings.push(daily.lastError);
+    if (random?.lastError) warnings.push(random.lastError);
+    show(warnings.length ? `${base}。${warnings.join('；')}` : base);
   });
   $('#gen-ai-copy')?.addEventListener('click', async () => {
     const btn = $('#gen-ai-copy');
@@ -1680,6 +1699,8 @@ registerSubmitHandler('ai-settings-form', async data => {
   countdownCfg.dailyMention = data.get('cdDailyMention') === 'on';
   countdownCfg.anniversaryBlessing = data.get('cdAnniversaryBlessing') === 'on';
   state.settings.countdownAiReminders = countdownCfg;
+  const alarm = await callHelper('syncCountdownNodeAlarms', { requestPermission: true, userInitiated: true });
+  if (alarm?.ok === false && alarm.lastError) return `设置已保存，倒数日提醒没排上：${alarm.lastError}`;
 });
 
 // ---- 注册 ----
@@ -1706,6 +1727,7 @@ registerHelper('aiRecognizeLedgerImage', runAiRecognizeLedgerImage);
 registerHelper('aiFocusCoach', runAiFocusCoach);
 registerHelper('aiRandomReminderCopies', aiRandomReminderCopies);
 registerHelper('scheduleTodayRandomReminders', scheduleTodayRandomReminders);
+registerHelper('ensureTodayRandomReminders', ensureTodayRandomReminders);
 // 每日鼓励语（供今日页读取）：只读当天已生成的缓存。
 // 生成侧不自动触发 —— 打开 App / 进首页 / 切 tab 都不会联网。
 // 想生成必须在 AI 设置里点「生成今日鼓励」，属用户显式操作。

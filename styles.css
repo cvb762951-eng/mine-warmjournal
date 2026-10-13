@@ -9784,3 +9784,13 @@ body #modal-layer .modal.confirm-sheet .modal-actions .danger { padding: 0 16px 
 :root[data-theme="plain"] .vault-moment-preview.photo-blur-frame.is-edge {
   background: #E8EDF5 !important;
 }
+
+/* 设置页 · 提醒真实状态（安静的一行小字，不用红色横幅） */
+.setting-reminder-status { display: flex; align-items: center; gap: 10px; margin: -2px 14px 8px 52px; padding: 7px 10px; border-radius: 10px; background: color-mix(in srgb, var(--warm-sheet, #fdfcf9) 70%, transparent); border: var(--warm-card-border, 1px solid rgba(220,212,198,.65)); color: var(--warm-ink-secondary, #4a453f); font-size: 11.5px; line-height: 1.45; }
+.setting-reminder-status[hidden] { display: none; }
+.setting-reminder-status[data-tone="warn"] .setting-reminder-status-text::before { content: ''; display: inline-block; width: 6px; height: 6px; margin: 0 6px 1px 0; border-radius: 50%; background: var(--warm-terracotta, #c47e68); vertical-align: middle; }
+.setting-reminder-status-text { flex: 1 1 auto; min-width: 0; }
+.setting-reminder-status-action { flex: 0 0 auto; padding: 4px 10px; border: 1px solid var(--warm-sage, #7e9d86); border-radius: 999px; background: transparent; color: var(--warm-sage-strong, #4d7056); font: inherit; font-weight: 700; cursor: pointer; transition: background-color .18s ease; }
+.setting-reminder-status-action:active { background: color-mix(in srgb, var(--warm-sage, #7e9d86) 14%, transparent); }
+.setting-reminder-status-action[hidden] { display: none; }
+@media (prefers-reduced-motion: reduce) { .setting-reminder-status-action { transition: none; } }

@@ -711,8 +711,14 @@ const FALLBACK_REMINDER_COPIES = [
   '今天有什么想说的？写进日记吧',
   '别忘了把今天的开心存下来'
 ];
+export function genericRandomReminderCopies(count = 3, date = new Date()) {
+  const n = Math.max(2, Math.min(Math.floor(count) || 2, FALLBACK_REMINDER_COPIES.length));
+  const when = date instanceof Date ? date : new Date();
+  const start = Math.abs(Math.floor(Date.UTC(when.getFullYear(), when.getMonth(), when.getDate()) / 86400000)) % FALLBACK_REMINDER_COPIES.length;
+  return Array.from({ length: n }, (_, index) => FALLBACK_REMINDER_COPIES[(start + index) % FALLBACK_REMINDER_COPIES.length]);
+}
 function fallbackRandomCopies(count) {
-  return FALLBACK_REMINDER_COPIES.slice(0, Math.max(2, Math.min(count, FALLBACK_REMINDER_COPIES.length)));
+  return genericRandomReminderCopies(count, new Date());
 }
 function parseCopies(text) {
   try {
