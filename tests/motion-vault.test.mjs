@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
   VAULT_MOTION, folderBackgroundScale, unlockMode, uniformFlightScale, flightTransform,
-  ghostFrameTransform, cellDelay, noteLongFrame,
+  ghostFrameTransform, cellDelay, noteLongFrame, vaultMotionTier, sampleVaultJank,
+  shieldShouldHold, visibleItemIndexes, lockGhostSpec,
 } from '../motion-vault.js';
 
 const vault = readFileSync(new URL('../views/private-vault.js', import.meta.url), 'utf8');
@@ -73,6 +74,75 @@ test('文件夹返回和封面免右滑，照片视频层不接下拉', () => {
   assert.match(vault, /#warm-video-player'\)\?\.setAttribute\('data-no-swipe-back'/);
   assert.match(vault, /\.warm-video-stage'\)\?\.setAttribute\('data-no-swipe-back'/);
   assert.match(layers, /\.vault-photo-modal/);
+});
+
+test('长帧降级只留在私密空间，不写全局 data-pl-motion', () => {
+  const state = { windowStart: 0, long: 0, tier: 'rich' };
+  const idle = sampleVaultJank({ inVault: true, animating: false, localTier: 'rich', state, dt: 80, now: 40 });
+  assert.equal(idle.localTier, 'rich');
+  assert.equal(idle.state.long, 0);
+  assert.equal(idle.watching, false);
+  assert.equal(idle.writeGlobal, false);
+
+  let sample = { localTier: 'rich', state, watching: true, writeGlobal: false };
+  for (let i = 1; i <= 4; i += 1) {
+    sample = sampleVaultJank({
+      inVault: true,
+      animating: true,
+      localTier: sample.localTier,
+      state: sample.state,
+      dt: 40,
+      now: i * 20,
+    });
+  }
+  assert.equal(sample.localTier, 'lite');
+  assert.equal(sample.watching, false);
+  assert.equal(sample.writeGlobal, false);
+  assert.equal(vaultMotionTier({ globalTier: 'rich', localTier: 'lite', inVault: true }), 'lite');
+  assert.equal(vaultMotionTier({ globalTier: 'rich', localTier: 'lite', inVault: false }), 'rich');
+  assert.equal(vaultMotionTier({ globalTier: 'none', localTier: 'lite', inVault: true }), 'none');
+
+  const left = sampleVaultJank({ inVault: false, animating: true, localTier: 'lite', state: sample.state, dt: 40, now: 200 });
+  assert.equal(left.localTier, 'rich');
+  assert.equal(left.state.long, 0);
+  assert.equal(left.writeGlobal, false);
+
+  assert.match(motion, /function noteVaultAnimation/);
+  assert.match(motion, /sampleVaultJank\(/);
+  assert.match(motion, /resetVaultJank\(\)/);
+  assert.doesNotMatch(motion, /plMotion\s*=\s*['"]/);
+  assert.doesNotMatch(motion, /setAttribute\(\s*['"]data-pl-motion['"]/);
+  assert.doesNotMatch(motion, /ensureJank/);
+});
+
+test('锁定过渡不克隆已解锁页面', () => {
+  assert.deepEqual(lockGhostSpec(), { cloneContent: false, kind: 'plain-block' });
+  const ghost = motion.slice(motion.indexOf('function armLockGhost'), motion.indexOf('function hideImages'));
+  assert.match(ghost, /function armLockGhost/);
+  assert.doesNotMatch(ghost, /cloneNode|innerHTML|<img|thumb/);
+  assert.match(ghost, /pv-lock-ghost/);
+  assert.match(ghost, /--plain-canvas/);
+  assert.match(ghost, /createElement\('div'\)/);
+  const filter = motion.slice(motion.indexOf("closest?.('[data-vault-media-filter]')"), motion.indexOf("closest?.('#vault-lock')"));
+  assert.match(filter, /visibleItemIndexes\(/);
+  assert.doesNotMatch(filter, /grid\.cloneNode/);
+  assert.deepEqual(visibleItemIndexes([
+    { top: -40, bottom: -1 },
+    { top: 10, bottom: 80 },
+    { top: 900, bottom: 980 },
+  ], 800, 12), [1]);
+  assert.equal(visibleItemIndexes(Array.from({ length: 20 }, (_, i) => ({ top: i * 10, bottom: i * 10 + 8 })), 400, 12).length, 12);
+  assert.equal(shieldShouldHold({ hiddenMs: 200, locked: false, waitedMs: 0 }), false);
+  assert.equal(shieldShouldHold({ hiddenMs: 300, locked: false, waitedMs: 0 }), true);
+  assert.equal(shieldShouldHold({ hiddenMs: 400, locked: true, waitedMs: 0 }), false);
+  assert.equal(shieldShouldHold({ hiddenMs: 400, locked: false, waitedMs: 600 }), false);
+  for (const css of [plain, light]) {
+    const block = css.slice(css.indexOf('三十一 · 私密空间动效'));
+    assert.match(block, /blur\(8px\)/);
+    assert.doesNotMatch(block, /blur\(24px\)/);
+    assert.match(block, /pv-breath 1\.6s ease-in-out 3/);
+    assert.doesNotMatch(block, /pv-breath[^;]*infinite/);
+  }
 });
 
 test('清简多选底栏用主题变量，关键帧只动 transform / opacity', () => {

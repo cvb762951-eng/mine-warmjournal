@@ -71,7 +71,7 @@ export function cellDelay(index, cols = 2, step = VAULT_MOTION.staggerStep, star
   return Math.min(cap, start + (row + col) * step);
 }
 
-/** 1 秒内超过 3 次长帧（>32ms）把 rich 降到 lite。不写存储。 */
+/** 1 秒内超过 3 次长帧（>32ms）把 rich 降到 lite。不写存储，也不写全局属性。 */
 export function noteLongFrame(state, dt, now) {
   const next = {
     windowStart: state?.windowStart ?? now,
@@ -87,14 +87,85 @@ export function noteLongFrame(state, dt, now) {
   return next;
 }
 
+/**
+ * 私密空间自己的档位。全局 lite / none 照旧；
+ * 长帧降级只在还停在私密空间时生效，离开后本地降级作废。
+ * 绝不改 <html data-pl-motion>。
+ */
+export function vaultMotionTier({ globalTier = 'rich', localTier = 'rich', inVault = true } = {}) {
+  if (globalTier === 'none' || globalTier === 'lite') return globalTier;
+  if (!inVault) return 'rich';
+  return localTier === 'lite' ? 'lite' : 'rich';
+}
+
+/**
+ * 只在私密空间动画播放期间采样。空闲帧不计数。
+ * writeGlobal 永远是 false：降级留在 localTier。
+ */
+export function sampleVaultJank({
+  inVault = false,
+  animating = false,
+  localTier = 'rich',
+  state = { windowStart: 0, long: 0, tier: 'rich' },
+  dt = 0,
+  now = 0,
+} = {}) {
+  if (!inVault) {
+    return {
+      localTier: 'rich',
+      state: { windowStart: now, long: 0, tier: 'rich' },
+      watching: false,
+      writeGlobal: false,
+    };
+  }
+  if (!animating || localTier === 'lite') {
+    return { localTier: localTier === 'lite' ? 'lite' : 'rich', state, watching: false, writeGlobal: false };
+  }
+  const next = noteLongFrame({
+    windowStart: state?.windowStart ?? now,
+    long: state?.long || 0,
+    tier: 'rich',
+  }, dt, now);
+  return { localTier: next.tier, state: next, watching: next.tier !== 'lite', writeGlobal: false };
+}
+
+/** 切走超过 lockAfter 且锁屏还没出现时，遮罩先留着，最多 maxWait。 */
+export function shieldShouldHold({ hiddenMs = 0, locked = false, waitedMs = 0, lockAfter = 300, maxWait = 600 } = {}) {
+  if (!(hiddenMs >= lockAfter)) return false;
+  if (locked) return false;
+  return waitedMs < maxWait;
+}
+
+/** 筛选过渡最多带走视口里的前 cap 格，不克隆整张网格。 */
+export function visibleItemIndexes(rects, viewportHeight, cap = 12) {
+  const picked = [];
+  for (let index = 0; index < rects.length; index += 1) {
+    if (picked.length >= cap) break;
+    const rect = rects[index];
+    if (!rect) continue;
+    if (rect.bottom > 0 && rect.top < viewportHeight) picked.push(index);
+  }
+  return picked;
+}
+
+/** 锁定过渡盖的是纯色块，不复制已解锁页面。 */
+export function lockGhostSpec() {
+  return { cloneContent: false, kind: 'plain-block' };
+}
+
 const hasDom = typeof document !== 'undefined';
 const root = hasDom ? document.documentElement : null;
 const plain = () => root?.dataset.theme === 'plain';
-const tier = () => {
+const globalTier = () => {
   if (prefersReducedMotion()) return 'none';
   const value = root?.dataset.plMotion;
   return value === 'lite' || value === 'none' ? value : 'rich';
 };
+const tier = () => vaultMotionTier({
+  globalTier: globalTier(),
+  localTier: localLite ? 'lite' : 'rich',
+  inVault: hasDom && Boolean(document.querySelector('.private-vault-view')),
+});
 const SPRING = 'cubic-bezier(.34, 1.56, .64, 1)';
 const EMPH = 'cubic-bezier(.32, .72, 0, 1)';
 const OUT = 'cubic-bezier(.16, 1, .3, 1)';
@@ -143,8 +214,14 @@ let stack = [];
 let statusWatch = null;
 let lockPaperAt = 0;
 let shield = null;
+let localLite = false;
 let jankOn = false;
+let jankRaf = 0;
+let jankUntil = 0;
+let jankLast = 0;
 let jankState = { windowStart: 0, long: 0, tier: 'rich' };
+let hiddenAt = 0;
+let shieldWait = 0;
 
 function fresh(entry) {
   if (!entry) return null;
@@ -158,6 +235,7 @@ function fresh(entry) {
 function stagger(nodes, { start = 0, step = VAULT_MOTION.staggerStep, cols = 2 } = {}) {
   const list = [...nodes || []].filter(Boolean);
   if (!list.length || tier() === 'none') return;
+  noteVaultAnimation(tier() === 'lite' ? VAULT_MOTION.fadeMs : start + VAULT_MOTION.staggerCap + 220);
   if (tier() === 'lite') {
     list[0].parentElement?.animate([{ opacity: 0 }, { opacity: 1 }], { duration: VAULT_MOTION.fadeMs, easing: 'ease', fill: 'backwards' });
     return;
@@ -203,6 +281,7 @@ function playEnter(view) {
   const mark = view.querySelector('.vault-lock-mark');
   const mode = unlockMode(tier());
   if (mode === 'cut' || !paper) return;
+  noteVaultAnimation(mode === 'fade' ? VAULT_MOTION.fadeMs : VAULT_MOTION.p0Ms + 420);
   if (mode === 'fade') {
     paper.animate([{ opacity: 0 }, { opacity: 1 }], { duration: VAULT_MOTION.fadeMs, easing: 'ease', fill: 'backwards' });
     return;
@@ -269,6 +348,8 @@ function paperHost(paper, rect, split) {
 function playUnlock(removed, view) {
   const mode = unlockMode(tier());
   const paper = removed?.querySelector?.('.vault-lock-paper');
+  if (mode === 'cut') return;
+  noteVaultAnimation(mode === 'split' ? VAULT_MOTION.unlockMs + VAULT_MOTION.staggerCap : VAULT_MOTION.fadeMs);
   if (mode === 'split') {
     const host = paperHost(paper, lockRect, true);
     view?.animate(
@@ -292,6 +373,7 @@ function playUnlock(removed, view) {
 function playLock(view) {
   watchStatus(view);
   if (tier() !== 'rich') return;
+  noteVaultAnimation(260);
   const paper = view.querySelector('.vault-lock-paper');
   const mark = view.querySelector('.vault-lock-mark');
   if (!paper) return;
@@ -304,20 +386,21 @@ function playLock(view) {
 }
 
 function armLockGhost() {
-  if (!plain() || tier() === 'none') return;
+  if (!plain() || tier() === 'none' || lockGhostSpec().cloneContent) return;
   const view = document.querySelector('.private-vault-view:not(.vault-locked-view)');
   if (!view) return;
   const rect = view.getBoundingClientRect();
-  const clone = view.cloneNode(true);
-  clone.querySelectorAll('[id]').forEach(node => node.removeAttribute('id'));
-  clone.classList.add('pv-lock-ghost');
-  clone.style.cssText = `position:fixed;left:${rect.left}px;top:${rect.top}px;width:${rect.width}px;height:${rect.height}px;margin:0;z-index:210;pointer-events:none;overflow:hidden`;
-  document.body.append(clone);
+  const block = document.createElement('div');
+  block.className = 'pv-lock-ghost';
+  block.setAttribute('aria-hidden', 'true');
+  block.style.cssText = `position:fixed;left:${rect.left}px;top:${rect.top}px;width:${rect.width}px;height:${rect.height}px;margin:0;z-index:210;pointer-events:none;background:var(--plain-canvas)`;
+  document.body.append(block);
+  noteVaultAnimation(tier() === 'rich' ? 160 : 120);
   const rich = tier() === 'rich';
-  clone.animate(
+  block.animate(
     [{ opacity: 1, transform: 'none' }, { opacity: 0, transform: rich ? 'translate3d(0,6px,0)' : 'none' }],
     { duration: rich ? 160 : 120, easing: 'ease', fill: 'forwards' },
-  ).finished.catch(() => {}).then(() => clone.remove());
+  ).finished.catch(() => {}).then(() => block.remove());
 }
 
 function hideImages(still) {
@@ -377,6 +460,7 @@ function findFolderCover(view, place) {
 
 function playOpen(view, info) {
   // 进入文件夹时背后页面不缩小（folderBackgroundScale 恒为 1）。
+  noteVaultAnimation(tier() === 'lite' ? VAULT_MOTION.liteOpenMs : VAULT_MOTION.openMs + VAULT_MOTION.staggerCap);
   stack.push({ mode: info.mode, id: info.id, coverId: info.coverId, src: info.src });
   const still = findStill(view, info.coverId);
   const to = box(still?.getBoundingClientRect());
@@ -399,6 +483,7 @@ function playOpen(view, info) {
 }
 
 function playBack(view) {
+  noteVaultAnimation(tier() === 'lite' ? VAULT_MOTION.liteBackMs : VAULT_MOTION.backMs + VAULT_MOTION.staggerCap);
   const back = fresh(pendingBack);
   pendingBack = null;
   const place = stack.pop() || null;
@@ -414,6 +499,7 @@ function playBack(view) {
 }
 
 function playFilter(view) {
+  noteVaultAnimation(160);
   const entry = fresh(pendingFilter);
   pendingFilter = null;
   if (tier() === 'none') {
@@ -433,11 +519,13 @@ function playFilter(view) {
 function playEmpty(view) {
   const boxEl = view.querySelector('.vault-empty');
   if (!boxEl || tier() === 'none') return;
+  noteVaultAnimation(220);
   boxEl.classList.add(tier() === 'lite' ? 'pv-empty-lite' : 'pv-empty-in');
 }
 
 function popSelected(view, fromIds, toIds) {
   if (tier() !== 'rich') return;
+  noteVaultAnimation(220);
   const seen = new Set(fromIds);
   toIds.filter(id => !seen.has(id)).forEach(id => {
     const button = [...view.querySelectorAll('[data-select-vault-item]')].find(item => item.dataset.selectVaultItem === id);
@@ -448,27 +536,50 @@ function popSelected(view, fromIds, toIds) {
   });
 }
 
-function ensureJank() {
-  if (jankOn || !plain() || tier() !== 'rich') return;
+function stopJankLoop() {
+  if (jankRaf) cancelAnimationFrame(jankRaf);
+  jankRaf = 0;
+  jankOn = false;
+}
+
+function resetVaultJank() {
+  localLite = false;
+  jankUntil = 0;
+  jankLast = 0;
+  jankState = { windowStart: 0, long: 0, tier: 'rich' };
+  stopJankLoop();
+}
+
+/** 只在私密空间动画播放的这几毫秒里数长帧。降级写进 localLite，离开私密空间再复位。 */
+function noteVaultAnimation(ms) {
+  if (!plain() || globalTier() !== 'rich' || localLite) return;
+  if (!document.querySelector('.private-vault-view')) return;
+  const until = performance.now() + Math.max(0, ms);
+  if (until > jankUntil) jankUntil = until;
+  if (jankOn) return;
   jankOn = true;
-  let last = 0;
+  jankLast = 0;
   const step = now => {
-    if (!document.querySelector('.private-vault-view') || !plain() || tier() === 'none') {
-      jankOn = false;
+    const inVault = Boolean(document.querySelector('.private-vault-view'));
+    const sample = sampleVaultJank({
+      inVault,
+      animating: inVault && now <= jankUntil,
+      localTier: localLite ? 'lite' : 'rich',
+      state: jankState,
+      dt: jankLast ? now - jankLast : 0,
+      now,
+    });
+    jankState = sample.state;
+    localLite = sample.localTier === 'lite';
+    jankLast = now;
+    if (!sample.watching) {
+      stopJankLoop();
+      if (!inVault) resetVaultJank();
       return;
     }
-    if (last) {
-      jankState = noteLongFrame({ ...jankState, tier: tier() === 'lite' ? 'lite' : jankState.tier }, now - last, now);
-      if (jankState.tier === 'lite' && root.dataset.plMotion === 'rich') root.dataset.plMotion = 'lite';
-    }
-    last = now;
-    if (jankState.tier === 'lite') {
-      jankOn = false;
-      return;
-    }
-    requestAnimationFrame(step);
+    jankRaf = requestAnimationFrame(step);
   };
-  requestAnimationFrame(step);
+  jankRaf = requestAnimationFrame(step);
 }
 
 function showShield() {
@@ -486,6 +597,7 @@ function hideShield(instant = false) {
   const node = shield;
   if (!node) return;
   shield = null;
+  if (!instant && tier() !== 'none') noteVaultAnimation(VAULT_MOTION.shieldMs);
   const remove = () => node.remove();
   if (instant || tier() === 'none') {
     remove();
@@ -505,10 +617,40 @@ function hideShield(instant = false) {
   }
 }
 
+function cancelShieldWait() {
+  if (shieldWait) cancelAnimationFrame(shieldWait);
+  shieldWait = 0;
+}
+
 function onVis() {
-  if (!plain() || !document.querySelector('.private-vault-view')) return;
-  if (document.visibilityState === 'hidden') showShield();
-  else requestAnimationFrame(() => requestAnimationFrame(() => hideShield(false)));
+  if (!plain() || !document.querySelector('.private-vault-view')) {
+    if (document.visibilityState === 'visible') {
+      cancelShieldWait();
+      hideShield(true);
+    }
+    return;
+  }
+  if (document.visibilityState === 'hidden') {
+    cancelShieldWait();
+    hiddenAt = performance.now();
+    showShield();
+    return;
+  }
+  const hiddenFor = hiddenAt ? performance.now() - hiddenAt : 0;
+  hiddenAt = 0;
+  const started = performance.now();
+  const tick = () => {
+    const locked = Boolean(document.querySelector('.vault-locked-view'));
+    const waited = performance.now() - started;
+    if (!shieldShouldHold({ hiddenMs: hiddenFor, locked, waitedMs: waited })) {
+      shieldWait = 0;
+      hideShield(false);
+      return;
+    }
+    shieldWait = requestAnimationFrame(tick);
+  };
+  cancelShieldWait();
+  shieldWait = requestAnimationFrame(tick);
 }
 
 function onDown(event) {
@@ -558,10 +700,17 @@ function onClick(event) {
     const grid = document.querySelector('.private-vault-view .vault-grid');
     const rect = box(grid?.getBoundingClientRect?.());
     if (grid && rect) {
-      const clone = grid.cloneNode(true);
-      clone.querySelectorAll('[id]').forEach(node => node.removeAttribute('id'));
+      const items = [...grid.querySelectorAll('.vault-item')];
+      const indexes = visibleItemIndexes(items.map(item => item.getBoundingClientRect()), window.innerHeight);
+      const clone = document.createElement('div');
+      clone.className = grid.className;
+      indexes.forEach(index => {
+        const copy = items[index].cloneNode(true);
+        copy.querySelectorAll('[id]').forEach(node => node.removeAttribute('id'));
+        clone.append(copy);
+      });
       pendingFilter?.clone?.remove();
-      pendingFilter = { at: performance.now(), clone, rect };
+      pendingFilter = { at: performance.now(), clone: indexes.length ? clone : null, rect };
     }
     return;
   }
@@ -584,15 +733,15 @@ function scan(removed) {
   const from = prev;
   prev = next;
   if (view && next.mode === 'locked') rememberLock(view);
-  if (!from) {
-    if (view) ensureJank();
-    return;
+  if (!from) return;
+  if (next.mode === 'absent') {
+    hideShield(true);
+    cancelShieldWait();
+    resetVaultJank();
   }
-  if (next.mode === 'absent') hideShield(true);
   if (next.mode === 'absent' || next.mode === 'locked') stack = [];
   if (next.mode !== 'locked') statusWatch?.disconnect();
   if (!plain()) return;
-  if (view) ensureJank();
   const open = fresh(pendingOpen);
   pendingOpen = null;
   if (from.mode === 'absent' && next.mode === 'locked') playEnter(view);
@@ -607,6 +756,7 @@ function scan(removed) {
   }
   if (pendingBack && from.title === next.title) pendingBack = null;
   if (next.bulk && !from.bulk && tier() !== 'none') {
+    noteVaultAnimation(VAULT_MOTION.bulkMs);
     const bar = view?.querySelector('.vault-bulk-bar');
     bar?.classList.add('pv-bulk-in');
     bar?.addEventListener('animationend', () => bar.classList.remove('pv-bulk-in'), { once: true });
