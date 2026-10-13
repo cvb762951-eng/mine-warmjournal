@@ -1469,10 +1469,10 @@ button.danger) {
    三十五 · 今日 + 我的（方案 #36 §4.2 / §4.7，照抄 preview 里 .a 的写法，选择器换成真实 DOM）
    ========================================================================== */
 /* T1 首屏两卡：同一基线、同高 72px、间距 10px（原来右卡 margin 10px 0 0 -5px：差 10px、叠 5px） */
-:root[data-theme="plain"] .today-view .magazine-hero { gap: 10px; align-items: flex-start; }
+:root[data-theme="plain"] .today-view .magazine-hero { display: grid !important; grid-template-columns: minmax(0,1fr) minmax(0,1fr) !important; gap: 10px !important; align-items: start; }
 :root[data-theme="plain"] .today-view .magazine-hero > .weather-box,
 :root[data-theme="plain"] .today-view .magazine-hero > .today-hero-actions {
-  height: 72px !important; min-height: 72px; margin: 0 !important; flex: 1 1 0; min-width: 0; box-sizing: border-box;
+  height: 72px !important; min-height: 72px; margin: 0 !important; flex: none !important; width: auto !important; min-width: 0; box-sizing: border-box;
 }
 /* T2 快捷入口：四张独立 16px 圆角小卡，间距 8px，图标主题蓝，去掉竖线 */
 :root[data-theme="plain"] .today-view .quick-access-grid { gap: 8px !important; background: transparent !important; padding: 0 !important; }
@@ -1486,7 +1486,7 @@ button.danger) {
 :root[data-theme="plain"] .profile-hero-card { padding-top: 16px !important; padding-bottom: 16px !important; min-height: 0 !important; height: auto !important; }
 :root[data-theme="plain"] .profile-hero-card .profile-avatar-control { width: 64px !important; height: 64px !important; margin: 0 !important; flex: none; }
 :root[data-theme="plain"] .profile-hero-card .profile-avatar-box {
-  width: 64px !important; height: 64px !important; box-shadow: inset 0 0 0 2px var(--pl-blue) !important; background: var(--pl-blue-soft);
+  width: 64px !important; height: 64px !important; box-sizing: border-box !important; border: 2px solid var(--pl-blue) !important; box-shadow: none !important; overflow: hidden; background: var(--pl-blue-soft);
 }
 :root[data-theme="plain"] .profile-hero-card .avatar-camera-badge { right: 0 !important; bottom: 0 !important; width: 22px; height: 22px; }
 /* Me2 四项统计：白卡四等分 + 1px 直竖线（不再是弧形分隔），数字滚动沿用 rollNumbers */
