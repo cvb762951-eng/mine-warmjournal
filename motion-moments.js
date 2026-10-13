@@ -158,10 +158,15 @@ function waitImage(img, ms = 300) {
 
 /* ── M1 快门 / 相册飞入 ─────────────────────────────────────────── */
 let shotFrom = null;
+const SHOT_BUTTONS = '#capture-snippet-photo, #pick-snippet-photo, #quick-capture-snap, #quick-pick-snap, #quick-photo-preview';
+const quickSig = () => {
+  const p = document.getElementById('quick-photo-preview');
+  return p ? `${p.querySelector('img')?.getAttribute('src') || ''}|${p.textContent.trim()}` : '';
+};
 
 function rememberShot(event) {
   if (!on()) return;
-  const button = event.target.closest?.('#capture-snippet-photo, #pick-snippet-photo');
+  const button = event.target.closest?.(SHOT_BUTTONS);
   if (!button) return;
   const r = button.getBoundingClientRect();
   shotFrom = {
@@ -169,58 +174,64 @@ function rememberShot(event) {
     y: r.top + r.height / 2,
     t: performance.now(),
     before: document.querySelectorAll('.snippet-photo-cell').length,
+    quick: quickSig(),
   };
+}
+
+/* Opus #36 snapShot()：新格子从按钮中心 44px 处飞入，520ms × --spring-magnet，每张 +40ms。 */
+function shotIn(el, x, y, i, easing) {
+  const r = el.getBoundingClientRect();
+  if (!(r.width > 0) || !(r.height > 0)) return;
+  const s = MOMENTS_MOTION.shotFromSize / Math.max(r.width, r.height);
+  el.animate([
+    { transform: `translate(${x - (r.left + r.width / 2)}px, ${y - (r.top + r.height / 2)}px) scale(${s})`, opacity: 0 },
+    { opacity: 1, offset: 0.3 },
+    { transform: 'none', opacity: 1 },
+  ], { duration: MOMENTS_MOTION.shotMs, delay: i * MOMENTS_MOTION.shotStagger, easing, fill: 'backwards' });
 }
 
 function playShotIn() {
   if (!shotFrom || !moving() || performance.now() - shotFrom.t > MOMENTS_MOTION.shotWaitMs) return;
-  const cells = [...document.querySelectorAll('#snippet-photo-grid .snippet-photo-cell, .snippet-photo-grid .snippet-photo-cell')];
+  const easing = springMagnet();
+  const { x, y } = shotFrom;
+  /* 真实「新增随手拍」走的是快捷弹窗 #quick-photo-preview（只显示封面 + 张数），
+     不是 #snippet-form 的网格；封面或张数变了就让封面从按钮飞进来。 */
+  const quickImg = document.querySelector('#quick-photo-preview > img');
+  if (quickImg && quickSig() !== shotFrom.quick) {
+    shotFrom = null;
+    shotIn(quickImg, x, y, 0, easing);
+    const overlay = document.querySelector('#quick-photo-preview .quick-photo-overlay');
+    overlay?.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 220, delay: 260, easing: EASE_OUT, fill: 'backwards' });
+    return;
+  }
+  const cells = [...document.querySelectorAll('#snippet-photo-grid .snippet-photo-cell')];
   const plan = shotPlan(shotFrom.before, cells.length);
   if (plan.fly + plan.fade <= 0) return;
-  const { x, y } = shotFrom;
   shotFrom = null;
-  const easing = springMagnet();
-  const batch = cells.slice(plan.start);
-  batch.forEach((cell, i) => {
+  cells.slice(plan.start).forEach((cell, i) => {
     const thumb = cell.querySelector('.snippet-photo-thumb') || cell;
     if (i >= MOMENTS_MOTION.shotMaxFly) {
-      thumb.animate([{ opacity: 0 }, { opacity: 1 }], {
-        duration: 220,
-        delay: MOMENTS_MOTION.shotMaxFly * MOMENTS_MOTION.shotStagger,
-        easing: EASE_OUT,
-        fill: 'backwards',
-      });
+      thumb.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 220, delay: MOMENTS_MOTION.shotMaxFly * MOMENTS_MOTION.shotStagger, easing: EASE_OUT, fill: 'backwards' });
       return;
     }
-    const r = thumb.getBoundingClientRect();
-    if (!(r.width > 0) || !(r.height > 0)) return;
-    const s = MOMENTS_MOTION.shotFromSize / Math.max(r.width, r.height);
-    thumb.animate(
-      [
-        {
-          transform: `translate(${x - (r.left + r.width / 2)}px, ${y - (r.top + r.height / 2)}px) scale(${s})`,
-          opacity: 0,
-        },
-        { opacity: 1, offset: 0.3 },
-        { transform: 'none', opacity: 1 },
-      ],
-      {
-        duration: MOMENTS_MOTION.shotMs,
-        delay: i * MOMENTS_MOTION.shotStagger,
-        easing,
-        fill: 'backwards',
-      },
-    );
+    shotIn(thumb, x, y, i, easing);
   });
 }
 
 /* ── M2 保存飞到列表顶部 ───────────────────────────────────────── */
 let saved = null;
 
+function rememberQuickSave(event) {
+  if (!event.target.closest?.('#quick-save-snap') || !on() || !moving()) return;
+  const card = document.getElementById('quick-photo-modal');
+  if (card) rememberSave({ target: card, quick: true });
+}
+
 function rememberSave(event) {
   const form = event.target;
-  if (form?.id !== 'snippet-form' || !on() || !moving()) return;
-  const still = form.querySelector('.snippet-photo-thumb .photo-blur-still, .snippet-photo-thumb img.photo-blur-still');
+  if (!event.quick && form?.id !== 'snippet-form') return;
+  if (!on() || !moving()) return;
+  const still = form.querySelector('#quick-photo-preview > img, .snippet-photo-thumb .photo-blur-still, .snippet-photo-thumb img.photo-blur-still');
   const photo = still?.complete && still.naturalWidth ? containRect(still) : null;
   saved = {
     t: performance.now(),
@@ -400,7 +411,7 @@ function watchDom() {
       for (const node of record.addedNodes) {
         if (node.nodeType !== 1) continue;
         if (
-          node.matches?.('.snippet-photo-cell, #snippet-photo-grid, .snippet-photo-grid-inner')
+          node.matches?.('.snippet-photo-cell, #snippet-photo-grid, .snippet-photo-grid-inner, #quick-photo-preview > img')
           || node.querySelector?.('.snippet-photo-cell')
         ) needShot = true;
         if (
@@ -423,6 +434,7 @@ export function installMomentsMotion() {
   safe(() => {
     document.addEventListener('click', rememberShot, true);
     document.addEventListener('submit', rememberSave, true);
+    document.addEventListener('click', rememberQuickSave, true);
     document.addEventListener('pointerdown', onLiftDown, { passive: true });
     document.addEventListener('pointermove', onLiftMove, { passive: true });
     document.addEventListener('pointerup', dropHold, { passive: true });

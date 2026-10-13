@@ -34,6 +34,11 @@
   .spacer { height: 70vh; }
   .modal-layer { position: fixed; inset: 0; z-index: 240; display: none; align-items: flex-end; justify-content: center; background: rgba(18,16,14,.45); }
   .modal-layer.open { display: flex; }
+  .quick-photo-preview { position: relative; height: 200px; border-radius: 14px; overflow: hidden; background: #dfe6ef; display: grid; place-items: center; margin-bottom: 12px; }
+  .quick-photo-preview > img { width: 100%; height: 100%; object-fit: contain; }
+  .quick-photo-overlay { position: absolute; left: 10px; bottom: 8px; font-size: 12px; color: #fff; background: rgba(46,52,59,.5); padding: 2px 8px; border-radius: 999px; }
+  .quick-publish-btn { width: 100%; min-height: 46px; border-radius: 14px; border: 0; background: #4F76BD; color: #fff; font: inherit; }
+  .opus { width: 100%; height: 760px; border: 1px solid rgba(85,96,108,.2); border-radius: 14px; margin-top: 12px; }
   .modal { width: min(100%, 420px); max-height: 78vh; overflow: auto; background: #fff; border-radius: 22px 22px 0 0; padding: 16px 16px calc(20px + var(--app-safe-bottom)); }
 </style>
 </head>
@@ -42,34 +47,35 @@
   <main id="app" class="snippets-view">
     <section id="screen-snippets">
       <h1>随手拍 M1–M4</h1>
-      <p class="hint">对标 Opus #36 §10.5–10.8。点「模拟选图」看飞入（最多 6 张依次，其余淡入）；「模拟保存」看飞到新卡 + FLIP；往下滚看分层淡入；长按卡片浮起。不做收成一叠，100 张仍全保存。</p>
+      <p class="hint">调用 App 同一份 motion-moments.js、同一套 DOM（#quick-photo-preview / #quick-save-snap）。点「新增随手拍」→ 选照片看飞入；点「收进今日生活相册」看飞到新卡 + FLIP；往下滚看分层淡入；长按卡片浮起。不做收成一叠，100 张仍全保存。</p>
       <div class="tier" id="tier">
         <button data-tier="rich">完整</button>
         <button data-tier="lite">低端机</button>
         <button data-tier="none">减弱动态</button>
       </div>
       <div class="demo-actions">
-        <button type="button" id="open-form">打开表单</button>
-        <button type="button" id="sim-save">模拟保存（新建）</button>
-        <button type="button" id="sim-edit">模拟保存（编辑·不飞）</button>
+        <button type="button" id="open-form">新增随手拍（同 App 快捷弹窗）</button>
         <button type="button" id="add-below">再加首屏外卡片</button>
       </div>
       <div class="snippets-stream-sheet" id="list"></div>
       <div class="spacer" aria-hidden="true"></div>
+      <h1>对照：Opus #36 原版演示（第 10 节 M1–M4）</h1>
+      <iframe class="opus" loading="lazy" src="https://raw.githack.com/cvb762951-eng/mine-warmjournal/cursor/design-upgrade-plan-9c6d/preview/design-upgrade.html#m1"></iframe>
     </section>
   </main>
 </div>
 <div class="modal-layer" id="modal-layer">
-  <form class="modal" id="snippet-form">
-    <input type="hidden" name="id" value="">
-    <h2 style="margin:0 0 8px;font-size:18px">新增随手拍</h2>
-    <div id="snippet-photo-grid" class="snippet-photo-grid"><div class="snippet-photo-grid-inner" id="grid-inner"></div></div>
+  <div class="modal quick-modal-card" id="quick-photo-modal">
+    <h2 style="margin:0 0 8px;font-size:18px">随手拍 留住此刻（与 App 快捷弹窗同 DOM）</h2>
+    <div class="quick-photo-preview" id="quick-photo-preview"></div>
     <div class="demo-actions">
-      <button type="button" id="capture-snippet-photo">打开相机</button>
-      <button type="button" id="pick-snippet-photo">从相册选择</button>
+      <button type="button" id="quick-capture-snap">拍一张</button>
+      <button type="button" id="quick-pick-snap">选照片</button>
       <button type="button" data-close>关闭</button>
     </div>
-  </form>
+    <button type="button" class="quick-publish-btn" id="quick-save-snap">收进今日生活相册</button>
+  </div>
+  <form class="modal" id="snippet-form" hidden><input type="hidden" name="id" value=""></form>
 </div>
 <script type="module">
   import { installMomentsMotion } from '../motion-moments.js';
@@ -88,8 +94,7 @@
   const list = document.getElementById('list');
   const gridInner = document.getElementById('grid-inner');
   const modal = document.getElementById('modal-layer');
-  const form = document.getElementById('snippet-form');
-
+  
   function cardHtml(id, src, text) {
     return `<article class="snippet-item-card">
       <div class="snippet-visual-wrap">${frame(src, true).replace('data-view-snippet-photo="x"', `data-view-snippet-photo="${id}"`)}</div>
@@ -99,40 +104,27 @@
     </article>`;
   }
 
-  function renderGrid() {
-    gridInner.innerHTML = Array.from({ length: pending }, (_, i) =>
-      `<div class="snippet-photo-cell">${frame(svg(i))}</div>`).join('');
+  const preview = document.getElementById('quick-photo-preview');
+  function renderPreview() {
+    preview.innerHTML = pending ? `<img src="${svg(0, 480, 360)}" alt="预览画面"><span class="quick-photo-overlay">${pending} 张照片 · 0 段视频</span>` : '<small>把这一刻留在这里</small>';
   }
-
-  document.getElementById('open-form').onclick = () => { modal.classList.add('open'); };
+  renderPreview();
+  document.getElementById('open-form').onclick = () => { pending = 0; renderPreview(); modal.classList.add('open'); };
   document.querySelector('[data-close]').onclick = () => { modal.classList.remove('open'); };
-  document.getElementById('capture-snippet-photo').onclick = () => {
-    pending = Math.min(100, pending + 1);
-    renderGrid();
+  // 真机选图是异步的（相机 / 文件选择器返回后才刷新预览），这里延迟 600ms 模拟
+  const add = n => setTimeout(() => { pending = Math.min(100, pending + n); renderPreview(); }, 600);
+  document.getElementById('quick-capture-snap').onclick = () => add(1);
+  document.getElementById('quick-pick-snap').onclick = () => add(3);
+  document.getElementById('quick-save-snap').onclick = () => {
+    if (!pending) return;
+    // 同 App saveQuickSnap：先异步落盘，再 closeModal + render
+    setTimeout(() => {
+      modal.classList.remove('open');
+      const id = `n${++ids}`;
+      list.insertAdjacentHTML('afterbegin', cardHtml(id, svg(0, 480, 360), `新建卡片 ${id}（应飞入）`));
+      pending = 0; renderPreview();
+    }, 120);
   };
-  document.getElementById('pick-snippet-photo').onclick = () => {
-    pending = Math.min(100, pending + 8); // 超过 6：前 6 飞入，其余淡入
-    renderGrid();
-  };
-  document.getElementById('sim-save').onclick = () => {
-    form.querySelector('input[name="id"]').value = '';
-    form.requestSubmit();
-  };
-  document.getElementById('sim-edit').onclick = () => {
-    form.querySelector('input[name="id"]').value = 'existing';
-    form.requestSubmit();
-  };
-  form.addEventListener('submit', event => {
-    event.preventDefault();
-    const editing = Boolean(form.querySelector('input[name="id"]').value);
-    modal.classList.remove('open');
-    if (editing) return; // 编辑不飞：列表不变，M2 应早退
-    const id = `n${++ids}`;
-    const src = svg(ids, 480, 360);
-    list.insertAdjacentHTML('afterbegin', cardHtml(id, src, `新建卡片 ${id}（应飞入）`));
-    pending = 0;
-    renderGrid();
-  });
   document.getElementById('add-below').onclick = () => {
     const id = `b${++ids}`;
     list.insertAdjacentHTML('beforeend', cardHtml(id, svg(ids + 3, 360, 480), `首屏外卡片 ${id}（滚动看分层）`));

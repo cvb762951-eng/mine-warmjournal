@@ -75,3 +75,13 @@ test('不改 snippets 保存与图集一叠牌流程', () => {
   assert.match(snippets, /moment-album-stack/);
   assert.doesNotMatch(moments, /closeMomentAlbum|openMomentAlbum|pendingSnippetPhotos\s*=/);
 });
+
+test('M1/M2 挂在真实「新增随手拍」快捷弹窗上（#quick-*），不只是编辑表单', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const src = await readFile(new URL('../motion-moments.js', import.meta.url), 'utf8');
+  const view = await readFile(new URL('../views/snippets.js', import.meta.url), 'utf8');
+  for (const id of ['quick-pick-snap', 'quick-capture-snap', 'quick-save-snap', 'quick-photo-preview']) {
+    assert.ok(src.includes(`#${id}`), `motion-moments 应监听 #${id}`);
+    assert.ok(view.includes(`id="${id}"`), `views/snippets.js 仍应有 #${id}`);
+  }
+});
