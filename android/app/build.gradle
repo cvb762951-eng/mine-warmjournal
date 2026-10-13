@@ -2,12 +2,24 @@ apply plugin: 'com.android.application'
 
 // 签名配置
 // ---------
-// 1) 本机存在 android/keystore.properties 时，使用其中指定的密钥（该文件已加入 .gitignore，不提交）。
-// 2) 否则若仓库内存在 app/mine-update.keystore，则用这个开发密钥（口令为 Android 调试密钥的公开默认值）。
-// 3) 两者都没有时，自动回退到 Android 默认 debug 签名，保证任何人都能构建。
+// 优先级（从高到低）：
+// 1) 环境变量（GitHub Actions 等 CI 用）：四个变量都齐、且密钥文件存在时才生效 ——
+//    ANDROID_KEYSTORE_PATH / ANDROID_KEYSTORE_PASSWORD / ANDROID_KEY_ALIAS / ANDROID_KEY_PASSWORD
+// 2) 本机存在 android/keystore.properties 时，使用其中指定的密钥（该文件已加入 .gitignore，不提交）。
+// 3) 否则若存在 app/mine-update.keystore，则用这个密钥（自用安装；该文件不入库）。
+// 4) 都没有时，自动回退到 Android 默认 debug 签名，保证任何人都能构建。
 //
-// 说明：开发密钥的口令是 Android 平台公开的调试默认值（android/android），不含任何个人隐私；
-//       正式面向用户分发时，请自行生成密钥并通过 keystore.properties（或环境变量）提供。
+// ⚠️ 这里只读环境变量，绝不把口令写进本文件或任何仓库文件。
+def envKeystorePath = System.getenv('ANDROID_KEYSTORE_PATH')
+def envKeystorePassword = System.getenv('ANDROID_KEYSTORE_PASSWORD')
+def envKeyAlias = System.getenv('ANDROID_KEY_ALIAS')
+def envKeyPassword = System.getenv('ANDROID_KEY_PASSWORD')
+def hasEnvSigning = envKeystorePath && envKeystorePassword && envKeyAlias && envKeyPassword
+        && file(envKeystorePath).exists()
+if (envKeystorePath && !file(envKeystorePath).exists()) {
+    logger.warn("ANDROID_KEYSTORE_PATH 指向的文件不存在，已忽略环境变量签名：${envKeystorePath}")
+}
+
 def keystorePropsFile = rootProject.file('keystore.properties')
 def hasReleaseKeystore = keystorePropsFile.exists()
 def keystoreProps = new Properties()
@@ -21,8 +33,17 @@ android {
     namespace = "com.mine.focus"
     compileSdk = rootProject.ext.compileSdkVersion
     signingConfigs {
+        // CI 签名：口令只来自环境变量，不落盘到仓库。
+        if (hasEnvSigning) {
+            envSigning {
+                storeFile file(envKeystorePath)
+                storePassword envKeystorePassword
+                keyAlias envKeyAlias
+                keyPassword envKeyPassword
+            }
+        }
         if (hasDevKeystore) {
-            // 开发密钥：仓库内自带的调试密钥，仅用于本地构建与自用安装。
+            // 自用密钥：仓库内不自带，仅本机存在时启用。
             devSigning {
                 storeFile devKeystoreFile
                 storePassword 'android'
@@ -56,15 +77,19 @@ android {
     }
     buildTypes {
         debug {
-            // 优先级：自定义密钥 > 仓库开发密钥 > Android 默认 debug 签名
-            if (hasReleaseKeystore) {
+            // 优先级：环境变量（CI）> 本地密钥 > 自用密钥 > Android 默认 debug 签名
+            if (hasEnvSigning) {
+                signingConfig signingConfigs.envSigning
+            } else if (hasReleaseKeystore) {
                 signingConfig signingConfigs.customSigning
             } else if (hasDevKeystore) {
                 signingConfig signingConfigs.devSigning
             }
         }
         release {
-            if (hasReleaseKeystore) {
+            if (hasEnvSigning) {
+                signingConfig signingConfigs.envSigning
+            } else if (hasReleaseKeystore) {
                 signingConfig signingConfigs.customSigning
             } else if (hasDevKeystore) {
                 signingConfig signingConfigs.devSigning

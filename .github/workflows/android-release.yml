@@ -1,0 +1,294 @@
+# 打暖色生活志的 release APK。
+#
+# 签名只来自仓库 Secrets，日志里不打印口令。pull_request 在没有密钥时
+# 仍会打出未签名包并上传产物，但不会创建 Release。
+#
+# 只有 push 到 main，且这次提交把 versionCode 升到高于最新 Release、
+# 证书 SHA-256 以 2f0da7fe 开头时，才创建 GitHub Release 并附上 APK 和 version.json。
+# 合并仍是 1.1.28 (129) 的改动只会上传 artifact。
+#
+# 运行这个工作流需要仓库的 Actions 权限允许 GITHUB_TOKEN 写 contents
+# （Settings → Actions → General → Workflow permissions → Read and write）。
+# 工作流文件里的 permissions 不能超过仓库给 token 的上限。
+
+name: Android release APK
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: android-release-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  release-apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: 补齐用于比较版本和测试的历史
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
+          BASE_REF: ${{ github.base_ref }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+          git fetch origin main --tags
+          if [ "$EVENT_NAME" = "pull_request" ] && [ -n "$BASE_REF" ]; then
+            git fetch origin "$BASE_REF"
+          fi
+          if [ -n "${BEFORE_SHA}" ] && [ "$BEFORE_SHA" != "0000000000000000000000000000000000000000" ]; then
+            git cat-file -e "${BEFORE_SHA}^{commit}" 2>/dev/null || git fetch origin "$BEFORE_SHA"
+          fi
+
+      # @capacitor/cli 要求 Node >= 22。锁在 22.14.0，和当前开发环境一致。
+      - name: 安装 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.14.0'
+          cache: npm
+
+      # capacitor.build.gradle 把 Java 设为 21；AGP 8.13 / Gradle 8.14.3 也用 JDK 21 跑。
+      - name: 安装 JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: 缓存 Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: 安装 Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: platforms;android-36 build-tools;35.0.0 build-tools;36.0.0 platform-tools
+
+      - name: 核对三处版本号
+        id: version
+        run: node scripts/check-versions.mjs
+
+      - name: 安装依赖
+        run: npm ci
+
+      - name: 单元测试
+        id: tests
+        continue-on-error: true
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
+          BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+          rev=""
+          if [ "$EVENT_NAME" = "pull_request" ] && [ -n "$BASE_REF" ]; then
+            rev="origin/${BASE_REF}"
+          elif [ "$EVENT_NAME" = "push" ] && [ -n "$BEFORE_SHA" ] && [ "$BEFORE_SHA" != "0000000000000000000000000000000000000000" ]; then
+            rev="$BEFORE_SHA"
+          fi
+          if [ -n "$rev" ]; then
+            node scripts/ci-test-report.mjs --baseline "$rev"
+          else
+            node scripts/ci-test-report.mjs
+          fi
+
+      - name: 构建网页
+        run: npm run build
+
+      - name: 同步 Capacitor Android 工程
+        run: npx cap sync android
+
+      - name: 准备签名
+        id: signing
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          missing=()
+          [ -z "${ANDROID_KEYSTORE_BASE64}" ] && missing+=(ANDROID_KEYSTORE_BASE64)
+          [ -z "${ANDROID_KEYSTORE_PASSWORD}" ] && missing+=(ANDROID_KEYSTORE_PASSWORD)
+          [ -z "${ANDROID_KEY_ALIAS}" ] && missing+=(ANDROID_KEY_ALIAS)
+          [ -z "${ANDROID_KEY_PASSWORD}" ] && missing+=(ANDROID_KEY_PASSWORD)
+          if [ "${#missing[@]}" -eq 4 ]; then
+            echo "signed=false" >> "$GITHUB_OUTPUT"
+            echo "没有签名密钥，release 包不会用上传密钥签名，也不会创建 GitHub Release。"
+            exit 0
+          fi
+          if [ "${#missing[@]}" -ne 0 ]; then
+            echo "签名密钥不完整，缺少：${missing[*]}" >&2
+            echo "上面只列出了密钥的名字，没有打印内容。" >&2
+            exit 1
+          fi
+          umask 077
+          keystore="${RUNNER_TEMP}/warmjournal-release.keystore"
+          if ! printf '%s' "${ANDROID_KEYSTORE_BASE64}" | tr -d '[:space:]' | base64 --decode > "${keystore}"; then
+            rm -f "${keystore}"
+            echo "密钥解码失败。密钥内容没有打印。" >&2
+            exit 1
+          fi
+          if [ ! -s "${keystore}" ]; then
+            rm -f "${keystore}"
+            echo "解码后的密钥是空文件。" >&2
+            exit 1
+          fi
+          echo "ANDROID_KEYSTORE_PATH=${keystore}" >> "$GITHUB_ENV"
+          echo "signed=true" >> "$GITHUB_OUTPUT"
+          echo "已把密钥写到 runner 临时目录，构建结束后删除。"
+
+      - name: 构建 release APK
+        working-directory: android
+        env:
+          ANDROID_KEYSTORE_PATH: ${{ env.ANDROID_KEYSTORE_PATH }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          chmod +x ./gradlew
+          ./gradlew assembleRelease --no-daemon --build-cache
+
+      - name: 删除临时密钥
+        if: always()
+        run: rm -f "${RUNNER_TEMP}/warmjournal-release.keystore"
+
+      - name: 核对发布证书
+        id: cert
+        if: steps.signing.outputs.signed == 'true'
+        run: |
+          set -euo pipefail
+          apk="android/app/build/outputs/apk/release/app-release.apk"
+          if [ ! -f "$apk" ]; then
+            echo "签过名的 release APK 不存在：$apk" >&2
+            exit 1
+          fi
+          node scripts/apk-cert.mjs "$apk"
+          echo "ok=true" >> "$GITHUB_OUTPUT"
+
+      - name: 生成 version.json
+        id: dist
+        env:
+          VERSION_NAME: ${{ steps.version.outputs.version_name }}
+          VERSION_CODE: ${{ steps.version.outputs.version_code }}
+          SIGNED: ${{ steps.signing.outputs.signed }}
+        run: |
+          set -euo pipefail
+          dist="${RUNNER_TEMP}/warmjournal-dist"
+          notes="${RUNNER_TEMP}/release-notes.md"
+          mkdir -p "$dist"
+          apk_name="warmjournal-${VERSION_NAME}-${VERSION_CODE}.apk"
+          if [ "$SIGNED" = "true" ]; then
+            src="android/app/build/outputs/apk/release/app-release.apk"
+          elif [ -f android/app/build/outputs/apk/release/app-release-unsigned.apk ]; then
+            src="android/app/build/outputs/apk/release/app-release-unsigned.apk"
+          else
+            src="android/app/build/outputs/apk/release/app-release.apk"
+          fi
+          if [ ! -f "$src" ]; then
+            echo "没有找到 release APK" >&2
+            exit 1
+          fi
+          cp "$src" "${dist}/${apk_name}"
+          prev="$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || true)"
+          if [ -n "$prev" ]; then
+            git log "${prev}..HEAD" --pretty=format:'- %s' > "$notes" || true
+          else
+            git log -20 --pretty=format:'- %s' > "$notes" || true
+          fi
+          if [ ! -s "$notes" ]; then
+            printf '%s\n' '- 自动构建的发布包' > "$notes"
+          fi
+          node scripts/make-update-manifest.mjs \
+            --apk "${dist}/${apk_name}" \
+            --out "$dist" \
+            --base-url "https://github.com/${GITHUB_REPOSITORY}/releases/download/v${VERSION_NAME}" \
+            --name "$apk_name" \
+            --notes "$notes"
+          node scripts/assert-release-manifest.mjs "${dist}/version.json" "${dist}/${apk_name}"
+          {
+            echo "apk=${dist}/${apk_name}"
+            echo "manifest=${dist}/version.json"
+            echo "notes=${notes}"
+            echo "apk_name=${apk_name}"
+          } >> "$GITHUB_OUTPUT"
+          {
+            echo "### 产物"
+            echo
+            echo "- 文件：\`${apk_name}\`"
+            echo "- 签名：${SIGNED}"
+            echo "- version.json 的 apkUrl 指向本次版本的 GitHub Release 附件"
+            echo "- 应用内更新先读 \`releases/latest/download/version.json\`，失败再读 workbuddy"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: 上传 APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: warmjournal-${{ steps.version.outputs.version_name }}-${{ steps.version.outputs.version_code }}.apk
+          path: ${{ steps.dist.outputs.apk }}
+          if-no-files-found: error
+
+      - name: 上传 version.json
+        uses: actions/upload-artifact@v4
+        with:
+          name: warmjournal-${{ steps.version.outputs.version_name }}-${{ steps.version.outputs.version_code }}-version.json
+          path: ${{ steps.dist.outputs.manifest }}
+          if-no-files-found: error
+
+      - name: 测试退步则失败
+        if: steps.tests.outcome == 'failure'
+        run: |
+          echo "单元测试失败数比基线多，或者测试报告步骤本身失败了。产物已上传，但不会创建 Release。"
+          exit 1
+
+      - name: 决定是否发布
+        id: release
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BEFORE_SHA: ${{ github.event.before }}
+          SIGNED: ${{ steps.signing.outputs.signed }}
+          CERT_OK: ${{ steps.cert.outputs.ok }}
+        run: node scripts/ci-release-decision.mjs
+
+      - name: 创建 GitHub Release
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.release.outputs.create == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION_NAME: ${{ steps.version.outputs.version_name }}
+          VERSION_CODE: ${{ steps.version.outputs.version_code }}
+          APK_PATH: ${{ steps.dist.outputs.apk }}
+          MANIFEST_PATH: ${{ steps.dist.outputs.manifest }}
+          NOTES_PATH: ${{ steps.dist.outputs.notes }}
+        run: |
+          set -euo pipefail
+          tag="v${VERSION_NAME}"
+          gh release create "$tag" \
+            --target "$GITHUB_SHA" \
+            --title "${VERSION_NAME} (${VERSION_CODE})" \
+            --notes-file "$NOTES_PATH" \
+            "$APK_PATH" \
+            "$MANIFEST_PATH"
+
+      # 应用内更新的主机就是 GitHub Release 本身，没有第二台上载。
+      # App 读不到 GitHub 上的 version.json 时，会改试 workbuddy 的旧地址。
+      # 以后如果要再送到别的主机：把 if 改成需要的条件，上传 APK 和
+      # 一份 apkUrl 指向那个主机的 version.json，并且不要打印密钥。
+      - name: 上传到额外的更新主机（可选，未启用）
+        if: false
+        run: |
+          echo "未配置。当前更新主机是 GitHub Release。"
+          exit 1

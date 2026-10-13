@@ -6,7 +6,7 @@
   "scripts": {
     "build": "node scripts/build-web.mjs",
     "android:sync": "npm run build && cap sync android",
-    "android:apk": "npm run android:sync && cd android && gradlew.bat assembleDebug"
+    "android:apk": "npm run android:sync && node scripts/gradlew.mjs assembleDebug"
   },
   "dependencies": {
     "@capacitor-community/sqlite": "8.1.1",

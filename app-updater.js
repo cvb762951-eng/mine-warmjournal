@@ -15,7 +15,7 @@ import { Directory, Filesystem } from '@capacitor/filesystem';
    · 只接受 https 地址（原生侧还有二次校验）；
    · 下载走原生，落到应用缓存目录，不落公共存储；
    · 安装必须经过 Android 系统安装器的确认页，App 无法静默安装；
-   · 如果清单里给了 sha256，下载后会核对，不一致就拒绝安装。
+   · 清单必须带 sha256。下载后核对，缺失、算不出来或不一致都拒绝安装。
    --------------------------------------------------------------------------- */
 
 const AppUpdater = registerPlugin('AppUpdater');
@@ -265,12 +265,19 @@ export async function applyResourceUpdate(resourceManifest, onProgress) {
   }
 }
 
-// 默认更新源。用户可在「我的 → 检查更新」里改（存 settings.updateManifestUrl）。
-// ⚠️ 换发布位置时，记得把 version.json 和安装包放在同一目录下。
-export const DEFAULT_UPDATE_MANIFEST = 'https://warm-journal-apk.app.workbuddy.host/version.json';
+// 默认更新源，按顺序尝试。用户设置了 updateManifestUrl 时只用那一个，不再回落。
+// 1. GitHub Release 上的 version.json（最新正式版的附件）
+// 2. 旧的 workbuddy 地址：GitHub 超时、HTTP 错误或清单无效时兜底
+// ⚠️ 清单和安装包都只接受 https。sha256 缺失视为清单无效，不能跳过校验。
+export const DEFAULT_UPDATE_MANIFESTS = [
+  'https://github.com/cvb762951-eng/mine-warmjournal/releases/latest/download/version.json',
+  'https://warm-journal-apk.app.workbuddy.host/version.json'
+];
+export const DEFAULT_UPDATE_MANIFEST = DEFAULT_UPDATE_MANIFESTS[0];
 
 const DOWNLOAD_FILE_NAME = 'warmjournal-update.apk';
 const MANIFEST_TIMEOUT_MS = 15000;
+const SHA256_RE = /^[0-9a-f]{64}$/;
 
 export const updateManifestUrl = settings => String(settings?.updateManifestUrl || '').trim() || DEFAULT_UPDATE_MANIFEST;
 
@@ -278,31 +285,72 @@ export function isUpdateSupported() {
   return Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android';
 }
 
-/** 拉取版本清单。清单很小，原生平台走原生请求（见 fetchUpdateText 的说明）。 */
-export async function fetchUpdateManifest(url = DEFAULT_UPDATE_MANIFEST) {
-  const endpoint = String(url || '').trim();
-  if (!endpoint.startsWith('https://')) throw new Error('更新地址必须是 https');
-  const text = await fetchUpdateText(endpoint);
+/** 空地址用默认列表；用户填了地址就只试那一个。 */
+export function manifestEndpoints(url) {
+  const custom = String(url || '').trim();
+  return custom ? [custom] : DEFAULT_UPDATE_MANIFESTS.slice();
+}
+
+/** 把清单文本解析成更新描述。字段不全、不是 https、或没有合法 sha256 都抛错。 */
+export function parseUpdateManifest(text) {
   let payload;
   try {
     payload = JSON.parse(text);
   } catch {
     throw new Error('版本信息格式不正确，请稍后再试');
   }
-  const versionCode = Number(payload?.versionCode) || 0;
-  const apkUrl = String(payload?.apkUrl || '');
-  if (!versionCode || !apkUrl.startsWith('https://')) throw new Error('版本信息不完整或地址不是 https');
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+    throw new Error('版本信息格式不正确，请稍后再试');
+  }
+  const versionCode = Number(payload.versionCode);
+  const versionName = String(payload.versionName || '').trim();
+  const apkUrl = String(payload.apkUrl || '').trim();
+  const sha256 = String(payload.sha256 || '').trim().toLowerCase();
+  const resourceManifestUrl = String(payload.resourceManifestUrl || '').trim();
+  if (!Number.isInteger(versionCode) || versionCode <= 0 || !versionName) {
+    throw new Error('版本信息不完整或地址不是 https');
+  }
+  if (!apkUrl.startsWith('https://')) throw new Error('版本信息不完整或地址不是 https');
+  if (resourceManifestUrl && !resourceManifestUrl.startsWith('https://')) {
+    throw new Error('版本信息不完整或地址不是 https');
+  }
+  if (!SHA256_RE.test(sha256)) throw new Error('版本信息缺少安装包校验值');
   return {
-    versionName: String(payload?.versionName || ''),
+    versionName,
     versionCode,
     apkUrl,
-    sizeBytes: Number(payload?.sizeBytes) || 0,
-    sha256: String(payload?.sha256 || '').toLowerCase(),
-    notes: String(payload?.notes || ''),
-    publishedAt: String(payload?.publishedAt || ''),
-    // 有它就能走「只下载变化的文件」；没有则退回完整安装包
-    resourceManifestUrl: String(payload?.resourceManifestUrl || '')
+    sizeBytes: Number(payload.sizeBytes) || 0,
+    sha256,
+    notes: String(payload.notes || ''),
+    publishedAt: String(payload.publishedAt || ''),
+    resourceManifestUrl
   };
+}
+
+/**
+ * 拉取版本清单。
+ * 未指定地址时按 DEFAULT_UPDATE_MANIFESTS 依次尝试：超时、HTTP 错误、
+ * 无法解析或清单不合法都换下一个。用户指定的地址失败则直接报错，不偷偷改源。
+ * options.fetchText 仅供测试注入；正式路径走 fetchUpdateText。
+ */
+export async function fetchUpdateManifest(url, options = {}) {
+  const fetchText = options.fetchText || fetchUpdateText;
+  const endpoints = manifestEndpoints(url);
+  let lastError = null;
+  for (const endpoint of endpoints) {
+    try {
+      if (!endpoint.startsWith('https://')) throw new Error('更新地址必须是 https');
+      const text = await fetchText(endpoint);
+      return parseUpdateManifest(text);
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error('检查更新失败，请稍后再试');
+    }
+  }
+  if (endpoints.length > 1) {
+    const detail = lastError?.message || '检查更新失败';
+    throw new Error(`更新源都不可用，请稍后再试（${detail}）`);
+  }
+  throw lastError || new Error('检查更新失败，请稍后再试');
 }
 
 /**
@@ -356,8 +404,21 @@ export function hasNewerVersion(manifest, currentVersionCode) {
   return remote > current;
 }
 
+/** 校验值缺失、算不出来或与清单不一致都拒绝安装。不允许跳过。 */
+export function assertApkSha256(expected, actual) {
+  const exp = String(expected || '').trim().toLowerCase();
+  const got = String(actual || '').trim().toLowerCase();
+  if (!SHA256_RE.test(exp) || exp !== got) {
+    throw new Error('安装包校验不通过，已丢弃，请重新下载');
+  }
+}
+
 /** 下载更新包，onProgress 会收到 0~1 的比例（总量未知时为 null）。 */
 export async function downloadUpdate(manifest, onProgress) {
+  const sha256 = String(manifest?.sha256 || '').trim().toLowerCase();
+  const apkUrl = String(manifest?.apkUrl || '').trim();
+  if (!SHA256_RE.test(sha256)) throw new Error('版本信息缺少安装包校验值');
+  if (!apkUrl.startsWith('https://')) throw new Error('更新地址必须是 https');
   if (!isUpdateSupported()) throw new Error('仅 Android 版支持应用内更新');
   let listener = null;
   if (typeof onProgress === 'function') {
@@ -368,17 +429,21 @@ export async function downloadUpdate(manifest, onProgress) {
     });
   }
   try {
-    const result = await AppUpdater.download({ url: manifest.apkUrl, fileName: DOWNLOAD_FILE_NAME });
+    const result = await AppUpdater.download({ url: apkUrl, fileName: DOWNLOAD_FILE_NAME });
     const path = String(result?.path || '');
     const size = Number(result?.size) || 0;
     if (!path) throw new Error('下载完成但没有拿到安装包位置');
-    // 清单里给了校验值就核对一次；不一致说明下载被截断或被替换，绝不能拿去安装。
-    if (manifest.sha256) {
-      const actual = await sha256OfFile(path).catch(() => '');
-      if (actual && actual !== manifest.sha256) {
-        await clearDownload();
-        throw new Error('安装包校验不通过，已丢弃，请重新下载');
-      }
+    let actual = '';
+    try {
+      actual = await sha256OfFile(path);
+    } catch {
+      actual = '';
+    }
+    try {
+      assertApkSha256(sha256, actual);
+    } catch (error) {
+      await clearDownload();
+      throw error;
     }
     return { path, size };
   } finally {

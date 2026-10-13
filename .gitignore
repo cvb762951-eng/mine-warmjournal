@@ -48,3 +48,18 @@ Thumbs.db
 
 # 签名凭据（本机，绝不提交）
 android/keystore.properties
+
+# ---- 安卓工程入库（2026-10-13：仓库开始收录原生工程）----
+# 构建产物：体积巨大且每次都变，一律不入库
+android/build/
+android/.kotlin/
+android/capacitor-cordova-android-plugins/build/
+android/capacitor-cordova-android-plugins/.gradle/
+# 网页产物副本：由 cap sync 从 www/ 生成（www/ 本身也不入库），属产物
+android/app/src/main/assets/public/
+
+# 签名密钥：任何形式都不入库（*.jks / *.keystore / CI 解码出的临时文件）
+*.jks
+*.keystore
+android/app/release.keystore
+
