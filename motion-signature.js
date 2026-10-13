@@ -47,7 +47,7 @@ function revealMasthead(scope) {
   const mast = scope.querySelector('.today-view .magazine-header');
   if (!mast || mast.classList.contains('pl-mast-done')) return;
   if (!mastPlayedAt) mastPlayedAt = performance.now();
-  mast.classList.add('pl-mast-done');
+  if (!mast.classList.contains('pl-mast-done')) mast.classList.add('pl-mast-done');
   mast.querySelectorAll(MAST_LINES).forEach((line, i) => {
     if (line.querySelector(':scope > .pl-rv')) return;
     const inner = document.createElement('span');
@@ -59,10 +59,10 @@ function revealMasthead(scope) {
     wrap.append(inner);
     line.append(wrap);
   });
-  mast.classList.add('pl-mast-play');
+  if (!mast.classList.contains('pl-mast-play')) mast.classList.add('pl-mast-play');
   beginJankWatch();
   setTimeout(() => {
-    mast.classList.remove('pl-mast-play');
+    if (mast.classList.contains('pl-mast-play')) mast.classList.remove('pl-mast-play');
     endJankWatch();
   }, 1400);
 }
@@ -79,35 +79,40 @@ function placeCalendarCursor(scope) {
     cursor = Object.assign(document.createElement('i'), { className: 'pl-cal-cursor' });
     cursor.setAttribute('aria-hidden', 'true');
     grid.prepend(cursor);
-    grid.classList.add('pl-has-cursor');
+    if (!grid.classList.contains('pl-has-cursor')) grid.classList.add('pl-has-cursor');
   }
   const day = grid.querySelector('.cal-cell.active');
-  if (!day) { cursor.style.opacity = '0'; return; }
+  if (!day) {
+    if (cursor.style.opacity !== '0') cursor.style.opacity = '0';
+    return;
+  }
   const x = day.offsetLeft + (day.offsetWidth - 36) / 2;
   const y = day.offsetTop + (day.offsetHeight - 36) / 2;
   const to = `translate(${x}px, ${y}px)`;
   if (fresh) {
     const slide = moving() && lastCursor && lastCursor.month === month && lastCursor.transform !== to;
-    cursor.classList.add('pl-cursor-jump');
+    if (!cursor.classList.contains('pl-cursor-jump')) cursor.classList.add('pl-cursor-jump');
     if (slide) {
       cursor.style.transform = lastCursor.transform;
-      cursor.style.opacity = '1';
-      grid.classList.add('pl-cursor-sliding');
+      if (cursor.style.opacity !== '1') cursor.style.opacity = '1';
+      if (!grid.classList.contains('pl-cursor-sliding')) grid.classList.add('pl-cursor-sliding');
       void cursor.offsetWidth;
-      cursor.classList.remove('pl-cursor-jump');
+      if (cursor.classList.contains('pl-cursor-jump')) cursor.classList.remove('pl-cursor-jump');
       cursor.style.transform = to;
-      setTimeout(() => grid.classList.remove('pl-cursor-sliding'), 140);
+      setTimeout(() => {
+        if (grid.classList.contains('pl-cursor-sliding')) grid.classList.remove('pl-cursor-sliding');
+      }, 140);
     } else {
       cursor.style.transform = to;
-      cursor.style.opacity = '0';
+      if (cursor.style.opacity !== '0') cursor.style.opacity = '0';
       void cursor.offsetWidth;
-      cursor.classList.add('pl-cursor-fade');
-      cursor.classList.remove('pl-cursor-jump');
-      cursor.style.opacity = '1';
+      if (!cursor.classList.contains('pl-cursor-fade')) cursor.classList.add('pl-cursor-fade');
+      if (cursor.classList.contains('pl-cursor-jump')) cursor.classList.remove('pl-cursor-jump');
+      if (cursor.style.opacity !== '1') cursor.style.opacity = '1';
     }
   } else if (cursor.style.transform !== to) {
     cursor.style.transform = to;
-    cursor.style.opacity = '1';
+    if (cursor.style.opacity !== '1') cursor.style.opacity = '1';
   }
   lastCursor = { month, transform: to };
 }
@@ -121,8 +126,8 @@ function rollDigits(scope) {
     const text = el.classList.contains('pl-reels') ? el.getAttribute('aria-label') : el.textContent.trim();
     if (el.dataset.plRolled === text) return;   // 防重入：自己写 innerHTML 会再触发一次观察，不能删
     el.dataset.plRolled = text;
-    el.setAttribute('aria-label', text);
-    el.classList.add('pl-reels');
+    if (el.getAttribute('aria-label') !== text) el.setAttribute('aria-label', text);
+    if (!el.classList.contains('pl-reels')) el.classList.add('pl-reels');
     const chars = [...text];
     let digitIndex = chars.filter(c => /\d/.test(c)).length;
     el.innerHTML = chars.map(c => {
@@ -176,10 +181,10 @@ function installTilt() {
   const release = () => {
     if (!card) return;
     const done = card;
-    done.classList.remove('pl-tilting');
+    if (done.classList.contains('pl-tilting')) done.classList.remove('pl-tilting');
     done.style.setProperty('--pl-rx', '0deg');
     done.style.setProperty('--pl-ry', '0deg');
-    setTimeout(() => done.classList.remove('pl-tilt'), 540);
+    setTimeout(() => { if (done.classList.contains('pl-tilt')) done.classList.remove('pl-tilt'); }, 540);
     card = null;
   };
   document.addEventListener('pointerdown', e => {
@@ -188,7 +193,8 @@ function installTilt() {
     if (!c) return;
     card = c; rect = c.getBoundingClientRect(); start = { x: e.clientX, y: e.clientY, t: performance.now() };
     px = (e.clientX - rect.left) / rect.width; py = (e.clientY - rect.top) / rect.height;
-    c.classList.add('pl-tilt', 'pl-tilting');
+    if (!c.classList.contains('pl-tilt')) c.classList.add('pl-tilt');
+    if (!c.classList.contains('pl-tilting')) c.classList.add('pl-tilting');
     apply();
   }, { passive: true });
   document.addEventListener('pointermove', e => {
