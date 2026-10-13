@@ -3,6 +3,7 @@ import { APP_VERSION_NAME } from './app-updater.js';
 import { Capacitor, registerPlugin } from '@capacitor/core';
 import { $, $$, state, cursor, selected, setState, setCursor, setSelected, defaults, render, go, goBack, save, show, confirmDelete, closeModal, getSubmitHandler, registerBinder, registerHelper, registerOnRender, callHelper, pushBackState, applyTheme, primeThemeFromNativeMirror, notifyPersistedKeySeal } from './core.js';
 import { installPressFeedback, installMagneticDock } from './motion.js';
+import { installLayerMotion } from './motion-layers.js';
 import { migrateState, dateKey } from './model.js';
 import { externalizeStateMedia } from './media-store.js';
 import { rebuildActivityLog } from './activity-log.js';
@@ -255,6 +256,7 @@ async function boot() {
   // 全局按压物理：一次挂载，之后新渲染出来的按钮自动生效（事件委托）
   installPressFeedback();
   installMagneticDock();
+  installLayerMotion();
   let autoSummaryLaunch = false;
   try {
     // 解析期没读到主题时，先用原生存储把清简/暖阳补上，避免数据库打开期间先露出暖色纸。
