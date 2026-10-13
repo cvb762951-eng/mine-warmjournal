@@ -5,7 +5,7 @@ import { $, $$, state, cursor, selected, setState, setCursor, setSelected, defau
 import { installPressFeedback, installMagneticDock } from './motion.js';
 import { installLayerMotion } from './motion-layers.js';
 import { migrateState, dateKey } from './model.js';
-import { externalizeStateMedia } from './media-store.js';
+import { externalizeStateMedia, recoverReferencedMedia } from './media-store.js';
 import { rebuildActivityLog } from './activity-log.js';
 import { openReleaseNotes } from './views/common.js';
 import { ensureReleaseActivities } from './release-activity.js';
@@ -269,6 +269,8 @@ async function boot() {
     ensureReleaseActivities(state);
     await callHelper('scheduleAutoSummary');
     callHelper('setAiHistory', [...(state.aiHistory || [])]);
+    // 记录引用着、却被误挪进回收站的照片/视频：启动时先挪回原处再解析地址（2026-10-13）。
+    await recoverReferencedMedia(state).catch(error => console.warn('回收站媒体找回失败', error));
     const migratedMedia = await externalizeStateMedia(state);
     // 浏览器媒体外置后用短引用覆盖 localStorage；Android 重复持久化由分区差异检查跳过。
     const persisted = await persistState(state);
