@@ -90,13 +90,17 @@ export async function persistImageData(value) {
   return Capacitor.isNativePlatform() ? writeDataImage(value) : writeBrowserData(value, 'image');
 }
 
-export async function externalizeStateMedia(state) {
+/** 把内嵌 dataURL 外置成短引用；可选地给已有引用预热可显示的本地地址。
+ *  warmExisting=false：启动时跳过「给每一张照片调 Filesystem.getUri」——那是冷启动最慢的一段；
+ *  首屏需要的几张由 warmMediaRefs 单独预热，其余在第一帧之后再补。 */
+export async function externalizeStateMedia(state, { warmExisting = true } = {}) {
   const native = Capacitor.isNativePlatform();
   let migrated = 0;
   for (const slot of mediaSlots(state)) {
     const value = slot.get();
     if (!value) continue;
     if (isMediaRef(value)) {
+      if (!warmExisting) continue;
       const ensure = isBrowserRef(value) ? ensureBrowserUrl : native && isNativeRef(value) ? ensureUrl : null;
       if (ensure) await ensure(value).catch(() => urls.set(value, ''));
       continue;
@@ -112,6 +116,34 @@ export async function externalizeStateMedia(state) {
     migrated += 1;
   }
   return { migrated, state };
+}
+
+/** 只给指定引用解析可显示地址（原生 convertFileSrc / 浏览器 blob URL）。失败记空串，不抛。 */
+export async function warmMediaRefs(refs = []) {
+  const list = [...new Set((refs || []).filter(isMediaRef))];
+  for (const ref of list) {
+    if (urls.has(ref)) continue;
+    try {
+      if (isBrowserRef(ref)) await ensureBrowserUrl(ref);
+      else if (isNativeRef(ref)) await ensureUrl(ref);
+    } catch { urls.set(ref, ''); }
+  }
+  return list.length;
+}
+
+/** 今日页第一帧真正会用到的媒体：封面、最新 3 张随手拍封面、头像。其它等首屏后再补。 */
+export function firstPaintMediaRefs(state) {
+  const refs = [];
+  const cover = state?.settings?.todayCoverImage;
+  if (cover) refs.push(cover);
+  const avatar = state?.profile?.avatar;
+  if (avatar) refs.push(avatar);
+  const photos = (state?.snippets || [])
+    .filter(entry => entry?.type === 'photo' && (entry.photos?.length || entry.photo))
+    .sort((a, b) => (Number(b.createdAt) || 0) - (Number(a.createdAt) || 0))
+    .slice(0, 3);
+  for (const entry of photos) refs.push(entry.photos?.length ? entry.photos[0] : entry.photo);
+  return refs;
 }
 
 export async function expandMediaReferences(state) {
