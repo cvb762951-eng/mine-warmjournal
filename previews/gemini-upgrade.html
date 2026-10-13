@@ -881,6 +881,8 @@ html.showfps #fps { display: block; }
   <div class="sigs" id="landedM"></div>
   <h3 class="stars-h">#46 设计 token · #47 §4.1 全局</h3>
   <div class="sigs" id="landedG"></div>
+  <h3 class="stars-h">#49 §4.2 今日 + §4.7 我的</h3>
+  <div class="sigs" id="landedT"></div>
 </section>
 
 <section class="blk">
@@ -2236,7 +2238,14 @@ html.showfps #fps { display: block; }
     $(id).innerHTML = list.map(([a, n, t, d, spec, tier, , url, pr], i) => `<div class="sig-c" id="${a}"><h4><span><i>${n}</i>${t}${tier ? '<span class="tier">rich</span>' : ''}</span><button data-land="${i}">在手机里看</button></h4><p>${d}</p><div class="spec">${spec}</div><p style="margin:8px 0 0;font-size:12px"><b>${pr}</b>${url ? ` · <a href="${url}" target="_blank" rel="noopener">App 代码预览 ↗</a>` : ''} · <a href="#${a}">#${a}</a></p></div>`).join('');
     $(id).addEventListener('click', e => { const b = e.target.closest('[data-land]'); if (b) list[Number(b.dataset.land)][6](); });
   }
-  renderLanded('#landedM', LANDED_M); renderLanded('#landedG', LANDED_G);
+  const LANDED_T = [
+    ['t1', 'T1', '首屏两卡同基线', '天气卡与拍照 / 记一笔卡同一基线、同高 72px、间距 10px（原来差 10px、叠 5px）。', '.magazine-hero gap 10px · 两卡 height 72px · margin 0', '', () => phoneDemo('today'), '', '#49'],
+    ['t2', 'T2', '快捷入口四张小卡', '四格直角 + 竖线 → 四张独立 16px 圆角白卡，间距 8px，图标主题蓝。', '.quick-access-grid gap 8px · .qa-card r 16px · --pl-shadow-card', '', () => phoneDemo('today', async p => { $('.scr', p).scrollTo({ top: 9999, behavior: 'smooth' }); }, 500), '', '#49'],
+    ['t3', 'Me1', '个人卡头像收进卡内', '上下内边距 16px，头像 64px，相机角标收进圆内。', 'padding 16px · avatar 64px · inset 2px --pl-blue', '', () => phoneDemo('mine'), '', '#49'],
+    ['t4', 'Me2', '四项统计直竖线', '四等分 + 1px 直竖线；数字滚动沿用 rollNumbers。', '.mine-kpi-row grid 4 · + border-left 1px --pl-line', '', () => phoneDemo('mine'), '', '#49'],
+    ['t5', 'Me3', '列表图标块', '40px、12px 圆角、浅蓝底。', '.setting-icon-box 40px · r 12px · --pl-blue-soft', '', () => phoneDemo('mine', async p => { $('.scr', p).scrollTo({ top: 400, behavior: 'smooth' }); }, 500), '', '#49'],
+  ];
+  renderLanded('#landedM', LANDED_M); renderLanded('#landedG', LANDED_G); renderLanded('#landedT', LANDED_T);
   /* Opus 原有卡片也挂上锚点：#s1… #z1… #v1… */
   $$('.sig-c').forEach(c => { if (!c.id) { const k = c.querySelector('h4 i')?.textContent.trim(); if (k && !document.getElementById(k.toLowerCase().replace('+', 'p').replace(/\W/g, ''))) c.id = 'opus-' + k.toLowerCase().replace('+', 'p').replace(/\W/g, ''); } });
   function jump() {
