@@ -469,6 +469,7 @@ function paintSwipe(s, x) {
 }
 
 function installSwipeBack() {
+  const INTERACTIVE = 'button, a[href], [role="button"], label, summary, select, [onclick], [data-action], .subpage-back-btn, [tabindex]:not([tabindex="-1"])';
   let g = null;
   let settle = null;                                              // 还在跑的回弹：{ stop, s }
   const tidy = s => {
@@ -487,13 +488,18 @@ function installSwipeBack() {
     const box = layer.getBoundingClientRect();
     const zone = swipeZone(e.clientX - box.left, box.width);
     if (!zone) return;
+    const ctrl = e.target.closest?.(INTERACTIVE);
+    const inCtrl = Boolean(ctrl && layer.contains(ctrl));
+    if (inCtrl && zone === 'page') return;
     g = { layer, W: box.width, zone, x0: e.clientX, y0: e.clientY, id: e.pointerId, locked: false, samples: [[e.timeStamp, 0]], x: 0, raf: 0 };
+    if (inCtrl && zone === 'edge') g.onControl = true;
   }, { capture: true, passive: true });
 
   document.addEventListener('pointermove', e => {
     if (!g || e.pointerId !== g.id) return;
     const dx = e.clientX - g.x0, dy = e.clientY - g.y0;
     if (!g.locked) {
+      if (g.onControl && (dx < 24 || dx <= 2 * Math.abs(dy))) return;
       const intent = swipeIntent({ dx, dy, zone: g.zone });
       if (intent === 'wait') return;
       if (intent === 'abort') { g = null; return; }

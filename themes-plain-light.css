@@ -1102,6 +1102,7 @@ button.danger) {
   background-color: #fff !important;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.3 6.2 4.8 8.7 9.8 3.3' fill='none' stroke='%233D5F9E' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") !important;
   box-shadow: 0 0 0 1.5px var(--pl-blue-deep) !important;
+  pointer-events: none !important;
 }
 :root[data-theme="plain"] .journal-view :is(.mood-pick-item, .weather-pick-item).active :is(small, .material-symbols-outlined) {
   color: #fff !important;
@@ -1272,7 +1273,7 @@ button.danger) {
 :root[data-theme="plain"].pl-sheet-dragging .phone-shell > #app { transition: none !important; }
 :root[data-theme="plain"] #modal-layer.pl-sheet > .modal::before {
   content: ""; display: block; width: 36px; height: 4px; margin: -8px auto 10px; border-radius: 999px;
-  background: rgba(46, 52, 59, 0.16);
+  background: rgba(46, 52, 59, 0.16); pointer-events: none;
 }
 :root[data-theme="plain"] .modal[data-pl-detents] { height: 92vh; }
 
@@ -1618,7 +1619,7 @@ button.danger) {
 }
 @keyframes pl-sweep-rot { to { transform: translate(-50%, -50%) rotate(360deg); } }
 @keyframes pl-sweep-fade { to { opacity: 1; } }
-:root[data-theme="plain"] .halo-card::after { animation: none; opacity: .45; }
+:root[data-theme="plain"] .halo-card::after { animation: none; opacity: .45; pointer-events: none !important; }
 :root[data-theme="plain"] .halo-card { box-shadow: var(--pl-shadow-card), inset 0 0 0 1px var(--pl-blue-line) !important; }
 
 /* ⑤ 底部弹层：冷墨 32% 实色遮罩，只淡 opacity；面板 320ms 进、220ms 出 */
@@ -1692,50 +1693,65 @@ button.danger) {
 :root[data-theme="plain"] :is(#subpage-timetable, #subpage-journal-reader, #subpage-ledger-detail, #subpage-habit-detail, #subpage-focus-detail, #subpage-media-detail, .subpage-layer) {
   background: var(--plain-canvas) !important;
 }
-/* 头部：吸顶、冷蓝半透明底、三栏 80px / 1fr / 80px、无圆角无投影 */
-:root[data-theme="plain"] :is(#subpage-timetable, #subpage-journal-reader, #subpage-ledger-detail, #subpage-habit-detail, #subpage-focus-detail, #subpage-media-detail, .subpage-layer) > .subpage-nav-bar {
-  position: sticky !important; top: 0; z-index: 3;
-  display: grid !important; grid-template-columns: 80px minmax(0, 1fr) 80px !important; align-items: center !important; gap: 0 !important;
+:root[data-theme="plain"] .subpage-layer.active:not(.pl-collapse-out) {
+  pointer-events: auto !important;
+}
+/* 头部：吸顶、冷蓝半透明底、三栏、无圆角无投影 */
+:root[data-theme="plain"] :is(#subpage-timetable, #subpage-journal-reader, #subpage-ledger-detail, #subpage-habit-detail, #subpage-focus-detail, #subpage-media-detail, .subpage-layer, .journal-reader-page) :is(.subpage-nav-bar, nav.subpage-nav-bar) {
+  position: sticky !important; top: 0 !important; z-index: 20 !important;
+  display: grid !important; grid-template-columns: minmax(72px, auto) minmax(0, 1fr) minmax(72px, auto) !important; align-items: center !important; gap: 0 !important;
   min-height: 0 !important; height: auto !important;
+  margin: 0 !important; width: 100% !important; max-width: 100% !important; box-sizing: border-box !important; flex: none !important;
   padding: calc(12px + var(--app-safe-top, 0px)) 14px 12px !important;
   background: rgba(234, 240, 248, .96) !important; background-image: none !important;
   border: 0 !important; border-radius: 0 !important; box-shadow: none !important;
   -webkit-backdrop-filter: none !important; backdrop-filter: none !important;
 }
 /* 标题：居中、16px 衬线粗体、单行省略；副标题（课程表的手写体）收成 11px 灰字 */
-:root[data-theme="plain"] :is(#subpage-timetable, #subpage-journal-reader, #subpage-ledger-detail, #subpage-habit-detail, #subpage-focus-detail, #subpage-media-detail, .subpage-layer) .subpage-nav-title {
+:root[data-theme="plain"] :is(#subpage-timetable, #subpage-journal-reader, #subpage-ledger-detail, #subpage-habit-detail, #subpage-focus-detail, #subpage-media-detail, .subpage-layer, .journal-reader-page) .subpage-nav-title {
   min-width: 0; text-align: center !important; justify-self: stretch;
   font: 800 16px/1.2 var(--font-serif, Newsreader, serif) !important; color: var(--pl-ink, currentColor) !important;
   white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; letter-spacing: 0 !important;
 }
-:root[data-theme="plain"] :is(#subpage-timetable, #subpage-journal-reader, #subpage-ledger-detail, #subpage-habit-detail, #subpage-focus-detail, #subpage-media-detail, .subpage-layer) .subpage-nav-title > b { display: block; font: inherit !important; overflow: hidden; text-overflow: ellipsis; }
-:root[data-theme="plain"] :is(#subpage-timetable, #subpage-journal-reader, #subpage-ledger-detail, #subpage-habit-detail, #subpage-focus-detail, #subpage-media-detail, .subpage-layer) .subpage-nav-title > small {
+:root[data-theme="plain"] :is(#subpage-timetable, #subpage-journal-reader, #subpage-ledger-detail, #subpage-habit-detail, #subpage-focus-detail, #subpage-media-detail, .subpage-layer, .journal-reader-page) .subpage-nav-title > b { display: block; font: inherit !important; overflow: hidden; text-overflow: ellipsis; }
+:root[data-theme="plain"] :is(#subpage-timetable, #subpage-journal-reader, #subpage-ledger-detail, #subpage-habit-detail, #subpage-focus-detail, #subpage-media-detail, .subpage-layer, .journal-reader-page) .subpage-nav-title > small {
   display: block; margin-top: 2px; font: 600 11px/1.2 var(--font-sans, system-ui) !important; color: var(--ink-secondary) !important; transform: none !important;
 }
-/* 返回：34px 白胶囊 + 1px 细线 */
-:root[data-theme="plain"] :is(#subpage-timetable, #subpage-journal-reader, #subpage-ledger-detail, #subpage-habit-detail, #subpage-focus-detail, #subpage-media-detail, .subpage-layer) .subpage-back-btn {
+/* 返回：34px 白胶囊 + 1px 细线，保底 44px 触控区 */
+:root[data-theme="plain"] :is(#subpage-timetable, #subpage-journal-reader, #subpage-ledger-detail, #subpage-habit-detail, #subpage-focus-detail, #subpage-media-detail, .subpage-layer, .journal-reader-page) .subpage-back-btn {
   justify-self: start; display: inline-flex !important; align-items: center !important; gap: 4px !important;
-  width: auto !important; height: 34px !important; min-height: 34px !important; padding: 0 12px !important;
+  width: auto !important; min-width: 44px !important; height: 34px !important; min-height: 34px !important; padding: 0 12px !important;
   border-radius: 999px !important; background: var(--plain-surface) !important; background-image: none !important;
   border: 1px solid rgba(85, 96, 108, .14) !important; box-shadow: none !important;
   font-size: 12.5px !important; font-weight: 800 !important; color: var(--pl-ink, currentColor) !important; white-space: nowrap;
 }
-:root[data-theme="plain"] :is(#subpage-timetable, #subpage-journal-reader, #subpage-ledger-detail, #subpage-habit-detail, #subpage-focus-detail, #subpage-media-detail, .subpage-layer) .subpage-back-btn .material-symbols-outlined { font-size: 16px !important; }
-/* 右侧动作：与返回同一身份的 34px 圆钮 */
-:root[data-theme="plain"] :is(#subpage-timetable, #subpage-journal-reader, #subpage-ledger-detail, #subpage-habit-detail, #subpage-focus-detail, #subpage-media-detail, .subpage-layer) > .subpage-nav-bar > button:last-child:not(.subpage-back-btn) {
-  justify-self: end; width: 34px !important; height: 34px !important; min-height: 34px !important; padding: 0 !important; display: grid !important; place-items: center;
+:root[data-theme="plain"] :is(#subpage-timetable, #subpage-journal-reader, #subpage-ledger-detail, #subpage-habit-detail, #subpage-focus-detail, #subpage-media-detail, .subpage-layer, .journal-reader-page) .subpage-back-btn .material-symbols-outlined { font-size: 16px !important; }
+/* 右侧动作：文本按钮保持自然宽度、最小 34px 高度与 44px 触控区 */
+:root[data-theme="plain"] :is(#subpage-timetable, #subpage-journal-reader, #subpage-ledger-detail, #subpage-habit-detail, #subpage-focus-detail, #subpage-media-detail, .subpage-layer, .journal-reader-page) :is(.subpage-nav-bar, nav.subpage-nav-bar) > :is(button:last-child:not(.subpage-back-btn), button.subpage-nav-action) {
+  justify-self: end; width: auto !important; min-width: 44px !important; height: auto !important; min-height: 34px !important; padding: 0 12px !important; display: inline-flex !important; align-items: center !important; justify-content: center !important;
   border-radius: 999px !important; background: var(--plain-surface) !important; border: 1px solid rgba(85, 96, 108, .14) !important; box-shadow: none !important; color: var(--pl-blue-deep) !important;
+  font-size: 12.5px !important; font-weight: 800 !important; white-space: nowrap;
+}
+/* 右侧动作（纯图标按钮）：收为 34px 圆钮 */
+:root[data-theme="plain"] :is(#subpage-timetable, #subpage-journal-reader, #subpage-ledger-detail, #subpage-habit-detail, #subpage-focus-detail, #subpage-media-detail, .subpage-layer, .journal-reader-page) :is(.subpage-nav-bar, nav.subpage-nav-bar) > :is(button:last-child:not(.subpage-back-btn), button.subpage-nav-action):not(.has-text):is(.course-nav-settings, .icon-only, [class*="icon-btn"], :has(> :is(.material-symbols-outlined, svg, [class*="icon"]):only-child):not(:has(small, b, strong, em, span:not(.material-symbols-outlined):not([class*="icon"])))) {
+  width: 34px !important; min-width: 34px !important; height: 34px !important; min-height: 34px !important; padding: 0 !important; display: grid !important; place-items: center;
 }
 /* Z9 返回箭头：按下左移 3px（90ms），松手 420ms 回弹 */
 :root[data-theme="plain"] .subpage-back-btn .material-symbols-outlined { transition: transform 420ms var(--spring-release, var(--pl-ease-out)); }
 :root[data-theme="plain"] .subpage-back-btn:active .material-symbols-outlined,
 :root[data-theme="plain"] .subpage-back-btn[data-pressed] .material-symbols-outlined { transform: translateX(-3px); transition-duration: 90ms; }
-/* 内容：左右 14px、顶 6px、底 30px；内容卡沿用白卡 + 20px 圆角 + 卡片投影、不描边 */
-:root[data-theme="plain"] :is(#subpage-timetable, #subpage-journal-reader, #subpage-ledger-detail, #subpage-habit-detail, #subpage-focus-detail, #subpage-media-detail, .subpage-layer) > .subpage-nav-bar + :is(main, div, section) {
+/* 内容：左右 14px、顶 6px、底 30px；确保不被顶栏遮挡，且不被负边距拉入顶栏下方 */
+:root[data-theme="plain"] :is(#subpage-timetable, #subpage-journal-reader, #subpage-ledger-detail, #subpage-habit-detail, #subpage-focus-detail, #subpage-media-detail, .subpage-layer, .journal-reader-page) :is(.subpage-nav-bar, nav.subpage-nav-bar) + :is(main, div, section, article, .subpage-body, .course-page, .journal-reader-article, .habit-detail-screen, .media-detail-page) {
+  margin-top: 0 !important;
   padding-left: 14px !important; padding-right: 14px !important; padding-top: 6px !important; padding-bottom: 30px !important;
+  box-sizing: border-box !important;
 }
 :root[data-theme="plain"] :is(#subpage-timetable, #subpage-journal-reader, #subpage-ledger-detail, #subpage-habit-detail, #subpage-focus-detail, #subpage-media-detail, .subpage-layer) :is(.course-hero, .course-day-card, .course-daily-card, .card) {
   background: var(--plain-surface) !important; background-image: none !important; border: 0 !important; border-radius: var(--pl-r-lg) !important; box-shadow: var(--pl-shadow-card) !important;
+}
+:root[data-theme="plain"] .course-hero::before,
+:root[data-theme="plain"] .course-hero::after {
+  pointer-events: none !important;
 }
 @media (prefers-reduced-motion: reduce) {
   :root[data-theme="plain"] .subpage-back-btn .material-symbols-outlined { transition: none; }
@@ -1797,7 +1813,7 @@ button.danger) {
   z-index: 2 !important; -webkit-mask: none !important; mask: none !important; content: '' !important; position: absolute !important; right: 6px !important; top: 4px !important; left: auto !important; bottom: auto !important;
   width: 14px !important; height: 14px !important; border-radius: 50% !important; box-shadow: none !important; border: 0 !important;
   background: white url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='rgb(79,118,189)' stroke-width='3.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5'/%3E%3C/svg%3E") center / 10px 10px no-repeat !important;
-  animation: pl-pick-pop 160ms var(--pl-ease-out) both; transform: none; opacity: 1;
+  animation: pl-pick-pop 160ms var(--pl-ease-out) both; transform: none; opacity: 1; pointer-events: none !important;
 }
 @keyframes pl-pick-pop { from { opacity: 0; transform: scale(.6); } }
 
@@ -1891,7 +1907,7 @@ button.danger) {
   animation-delay: calc(var(--ri) * 70ms);
 }
 :root[data-theme="plain"]:is([data-pl-motion="rich"], [data-pl-motion="lite"]) .pl-mast-play .editorial-cover-motto::after {
-  transform-origin: left; animation: pl-rule-in 480ms var(--pl-ease-expo) 360ms both;
+  transform-origin: left; animation: pl-rule-in 480ms var(--pl-ease-expo) 360ms both; pointer-events: none !important;
 }
 @keyframes pl-rv-up { from { transform: translateY(105%); } }
 @keyframes pl-rule-in { from { transform: scaleX(0); } }
