@@ -63,6 +63,25 @@ export function containRect(img) {
   };
 }
 
+/** cover 绘制框：object-fit: cover 时整张图实际铺开的矩形（比框大，多出的被框裁掉）。
+ *  返回 { rect: 原图比例的绘制框, clip: 相对绘制框的裁切 inset(px) }。 */
+export function coverRect(img) {
+  if (!img) return null;
+  const box = typeof img.getBoundingClientRect === 'function' ? img.getBoundingClientRect() : img;
+  const nw = img.naturalWidth || img.nw || 0;
+  const nh = img.naturalHeight || img.nh || 0;
+  if (!(box?.width > 0) || !(box?.height > 0) || !(nw > 0) || !(nh > 0)) return null;
+  const s = Math.max(box.width / nw, box.height / nh);
+  const w = nw * s;
+  const h = nh * s;
+  const left = box.left + (box.width - w) / 2;
+  const top = box.top + (box.height - h) / 2;
+  return {
+    rect: { left, top, width: w, height: h, ratio: nw / nh },
+    clip: { top: box.top - top, left: box.left - left, bottom: top + h - (box.top + box.height), right: left + w - (box.left + box.width) },
+  };
+}
+
 /** 两端显示框宽高比误差 ≤ 0.5% 才允许飞行。 */
 export function sameRatio(a, b, tolerance = MOMENTS_MOTION.aspectTolerance) {
   if (!(a?.width > 0) || !(a?.height > 0) || !(b?.width > 0) || !(b?.height > 0)) return false;
@@ -113,7 +132,7 @@ function springMagnet() {
   return raw || EMPH;
 }
 
-function flyPhoto(src, from, to, { duration = MOMENTS_MOTION.saveMs, easing = EMPH, radius = 12 } = {}) {
+function flyPhoto(src, from, to, { duration = MOMENTS_MOTION.saveMs, easing = EMPH, radius = 12, clip = null } = {}) {
   const transform = flightTransform(from, to);
   if (!transform || !src || !moving()) return null;
   const img = new Image();
@@ -128,9 +147,16 @@ function flyPhoto(src, from, to, { duration = MOMENTS_MOTION.saveMs, easing = EM
     height: `${from.height}px`,
     borderRadius: `${radius}px`,
   });
+  /* 起点是 cover 封面时：克隆按原图比例摆在 cover 绘制框上，再用 clip-path 裁成封面框，
+     第一帧与封面一模一样；飞行中裁切放开到 inset(0)，落成新卡里的完整 contain 图。
+     照片本身只有 translate + 单一 scale，不会被拉伸。 */
+  const clipFrom = clip ? `inset(${clip.top}px ${clip.right}px ${clip.bottom}px ${clip.left}px round ${radius}px)` : null;
+  if (clipFrom) { img.style.borderRadius = '0'; img.style.clipPath = clipFrom; }
   document.body.append(img);
   const anim = img.animate(
-    [{ transform: 'none' }, { transform }],
+    clipFrom
+      ? [{ transform: 'none', clipPath: clipFrom }, { transform, clipPath: `inset(0px round ${radius}px)` }]
+      : [{ transform: 'none' }, { transform }],
     { duration, easing, fill: 'forwards' },
   );
   anim.finished
@@ -232,11 +258,15 @@ function rememberSave(event) {
   if (!event.quick && form?.id !== 'snippet-form') return;
   if (!on() || !moving()) return;
   const still = form.querySelector('#quick-photo-preview > img, .snippet-photo-thumb .photo-blur-still, .snippet-photo-thumb img.photo-blur-still');
-  const photo = still?.complete && still.naturalWidth ? containRect(still) : null;
+  const ready = Boolean(still?.complete && still.naturalWidth);
+  const isCover = ready && getComputedStyle(still).objectFit === 'cover';
+  const cover = isCover ? coverRect(still) : null;
+  const photo = ready ? (cover ? cover.rect : containRect(still)) : null;
   saved = {
     t: performance.now(),
     editing: Boolean(form.querySelector('input[name="id"]')?.value),
     photo,
+    clip: cover ? cover.clip : null,
     src: still?.currentSrc || still?.src || '',
     before: new Map(
       [...document.querySelectorAll('.snippet-item-card')].map(card => [cardKey(card), card.getBoundingClientRect().top]),
@@ -265,7 +295,7 @@ async function playSaveToTop() {
 
   if (visible && s.photo && s.src) {
     still.style.opacity = '0';
-    const anim = flyPhoto(s.src, s.photo, to, { duration: MOMENTS_MOTION.saveMs, easing: EMPH });
+    const anim = flyPhoto(s.src, s.photo, to, { duration: MOMENTS_MOTION.saveMs, easing: EMPH, clip: s.clip });
     const show = () => { still.style.opacity = ''; };
     if (anim) {
       anim.finished.catch(() => {}).then(() => {

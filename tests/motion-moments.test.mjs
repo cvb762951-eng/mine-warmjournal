@@ -85,3 +85,14 @@ test('M1/M2 挂在真实「新增随手拍」快捷弹窗上（#quick-*），不
     assert.ok(view.includes(`id="${id}"`), `views/snippets.js 仍应有 #${id}`);
   }
 });
+
+test('coverRect：cover 封面按原图比例铺开，裁切 inset 对得上封面框', async () => {
+  const { coverRect, sameRatio, containRect } = await import('../motion-moments.js');
+  const cover = { left: 10, top: 20, width: 300, height: 170, naturalWidth: 1200, naturalHeight: 1600 };
+  const c = coverRect(cover);
+  assert.ok(Math.abs(c.rect.width / c.rect.height - 0.75) < 1e-9, '绘制框保持原图比例');
+  assert.ok(Math.abs(c.clip.left) < 1e-9 && Math.abs(c.clip.right) < 1e-9);
+  assert.ok(Math.abs(c.clip.top + c.clip.bottom + 170 - c.rect.height) < 1e-6, '上下裁掉的正好是多出来的部分');
+  const card = { left: 0, top: 400, width: 336, height: 190, naturalWidth: 1200, naturalHeight: 1600 };
+  assert.ok(sameRatio(c.rect, containRect(card)), '与新卡 contain 框比例一致 → 飞行而不是只淡入');
+});
