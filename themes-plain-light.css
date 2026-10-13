@@ -1445,16 +1445,13 @@ button.danger) {
   background: var(--pl-scrim) !important; backdrop-filter: none !important; -webkit-backdrop-filter: none !important;
   transition: opacity 240ms var(--pl-ease-out), visibility 240ms;
 }
-:root[data-theme="plain"] .modal { transition: transform var(--pl-dur-sheet) var(--pl-ease-emph); }
-:root[data-theme="plain"] .modal-layer:not(.open) .modal { transition-duration: 220ms; transition-timing-function: var(--pl-ease-in); }
+/* 跟手下拉（motion-layers 的 .pl-dragging / .pl-dragged）期间不加过渡，否则跟手会被拖慢 */
+:root[data-theme="plain"] .modal-layer:not(.pl-dragging):not(.pl-dragged) .modal { transition: transform var(--pl-dur-sheet) var(--pl-ease-emph); }
+:root[data-theme="plain"] .modal-layer:not(.open):not(.pl-dragging):not(.pl-dragged) .modal { transition-duration: 220ms; transition-timing-function: var(--pl-ease-in); }
 
-/* ⑥ 二级页层次：左缘静态阴影 + 底页 .06 淡遮罩（只动 opacity） */
+/* ⑥ 二级页层次：左缘静态阴影。底页淡遮罩不再另加 —— motion-layers 的 Z1/Z2 已有 .pl-subpage-dim，
+   再叠一层 ::after 会压暗两次。 */
 :root[data-theme="plain"] .subpage-layer { box-shadow: var(--pl-shadow-edge); }
-:root[data-theme="plain"] .phone-shell::after {
-  content: ''; position: absolute; inset: 0; z-index: 150; pointer-events: none;
-  background: rgba(46, 52, 59, .06); opacity: 0; transition: opacity 350ms var(--pl-ease-out);
-}
-:root[data-theme="plain"] .phone-shell:has(> .subpage-layer.active)::after { opacity: 1; }
 
 /* ⑧ Toast：实色墨块，不模糊，translateY 8px + opacity */
 :root[data-theme="plain"] .toast {
