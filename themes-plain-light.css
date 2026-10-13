@@ -1205,3 +1205,104 @@ button.danger) {
   :root[data-theme="plain"] .phone-shell > :is(#app, .pl-subpage-dim) { transition: none !important; }
   :root[data-theme="plain"] .pl-rise-item { animation: none !important; }
 }
+
+/* ==========================================================================
+   三十一 · 私密空间动效（motion-vault.js）
+   只清简、只动 transform / opacity。文件夹进入不缩小背后页面。
+   ========================================================================== */
+:root[data-theme="plain"] .pv-unlock {
+  position: fixed; z-index: 220; pointer-events: none; overflow: visible;
+}
+:root[data-theme="plain"] .pv-unlock .pv-half { position: absolute; left: 0; right: 0; height: 50%; overflow: hidden; }
+:root[data-theme="plain"] .pv-unlock .pv-half-top { top: 0; }
+:root[data-theme="plain"] .pv-unlock .pv-half-bottom { bottom: 0; }
+:root[data-theme="plain"] .pv-unlock .pv-half-inner { position: absolute; left: 0; width: 100%; height: 200%; }
+:root[data-theme="plain"] .pv-unlock .pv-half-top .pv-half-inner { top: 0; }
+:root[data-theme="plain"] .pv-unlock .pv-half-bottom .pv-half-inner { bottom: 0; }
+:root[data-theme="plain"] .pv-unlock-flat .pv-half-inner { position: absolute; inset: 0; height: 100%; }
+:root[data-theme="plain"] .pv-unlock .pv-seam {
+  position: absolute; left: 12%; right: 12%; top: 50%; height: 1px; transform-origin: 50% 50%;
+  background: var(--plain-surface);
+}
+:root[data-theme="plain"] .pv-fly,
+:root[data-theme="plain"] .pv-ghost {
+  position: fixed; z-index: 214; pointer-events: none; transform-origin: 0 0; overflow: hidden; border-radius: 12px;
+}
+:root[data-theme="plain"] .pv-fly img { width: 100%; height: 100%; object-fit: contain; display: block; }
+:root[data-theme="plain"] .pv-ghost { z-index: 213; background: var(--plain-surface); box-shadow: var(--pl-card-shadow); }
+:root[data-theme="plain"] .pv-shield {
+  position: fixed; inset: 0; z-index: 220; display: grid; place-items: center; pointer-events: none;
+  background: var(--plain-canvas);
+}
+:root[data-theme="plain"][data-pl-motion="rich"] .pv-shield {
+  background: color-mix(in srgb, var(--plain-canvas) 55%, transparent);
+  -webkit-backdrop-filter: blur(8px) saturate(1.1);
+  backdrop-filter: blur(8px) saturate(1.1);
+}
+:root[data-theme="plain"] .pv-shield i {
+  width: 72px; height: 72px; display: grid; place-items: center; border-radius: 22px;
+  background: var(--plain-surface); color: var(--pl-blue);
+  font-family: 'Material Symbols Outlined'; font-size: 32px; font-style: normal;
+  box-shadow: var(--pl-card-shadow);
+}
+:root[data-theme="plain"][data-pl-motion="rich"] .vault-lock-mark.pv-breath { animation: pv-breath 1.6s ease-in-out 3; }
+:root[data-theme="plain"][data-pl-motion="rich"] .vault-lock-mark.pv-mark-once { animation: pv-mark-once 420ms ease both; }
+:root[data-theme="plain"]:not([data-pl-motion="none"]) .vault-lock-paper.pv-nudge { animation: pv-nudge 260ms cubic-bezier(.2, .9, .2, 1.15); }
+:root[data-theme="plain"][data-pl-motion="rich"] .pv-rise {
+  animation: pv-rise 220ms cubic-bezier(.16, 1, .3, 1) backwards;
+  animation-delay: var(--pv-d, 0ms);
+}
+:root[data-theme="plain"][data-pl-motion="rich"] .pv-empty-in > .material-symbols-outlined { animation: pv-empty-icon 200ms cubic-bezier(.16, 1, .3, 1) both; }
+:root[data-theme="plain"][data-pl-motion="rich"] .pv-empty-in > strong,
+:root[data-theme="plain"][data-pl-motion="rich"] .pv-empty-in > small { animation: pv-empty-text 220ms cubic-bezier(.16, 1, .3, 1) 40ms both; }
+:root[data-theme="plain"][data-pl-motion="lite"] .pv-empty-lite { animation: pv-fade 160ms ease both; }
+:root[data-theme="plain"]:not([data-pl-motion="none"]) .vault-bulk-bar.pv-bulk-in { animation: pv-bulk-in 220ms ease both; }
+:root[data-theme="plain"][data-pl-motion="rich"] .vault-bulk-bar.pv-bulk-in { animation-timing-function: cubic-bezier(.2, .9, .2, 1.15); }
+:root[data-theme="plain"][data-pl-motion="rich"] .vault-item.selected { transform: scale(1.02); }
+:root[data-theme="plain"][data-pl-motion="rich"] .vault-item.pv-pop { animation: pv-pop 220ms cubic-bezier(.2, .9, .2, 1.15); }
+@keyframes pv-breath { 50% { opacity: .72; } }
+@keyframes pv-mark-once { 50% { transform: scale(1.06); } }
+@keyframes pv-nudge { 50% { transform: translate3d(0, 6px, 0); } }
+@keyframes pv-rise { from { opacity: 0; transform: translate3d(0, 12px, 0); } }
+@keyframes pv-fade { from { opacity: 0; } }
+@keyframes pv-empty-icon { from { opacity: 0; transform: scale(.92); } }
+@keyframes pv-empty-text { from { opacity: 0; transform: translate3d(0, 8px, 0); } }
+@keyframes pv-bulk-in { from { transform: translate3d(0, 120%, 0); } }
+@keyframes pv-pop { from { transform: scale(1); } }
+
+/* 多选底栏跟清简变量走，不沿用暖色牛皮纸，也不写死中性色。 */
+:root[data-theme="plain"] .private-vault-view .vault-bulk-bar {
+  background: var(--plain-surface) !important;
+  background-image: none !important;
+  color: var(--ink) !important;
+  border: 1px solid var(--pl-line) !important;
+  border-radius: var(--radius-soft) !important;
+  box-shadow: var(--pl-card-shadow) !important;
+}
+:root[data-theme="plain"] .private-vault-view .vault-bulk-bar > span,
+:root[data-theme="plain"] .private-vault-view .vault-bulk-bar strong {
+  color: var(--ink) !important;
+}
+:root[data-theme="plain"] .private-vault-view .vault-bulk-bar button {
+  background: var(--pl-blue-soft) !important;
+  background-image: none !important;
+  color: var(--pl-blue-deep) !important;
+  border: 1px solid var(--pl-blue-line) !important;
+  border-radius: var(--radius-soft-sm) !important;
+  box-shadow: none !important;
+}
+:root[data-theme="plain"] .private-vault-view .vault-bulk-bar #vault-bulk-delete {
+  background: var(--pl-danger-soft) !important;
+  color: var(--pl-danger) !important;
+  border-color: transparent !important;
+}
+:root[data-theme="plain"] .private-vault-view .vault-bulk-bar .material-symbols-outlined { color: inherit !important; }
+
+@media (prefers-reduced-motion: reduce) {
+  :root[data-theme="plain"] :is(.pv-rise, .pv-bulk-in, .pv-empty-in, .pv-empty-lite, .pv-pop, .pv-breath, .pv-mark-once, .pv-nudge) { animation: none !important; }
+  :root[data-theme="plain"] .vault-lock-mark.pv-breath,
+  :root[data-theme="plain"] .vault-lock-mark.pv-mark-once,
+  :root[data-theme="plain"] .vault-lock-paper.pv-nudge,
+  :root[data-theme="plain"] .vault-item.pv-pop,
+  :root[data-theme="plain"] .vault-item.selected { animation: none !important; }
+}
