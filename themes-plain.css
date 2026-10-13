@@ -2578,15 +2578,17 @@ button.danger) {
 :root[data-theme="plain"] .subpage-layer { box-shadow: -12px 0 32px rgba(46, 52, 59, 0.08); }
 :root[data-theme="plain"] .subpage-layer:not(.active):not(.pl-collapse-out) { box-shadow: none; }
 
-/* Z2 / S3：二级页推入时底页左移 20%（rich），盖一层只动 opacity 的 12% 遮罩 */
+/* Z2 / S3：二级页推入时底页左移 20%（rich），盖一层只动 opacity 的 12% 遮罩。
+   Z1 原位展开（.pl-z1-pending / .pl-z1-open）不加左移与遮罩：方案里左移只给「推入」，
+   收回时若 #app 从 -20% 弹回，会和固定定位的幽灵抢位置，收完回主页那一下就会卡。 */
 :root[data-theme="plain"] .phone-shell > .pl-subpage-dim {
   position: absolute; inset: 0; z-index: 159; pointer-events: none;
   background: rgba(46, 52, 59, 0.12); opacity: 0;
   transition: opacity 350ms cubic-bezier(.16, 1, .3, 1);
 }
-:root[data-theme="plain"] .phone-shell:has(.subpage-layer.active) > .pl-subpage-dim { opacity: 1; }
+:root[data-theme="plain"] .phone-shell:has(.subpage-layer.active):not(.pl-z1-open):not(.pl-z1-pending) > .pl-subpage-dim { opacity: 1; }
 :root[data-theme="plain"] .phone-shell > #app { transition: transform 350ms cubic-bezier(.16, 1, .3, 1); }
-:root[data-theme="plain"][data-pl-motion="rich"] .phone-shell:has(.subpage-layer.active) > #app { transform: translate3d(-20%, 0, 0); }
+:root[data-theme="plain"][data-pl-motion="rich"] .phone-shell:has(.subpage-layer.active):not(.pl-z1-open):not(.pl-z1-pending) > #app { transform: translate3d(-20%, 0, 0); }
 :root[data-theme="plain"] .subpage-layer:is(.pl-swiping, .pl-swiped) { transition: none !important; }
 :root[data-theme="plain"] .phone-shell.pl-swiping > :is(#app, .pl-subpage-dim) { transition: none !important; }
 
