@@ -14,11 +14,11 @@
       }
     })();
   </script>
-  <link rel="stylesheet" href="fonts.css?v=1.1.27">
-  <link rel="stylesheet" href="performance.css?v=1.1.27">
-  <link rel="stylesheet" href="styles.css?v=1.1.27">
+  <link rel="stylesheet" href="fonts.css?v=1.1.28">
+  <link rel="stylesheet" href="performance.css?v=1.1.28">
+  <link rel="stylesheet" href="styles.css?v=1.1.28">
   <!-- 主题皮肤必须最后加载：靠后加载 + 抬高的选择器权重覆盖 styles.css 的 :root -->
-  <link rel="stylesheet" href="themes.css?v=1.1.27">
+  <link rel="stylesheet" href="themes.css?v=1.1.28">
   <!-- 清简主题的质感重置（撤掉图片素材），必须排在 themes.css 之后；
        文件里已由 gen-plain-theme.mjs 把「浅色化 + 美化」层拼在末尾，
        所以这里只引这一个文件 —— 少一个 <link> 就少一个"送不到设备上"的风险。
@@ -26,7 +26,7 @@
           （2026-10-10 实测约 230ms）。解析期脚本只在上次主题是清简时启用它。
           光启用样式表不够：规则都挂在 [data-theme="plain"] 上，这里必须同时写上 data-theme，
           否则首屏仍是暖色纸，要等存储启动后的 applyTheme 才切过去。 -->
-  <link id="plain-theme-sheet" rel="stylesheet" href="themes-plain.css?v=1.1.27" media="not all" disabled>
+  <link id="plain-theme-sheet" rel="stylesheet" href="themes-plain.css?v=1.1.28" media="not all" disabled>
   <style id="early-theme-shell">
     html[data-theme="plain"],
     html[data-theme="plain"] body,
@@ -102,6 +102,6 @@
   </div>
   <div class="modal-layer" id="modal-layer"></div>
   <div class="toast" id="toast" role="status"></div>
-  <script defer src="app.js?v=1.1.27"></script>
+  <script defer src="app.js?v=1.1.28"></script>
 </body>
 </html>
