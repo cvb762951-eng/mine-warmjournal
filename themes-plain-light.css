@@ -1407,6 +1407,9 @@ button.danger) {
   :root[data-theme="plain"] .pl-popover.open > *,
   :root[data-theme="plain"] .modal.pl-nudge { animation: none !important; }
   :root[data-theme="plain"] .subpage-back-btn .material-symbols-outlined { transition: none !important; }
+}
+
+/* ==========================================================================
    三十二 · 随手拍动效（motion-moments.js · 方案 #36 第 10.5–10.8 节 M1–M4）
    只旁听 DOM。照片飞行只用 translate + 单一 scale。不做「收成一叠」。
    100 张上限与保存流程仍在 views/snippets.js，此处不改。
