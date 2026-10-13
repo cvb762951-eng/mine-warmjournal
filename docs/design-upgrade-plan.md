@@ -12,6 +12,8 @@
 - **只用 CSS 能做完的，就不写 JS。** 除了两项可选（日历切月方向、下拉关闭弹层），全部是纯 CSS；可选的 JS 也不碰通知相关文件。
 - **写到能照抄。** 第 3.0 节是完整 token 表，第 5.1 节是关键动效的 CSS 写法，第 5.2 节是手势阈值；其他模型落地时按这三节执行即可。
 - **再加一层有记忆点的签名动效（第 8 节）。** 共 12 项，包括刊头晨光、卡片展开成二级页、景深后退、视差页头、日历磁吸游标、弹性滑块、数字翻牌、主角卡微光与指尖倾斜、墨晕、三拍入场。仍然只动 transform / opacity，分 rich / lite / none 三档，卡顿时会自动降档；只新增一个 JS 文件，不改任何视图文件。
+- **二级页与弹窗能被手直接操纵（第 9 节）。** 原位展开 + 标题飞到导航栏、边缘右滑返回、弹层跟手下拉（带中 / 高两档）、内容依次浮现、确认框轻缩放 + 模糊背景等 9 项，松手后按手指速度交给弹簧。
+- **私密空间与随手拍是主角（第 10 节）。** 私密空间：解锁时锁面从中缝分开、内容浮现（≤ 430ms，全程可点）；切出 App 立刻盖模糊遮罩，回来先在遮罩下渲染锁屏再揭开；文件夹从封面原位展开。随手拍：照片从快门 / 相册按钮飞进表单，保存后飞到列表顶部的新卡片；滚动时铺底 → 主图 → 文字分层淡入；长按卡片轻轻浮起。所有照片飞行都按原始宽高比计算、只做等比缩放；加密、锁定、观看记录逻辑一行不改。
 - **动效只动 `transform` / `opacity`。** 颜色、底色、描边的变化一律瞬时切换，不做补间。全部尊重 `prefers-reduced-motion`。
 - **先减负、再加料。** 第一步是"几乎零视觉变化"的性能减负：去掉不透明底上看不见却每帧都要算的背景模糊（底栏、天气卡、课程卡、日期条等）、把主角卡光晕的旋转层从 1641×1911px（账本页 2259×2377px）缩小到约 440×440px、旋转一圈后停下。之后才动版式。
 - **按块落地、可单独撤回。** 之前 #15 清简对齐因为局部不满意被整包撤回（#16），所以落地时每一步在 `themes-plain-light.css` 里各占一个独立小节，哪一块不喜欢就只删那一节。
@@ -26,6 +28,7 @@
 | 通知 | `notifications.js`、`app.js` 里的通知接线、`views/ai.js` / `views/focus.js` / `views/countdown.js` 中调用通知的部分、`views/mine.js` 的提醒设置区（含其 CSS 选择器） | 另一个 PR 正在修通知，避免冲突 |
 | 已定型的交互手感 | `motion.js` 中的日记牌组（`mountJournalDeck` / `createDeckSpread` / `cycleDeckPhoto` / `fanIn` / `fanOut`）、共享过渡（`withSharedTransition` / `beginSharedElement`）、`views/snippets.js` 的图集一叠牌 | 用户已经调好的手感，不推倒重来 |
 | 照片 | `photo-frame.js`（`photoFrameLayersHtml`）及所有 `.photo-blur-frame` / `.photo-blur-pad` / `.photo-blur-still` 规则 | 照片必须保持原始比例（contain 全片 + 同图铺底），不允许任何改动引入拉伸或裁切 |
+| 私密空间逻辑 | `views/private-vault.js` 的加密 / 解密、`lockPrivateVault` / `privateVaultUnlocked`、`scheduleVisibilityLock` 与 `visibilitychange` 处理、免密开关、指纹流程、观看记录 | 用户硬性要求：只改视觉和动效（第 10 节只"旁听" DOM 和可见性事件） |
 | 看大图 | 点照片**直接开大图、不加入场动效** | 用户 2026-10-12 明确要求（见提交 `788d94c`） |
 | 今日画页 | Photo Story 整块（含底部留白、字号） | #15 被撤回的直接原因就是这里（"底部留白太宽、字太小、不需要 Photo Notes"） |
 | 字号 | 不缩小任何字号 | 同上，#16 的撤回理由之一 |
@@ -1062,7 +1065,7 @@ P .toast.show { transform: translate(-50%, 0);
 
 ### 8.6 落地顺序补充
 
-签名动效排在第 6 节的步骤 A–F **之后**，作为步骤 G 一次落完（第 9 节的二级页与弹窗手势是步骤 H，排在 G 之后）：`motion-signature.js`（新文件）+ `themes-plain-light.css`"二十九 · 签名动效" + `app.js` 一行调用 + `assets/plain-grain-160.png`。建议新增测试 `tests/plain-signature-motion.test.mjs`，锁住三件事：签名规则都带 plain 前缀；所有 `@keyframes` 只出现 `transform` / `opacity`；`motion-signature.js` 不 import `model.js` / `storage.js` / `notifications.js`。
+签名动效排在第 6 节的步骤 A–F **之后**，作为步骤 G 一次落完（第 9 节的二级页与弹窗手势是步骤 H，第 10 节私密空间与随手拍是步骤 I，依次排在 G 之后）：`motion-signature.js`（新文件）+ `themes-plain-light.css`"二十九 · 签名动效" + `app.js` 一行调用 + `assets/plain-grain-160.png`。建议新增测试 `tests/plain-signature-motion.test.mjs`，锁住三件事：签名规则都带 plain 前缀；所有 `@keyframes` 只出现 `transform` / `opacity`；`motion-signature.js` 不 import `model.js` / `storage.js` / `notifications.js`。
 
 ---
 
@@ -1482,6 +1485,444 @@ P .subpage-back[data-pressed] .material-symbols-outlined { transform: translateX
 3. 拖动过程中 6 倍 CPU 降速：拖动帧不掉到 30fps 以下；松手后的补间连续长帧不超过 2 个。
 4. 减弱动态效果下：拖动仍然跟手，松手直接到终点；确认框直接出现、没有模糊。
 5. 横向滚动的标签行、输入框、照片、牌组里起手不会触发右滑返回。
+
+---
+
+## 10. 主角：私密空间与随手拍
+
+用户最常用的两块。这一节只**叠加**：私密空间的加密、锁定、观看记录逻辑不改一行；随手拍的图集一叠牌、`photoFrameLayersHtml`、拍照 / 选图 / 保存流程都不改。做法和第 9 节一样：在 `motion-layers.js` 里旁听 DOM 变化（`MutationObserver`）、捕获阶段的点击 / 提交（只读位置，不 `preventDefault`、不 `stopPropagation`，唯一例外见 M4）和可见性事件，然后在现有元素上叠 transform / opacity。
+
+### 10.0 照片飞行的铁律
+
+1. **只做等比缩放。** 飞行的永远是一张独立的 `<img>` 克隆，摆在来源照片的 **contain 显示框**上（不是外框），然后 `translate + scale(s)` 飞到目标照片的 contain 显示框。两端是同一张图，宽高比相同，所以 `s = 目标宽 / 来源宽` 一个数就够。
+2. **起飞前核对比例。** `|(tw/th) / (sw/sh) − 1| > 0.5%` 就放弃飞行，只做淡入（防止目标图换了版本或还没加载）。
+3. **外框和照片分开动。** 外框（白纸 / 圆角）可以用空白幽灵做非等比缩放，但只在 `|sx/sy − 1| ≤ .25` 时使用，否则只飞照片；照片本身从不非等比缩放。
+4. **没加载完不飞。** 目标 `img.complete && naturalWidth` 不成立时，等 `load` 最多 300ms，超时放弃飞行。
+5. **点照片看大图仍然没有入场动效。** 本节所有飞行只发生在"列表 ↔ 列表"之间。
+
+```js
+// motion-layers.js · 第 10 节共用
+/** contain 显示框：img 元素框内、按原始宽高比实际显示照片的那块矩形（视口坐标） */
+function containRect(img) {
+  const r = img.getBoundingClientRect();
+  const nw = img.naturalWidth, nh = img.naturalHeight;
+  if (!nw || !nh) return null;
+  const s = Math.min(r.width / nw, r.height / nh);
+  const w = nw * s, h = nh * s;
+  return { left: r.left + (r.width - w) / 2, top: r.top + (r.height - h) / 2, width: w, height: h, ratio: nw / nh };
+}
+const sameRatio = (a, b) => Math.abs(a.width / a.height / (b.width / b.height) - 1) <= 0.005;
+
+/** 等比飞行：克隆摆在 from 上，飞到 to。返回 Animation；比例不符返回 null。 */
+function flyPhoto(src, from, to, { duration = 480, easing = 'cubic-bezier(.32,.72,0,1)', radius = 12 } = {}) {
+  if (!from || !to || !sameRatio(from, to) || !moving()) return null;
+  const img = new Image();
+  img.src = src;
+  img.className = 'pl-fly-photo';
+  Object.assign(img.style, { left: from.left + 'px', top: from.top + 'px', width: from.width + 'px', height: from.height + 'px', borderRadius: radius + 'px' });
+  document.body.append(img);
+  const s = to.width / from.width;                                   // 等比：一个数
+  const anim = img.animate([
+    { transform: 'none' },
+    { transform: `translate(${to.left - from.left}px, ${to.top - from.top}px) scale(${s})` }
+  ], { duration, easing, fill: 'forwards' });
+  anim.finished.then(() => img.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 80, fill: 'forwards' }).finished).finally(() => img.remove());
+  return anim;
+}
+```
+
+```css
+/* themes-plain-light.css · 三十一 · 私密空间与随手拍 */
+P .pl-fly-photo, :root[data-theme="plain"] body > .pl-fly-photo { position: fixed; z-index: 2147483000; object-fit: contain; transform-origin: 0 0; pointer-events: none; will-change: transform; box-shadow: var(--pl-shadow-float); }
+```
+
+### 10.1 参数总表
+
+| # | 项 | 关键参数 |
+|---|---|---|
+| V1 | 解锁仪式 | 锁面克隆从中缝上下分开：上半 `translateY(−32px)`、下半 `translateY(+32px)`，同时淡出，280ms `cubic-bezier(.4,0,.2,1)`；锁徽 0–120ms `scale(1 → 1.18)` + 淡出；中缝一道 1px 亮线 `scaleX(0 → 1)` 0–140ms 后随下半淡出；内容 90ms 起依次浮现，每项 +24ms，最多 6 项，单项 220ms `--pl-ease-out`，位移 12px；封面网格按 `(行 + 列) × 30ms` 斜向错开；**总时长 ≤ 430ms，全程可点**（克隆 `pointer-events: none`） |
+| V2 | 后台遮罩 | 切出（`visibilitychange → hidden` / `pagehide`）立即盖上，无动画；rich：`backdrop-filter: blur(24px) saturate(1.1)` + `rgba(234,240,248,.55)` + 居中锁徽；lite / none：实色 `#EAF0F8` + 锁徽；回来时等两帧（锁屏已在遮罩下渲染好），遮罩 240ms `--pl-ease-out` 淡出，锁面 40ms 起 `scale(.98 → 1)` + 淡入 260ms；保险：回来 1200ms 后无条件移除 |
+| V3 | 封面原位展开 | 点 `.vault-folder-open`：封面照片按 contain 框飞到详情里同一张照片（`[data-open-vault-item="封面项 id"]`）的 contain 框，420ms `cubic-bezier(.32,.72,0,1)`；封面外框幽灵同时长同曲线，`|sx/sy − 1| ≤ .25` 才用；其余照片按到落点的距离排序依次浮现，120ms 起每项 +20ms（封顶 8），单项 200ms，位移 8px + `scale(.96 → 1)`；返回文件夹列表时反向飞回，340ms |
+| M1 | 快门 / 相册飞入 | 记下被点的 `#capture-snippet-photo` / `#pick-snippet-photo` 中心；8s 内表单网格新增的 `.snippet-photo-cell` 从按钮中心飞入：`translate(按钮中心 − 格中心) scale(44 / max(格宽, 格高)) → none`，520ms `--pl-spring-magnet`（等比，过冲 10% 只发生在等比缩放上），前 30% 淡入；多张每张 +40ms，最多 6 张 |
+| M2 | 保存飞到列表顶部 | 提交 `#snippet-form` 时记下第一张缩略图的 contain 框和地址，以及现有卡片位置；3s 内列表出现新卡片：照片克隆按 10.0 飞到新卡第一张图的 contain 框，480ms `cubic-bezier(.32,.72,0,1)`；新卡 100ms 起淡入 + 上移 10px 220ms，主图在克隆落地时 80ms 交叉淡入；旧卡片 FLIP 下移让位 360ms `cubic-bezier(.32,.72,0,1)`，最多处理视口内 6 张 |
+| M3 | 滚动分层淡入 | 只对首屏以外的卡片：进入视口（`rootMargin: 0px 0px -8% 0px`）后三层依次到位：铺底 `opacity 0 → .5`（铺底原本就是半透明）200ms；主图 60ms 起 `opacity 0 → 1` + `scale(.985 → 1)` 300ms；文字与按钮 110ms 起上移 6px + 淡入 220ms；同一批进入的卡片每张 +40ms（封顶 3）；图片未加载时等 `load`，主图不先于加载出现 |
+| M4 | 长按浮起 | 按住 380ms 且移动 < 8px：卡片 `translateY(−4px) scale(1.012)` 180ms `--pl-ease-out`，阴影层（`::after`）淡入；松手 / 取消 420ms `--spring-release` 落回；浮起后松手吞掉这一次 click（长按不等于轻点）；在视频段、按钮上起手不触发；图集一叠牌（`#moment-album-layer` / `.moment-album-stack`）不在列表卡片里，天然不受影响 |
+
+三档：
+
+| 项 | rich | lite | none |
+|---|---|---|---|
+| V1 | 分开 + 中缝亮线 + 浮现 | 锁面 160ms 淡出 + 浮现（不分开） | 直接显示 |
+| V2 | 模糊遮罩 | 实色遮罩 | 实色遮罩，回来直接移除 |
+| V3 | 封面飞行 + 幽灵 + 浮现 | 封面飞行 + 浮现（无幽灵） | 直接显示 |
+| M1 / M2 | 开 | 开（M2 不做 FLIP） | 关 |
+| M3 | 三层 | 只做整卡淡入 | 关 |
+| M4 | 开 | 开 | 浮起无补间（仍有反馈，属于直接操纵） |
+
+### 10.2 V1 解锁仪式
+
+不接管解锁：指纹 / 密码校验成功后，`private-vault.js` 自己 `render()` 出已解锁页面。我们在锁屏还在时缓存锁面的位置，等观察到"锁屏节点被移除、已解锁页面出现"的那一批变动，把**被移除的锁面节点本身**（`removedNodes` 里拿得到）摆回原位当残影，播完即删。`MutationObserver` 回调在下一次绘制之前执行，所以不会闪一帧空白。
+
+```js
+// motion-layers.js · V1
+const LOCK_PAPER = '.vault-locked-view .vault-lock-paper';           /* 核对 */
+let lockRect = null;
+function rememberLock() { const p = document.querySelector(LOCK_PAPER); lockRect = p ? p.getBoundingClientRect() : null; }
+
+function playUnlock(oldPaper, view) {
+  if (!moving() || !oldPaper || !lockRect) return;
+  const host = document.createElement('div');
+  host.className = 'pl-unlock';
+  Object.assign(host.style, { left: lockRect.left + 'px', top: lockRect.top + 'px', width: lockRect.width + 'px', height: lockRect.height + 'px' });
+  if (rich()) {
+    // 上下两半：同一张锁面克隆两次，各自用 overflow:hidden 的半高容器裁出一半
+    host.innerHTML = '<div class="pl-half top"></div><div class="pl-half bottom"></div><i class="pl-seam"></i>';
+    host.querySelectorAll('.pl-half').forEach(h => h.append(oldPaper.cloneNode(true)));
+  } else {
+    host.append(oldPaper);
+  }
+  document.body.append(host);
+  setTimeout(() => host.remove(), 320);
+  cascade(view.querySelectorAll('.vault-security-note, .vault-toolbar, .vault-folder-home-head, .vault-folder-card'), { start: 90, step: 24, max: 6, dur: 220, dy: 12, grid: '.vault-folder-card' });
+}
+
+new MutationObserver(records => {
+  if (!on()) return;
+  for (const r of records) for (const n of r.removedNodes) {
+    if (n.nodeType !== 1 || !n.matches?.('.vault-locked-view')) continue;
+    const view = document.querySelector('.private-vault-view:not(.vault-locked-view)');
+    if (view) playUnlock(n.querySelector('.vault-lock-paper'), view);
+  }
+  if (document.querySelector(LOCK_PAPER)) rememberLock();
+}).observe(document.querySelector('#app') || document.body, { childList: true, subtree: true });   /* 核对：视图挂载点 */
+```
+
+```css
+P .pl-unlock, :root[data-theme="plain"] body > .pl-unlock { position: fixed; z-index: 60; pointer-events: none; }
+:root[data-theme="plain"] body > .pl-unlock > .vault-lock-paper { animation: pl-fade-out 160ms var(--pl-ease-in) both; }
+:root[data-theme="plain"] body > .pl-unlock .pl-half { position: absolute; left: 0; right: 0; height: 50%; overflow: hidden; }
+:root[data-theme="plain"] body > .pl-unlock .pl-half.top { top: 0; animation: pl-split-up 280ms cubic-bezier(.4,0,.2,1) both; }
+:root[data-theme="plain"] body > .pl-unlock .pl-half.bottom { bottom: 0; animation: pl-split-down 280ms cubic-bezier(.4,0,.2,1) both; }
+:root[data-theme="plain"] body > .pl-unlock .pl-half > * { position: absolute; left: 0; width: 100%; height: 200%; margin: 0; }
+:root[data-theme="plain"] body > .pl-unlock .pl-half.top > * { top: 0; }
+:root[data-theme="plain"] body > .pl-unlock .pl-half.bottom > * { bottom: 0; }
+:root[data-theme="plain"] body > .pl-unlock .pl-seam { position: absolute; left: 12%; right: 12%; top: 50%; height: 1px; background: rgba(255,255,255,.9); box-shadow: 0 0 12px rgba(79,118,189,.5); transform-origin: 50% 50%; animation: pl-seam 280ms var(--pl-ease-out) both; }
+:root[data-theme="plain"] body > .pl-unlock .vault-lock-mark { animation: pl-mark-out 120ms var(--pl-ease-out) both; }
+@keyframes pl-split-up { to { transform: translate3d(0,-32px,0); opacity: 0; } }
+@keyframes pl-split-down { to { transform: translate3d(0,32px,0); opacity: 0; } }
+@keyframes pl-seam { 0% { transform: scaleX(0); opacity: 1; } 50% { transform: none; opacity: 1; } 100% { transform: none; opacity: 0; } }
+@keyframes pl-mark-out { to { transform: scale(1.18); opacity: 0; } }
+@keyframes pl-fade-out { to { opacity: 0; } }
+```
+
+共用的依次浮现（V1 / V3 / Z4 都用）：
+
+```js
+/** 依次浮现：只写 animation-delay 与一个类，动画本身在 CSS。grid 选择器内的元素按 (行 + 列) 斜向错开。 */
+function cascade(nodes, { start, step, max, dur, dy, grid }) {
+  if (!moving()) return;
+  let i = 0;
+  for (const el of nodes) {
+    let delay = start + Math.min(i, max) * step;
+    if (grid && el.matches(grid)) {
+      const cols = getComputedStyle(el.parentElement).gridTemplateColumns.split(' ').length || 1;
+      const idx = [...el.parentElement.children].indexOf(el);
+      delay = start + (Math.floor(idx / cols) + (idx % cols)) * 30;
+    }
+    el.style.setProperty('--pl-cd', delay + 'ms');
+    el.style.setProperty('--pl-cdur', dur + 'ms');
+    el.style.setProperty('--pl-cdy', dy + 'px');
+    el.classList.remove('pl-cascade'); void el.offsetWidth; el.classList.add('pl-cascade');
+    el.addEventListener('animationend', () => el.classList.remove('pl-cascade'), { once: true });
+    i += 1;
+  }
+}
+```
+
+```css
+P .pl-cascade { animation: pl-rise var(--pl-cdur, 220ms) var(--pl-ease-out) var(--pl-cd, 0ms) backwards; }
+@keyframes pl-rise { from { opacity: 0; transform: translate3d(0, var(--pl-cdy, 10px), 0); } }
+```
+
+### 10.3 V2 后台遮罩
+
+只是视觉：遮罩挡的是"回来那一瞬间看到上次的内容"。真正的锁定仍由 `scheduleVisibilityLock()` 按原规则执行，遮罩既不提前也不推迟锁定。
+
+> 说明：Android 最近任务里的缩略图由系统在切出时截取，可能早于 WebView 画出遮罩。要让多任务缩略图也不露内容，需要原生 `FLAG_SECURE`，那属于原生层改动，不在本方案范围内，这里只标记出来。
+
+```js
+// motion-layers.js · V2
+const inVault = () => !!document.querySelector('.private-vault-view');
+let shield = null;
+function raiseShield() {
+  if (!on() || !inVault() || shield) return;
+  shield = document.createElement('div');
+  shield.className = 'pl-vault-shield' + (rich() ? ' is-blur' : '');
+  shield.innerHTML = '<span class="material-symbols-outlined">lock</span>';
+  document.body.append(shield);                                     // 切出时立即盖上，不做动画
+}
+function lowerShield() {
+  const s = shield; if (!s) return;
+  shield = null;
+  // 等两帧：private-vault.js 的 visibilitychange 已经 render() 出锁屏（或仍是解锁页）
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    const paper = document.querySelector(LOCK_PAPER);
+    if (!moving()) { s.remove(); return; }
+    paper?.classList.add('pl-relock');
+    paper?.addEventListener('animationend', () => paper.classList.remove('pl-relock'), { once: true });
+    s.classList.add('is-leaving');
+    setTimeout(() => s.remove(), 260);
+  }));
+  setTimeout(() => s.remove(), 1200);                               // 保险：无论如何不挡操作
+}
+document.addEventListener('visibilitychange', () => document.visibilityState === 'hidden' ? raiseShield() : lowerShield());
+addEventListener('pagehide', raiseShield);
+```
+
+```css
+:root[data-theme="plain"] body > .pl-vault-shield { position: fixed; inset: 0; z-index: 2147483600; display: grid; place-items: center; background: #EAF0F8; color: var(--pl-blue); }
+:root[data-theme="plain"] body > .pl-vault-shield.is-blur { background: rgba(234,240,248,.55); -webkit-backdrop-filter: blur(24px) saturate(1.1); backdrop-filter: blur(24px) saturate(1.1); }
+:root[data-theme="plain"] body > .pl-vault-shield .material-symbols-outlined { font-size: 40px; width: 72px; height: 72px; display: grid; place-items: center; border-radius: 22px; background: #fff; box-shadow: var(--pl-shadow-float); }
+:root[data-theme="plain"] body > .pl-vault-shield.is-leaving { animation: pl-fade-out 240ms var(--pl-ease-out) both; }
+P .vault-lock-paper.pl-relock { animation: pl-relock 260ms var(--pl-ease-out) 40ms both; }
+@keyframes pl-relock { from { opacity: 0; transform: scale(.98); } }
+```
+
+模糊只在遮罩上、而且是静态的：淡出时补间的只有 opacity，GPU 每帧做一次全屏模糊合成、共 240ms；lite / none 用实色，零模糊。
+
+### 10.4 V3 封面原位展开
+
+```js
+// motion-layers.js · V3
+let coverFlight = null;
+document.addEventListener('click', e => {
+  const btn = e.target.closest?.('.vault-folder-open');
+  if (!btn || !on() || !moving()) return;
+  const cover = btn.querySelector('.vault-folder-cover');
+  const still = cover?.querySelector('.photo-blur-still');
+  coverFlight = {
+    t: performance.now(),
+    itemId: cover?.dataset.vaultCoverItem || '',                     // folderCard() 已输出该属性
+    frame: cover?.getBoundingClientRect(),
+    photo: still?.complete ? containRect(still) : null,
+    src: still?.currentSrc || still?.src || ''
+  };
+}, true);                                                             // 捕获阶段只读，不拦截
+
+function playCoverOpen(view) {
+  const f = coverFlight; coverFlight = null;
+  if (!f || performance.now() - f.t > 1500) return;
+  const items = [...view.querySelectorAll('.vault-grid .vault-item')];
+  const target = view.querySelector(`[data-open-vault-item="${CSS.escape(f.itemId)}"]`) || items[0]?.querySelector('.vault-item-open');
+  const box = target?.querySelector('.vault-media-box');
+  const still = box?.querySelector('.photo-blur-still');
+  const vh = innerHeight;
+  if (box && f.frame && rich()) {
+    const b = box.getBoundingClientRect();
+    const sx = b.width / f.frame.width, sy = b.height / f.frame.height;
+    if (Math.abs(sx / sy - 1) <= 0.25 && b.top < vh && b.bottom > 0) ghostFrame(f.frame, b, 420);
+  }
+  if (still && f.photo && f.src) {
+    still.style.opacity = '0';
+    const go = () => { const anim = flyPhoto(f.src, f.photo, containRect(still), { duration: 420 }); (anim ? anim.finished : Promise.resolve()).finally(() => { still.style.opacity = ''; }); };
+    still.complete ? go() : (still.addEventListener('load', go, { once: true }), setTimeout(() => { still.style.opacity = ''; }, 300));
+  }
+  const origin = target?.closest('.vault-item');
+  const rest = items.filter(el => el !== origin).sort((a, b) => dist(a, origin) - dist(b, origin));
+  cascade(rest, { start: 120, step: 20, max: 8, dur: 200, dy: 8 });
+}
+const dist = (a, b) => { if (!b) return 0; const p = a.getBoundingClientRect(), q = b.getBoundingClientRect(); return Math.hypot(p.left - q.left, p.top - q.top); };
+function ghostFrame(from, to, duration) {
+  const g = document.createElement('div');
+  g.className = 'pl-ghost-frame';
+  Object.assign(g.style, { left: from.left + 'px', top: from.top + 'px', width: from.width + 'px', height: from.height + 'px' });
+  document.body.append(g);
+  g.animate([{ transform: 'none', opacity: 1 }, { transform: `translate(${to.left - from.left}px, ${to.top - from.top}px) scale(${to.width / from.width}, ${to.height / from.height})`, opacity: 1 }, ], { duration, easing: 'cubic-bezier(.32,.72,0,1)', fill: 'forwards' })
+    .finished.then(() => g.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 100, fill: 'forwards' }).finished).finally(() => g.remove());
+}
+// 在 V1 的同一个 MutationObserver 里：出现 .vault-content-head 且 coverFlight 存在 → playCoverOpen(view)
+```
+
+返回文件夹列表（`#vault-back-folders`）同理：捕获阶段记下封面项在详情里的 contain 框，渲染后找到对应 `[data-vault-cover-item]` 的封面，用 `flyPhoto(..., { duration: 340 })` 飞回；其余封面按 V1 的斜向错开浮现（`start: 60`）。
+
+```css
+:root[data-theme="plain"] body > .pl-ghost-frame { position: fixed; z-index: 2147482999; transform-origin: 0 0; border-radius: 16px; background: #fff; box-shadow: var(--pl-shadow-float); pointer-events: none; will-change: transform; }
+```
+
+### 10.5 M1 快门 / 相册飞入
+
+```js
+// motion-layers.js · M1
+let shotFrom = null;
+document.addEventListener('click', e => {
+  const b = e.target.closest?.('#capture-snippet-photo, #pick-snippet-photo');
+  if (!b || !on()) return;
+  const r = b.getBoundingClientRect();
+  shotFrom = { x: r.left + r.width / 2, y: r.top + r.height / 2, t: performance.now(), before: document.querySelectorAll('.snippet-photo-cell').length };
+}, true);
+
+function playShotIn() {
+  if (!shotFrom || !moving() || performance.now() - shotFrom.t > 8000) return;
+  const cells = [...document.querySelectorAll('.snippet-photo-cell')];
+  const fresh = cells.slice(shotFrom.before, shotFrom.before + 6);
+  const { x, y } = shotFrom; shotFrom = null;
+  fresh.forEach((cell, i) => {
+    const thumb = cell.querySelector('.snippet-photo-thumb') || cell;
+    const r = thumb.getBoundingClientRect();
+    const s = 44 / Math.max(r.width, r.height);                        // 等比：照片框整体缩放
+    thumb.animate([
+      { transform: `translate(${x - (r.left + r.width / 2)}px, ${y - (r.top + r.height / 2)}px) scale(${s})`, opacity: 0 },
+      { opacity: 1, offset: 0.3 },
+      { transform: 'none', opacity: 1 }
+    ], { duration: 520, delay: i * 40, easing: SPRING_MAGNET, fill: 'backwards' });
+  });
+}
+// SPRING_MAGNET = getComputedStyle(root).getPropertyValue('--pl-spring-magnet').trim()（8.1 已定义）
+// 触发：MutationObserver 观察到 .snippet-photo-grid 内子节点变化 → playShotIn()
+```
+
+照片框整体等比缩放，里面的铺底 + contain 主图跟着一起缩，主图永远不变形。照片框外的删除按钮（`[data-remove-pending-snippet-photo]`）在同一个 cell 里，随框一起飞入即可。
+
+### 10.6 M2 保存飞到列表顶部
+
+```js
+// motion-layers.js · M2
+let saved = null;
+const cardKey = card => card.querySelector('[data-view-snippet-photo], [data-play-snippet-video]')?.dataset.viewSnippetPhoto || '';   /* 核对 */
+document.addEventListener('submit', e => {
+  if (e.target?.id !== 'snippet-form' || !on() || !moving()) return;
+  const still = e.target.querySelector('.snippet-photo-thumb .photo-blur-still');
+  saved = {
+    t: performance.now(),
+    editing: !!e.target.querySelector('input[name="id"]')?.value,
+    photo: still?.complete ? containRect(still) : null,
+    src: still?.currentSrc || still?.src || '',
+    before: new Map([...document.querySelectorAll('.snippet-item-card')].map(c => [cardKey(c), c.getBoundingClientRect().top]))
+  };
+}, true);
+
+function playSaveToTop() {
+  const s = saved; if (!s || performance.now() - s.t > 3000) return;
+  const cards = [...document.querySelectorAll('.snippet-item-card')];
+  const fresh = cards.find(c => !s.before.has(cardKey(c)));
+  if (!fresh) return;                                                // 编辑已有记录时不飞（位置不变）
+  saved = null;
+  const still = fresh.querySelector('.snippet-photo-tile .photo-blur-still, .photo-blur-still');
+  const to = still?.complete ? containRect(still) : null;
+  const visible = to && to.top < innerHeight && to.top + to.height > 0;
+  fresh.classList.add('pl-arrive');
+  if (visible && s.photo) {
+    still.style.opacity = '0';
+    const anim = flyPhoto(s.src, s.photo, to, { duration: 480 });
+    (anim ? anim.finished : Promise.resolve()).finally(() => { still.style.opacity = ''; });
+  }
+  if (rich()) cards.filter(c => c !== fresh).slice(0, 6).forEach(c => {
+    const old = s.before.get(cardKey(c)); if (old == null) return;
+    const dy = old - c.getBoundingClientRect().top;
+    if (Math.abs(dy) > 1) c.animate([{ transform: `translate3d(0, ${dy}px, 0)` }, { transform: 'none' }], { duration: 360, easing: 'cubic-bezier(.32,.72,0,1)' });
+  });
+}
+// 触发：MutationObserver 观察到列表容器子节点变化 → playSaveToTop()
+```
+
+```css
+P .snippet-item-card.pl-arrive { animation: pl-rise 220ms var(--pl-ease-out) 100ms backwards; --pl-cdy: 10px; }
+```
+
+表单弹层本身的关闭动画（Z3 / 现有 `closeModal`）照常进行，飞行克隆在最上层，看起来像照片"穿过"正在落下的弹层落进列表。表单里的缩略图用的是同一个地址，所以两端比例一致；如果保存过程中重新压缩了图片（地址变了），`sameRatio` 仍按两端 contain 框核对，不一致就只淡入。
+
+### 10.7 M3 滚动分层淡入
+
+```js
+// motion-layers.js · M3
+const io = 'IntersectionObserver' in window ? new IntersectionObserver(entries => {
+  let batch = 0;
+  for (const en of entries) {
+    if (!en.isIntersecting) continue;
+    const card = en.target; io.unobserve(card);
+    const still = card.querySelector('.photo-blur-still');
+    const go = () => { card.style.setProperty('--pl-lag', Math.min(batch++, 3) * 40 + 'ms'); card.classList.add('pl-in'); };
+    still && !still.complete ? still.addEventListener('load', go, { once: true }) : go();
+  }
+}, { rootMargin: '0px 0px -8% 0px', threshold: 0.01 }) : null;
+
+function prepareLayers(list) {
+  if (!io || !moving()) return;
+  const vh = innerHeight;
+  list.querySelectorAll('.snippet-item-card:not(.pl-pre)').forEach(card => {
+    if (card.getBoundingClientRect().top < vh) return;               // 首屏走 S11 入场，不重复
+    if (card.closest('#moment-album-layer')) return;                   // 图集一叠牌在自己的层里，不加分层
+    card.classList.add('pl-pre', rich() ? 'pl-layers' : 'pl-flat');
+    io.observe(card);
+  });
+}
+```
+
+```css
+/* 分层：只动照片框里两张 img 的 opacity / transform，不碰框本身的任何尺寸与 object-fit */
+P .snippet-item-card.pl-pre.pl-layers .photo-blur-pad { opacity: 0; }
+P .snippet-item-card.pl-pre.pl-layers .photo-blur-still { opacity: 0; transform: scale(.985); }
+P .snippet-item-card.pl-pre.pl-layers .snippet-item-meta,
+P .snippet-item-card.pl-pre.pl-layers .snippet-item-meta ~ * { opacity: 0; transform: translate3d(0,6px,0); }   /* 核对：文字与按钮区 */
+P .snippet-item-card.pl-pre.pl-flat { opacity: 0; }
+P .snippet-item-card.pl-in.pl-layers .photo-blur-pad { opacity: var(--pl-pad-op, .5); transition: opacity 200ms var(--pl-ease-out) var(--pl-lag, 0ms); }   /* 核对：铺底原本的透明度 */
+P .snippet-item-card.pl-in.pl-layers .photo-blur-still { opacity: 1; transform: none; transition: opacity 300ms var(--pl-ease-out) calc(var(--pl-lag, 0ms) + 60ms), transform 300ms var(--pl-ease-out) calc(var(--pl-lag, 0ms) + 60ms); }
+P .snippet-item-card.pl-in.pl-layers .snippet-item-meta,
+P .snippet-item-card.pl-in.pl-layers .snippet-item-meta ~ * { opacity: 1; transform: none; transition: opacity 220ms var(--pl-ease-out) calc(var(--pl-lag, 0ms) + 110ms), transform 220ms var(--pl-ease-out) calc(var(--pl-lag, 0ms) + 110ms); }
+P .snippet-item-card.pl-in.pl-flat { opacity: 1; transition: opacity 220ms var(--pl-ease-out) var(--pl-lag, 0ms); }
+```
+
+`scale(.985 → 1)` 是等比缩放，作用在 contain 主图上，比例不变；主图不加 `will-change`（同屏可能有十几张，常驻图层会吃显存），过渡期间浏览器自动临时提层。动画结束后可以删掉 `pl-pre` / `pl-in`（`transitionend` 时），让卡片回到完全原样。
+
+### 10.8 M4 长按浮起
+
+```js
+// motion-layers.js · M4
+const LIFT_SKIP = 'button:not(.snippet-photo-tile), a, input, .snippet-video-segments, #moment-album-layer';
+let hold = null, swallow = false;
+document.addEventListener('pointerdown', e => {
+  if (!on() || e.button > 0) return;
+  const card = e.target.closest?.('.snippet-item-card');
+  if (!card || e.target.closest(LIFT_SKIP)) return;
+  hold = { card, x: e.clientX, y: e.clientY, timer: setTimeout(() => { card.classList.add('pl-lifted'); hold.lifted = true; }, 380) };
+}, { passive: true });
+document.addEventListener('pointermove', e => {
+  if (hold && !hold.lifted && Math.hypot(e.clientX - hold.x, e.clientY - hold.y) > 8) dropHold();
+}, { passive: true });
+function dropHold() {
+  if (!hold) return;
+  clearTimeout(hold.timer);
+  if (hold.lifted) { swallow = true; hold.card.classList.remove('pl-lifted'); setTimeout(() => { swallow = false; }, 400); }
+  hold = null;
+}
+['pointerup', 'pointercancel'].forEach(t => document.addEventListener(t, dropHold, { passive: true }));
+document.addEventListener('click', e => { if (swallow && e.target.closest?.('.snippet-item-card')) { e.preventDefault(); e.stopPropagation(); swallow = false; } }, true);
+document.addEventListener('contextmenu', e => { if (hold?.lifted) e.preventDefault(); });
+```
+
+```css
+P .snippet-item-card { -webkit-touch-callout: none; transition: transform 420ms var(--spring-release); }
+P .snippet-item-card::after { content: ''; position: absolute; inset: 0; border-radius: inherit; box-shadow: var(--pl-shadow-float); opacity: 0; pointer-events: none; transition: opacity 260ms var(--pl-ease-out); }
+P .snippet-item-card.pl-lifted { transform: translate3d(0,-4px,0) scale(1.012); transition: transform 180ms var(--pl-ease-out); }
+P .snippet-item-card.pl-lifted::after { opacity: 1; }
+:root[data-theme="plain"][data-pl-motion="none"] .snippet-item-card { transition: none; }
+```
+
+阴影放在 `::after` 上只补间 opacity，不补间 `box-shadow`。唯一"拦截"的是浮起后松手的那一次 click：长按是另一种手势，不应该顺带打开大图。如果用户不喜欢，删掉最后两行监听即可回到"长按只浮起"。
+
+### 10.9 与第 9 节的衔接
+
+- 新建 / 编辑随手拍的表单是底部弹层：Z3 跟手下拉、Z4 依次浮现照常生效；表单里有未保存的照片时，点遮罩走 Z8 轻推，不关闭（与现有"是否放弃"逻辑一致，只加动效）。
+- 删除随手拍、移出私密空间、删除私密文件夹的确认走 Z5：居中卡片 + 轻缩放 + 模糊背景（rich）。
+- 私密空间首页 → 文件夹详情不是 `openSubpage`，所以不触发 Z1 / Z2；右滑返回在私密空间里**只**映射到现有 `#vault-back-folders`（详情 → 文件夹列表），首页不响应右滑，避免误退出私密空间。
+
+### 10.10 验收补充
+
+1. 连续解锁 / 切出 / 回来 10 次：锁定时机与改动前完全一致（录屏比对），遮罩从未挡住锁屏输入超过 300ms。
+2. 用 3:4、16:9、1:2.4 三种照片各建一个私密文件夹和一条随手拍：飞行过程逐帧截图，照片宽高比误差 ≤ 0.5%。
+3. 6 倍 CPU 降速：解锁仪式、封面展开、保存飞入，连续长帧不超过 2 个；快速甩动随手拍列表 3 屏，不出现空白卡片超过 1 帧以上（未进入视口的卡片在 `pl-pre` 状态下照片仍按原规则加载）。
+4. 减弱动态效果 / 低端机开关：本节各项按 10.1 三档表降级，锁定、解锁、保存流程结果不变。
+5. 图集一叠牌（`#moment-album-layer`）：在牌上长按、拖动、轻点，行为与改动前一致；M3 / M4 的选择器只命中列表里的 `.snippet-item-card`。
 
 ---
 
