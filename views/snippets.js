@@ -1787,8 +1787,7 @@ function bindMomentAlbumDeck(layer) {
     card.style.transform = `translate3d(${dx}px,0,0) rotate(${tilt}deg)`;
     if (tier !== 'rich') return;
     // 后牌跟着拖动进度往前挪一档（只往左拖 = 下一张时；往右是「上一张」，后牌不动）
-    const width = stage.clientWidth || 1;
-    const p = dx < 0 ? Math.min(1, -dx / Math.max(48, width * 0.22)) : 0;
+    const p = dx < 0 ? Math.min(1, -dx / 56) : 0;
     backCards().forEach((back, i) => {
       if (!back) return;
       const a = MOMENT_ALBUM_DEPTH[i + 1];

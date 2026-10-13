@@ -38,9 +38,9 @@ section h2{font-size:14px;margin:0 0 8px}small.n{color:var(--muted)}
 <p class="sub">清简主题演示页（色块代替照片）。切换动效档位看降级效果。</p>
 <div class="tiers" id="tiers"><button data-t="rich" class="on">完整 rich</button><button data-t="lite">轻量 lite</button><button data-t="none">减弱动态</button></div>
 
-<section><h2>① 图集翻牌 <small class="n">点任一张 → 从这张的位置展开</small></h2>
+<section id="flip"><h2>① 图集翻牌 <small class="n">点任一张 → 从这张的位置展开</small></h2>
 <div class="thumbs" id="thumbs"></div>
-<p class="note">左拖翻下一张、右拖回上一张：拖过卡宽 22%（至少 48px）或甩得快（&gt;700px/s）就翻，否则带回弹弹回。拖的时候后面两张跟着往前挪；松手从手指位置接着甩出去。轻触看大图（演示里只提示）。</p></section>
+<p class="note">左拖翻下一张、右拖回上一张：拖过固定 56px 或甩得快（&gt;700px/s）就翻，否则带回弹弹回。拖的时候后面两张跟着往前挪；松手从手指位置接着甩出去。轻触看大图（演示里只提示）。</p></section>
 
 <section><h2>② 随手拍多张照片</h2>
 <div class="snap" id="snap"></div>
@@ -66,7 +66,7 @@ items.forEach((it,i)=>{const b=document.createElement('button');b.className='thu
 // ---- deck (same logic as views/snippets.js) ----
 const DEPTH=[{y:0,s:1,o:1},{y:-12,s:.972,o:.96},{y:-24,s:.944,o:.9}];
 const OUT='cubic-bezier(.2,.8,.2,1)',SPRING='cubic-bezier(.34,1.56,.64,1)';
-function deckCutDecision({dx=0,width=1,velocity=0}){const t=Math.max(48,width*.22),f=Math.abs(velocity)>700;if(dx<=-t||(f&&velocity<0&&dx<-12))return'next';if(dx>=t||(f&&velocity>0&&dx>12))return'prev';return'stay'}
+function deckCutDecision({dx=0,width=1,velocity=0}){const t=56,f=Math.abs(velocity)>700;if(dx<=-t||(f&&velocity<0&&dx<-12))return'next';if(dx>=t||(f&&velocity>0&&dx>12))return'prev';return'stay'}
 const layer=document.getElementById('layer'),sheet=document.getElementById('sheet'),stack=document.getElementById('stack'),stage=document.getElementById('stage');
 let index=0,origin=null,closeTok=0;
 function cardEl(it,depth){const el=document.createElement('div');el.className='card';el.dataset.depth=depth;
@@ -90,7 +90,7 @@ function flip(step,{fromX=0,velocity=0}={}){const n=items.length,ms=tier==='none
 let pid=null,sx=0,sy=0,dx=0,drag=false,moved=false,samples=[];
 const top0=()=>stack.querySelector('.card[data-depth="0"]');
 function paint(){const c=top0();if(!c||tier==='none')return;c.style.transition='none';c.style.transform=`translate3d(${dx}px,0,0) rotate(${tier==='rich'?Math.max(-6,Math.min(6,dx/30)):0}deg)`;if(tier!=='rich')return;
- const p=dx<0?Math.min(1,-dx/Math.max(48,stage.clientWidth*.22)):0;[1,2].forEach(d=>{const b=stack.querySelector(`.card[data-depth="${d}"]`);if(!b)return;const a=DEPTH[d],t=DEPTH[d-1];b.style.transition='none';b.style.transform=`translate3d(0,${a.y+(t.y-a.y)*p}px,0) scale(${a.s+(t.s-a.s)*p})`;b.style.opacity=a.o+(t.o-a.o)*p})}
+ const p=dx<0?Math.min(1,-dx/56):0;[1,2].forEach(d=>{const b=stack.querySelector(`.card[data-depth="${d}"]`);if(!b)return;const a=DEPTH[d],t=DEPTH[d-1];b.style.transition='none';b.style.transform=`translate3d(0,${a.y+(t.y-a.y)*p}px,0) scale(${a.s+(t.s-a.s)*p})`;b.style.opacity=a.o+(t.o-a.o)*p})}
 function vel(){const now=performance.now(),r=samples.filter(s=>now-s.t<100);if(r.length<2)return 0;const dt=r.at(-1).t-r[0].t;return dt>0?(r.at(-1).x-r[0].x)/dt*1000:0}
 stage.addEventListener('pointerdown',e=>{if(pid!==null)return;pid=e.pointerId;sx=e.clientX;sy=e.clientY;dx=0;drag=true;moved=false;samples=[{x:e.clientX,t:performance.now()}];try{stage.setPointerCapture(pid)}catch{}});
 stage.addEventListener('pointermove',e=>{if(!drag||e.pointerId!==pid)return;dx=e.clientX-sx;const dy=e.clientY-sy;samples.push({x:e.clientX,t:performance.now()});if(samples.length>8)samples.shift();if(!moved&&Math.abs(dx)<6&&Math.abs(dy)<6)return;if(!moved&&Math.abs(dy)>Math.abs(dx)){drag=false;pid=null;return}moved=true;paint()});
