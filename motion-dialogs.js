@@ -96,8 +96,16 @@ function markConfirmSheets() {
   if (modal.querySelector('#confirm-delete') && !modal.classList.contains('confirm-sheet')) {
     modal.classList.add('confirm-sheet');
   }
+  const isConfirm = modal.classList.contains('confirm-sheet');
   // 打开期间给 layer 打标，方便 CSS :has 之外的兜底
-  layer.classList.toggle('pl-confirm-open', modal.classList.contains('confirm-sheet'));
+  layer.classList.toggle('pl-confirm-open', isConfirm);
+  if (isConfirm) {
+    // 兜底：焦点落到 [data-close] 取消钮，绝不自动 focus 删除
+    const cancel = modal.querySelector('[data-close]');
+    if (cancel && document.activeElement !== cancel) {
+      requestAnimationFrame(() => cancel.focus?.({ preventScroll: true }));
+    }
+  }
 }
 
 /* ── Z8 点遮罩轻推（捕获阶段拦住 app.js 的关闭）───────────────── */

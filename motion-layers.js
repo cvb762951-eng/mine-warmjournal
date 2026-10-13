@@ -17,7 +17,7 @@
  *   - 任何一步出错都只退化成"没有动画"，不影响返回和关闭本身。
  * ========================================================================== */
 import { SpringODE, prefersReducedMotion } from './motion.js';
-import { installVaultMotion } from './motion-vault.js';
+import { installVaultMotion, noteLongFrame } from './motion-vault.js';
 import { installDialogMotion } from './motion-dialogs.js';
 import { installMomentsMotion } from './motion-moments.js';
 
@@ -31,12 +31,39 @@ export const LAYER_MOTION = {
 
 /* ── 纯函数（tests/motion-layers.test.mjs 锁定）───────────────────── */
 
-/** 三档：显式写在 <html data-pl-motion> 上的优先；减弱动态效果 → none；低端机 → lite。 */
-export function motionTier({ override = '', reduced = false, deviceMemory = 0, cores = 0 } = {}) {
-  if (['rich', 'lite', 'none'].includes(override)) return override;
+/** 三档：显式写在 <html data-pl-motion> 上的优先；减弱动态效果 → none；会话降档 → lite；低端机 → lite。 */
+export function motionTier({ override = '', reduced = false, deviceMemory = 0, cores = 0, sessionLite = false } = {}) {
+  if (['none', 'lite'].includes(override)) return override;
   if (reduced) return 'none';
+  if (sessionLite) return 'lite';
+  if (override === 'rich') return override;
   if ((deviceMemory && deviceMemory <= 3) || (cores && cores <= 4)) return 'lite';
   return 'rich';
+}
+
+/** 1s 窗内 >3 次 dt>32ms 降到 sessionLite。不写存储，不改 vault 语义。 */
+export function sampleSessionJank({
+  animating = false,
+  sessionLite = false,
+  state = { windowStart: 0, long: 0, tier: 'rich' },
+  dt = 0,
+  now = 0,
+} = {}) {
+  if (sessionLite || !animating) {
+    return { sessionLite: Boolean(sessionLite), state, watching: false };
+  }
+  const next = noteLongFrame({
+    windowStart: state?.windowStart ?? now,
+    long: state?.long || 0,
+    tier: 'rich',
+  }, dt, now);
+  const isLite = next.tier === 'lite';
+  return { sessionLite: isLite, state: next, watching: !isLite };
+}
+
+/** 右滑时底页插值：从 -parallax% 插值到 0。与 Opus「底页 −20%×(1−p)」一致。 */
+export function swipeUnderTransform(p, parallax = LAYER_MOTION.swipe.parallax) {
+  return `translate3d(${(-parallax * (1 - p)).toFixed(2)}%, 0, 0)`;
 }
 
 /** 最近 100ms 的平均速度（px/s）。samples: [[timeStamp, value], ...] */
@@ -156,19 +183,80 @@ export function ghostTransform(from, to) {
 const hasDom = typeof document !== 'undefined';
 const root = hasDom ? document.documentElement : null;
 const on = () => root?.dataset.theme === 'plain';
-const tier = () => root?.dataset.plMotion || 'rich';
+const tier = () => (sessionLite && root?.dataset.plMotion !== 'none' ? 'lite' : (root?.dataset.plMotion || 'rich'));
 const rich = () => on() && tier() === 'rich';
 const moving = () => on() && tier() !== 'none' && !prefersReducedMotion();
 
 let tierOwned = false;
+let sessionLite = false;
+let sessionJankState = { windowStart: 0, long: 0, tier: 'rich' };
+let jankWatchDepth = 0;
+let jankRaf = 0;
+let jankLastTime = 0;
+
+export function isSessionLite() { return sessionLite; }
+export function resetSessionJank() {
+  sessionLite = false;
+  sessionJankState = { windowStart: 0, long: 0, tier: 'rich' };
+  if (tierOwned && root) syncTier();
+}
+
+function jankLoop(now) {
+  if (jankWatchDepth <= 0 || sessionLite || !rich()) {
+    jankRaf = 0;
+    jankLastTime = 0;
+    return;
+  }
+  if (jankLastTime > 0) {
+    const dt = now - jankLastTime;
+    const res = sampleSessionJank({
+      animating: true,
+      sessionLite,
+      state: sessionJankState,
+      dt,
+      now,
+    });
+    sessionJankState = res.state;
+    if (res.sessionLite) {
+      sessionLite = true;
+      if (root) root.dataset.plMotion = 'lite';
+      jankRaf = 0;
+      jankLastTime = 0;
+      return;
+    }
+  }
+  jankLastTime = now;
+  jankRaf = requestAnimationFrame(jankLoop);
+}
+
+export function beginJankWatch() {
+  if (sessionLite || !rich()) return;
+  jankWatchDepth += 1;
+  if (jankWatchDepth === 1 && !jankRaf) {
+    jankLastTime = 0;
+    jankRaf = requestAnimationFrame(jankLoop);
+  }
+}
+
+export function endJankWatch() {
+  jankWatchDepth = Math.max(0, jankWatchDepth - 1);
+  if (jankWatchDepth === 0 && jankRaf) {
+    cancelAnimationFrame(jankRaf);
+    jankRaf = 0;
+    jankLastTime = 0;
+  }
+}
+
 function syncTier() {
   if (!root) return;
   if (root.dataset.plMotion && !tierOwned) return;           // 预览页或别的模块显式指定时不覆盖
   tierOwned = true;
   root.dataset.plMotion = motionTier({
+    override: root.dataset.plMotionExplicit || '',
     reduced: prefersReducedMotion(),
     deviceMemory: Number(navigator.deviceMemory) || 0,
     cores: Number(navigator.hardwareConcurrency) || 0,
+    sessionLite,
   });
 }
 
@@ -251,6 +339,7 @@ function stopExpand(layer) {
   r.anims.forEach(a => safe(() => a.cancel()));
   r.nodes.forEach(n => n.remove());
   layer.classList.remove('pl-expand-in', 'pl-title-pending');
+  endJankWatch();
 }
 
 function markZ1Pending() { shell()?.classList.add('pl-z1-pending'); }
@@ -335,6 +424,7 @@ function playExpand(layer) {
   const target = EXPAND_TO(layer);
   if (!target) { clearZ1Pending(); return false; }
   const ok = Boolean(safe(() => {
+    beginJankWatch();
     const E = LAYER_MOTION.expand;
     layer.classList.add('pl-expand-in');
     const to = target.getBoundingClientRect();
@@ -352,12 +442,13 @@ function playExpand(layer) {
     f1.finished.catch(() => {}).then(() => {
       if (running.get(layer) === rec) running.delete(layer);
       layer.classList.remove('pl-expand-in');
+      endJankWatch();
     });
     expanded.set(layer, { source: src.el });
     markZ1Open();                                                 // 原位展开：底页不走推入左移
     return true;
   }));
-  if (!ok) clearZ1Pending();
+  if (!ok) { clearZ1Pending(); endJankWatch(); }
   return ok;
 }
 
@@ -464,7 +555,10 @@ function scrollsX(el, stop) {
 function paintSwipe(s, x) {
   const p = Math.min(1, Math.max(0, x / s.W));
   s.layer.style.transform = `translate3d(${x.toFixed(1)}px, 0, 0)`;
-  if (rich() && s.under) s.under.style.transform = `translate3d(${(-LAYER_MOTION.swipe.parallax * (1 - p)).toFixed(2)}%, 0, 0)`;
+  if (rich() && s.under) {
+    s.under.style.transform = swipeUnderTransform(p, LAYER_MOTION.swipe.parallax);
+    if (s.underIsSubpage) s.under.style.setProperty('--pl-dim', (1 - p).toFixed(3));
+  }
   if (s.dim) s.dim.style.opacity = (1 - p).toFixed(3);
 }
 
@@ -473,9 +567,17 @@ function installSwipeBack() {
   let g = null;
   let settle = null;                                              // 还在跑的回弹：{ stop, s }
   const tidy = s => {
-    [s.layer, s.under, s.dim].forEach(el => { if (el) { el.style.transform = ''; el.style.opacity = ''; } });
+    [s.layer, s.under, s.dim].forEach(el => {
+      if (el) {
+        el.style.transform = '';
+        el.style.opacity = '';
+        el.style.removeProperty?.('--pl-dim');
+      }
+    });
     s.layer.classList.remove('pl-swiping', 'pl-swiped');
+    s.under?.classList.remove('pl-swipe-under');
     shell()?.classList.remove('pl-swiping');
+    endJankWatch();
   };
   document.addEventListener('pointerdown', e => {
     if (!on() || e.button > 0 || g) return;
@@ -505,10 +607,16 @@ function installSwipeBack() {
       if (intent === 'abort') { g = null; return; }
       g.locked = true;
       safe(() => g.layer.setPointerCapture?.(e.pointerId));
-      g.under = appEl();
-      g.dim = dimNode();
+      const activeLayers = [...document.querySelectorAll('.subpage-layer.active')];
+      const currIndex = activeLayers.indexOf(g.layer);
+      const underSubpage = currIndex > 0 ? activeLayers[currIndex - 1] : null;
+      g.under = underSubpage || appEl();
+      g.underIsSubpage = Boolean(underSubpage);
+      g.under?.classList.add('pl-swipe-under');
+      g.dim = underSubpage ? null : dimNode();
       g.layer.classList.add('pl-swiping');
       shell()?.classList.add('pl-swiping');
+      beginJankWatch();
     }
     g.x = Math.max(0, dx);
     g.samples.push([e.timeStamp, g.x]);
@@ -575,10 +683,24 @@ function watchSheets() {
     requestAnimationFrame(() => {
       const layer = document.querySelector(SHEET_LAYER);
       const sheet = layer?.classList.contains('open') ? layer.querySelector(':scope > .modal') : null;
-      const bottom = Boolean(sheet && !sheet.matches(NO_DRAG) && getComputedStyle(layer).alignItems === 'flex-end' && sheet.offsetHeight < innerHeight * 0.97);
+      if (sheet && !sheet.dataset.plDetents && (sheet.querySelector('#quick-photo-modal, #quick-memo-modal') || sheet.matches('.quick-modal'))) {
+        sheet.dataset.plDetents = 'medium large';
+      }
+      const bottom = Boolean(sheet && !sheet.matches(NO_DRAG) && (getComputedStyle(layer).alignItems === 'flex-end' || Boolean(sheet.dataset.plDetents)) && sheet.offsetHeight < innerHeight * 0.97);
       root.classList.toggle('pl-sheet-open', bottom);
       layer?.classList.toggle('pl-sheet', bottom);
       sheetMoveHook(bottom ? layer : null);
+      if (sheet && sheet.dataset.plDetents && !sheet.dataset.plDetent) {
+        sheet.dataset.plDetent = 'medium';
+        const geo = sheetGeometry({ height: sheet.offsetHeight, viewport: innerHeight, detents: true });
+        sheet.style.transform = `translate3d(0, ${geo.medium.toFixed(1)}px, 0)`;
+        if (moving()) {
+          sheet.animate(
+            [{ transform: `translate3d(0, ${geo.closed}px, 0)` }, { transform: `translate3d(0, ${geo.medium.toFixed(1)}px, 0)` }],
+            { duration: 320, easing: 'cubic-bezier(.32, .72, 0, 1)' }
+          );
+        }
+      }
       if (sheet && sheet !== lastSheet) cascade(sheet, 'sheet');
       lastSheet = sheet;
     });
@@ -636,6 +758,7 @@ function releaseSheet(s, y, v, restore = false) {
     setTimeout(releaseClose, ms + 480);                              // 动画被拆掉时也不要把拖动永久锁死
     Promise.all(anims.map(a => a.finished.catch(() => {}))).then(() => {
       try {
+        endJankWatch();
         s.layer.classList.add('pl-dragged');                          // 跳过默认关闭过渡
         root.classList.remove('pl-sheet-open');
         closeSheetLikeScrim(s.layer);
@@ -645,7 +768,7 @@ function releaseSheet(s, y, v, restore = false) {
           s.layer.classList.remove('pl-dragged');
           releaseClose();
         });
-      } catch { releaseClose(); }
+      } catch { releaseClose(); endJankWatch(); }
     });
     return;
   }
@@ -654,6 +777,7 @@ function releaseSheet(s, y, v, restore = false) {
   job.stop = springTo(y, target, v, { stiffness: S.stiffness, damping: S.damping }, yy => paintSheet(s, yy), () => {
     if (sheetSettle !== job) return;
     sheetSettle = null;
+    endJankWatch();
     if (s.geo.large !== s.geo.medium) s.sheet.dataset.plDetent = target === s.geo.large ? 'large' : 'medium';
     if (target === 0) clearSheet(s);
     else { s.scrim?.remove(); s.layer.classList.remove('pl-dragging'); root.classList.remove('pl-sheet-dragging'); }
@@ -703,6 +827,7 @@ function installSheetDrag() {
       }
       if (!(Math.abs(dy) > Math.abs(dx)) || (!g.inHead && dy < 0)) { g = null; return; }
       g.locked = true;
+      beginJankWatch();
       g.app = appEl();
       const bg = getComputedStyle(g.layer).backgroundColor;
       g.scrim = document.createElement('div');

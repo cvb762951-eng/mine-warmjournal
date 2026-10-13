@@ -5,6 +5,7 @@ import {
   LAYER_MOTION, motionTier, velocityOf, rubber, swipeZone, swipeIntent, swipeShouldComplete,
   sheetGeometry, sheetProgress, sheetFollow, sheetRelease, sheetCloseMs, canExpandFrom, ghostTransform, scrolledWithin,
   swipePointerDownAction, sheetPointerDownAction, translateYOf,
+  swipeUnderTransform, sampleSessionJank,
 } from '../motion-layers.js';
 
 test('三档：减弱动态效果 → none，低端机 → lite，显式指定优先', () => {
@@ -171,4 +172,116 @@ test('Z1 收回不让 #app 左移回弹：pending/open 标记与收尾顺序', (
   assert.match(css, /:has\(\.subpage-layer\.active\):not\(\.pl-z1-open\):not\(\.pl-z1-pending\) > #app/);
   // 旧的「凡 active 就左移」写法不能再出现，否则收回仍会卡
   assert.doesNotMatch(css, /\.phone-shell:has\(\.subpage-layer\.active\) > #app \{ transform: translate3d\(-20%/);
+});
+
+test('弹层分档几何、默认 medium、从 medium 下甩关闭与上拉到 large', () => {
+  const vp = 800;
+  const h = vp * LAYER_MOTION.sheet.large; // 736px
+  const geo = sheetGeometry({ height: h, viewport: vp, detents: true });
+  assert.equal(geo.large, 0); // 92vh 顶部对齐
+  assert.equal(Math.round(geo.medium), Math.round(vp * (LAYER_MOTION.sheet.large - LAYER_MOTION.sheet.medium))); // 736 - 416 = 320px
+  assert.equal(geo.closed, h);
+
+  // 从 medium (y=320) 下甩关闭：快甩 (velocity > 900)
+  const flingClose = sheetRelease({ y: geo.medium + 40, velocity: 1200, geo });
+  assert.equal(flingClose.close, true);
+  assert.equal(flingClose.target, geo.closed);
+
+  // 从 medium (y=320) 慢拖不足阈值回弹 medium
+  const slowSettle = sheetRelease({ y: geo.medium + 30, velocity: 50, geo });
+  assert.equal(slowSettle.close, false);
+  assert.equal(slowSettle.target, geo.medium);
+
+  // 从 medium (y=320) 慢拖：不够远仍回 medium / 超过中点才关闭
+  const notFarEnough = sheetRelease({ y: geo.medium + 150, velocity: 0, geo });
+  assert.equal(notFarEnough.close, false);
+  assert.equal(notFarEnough.target, geo.medium);
+
+  const slowClose = sheetRelease({ y: geo.medium + (geo.closed - geo.medium) * 0.5 + 2, velocity: 0, geo });
+  assert.equal(slowClose.close, true);
+  assert.equal(slowClose.target, geo.closed);
+
+  // 从 medium (y=320) 上拉到 large
+  const pullLarge = sheetRelease({ y: 160, velocity: -800, geo });
+  assert.equal(pullLarge.close, false);
+  assert.equal(pullLarge.target, geo.large);
+
+  // 代码静态检查：识别到带 data-pl-detents 的新 sheet 默认设为 medium 并写 transform
+  const src = readFileSync(new URL('../motion-layers.js', import.meta.url), 'utf8');
+  assert.match(src, /sheet\.dataset\.plDetent = 'medium'/);
+  assert.match(src, /sheet\.style\.transform = `translate3d\(0, \$\{geo\.medium\.toFixed\(1\)\}px, 0\)`/);
+  assert.match(src, /\[\{ transform: `translate3d\(0, \$\{geo\.closed\}px, 0\)` \}, \{ transform: `translate3d\(0, \$\{geo\.medium\.toFixed\(1\)\}px, 0\)` \}\]/);
+
+  // CSS 静态检查：92vh、贴底与照片 contain
+  const css = readFileSync(new URL('../themes-plain-light.css', import.meta.url), 'utf8');
+  assert.match(css, /:root\[data-theme="plain"\] \.modal\[data-pl-detents\] \{\s*height: 92vh;/);
+  assert.match(css, /:root\[data-theme="plain"\] #modal-layer:has\(\.modal\[data-pl-detents\]\) \{\s*align-items: flex-end !important;/);
+  assert.match(css, /:root\[data-theme="plain"\] \.quick-photo-preview img \{\s*object-fit: contain !important;/);
+});
+
+test('右滑时下层跟手：底页 −20%×(1−p) 进度公式与叠层 class', () => {
+  assert.equal(swipeUnderTransform(0), 'translate3d(-20.00%, 0, 0)');
+  assert.equal(swipeUnderTransform(0.5), 'translate3d(-10.00%, 0, 0)');
+  assert.equal(swipeUnderTransform(1), 'translate3d(0.00%, 0, 0)');
+  assert.equal(swipeUnderTransform(0.35), 'translate3d(-13.00%, 0, 0)');
+
+  const src = readFileSync(new URL('../motion-layers.js', import.meta.url), 'utf8');
+  assert.match(src, /currIndex > 0 \? activeLayers\[currIndex - 1\] : null/);
+  assert.match(src, /g\.under\?\.classList\.add\('pl-swipe-under'\)/);
+  assert.match(src, /s\.under\?\.classList\.remove\('pl-swipe-under'\)/);
+
+  const light = readFileSync(new URL('../themes-plain-light.css', import.meta.url), 'utf8');
+  assert.match(light, /\.subpage-layer\.pl-swipe-under \{ transition: none !important;/);
+});
+
+test('S3 深色桌面：rich + pl-sheet-open 时 .phone-shell 背景为深色', () => {
+  const light = readFileSync(new URL('../themes-plain-light.css', import.meta.url), 'utf8');
+  assert.match(light, /:root\[data-theme="plain"\]\[data-pl-motion="rich"\]\.pl-sheet-open \.phone-shell \{\s*background-color: #12100e !important;/);
+  assert.match(light, /:root\[data-theme="plain"\] \.phone-shell \{\s*transition: background-color 320ms/);
+});
+
+test('画布质感底纹：非 none 档叠加 feTurbulence 静态细噪点，none / 减弱动效关闭', () => {
+  const light = readFileSync(new URL('../themes-plain-light.css', import.meta.url), 'utf8');
+  assert.match(light, /feTurbulence type='fractalNoise'/);
+  assert.match(light, /:root\[data-theme="plain"\]:not\(\[data-pl-motion="none"\]\) \.view,\s*:root\[data-theme="plain"\]:not\(\[data-pl-motion="none"\]\) #app/);
+  assert.match(light, /:root\[data-theme="plain"\]\[data-pl-motion="none"\] \.view/);
+});
+
+test('watchJank：1s 窗内 >3 次 dt>32ms 降到 sessionLite，显式优先且不改 storage', () => {
+  let state = { windowStart: 0, long: 0, tier: 'rich' };
+  // 动画未启动时不采样
+  const idle = sampleSessionJank({ animating: false, sessionLite: false, state, dt: 50, now: 10 });
+  assert.equal(idle.watching, false);
+  assert.equal(idle.sessionLite, false);
+  assert.equal(idle.state.long, 0);
+
+  // 动画中采样长帧
+  let s = sampleSessionJank({ animating: true, sessionLite: false, state, dt: 40, now: 10 });
+  assert.equal(s.sessionLite, false);
+  assert.equal(s.watching, true);
+  assert.equal(s.state.long, 1);
+
+  s = sampleSessionJank({ animating: true, sessionLite: false, state: s.state, dt: 40, now: 100 });
+  s = sampleSessionJank({ animating: true, sessionLite: false, state: s.state, dt: 40, now: 200 });
+  assert.equal(s.sessionLite, false);
+  assert.equal(s.state.long, 3);
+
+  // 第 4 次长帧 (>3 次) 触发降档
+  s = sampleSessionJank({ animating: true, sessionLite: false, state: s.state, dt: 40, now: 300 });
+  assert.equal(s.sessionLite, true);
+  assert.equal(s.watching, false);
+
+  // 降级后档位测试
+  assert.equal(motionTier({ sessionLite: true }), 'lite');
+  assert.equal(motionTier({ override: 'none', sessionLite: true }), 'none');
+  assert.equal(motionTier({ override: 'lite', sessionLite: true }), 'lite');
+  assert.equal(motionTier({ reduced: true, sessionLite: true }), 'none');
+
+  // 超出 1s 窗重置计数
+  const reset = sampleSessionJank({ animating: true, sessionLite: false, state: { windowStart: 0, long: 3, tier: 'rich' }, dt: 16, now: 1200 });
+  assert.equal(reset.state.long, 0);
+  assert.equal(reset.sessionLite, false);
+
+  const src = readFileSync(new URL('../motion-layers.js', import.meta.url), 'utf8');
+  assert.doesNotMatch(src, /localStorage|sessionStorage|indexedDB/);
 });
