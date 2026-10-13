@@ -187,7 +187,9 @@ document.addEventListener('click', event => {
 document.addEventListener('visibilitychange', async () => {
   if (document.visibilityState !== 'visible') return;
   if (booted) {
-    syncScheduledReminders({ requestPermission: false }).catch(error => console.warn('回到前台时没有续上提醒', error));
+    syncScheduledReminders({ requestPermission: false })
+      .catch(error => console.warn('回到前台时没有续上提醒', error))
+      .finally(() => window.dispatchEvent(new Event('reminders:synced')));
   }
   if (await isTimerAlarmRinging().catch(() => false)) completionAlarmModal('计时');
 });
@@ -293,7 +295,8 @@ async function boot() {
     // 排闹钟不挡住第一帧。权限只在这一次启动里问一次，和页面渲染并行。
     syncScheduledReminders({ requestPermission: true }).then(result => {
       if (result?.lastError) console.warn('提醒排程', result.lastError);
-    }).catch(error => console.warn('提醒没有排上', error));
+    }).catch(error => console.warn('提醒没有排上', error))
+      .finally(() => window.dispatchEvent(new Event('reminders:synced')));
     syncCountdownWidget();
     if (state.timer.running && state.timer.mode !== 'stopwatch' && state.timer.endAt <= Date.now()) await completeTimer(true);
     else {
