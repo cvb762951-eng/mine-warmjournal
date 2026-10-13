@@ -803,6 +803,12 @@ html.showfps #fps { display: block; }
   *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; }
 }
 </style>
+<style>
+.real-shot{margin:8px 0 4px}.real-shot small{display:block;font-size:11px;color:#8a929c;margin-bottom:4px}
+.real-shot img{display:block;width:100%;max-width:260px;height:auto;border-radius:14px;box-shadow:0 2px 10px rgba(46,52,59,.1)}
+.m5-reel{width:195px;height:222px;border-radius:14px;box-shadow:0 2px 10px rgba(46,52,59,.1);background:url(gemini-assets/m5-strip.jpg) 0 0/2535px 222px no-repeat;animation:m5reel 1.6s steps(13) infinite}
+@keyframes m5reel{to{background-position:-2535px 0}}
+</style>
 </head>
 <body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
@@ -883,6 +889,12 @@ html.showfps #fps { display: block; }
   <div class="sigs" id="landedG"></div>
   <h3 class="stars-h">#49 §4.2 今日 + §4.7 我的</h3>
   <div class="sigs" id="landedT"></div>
+  <h3 class="stars-h">#50 二级页美化</h3>
+  <div class="sigs" id="landedSP"></div>
+  <h3 class="stars-h">#51 §4.3–4.6 随手拍 / 日记 / 账本 / 日历</h3>
+  <div class="sigs" id="landedP"></div>
+  <h3 class="stars-h">#39 随手拍多图翻牌（已在 main）</h3>
+  <div class="sigs" id="landedM5"></div>
 </section>
 
 <section class="blk">
@@ -2235,7 +2247,7 @@ html.showfps #fps { display: block; }
     ['g8', 'G8', 'Toast 实色落位', '实色墨块 rgba(46,52,59,.92)、不模糊，translateY 8px + opacity。', '200ms --pl-ease-out', '', () => phoneDemo('today', async p => { $('[data-act="toast"]', p)?.click(); }, 500), G47, '#47'],
   ];
   function renderLanded(id, list) {
-    $(id).innerHTML = list.map(([a, n, t, d, spec, tier, , url, pr], i) => `<div class="sig-c" id="${a}"><h4><span><i>${n}</i>${t}${tier ? '<span class="tier">rich</span>' : ''}</span><button data-land="${i}">在手机里看</button></h4><p>${d}</p><div class="spec">${spec}</div><p style="margin:8px 0 0;font-size:12px"><b>${pr}</b>${url ? ` · <a href="${url}" target="_blank" rel="noopener">App 代码预览 ↗</a>` : ''} · <a href="#${a}">#${a}</a></p></div>`).join('');
+    $(id).innerHTML = list.map(([a, n, t, d, spec, tier, , url, pr, shot], i) => `<div class="sig-c" id="${a}"><h4><span><i>${n}</i>${t}${tier ? '<span class="tier">rich</span>' : ''}</span><button data-land="${i}">在手机里看</button></h4><p>${d}</p>${shot === 'm5' ? '<div class="real-shot"><small>App 真实代码录制（390px 无头 Chrome，左滑翻下一张）</small><div class="m5-reel"></div></div>' : shot ? `<div class="real-shot"><small>App 真实 CSS 截图（390px 无头 Chrome）</small><img loading="lazy" src="gemini-assets/${shot}" alt=""></div>` : ''}<div class="spec">${spec}</div><p style="margin:8px 0 0;font-size:12px"><b>${pr}</b>${url ? ` · <a href="${url}" target="_blank" rel="noopener">App 代码预览 ↗</a>` : ''} · <a href="#${a}">#${a}</a></p></div>`).join('');
     $(id).addEventListener('click', e => { const b = e.target.closest('[data-land]'); if (b) list[Number(b.dataset.land)][6](); });
   }
   const LANDED_T = [
@@ -2245,6 +2257,19 @@ html.showfps #fps { display: block; }
     ['t4', 'Me2', '四项统计直竖线', '四等分 + 1px 直竖线；数字滚动沿用 rollNumbers。', '.mine-kpi-row grid 4 · + border-left 1px --pl-line', '', () => phoneDemo('mine'), '', '#49'],
     ['t5', 'Me3', '列表图标块', '40px、12px 圆角、浅蓝底。', '.setting-icon-box 40px · r 12px · --pl-blue-soft', '', () => phoneDemo('mine', async p => { $('.scr', p).scrollTo({ top: 400, behavior: 'smooth' }); }, 500), '', '#49'],
   ];
+  const LANDED_SP = [
+    ['sp1', 'SP1', '二级页头部 + 返回 + 内容卡', '头部吸顶冷蓝半透明底、三栏 80px / 1fr / 80px；返回 34px 白胶囊；标题 16px 衬线居中省略；右侧 34px 圆钮；内容 14px 边距 + 白卡 20px 圆角；Z9 按下箭头左移 3px。', '.subnav rgba(234,240,248,.96) · .back 34px r999 · .sub .body 6/14/30 · Z9 90ms / 420ms', '', () => phoneDemo('mine', async p => { $$('.row[data-act="sub"]', p)[0]?.click(); }, 500), '', '#50', 'subpage.jpg'],
+  ];
+  const LANDED_P = [
+    ['p1', 'P1', '随手拍', '统计小卡浅底无投影；标签横滑 + 右缘渐隐；日期条 44px 浅蓝；角标 12px 圆角墨色；操作 32px、删除浅红。', '.mini --pl-inset · chips scroll-snap + mask · dbar 44px · badge r12 · mact 32px gap 8', '', () => phoneDemo('snippets'), '', '#51', 'snippets.jpg'],
+    ['p2', 'P2', '日记', '日期上内边距 18px；小节标题 13px + 6px 蓝点；心情/天气选中实心蓝，对勾格内右上 scale .6→1 160ms。', 'jdate pt 18 · jsec::before 6px · pick.on blue · ck 14px pop-in 160ms', '', () => phoneDemo('journal'), '', '#51', 'journal.jpg'],
+    ['p3', 'P3', '账本', '记一笔 44px；三项指标浅底三栏竖线；空预算 56px 一行；支出/收入蓝滑块 220ms；分类 12px 圆角蓝描边；账户 2×2 单行省略。', 'kpi inset + 1px line · bud 56px · .sg::before translateX 220ms emph · accs 2×2', '', () => phoneDemo('ledger'), '', '#51', 'ledger.jpg'],
+    ['p4', 'P4', '日历', '选中日 36px、10px 圆角不旋转，scale .86→1 180ms；今天未选中蓝细环；档案条白卡 56px。', 'day.sel r10 · day-in 180ms · today inset 1.5px · arch 56px #fff', '', () => phoneDemo('calendar'), '', '#51', 'calendar.jpg'],
+  ];
+  const LANDED_M5 = [
+    ['m5', 'M5', '多图翻牌（图集一叠牌）', '随手拍多图卡点「查看照片」→ 图集一叠牌，左右拖动翻下一张，照片等比 contain 不拉伸；翻页阈值保持 #39 的规则（约 86px）。下面是 app 真实代码录的帧。', 'views/snippets.js flipMomentAlbum · 真实入口 [data-view-snippet-photo] → openMomentMediaBrowse', '', () => { const r = $('#m5 .m5-reel'); if (r) { r.style.animation = 'none'; void r.offsetWidth; r.style.animation = ''; } }, '', '#39', 'm5'],
+  ];
+  renderLanded('#landedSP', LANDED_SP); renderLanded('#landedP', LANDED_P); renderLanded('#landedM5', LANDED_M5);
   renderLanded('#landedM', LANDED_M); renderLanded('#landedG', LANDED_G); renderLanded('#landedT', LANDED_T);
   /* Opus 原有卡片也挂上锚点：#s1… #z1… #v1… */
   $$('.sig-c').forEach(c => { if (!c.id) { const k = c.querySelector('h4 i')?.textContent.trim(); if (k && !document.getElementById(k.toLowerCase().replace('+', 'p').replace(/\W/g, ''))) c.id = 'opus-' + k.toLowerCase().replace('+', 'p').replace(/\W/g, ''); } });
