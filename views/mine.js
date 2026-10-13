@@ -7,6 +7,7 @@ import { mediaHealth, externalizeStateMedia } from '../media-store.js';
 import { aiKeyStorageMode } from '../ai-key-vault.js';
 import { clearJournalDraftCache } from '../journal-drafts.js';
 import { Capacitor } from '@capacitor/core';
+import { describeReminderStatus } from './reminder-status.js';
 import { APP_VERSION_NAME, fetchUpdateManifest, hasNewerVersion, effectiveVersion, pendingResourceUpdate, downloadUpdate, installUpdate, canInstall, openInstallSettings, clearDownload, isUpdateSupported, formatBytes, fetchResourceManifest, applyResourceUpdate } from '../app-updater.js';
 
 // ---- 本地状态 ----
@@ -173,7 +174,8 @@ export function mineView() {
       <section class="mine-settings-section mine-smart-section"><header class="mine-section-heading"><span class="mine-section-index" aria-hidden="true">02</span><h2>智能与提醒</h2><small>SMART ROUTINES</small></header>
       <div class="settings-group-card">
         <button class="setting-item-row" id="settings-ai"><span class="setting-row-left"><span class="setting-icon-box tone-gold"><span class="material-symbols-outlined">smart_toy</span></span><span><span class="setting-row-title">AI 伴侣与大模型配置</span><span class="setting-row-subtitle">${state.settings?.aiApiKeyInvalid ? '密钥需重新填写' : `模型 API Key · ${aiKeyStorageMode() === 'keystore' ? '系统密钥库加密' : '本机加密'}`}</span></span></span><span class="setting-row-right"><span class="${aiConfigured ? 'state-ok' : ''}">${aiConfigured ? '已配置' : state.settings?.aiApiKeyInvalid ? '需重填' : '未配置'}</span><span class="material-symbols-outlined">chevron_right</span></span></button>
-        <button class="setting-item-row" id="settings-reminder"><span class="setting-row-left"><span class="setting-icon-box"><span class="material-symbols-outlined">notifications_active</span></span><span><span class="setting-row-title">日常作息与记录提醒</span><span class="setting-row-subtitle">专注、日记与生活记录提醒</span></span></span><span class="setting-row-right"><span>${reminderCount ? `已开启 ${reminderCount} 项` : '未开启'}</span><span class="material-symbols-outlined">chevron_right</span></span></button>
+        <button class="setting-item-row" id="settings-reminder"><span class="setting-row-left"><span class="setting-icon-box"><span class="material-symbols-outlined">notifications_active</span></span><span><span class="setting-row-title">日常作息与记录提醒</span><span class="setting-row-subtitle">专注、日记与生活记录提醒</span></span></span><span class="setting-row-right"><span id="settings-reminder-state">${reminderCount ? `已设 ${reminderCount} 项` : '未开启'}</span><span class="material-symbols-outlined">chevron_right</span></span></button>
+        <div class="setting-reminder-status" id="settings-reminder-status" hidden aria-live="polite"><span class="setting-reminder-status-text"></span><button type="button" class="setting-reminder-status-action" hidden>去开启</button></div>
       </div></section>
       <section class="mine-settings-section mine-appearance-section"><header class="mine-section-heading"><span class="mine-section-index" aria-hidden="true">03</span><h2>外观与偏好</h2><small>LOOK &amp; FEEL</small></header>
       <div class="settings-group-card">
@@ -874,6 +876,38 @@ async function runUpdate(manifest) {
   }
 }
 
+// ---- 提醒真实状态（读 #37 的 getReminderStatus，失败时安静降级）----
+let reminderStatusSeq = 0;
+async function refreshReminderStatus() {
+  const box = $('#settings-reminder-status');
+  if (!box) return;
+  const seq = ++reminderStatusSeq;
+  const configured = (state.settings?.dailyReminders || []).length;
+  let status = null;
+  try { status = (await callHelper('getReminderStatus')) || null; } catch { status = null; }
+  if (seq !== reminderStatusSeq || !box.isConnected) return;
+  const view = describeReminderStatus(status, configured);
+  const right = $('#settings-reminder-state');
+  if (right) { right.textContent = view.right; right.classList.toggle('state-ok', view.tone === 'ok'); }
+  box.dataset.tone = view.tone;
+  box.hidden = !view.note;
+  box.querySelector('.setting-reminder-status-text').textContent = view.note;
+  const button = box.querySelector('.setting-reminder-status-action');
+  button.hidden = !view.action;
+  button.onclick = view.action ? async () => {
+    const opener = view.action.kind === 'exact' ? 'openExactAlarmSettings' : 'openNotificationSettings';
+    let opened = false;
+    try { opened = await callHelper(opener); } catch { opened = false; }
+    if (!opened) show('这里打不开系统设置，请到手机「设置 › 应用 › 生活志」里开启');
+  } : null;
+}
+
+if (typeof document !== 'undefined') {
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && state.route === 'mine') setTimeout(refreshReminderStatus, 400);
+  });
+}
+
 function bindMine() {
   const mediaCount = state.media.filter(entry => ['completed', 'in_progress', 'planned'].includes(entry.status)).length;
   $('#edit-profile')?.addEventListener('click', profileForm);
@@ -887,6 +921,7 @@ function bindMine() {
   $('#settings-password-vault')?.addEventListener('click', () => callHelper('openPasswordVault'));
   $('#settings-ai')?.addEventListener('click', () => callHelper('aiSettingsForm'));
   $('#settings-reminder')?.addEventListener('click', () => callHelper('dailyReminderSettingsForm'));
+  refreshReminderStatus();
   $('#settings-background')?.addEventListener('click', backgroundForm);
   $('#settings-snapshot')?.addEventListener('click', async () => { await createLocalSnapshot('用户手动创建'); await refreshMineHealth(mediaCount); show('已创建本机安全快照'); });
   $('#settings-snapshot-list')?.addEventListener('click', safetySnapshotList);
