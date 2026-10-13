@@ -37,7 +37,15 @@ export function countdownForm(entry = null) {
   pendingCountdownImage = item.image || '';
   modal(`<form id="countdown-form"><input type="hidden" name="id" value="${item.id}"><h2>${entry ? '编辑倒数日' : '新建倒数日'}</h2><label>标题</label><input name="title" maxlength="40" required value="${esc(item.title)}" placeholder="例如：考研、生日、旅行"><label>目标日期</label><input name="date" type="date" required value="${item.date}"><label>备注（可选）</label><input name="note" maxlength="200" value="${esc(item.note)}" placeholder="一句话说说这个日子的意义"><label class="confirm-line"><input name="showOnHome" type="checkbox" ${item.showOnHome !== false ? 'checked' : ''}> 展示到首页</label><div class="countdown-image-picker"><div><strong>背景图</strong><small>让倒数日更有画面感</small></div><button type="button" id="pick-countdown-image"><span class="material-symbols-outlined">photo_library</span>${pendingCountdownImage ? '更换图片' : '选择图片'}</button></div><div id="countdown-image-preview">${countdownImagePreview()}</div><div class="modal-actions"><button type="button" data-close>取消</button>${entry ? '<button type="button" class="danger" id="delete-countdown">删除</button>' : ''}<button class="save">保存</button></div></form>`, 'countdown-form-modal');
   $('#pick-countdown-image')?.addEventListener('click', () => pickCountdownImage().catch(error => show(error.message)));
-  $('#delete-countdown')?.addEventListener('click', () => confirmDelete('删除这个倒数日？', async () => { state.countdowns = state.countdowns.filter(item => item.id !== entry.id); await save(); syncCountdownWidget(); render(); callHelper('scheduleAiRefresh'); }));
+  $('#delete-countdown')?.addEventListener('click', () => confirmDelete('删除这个倒数日？', async () => {
+    state.countdowns = state.countdowns.filter(item => item.id !== entry.id);
+    await save();
+    syncCountdownWidget();
+    const alarm = await callHelper('syncCountdownNodeAlarms', { requestPermission: false });
+    render();
+    callHelper('scheduleAiRefresh');
+    if (alarm?.ok === false && alarm.lastError) show(`已删除。${alarm.lastError}`);
+  }));
 }
 
 function countdownImagePreview() {
@@ -138,4 +146,6 @@ registerSubmitHandler('countdown-form', async data => {
   resetCountdownImage();
   syncCountdownWidget();
   callHelper('scheduleAiRefresh');
+  const alarm = await callHelper('syncCountdownNodeAlarms', { requestPermission: true, userInitiated: true });
+  if (alarm?.ok === false && alarm.lastError) return `倒数日已保存，节点提醒没排上：${alarm.lastError}`;
 });
