@@ -70,3 +70,25 @@ test('只有随手拍列表换成缩略图，大图层 / 编辑器仍用原图',
   // 不传 thumbRef 时 photoFrameLayersHtml 输出和旧版一致
   assert.match(frame, /thumbRef \? ` data-thumb-ref=/);
 });
+
+const mine = await read('views/mine.js');
+
+test('clearThumbCache 只删缩略图目录和缩略图库，永不抛错', async () => {
+  const fn = thumbs.match(/export async function clearThumbCache\(\)[\s\S]*?\n\}/)?.[0] || '';
+  assert.ok(fn);
+  assert.equal(THUMB_ROOT, 'MineWarmJournalThumbs');
+  assert.equal(THUMB_DB, 'mine_warmjournal_thumbs');
+  assert.match(fn, /rmdir\(\{ path: THUMB_ROOT, directory: Directory\.Data, recursive: true \}\)/);
+  assert.match(fn, /deleteDatabase\(THUMB_DB\)/);
+  assert.doesNotMatch(fn, /MineWarmJournalMedia|MineWarmJournalVault|deleteFile|BROWSER_DB|mine_warmjournal_media/);
+  assert.match(fn, /catch \{/);
+  const { clearThumbCache } = await import('../photo-thumbs.js');
+  await assert.doesNotReject(clearThumbCache());
+});
+
+test('恢复成功路径在 finalize 之后清缩略图，且失败被吞掉', () => {
+  const handler = mine.match(/registerSubmitHandler\('restore-form'[\s\S]*?\n\}\);/)?.[0] || '';
+  assert.match(handler, /await finalizeImportedBackup\(\);[\s\S]*?await clearThumbCache\(\)\.catch\(\(\) => \{\}\);[\s\S]*?show\('数据恢复完成'\)/);
+  const catchBlock = handler.slice(handler.indexOf('} catch (error)'));
+  assert.doesNotMatch(catchBlock, /clearThumbCache/);
+});
