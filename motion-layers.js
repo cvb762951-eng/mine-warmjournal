@@ -19,6 +19,7 @@
 import { SpringODE, prefersReducedMotion } from './motion.js';
 import { installVaultMotion } from './motion-vault.js';
 import { installDialogMotion } from './motion-dialogs.js';
+import { installMomentsMotion } from './motion-moments.js';
 
 /* ── 参数（照抄方案 9.1）──────────────────────────────────────────── */
 export const LAYER_MOTION = {
@@ -252,12 +253,26 @@ function stopExpand(layer) {
   layer.classList.remove('pl-expand-in', 'pl-title-pending');
 }
 
+function markZ1Pending() { shell()?.classList.add('pl-z1-pending'); }
+function clearZ1Pending() { shell()?.classList.remove('pl-z1-pending'); }
+function markZ1Open() { const s = shell(); if (!s) return; s.classList.add('pl-z1-open'); s.classList.remove('pl-z1-pending'); }
+function clearZ1() { shell()?.classList.remove('pl-z1-open', 'pl-z1-pending'); }
+
 function rememberSource(event) {
   if (!on() || tier() === 'none') return;
   const el = event.target.closest?.(SOURCE);
   if (!el || el.closest(NO_EXPAND) || !el.closest('#app')) return;
   // 按下时只记元素，位置在 click 时才量（按下不一定是点击，省一次强制布局）。
   pendingSource = { el, rect: event.type === 'click' ? el.getBoundingClientRect() : null, at: performance.now() };
+  // 先挂 pending：随后 .active 出现时不要让 #app 先左移 20%，否则 Z1 收回时又弹回会卡一下。
+  markZ1Pending();
+  clearTimeout(rememberSource._t);
+  rememberSource._t = setTimeout(() => {
+    if (pendingSource && performance.now() - pendingSource.at >= LAYER_MOTION.expand.waitMs) {
+      pendingSource = null;
+      clearZ1Pending();
+    }
+  }, LAYER_MOTION.expand.waitMs + 50);
 }
 
 function textRect(el) {
@@ -312,14 +327,14 @@ function makeGhost(rect, source) {
 function playExpand(layer) {
   const src = pendingSource;
   pendingSource = null;
-  if (!src || performance.now() - src.at > LAYER_MOTION.expand.waitMs || !moving()) return false;
+  if (!src || performance.now() - src.at > LAYER_MOTION.expand.waitMs || !moving()) { clearZ1Pending(); return false; }
   const viewport = { width: innerWidth, height: innerHeight };
-  if (!src.el.isConnected) return false;
+  if (!src.el.isConnected) { clearZ1Pending(); return false; }
   src.rect = src.rect || src.el.getBoundingClientRect();
-  if (!canExpandFrom(src.rect, viewport)) return false;
+  if (!canExpandFrom(src.rect, viewport)) { clearZ1Pending(); return false; }
   const target = EXPAND_TO(layer);
-  if (!target) return false;
-  return Boolean(safe(() => {
+  if (!target) { clearZ1Pending(); return false; }
+  const ok = Boolean(safe(() => {
     const E = LAYER_MOTION.expand;
     layer.classList.add('pl-expand-in');
     const to = target.getBoundingClientRect();
@@ -330,43 +345,72 @@ function playExpand(layer) {
     const f1 = layer.animate([{ opacity: 0 }, { opacity: 1 }], { duration: E.fadeMs, delay: E.fadeDelay, easing: 'cubic-bezier(.22,.61,.36,1)', fill: 'backwards' });
     const rec = { anims: [g1, f1, title].filter(Boolean), nodes: [ghost] };
     running.set(layer, rec);
-    g1.finished.then(() => ghost.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 100, fill: 'forwards' }).finished)
-      .catch(() => {}).then(() => ghost.remove());
+    g1.finished.then(() => {
+      ghost.style.willChange = 'auto';
+      return ghost.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 100, fill: 'forwards' }).finished;
+    }).catch(() => {}).then(() => ghost.remove());
     f1.finished.catch(() => {}).then(() => {
       if (running.get(layer) === rec) running.delete(layer);
       layer.classList.remove('pl-expand-in');
     });
     expanded.set(layer, { source: src.el });
+    markZ1Open();                                                 // 原位展开：底页不走推入左移
     return true;
   }));
+  if (!ok) clearZ1Pending();
+  return ok;
 }
 
 function playCollapse(layer, info) {
   const E = LAYER_MOTION.expand;
   const source = info.source;
   stopExpand(layer);                                              // 展开还没跑完就返回：先停掉，避免两个影子块
-  const done = () => { source.classList.remove('pl-expand-source'); layer.classList.remove('pl-collapse-out'); };
+  // Z1 打开时底页没左移；这里清标记，避免之后普通推入被挡住。
+  clearZ1();
+  const revealSource = () => { source.classList.remove('pl-expand-source'); };
+  const clearLayer = () => {
+    layer.classList.remove('pl-collapse-out');
+    layer.style.opacity = '';
+  };
+  // 收尾：先钉住 opacity:0 再撤 WAAPI fill，避免 fade.cancel() 把二级页闪回一帧。
+  const endCollapse = fade => {
+    layer.style.opacity = '0';
+    try { fade?.cancel(); } catch { /* ignore */ }
+    clearLayer();
+  };
   if (!moving() || !source.isConnected || layer.classList.contains('pl-swiped')) {
     // 右滑出去的页面不再缩回原卡：原卡 160ms 淡入。
     if (source.isConnected && moving()) source.animate([{ opacity: 0 }, { opacity: 1 }], { duration: E.outMs, fill: 'backwards' });
-    done();
+    revealSource();
+    clearLayer();
     return;
   }
   safe(() => {
     const from = source.getBoundingClientRect();
-    if (!canExpandFrom(from, { width: innerWidth, height: innerHeight })) { done(); return; }
+    if (!canExpandFrom(from, { width: innerWidth, height: innerHeight })) { revealSource(); clearLayer(); return; }
     const target = EXPAND_TO(layer);
     const to = target ? target.getBoundingClientRect() : null;
     layer.classList.add('pl-collapse-out');                       // 原地淡出，不再右滑出去
     const fade = layer.animate([{ opacity: 1 }, { opacity: 0 }], { duration: E.outMs, easing: 'cubic-bezier(.4,0,1,1)', fill: 'forwards' });
-    const finish = () => { done(); fade.cancel(); };
     flyTitle(source, layer, true);
-    if (!to || !to.width) { fade.finished.catch(() => {}).then(finish); return; }
+    if (!to || !to.width) {
+      fade.finished.catch(() => {}).then(() => { revealSource(); endCollapse(fade); });
+      return;
+    }
     const ghost = makeGhost(to, source);
+    // 时序照方案：幽灵缩回 → 原卡复现 → 撤 will-change → 幽灵淡出 → 清层。
+    // 不在幽灵位移结束的同一帧 cancel fade + 拆 ghost，避免收完回主页那一下卡顿。
     ghost.animate([{ transform: 'none' }, { transform: ghostTransform(from, to) }], { duration: E.backMs, delay: E.backDelay, easing: E.ease, fill: 'both' })
-      .finished.catch(() => {}).then(() => { finish(); return ghost.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 100, fill: 'forwards' }).finished; })
-      .catch(() => {}).then(() => ghost.remove());
-  }) ?? done();
+      .finished.catch(() => {}).then(() => {
+        revealSource();
+        ghost.style.willChange = 'auto';
+        return ghost.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 100, fill: 'forwards' }).finished;
+      })
+      .catch(() => {}).then(() => {
+        ghost.remove();
+        endCollapse(fade);
+      });
+  }) ?? (revealSource(), clearLayer());
 }
 
 /* 观察二级页的 active 切换：打开 → 展开 / 浮现；关闭 → 收回。 */
@@ -724,6 +768,7 @@ export function installLayerMotion() {
     installSheetDrag();
     installVaultMotion();
     installDialogMotion();
+    installMomentsMotion();
   });
 }
 

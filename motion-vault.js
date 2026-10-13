@@ -129,8 +129,19 @@ export function sampleVaultJank({
   return { localTier: next.tier, state: next, watching: next.tier !== 'lite', writeGlobal: false };
 }
 
-/** 切走超过 lockAfter 且锁屏还没出现时，遮罩先留着，最多 maxWait。 */
-export function shieldShouldHold({ hiddenMs = 0, locked = false, waitedMs = 0, lockAfter = 300, maxWait = 600 } = {}) {
+/**
+ * 切走超过 lockAfter 且锁屏还没出现时，遮罩先留着，最多 maxWait。
+ * 本次运行免密不会上锁，遮罩不用干等这段超时。
+ */
+export function shieldShouldHold({
+  hiddenMs = 0,
+  locked = false,
+  waitedMs = 0,
+  lockAfter = 300,
+  maxWait = 600,
+  passwordless = false,
+} = {}) {
+  if (passwordless) return false;
   if (!(hiddenMs >= lockAfter)) return false;
   if (locked) return false;
   return waitedMs < maxWait;
@@ -622,6 +633,11 @@ function cancelShieldWait() {
   shieldWait = 0;
 }
 
+/** 免密开关只在已解锁页面上，aria-pressed 为 true 表示这次运行不再上锁。 */
+function passwordlessThisRun() {
+  return document.getElementById('vault-passwordless')?.getAttribute('aria-pressed') === 'true';
+}
+
 function onVis() {
   if (!plain() || !document.querySelector('.private-vault-view')) {
     if (document.visibilityState === 'visible') {
@@ -638,11 +654,12 @@ function onVis() {
   }
   const hiddenFor = hiddenAt ? performance.now() - hiddenAt : 0;
   hiddenAt = 0;
+  const passwordless = passwordlessThisRun();
   const started = performance.now();
   const tick = () => {
     const locked = Boolean(document.querySelector('.vault-locked-view'));
     const waited = performance.now() - started;
-    if (!shieldShouldHold({ hiddenMs: hiddenFor, locked, waitedMs: waited })) {
+    if (!shieldShouldHold({ hiddenMs: hiddenFor, locked, waitedMs: waited, passwordless })) {
       shieldWait = 0;
       hideShield(false);
       return;
@@ -650,6 +667,11 @@ function onVis() {
     shieldWait = requestAnimationFrame(tick);
   };
   cancelShieldWait();
+  // 免密不会出现锁屏。同步揭开，避免空等 maxWait。
+  if (passwordless) {
+    hideShield(false);
+    return;
+  }
   shieldWait = requestAnimationFrame(tick);
 }
 
