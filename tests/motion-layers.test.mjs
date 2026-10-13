@@ -6,6 +6,7 @@ import {
   sheetGeometry, sheetProgress, sheetFollow, sheetRelease, sheetCloseMs, canExpandFrom, ghostTransform, scrolledWithin,
   swipePointerDownAction, sheetPointerDownAction, translateYOf,
   swipeUnderTransform, sampleSessionJank,
+  tidySwipe, clearCollapse, swallowNextClick,
 } from '../motion-layers.js';
 
 test('三档：减弱动态效果 → none，低端机 → lite，显式指定优先', () => {
@@ -285,3 +286,52 @@ test('watchJank：1s 窗内 >3 次 dt>32ms 降到 sessionLite，显式优先且�
   const src = readFileSync(new URL('../motion-layers.js', import.meta.url), 'utf8');
   assert.doesNotMatch(src, /localStorage|sessionStorage|indexedDB/);
 });
+
+test('随手拍快捷弹层不再设置 plDetents，watchSheets 也不自动赋 medium large', () => {
+  const snippets = readFileSync(new URL('../views/snippets.js', import.meta.url), 'utf8');
+  assert.doesNotMatch(snippets, /dataset\.plDetents =/);
+  const src = readFileSync(new URL('../motion-layers.js', import.meta.url), 'utf8');
+  assert.doesNotMatch(src, /sheet\.dataset\.plDetents = 'medium large'/);
+  assert.doesNotMatch(src, /#quick-photo-modal, #quick-memo-modal/);
+  assert.match(src, /root\?\.classList\.remove\('pl-sheet-open'\)/);
+});
+
+test('tidy 清理所有 .pl-swipe-under 元素（class、transform、--pl-dim、will-change）', () => {
+  const src = readFileSync(new URL('../motion-layers.js', import.meta.url), 'utf8');
+  assert.match(src, /document\.querySelectorAll\('\.pl-swipe-under'\)\.forEach/);
+  assert.match(src, /el\.style\.removeProperty\?\.\('--pl-dim'\)/);
+  assert.match(src, /el\.style\.willChange = ''/);
+});
+
+test('playExpand 移除 pl-collapse-out 并取消未完成的 opacity 动画', () => {
+  let cancelled = false;
+  const mock = {
+    classList: { remove: () => {} },
+    style: { opacity: '0' },
+    getAnimations: () => [{ cancel: () => { cancelled = true; } }],
+  };
+  clearCollapse(mock);
+  assert.equal(mock.style.opacity, '');
+  assert.equal(cancelled, true);
+  const src = readFileSync(new URL('../motion-layers.js', import.meta.url), 'utf8');
+  assert.match(src, /function playExpand\(layer\) \{\s*clearCollapse\(layer\);/);
+});
+
+test('playCollapse 包含 timeout fallback (outMs + backMs + 500ms) 兜底移除 pl-collapse-out', () => {
+  const src = readFileSync(new URL('../motion-layers.js', import.meta.url), 'utf8');
+  assert.match(src, /fallbackTimer = setTimeout\(cleanup, E\.outMs \+ E\.backMs \+ 500\)/);
+  assert.match(src, /clearTimeout\(fallbackTimer\)/);
+});
+
+test('swallowNextClick 在窗口期后自动失效，不吞后续正常点击', async () => {
+  const listeners = new Map();
+  const mockDoc = {
+    addEventListener: (t, fn) => listeners.set(t, fn),
+    removeEventListener: (t, fn) => { if (listeners.get(t) === fn) listeners.delete(t); },
+  };
+  swallowNextClick(mockDoc, 40);
+  assert.ok(listeners.has('click'));
+  await new Promise(r => setTimeout(r, 60));
+  assert.equal(listeners.has('click'), false);
+});
+

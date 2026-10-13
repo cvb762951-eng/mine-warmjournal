@@ -277,8 +277,10 @@ function watchStatus(view) {
     const text = status.textContent || '';
     if (text !== last && /验证指纹/.test(last) && /密码|未|失败|无法/.test(text)) {
       const paper = status.closest('.vault-lock-paper');
-      paper?.classList.remove('pv-nudge');
-      requestAnimationFrame(() => paper?.classList.add('pv-nudge'));
+      if (paper?.classList.contains('pv-nudge')) paper.classList.remove('pv-nudge');
+      requestAnimationFrame(() => {
+        if (!paper?.classList.contains('pv-nudge')) paper?.classList.add('pv-nudge');
+      });
     }
     last = text;
   });

@@ -276,6 +276,40 @@ const shell = () => document.querySelector('.phone-shell');
 const appEl = () => document.getElementById('app');
 const topLayer = () => [...document.querySelectorAll('.subpage-layer.active')].at(-1) || null;
 
+export function setClass(el, name, on) {
+  if (!el?.classList) return;
+  if (typeof el.classList.contains === 'function') {
+    const has = el.classList.contains(name);
+    if (on && !has) el.classList.add(name);
+    else if (!on && has) el.classList.remove(name);
+  } else {
+    if (on) el.classList.add?.(name);
+    else el.classList.remove?.(name);
+  }
+}
+
+export function removeClass(el, ...names) {
+  if (!el?.classList) return;
+  names.forEach(name => {
+    if (typeof el.classList.contains === 'function') {
+      if (el.classList.contains(name)) el.classList.remove(name);
+    } else {
+      el.classList.remove?.(name);
+    }
+  });
+}
+
+export function addClass(el, ...names) {
+  if (!el?.classList) return;
+  names.forEach(name => {
+    if (typeof el.classList.contains === 'function') {
+      if (!el.classList.contains(name)) el.classList.add(name);
+    } else {
+      el.classList.add?.(name);
+    }
+  });
+}
+
 function dimNode() {
   const host = shell();
   if (!host) return null;
@@ -305,15 +339,15 @@ function cascade(container, kind) {
   const items = cascadeItems(container).slice(0, cfg.max);
   if (!items.length) return;
   items.forEach((el, i) => {
-    el.classList.add('pl-rise-item');
+    addClass(el, 'pl-rise-item');
     el.style.setProperty('--pl-ci', i);
   });
   container.style.setProperty('--pl-c0', `${cfg.start}ms`);
-  container.classList.add('pl-cascade', `pl-cascade-${kind}`);
+  addClass(container, 'pl-cascade', `pl-cascade-${kind}`);
   setTimeout(() => {
-    container.classList.remove('pl-cascade', `pl-cascade-${kind}`);
+    removeClass(container, 'pl-cascade', `pl-cascade-${kind}`);
     container.style.removeProperty('--pl-c0');
-    items.forEach(el => { el.classList.remove('pl-rise-item'); el.style.removeProperty('--pl-ci'); });
+    items.forEach(el => { removeClass(el, 'pl-rise-item'); el.style.removeProperty('--pl-ci'); });
   }, cfg.start + cfg.step * cfg.max + 300);
 }
 
@@ -338,14 +372,14 @@ function stopExpand(layer) {
   running.delete(layer);
   r.anims.forEach(a => safe(() => a.cancel()));
   r.nodes.forEach(n => n.remove());
-  layer.classList.remove('pl-expand-in', 'pl-title-pending');
+  removeClass(layer, 'pl-expand-in', 'pl-title-pending');
   endJankWatch();
 }
 
-function markZ1Pending() { shell()?.classList.add('pl-z1-pending'); }
-function clearZ1Pending() { shell()?.classList.remove('pl-z1-pending'); }
-function markZ1Open() { const s = shell(); if (!s) return; s.classList.add('pl-z1-open'); s.classList.remove('pl-z1-pending'); }
-function clearZ1() { shell()?.classList.remove('pl-z1-open', 'pl-z1-pending'); }
+function markZ1Pending() { const s = shell(); if (s) addClass(s, 'pl-z1-pending'); }
+function clearZ1Pending() { const s = shell(); if (s) removeClass(s, 'pl-z1-pending'); }
+function markZ1Open() { const s = shell(); if (!s) return; addClass(s, 'pl-z1-open'); removeClass(s, 'pl-z1-pending'); }
+function clearZ1() { const s = shell(); if (s) removeClass(s, 'pl-z1-open', 'pl-z1-pending'); }
 
 function rememberSource(event) {
   if (!on() || tier() === 'none') return;
@@ -392,10 +426,10 @@ function flyTitle(fromEl, layer, reverse = false) {
     const to = `translate(${(n.left + n.width / 2 - (t.rect.left + t.rect.width / 2)).toFixed(1)}px, ${(n.top + n.height / 2 - (t.rect.top + t.rect.height / 2)).toFixed(1)}px) scale(${scale.toFixed(3)})`;
     const E = LAYER_MOTION.expand;
     const frames = reverse ? [{ transform: to }, { transform: 'none' }] : [{ transform: 'none' }, { transform: to }];
-    if (!reverse) layer.classList.add('pl-title-pending');
+    if (!reverse) addClass(layer, 'pl-title-pending');
     const anim = fly.animate(frames, { duration: reverse ? E.backMs : E.ms, delay: reverse ? E.backDelay : 0, easing: E.ease, fill: 'both' });
     anim.finished.catch(() => {}).then(() => {
-      layer.classList.remove('pl-title-pending');
+      removeClass(layer, 'pl-title-pending');
       return fly.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 80, fill: 'forwards' }).finished;
     }).catch(() => {}).then(() => fly.remove());
     return anim;
@@ -413,7 +447,21 @@ function makeGhost(rect, source) {
   return ghost;
 }
 
+export function clearCollapse(layer) {
+  if (!layer) return;
+  if (typeof layer.classList?.contains === 'function') {
+    if (layer.classList.contains('pl-collapse-out')) layer.classList.remove('pl-collapse-out');
+  } else {
+    layer.classList?.remove?.('pl-collapse-out');
+  }
+  if (layer.style) layer.style.opacity = '';
+  safe(() => {
+    layer.getAnimations?.().forEach(a => a.cancel());
+  });
+}
+
 function playExpand(layer) {
+  clearCollapse(layer);
   const src = pendingSource;
   pendingSource = null;
   if (!src || performance.now() - src.at > LAYER_MOTION.expand.waitMs || !moving()) { clearZ1Pending(); return false; }
@@ -426,10 +474,10 @@ function playExpand(layer) {
   const ok = Boolean(safe(() => {
     beginJankWatch();
     const E = LAYER_MOTION.expand;
-    layer.classList.add('pl-expand-in');
+    addClass(layer, 'pl-expand-in');
     const to = target.getBoundingClientRect();
     const ghost = makeGhost(to, src.el);
-    src.el.classList.add('pl-expand-source');
+    addClass(src.el, 'pl-expand-source');
     const title = flyTitle(src.el, layer);
     const g1 = ghost.animate([{ transform: ghostTransform(src.rect, to) }, { transform: 'none' }], { duration: E.ms, easing: E.ease, fill: 'both' });
     const f1 = layer.animate([{ opacity: 0 }, { opacity: 1 }], { duration: E.fadeMs, delay: E.fadeDelay, easing: 'cubic-bezier(.22,.61,.36,1)', fill: 'backwards' });
@@ -441,7 +489,7 @@ function playExpand(layer) {
     }).catch(() => {}).then(() => ghost.remove());
     f1.finished.catch(() => {}).then(() => {
       if (running.get(layer) === rec) running.delete(layer);
-      layer.classList.remove('pl-expand-in');
+      removeClass(layer, 'pl-expand-in');
       endJankWatch();
     });
     expanded.set(layer, { source: src.el });
@@ -458,10 +506,10 @@ function playCollapse(layer, info) {
   stopExpand(layer);                                              // 展开还没跑完就返回：先停掉，避免两个影子块
   // Z1 打开时底页没左移；这里清标记，避免之后普通推入被挡住。
   clearZ1();
-  const revealSource = () => { source.classList.remove('pl-expand-source'); };
+  const revealSource = () => { removeClass(source, 'pl-expand-source'); };
   const clearLayer = () => {
-    layer.classList.remove('pl-collapse-out');
-    layer.style.opacity = '';
+    removeClass(layer, 'pl-collapse-out');
+    if (layer.style.opacity) layer.style.opacity = '';
   };
   // 收尾：先钉住 opacity:0 再撤 WAAPI fill，避免 fade.cancel() 把二级页闪回一帧。
   const endCollapse = fade => {
@@ -481,26 +529,40 @@ function playCollapse(layer, info) {
     if (!canExpandFrom(from, { width: innerWidth, height: innerHeight })) { revealSource(); clearLayer(); return; }
     const target = EXPAND_TO(layer);
     const to = target ? target.getBoundingClientRect() : null;
-    layer.classList.add('pl-collapse-out');                       // 原地淡出，不再右滑出去
+    addClass(layer, 'pl-collapse-out');                       // 原地淡出，不再右滑出去
     const fade = layer.animate([{ opacity: 1 }, { opacity: 0 }], { duration: E.outMs, easing: 'cubic-bezier(.4,0,1,1)', fill: 'forwards' });
     flyTitle(source, layer, true);
+
+    let ghost = null;
+    let done = false;
+    let fallbackTimer = null;
+    const cleanup = () => {
+      if (done) return;
+      done = true;
+      if (fallbackTimer) clearTimeout(fallbackTimer);
+      revealSource();
+      if (ghost) safe(() => ghost.remove());
+      endCollapse(fade);
+    };
+
+    fallbackTimer = setTimeout(cleanup, E.outMs + E.backMs + 500);
+
     if (!to || !to.width) {
-      fade.finished.catch(() => {}).then(() => { revealSource(); endCollapse(fade); });
+      fade.finished.catch(() => {}).then(cleanup);
       return;
     }
-    const ghost = makeGhost(to, source);
+    const createdGhost = makeGhost(to, source);
+    ghost = createdGhost;
     // 时序照方案：幽灵缩回 → 原卡复现 → 撤 will-change → 幽灵淡出 → 清层。
     // 不在幽灵位移结束的同一帧 cancel fade + 拆 ghost，避免收完回主页那一下卡顿。
-    ghost.animate([{ transform: 'none' }, { transform: ghostTransform(from, to) }], { duration: E.backMs, delay: E.backDelay, easing: E.ease, fill: 'both' })
+    createdGhost.animate([{ transform: 'none' }, { transform: ghostTransform(from, to) }], { duration: E.backMs, delay: E.backDelay, easing: E.ease, fill: 'both' })
       .finished.catch(() => {}).then(() => {
         revealSource();
-        ghost.style.willChange = 'auto';
-        return ghost.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 100, fill: 'forwards' }).finished;
+        createdGhost.style.willChange = 'auto';
+        return createdGhost.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 100, fill: 'forwards' }).finished;
       })
-      .catch(() => {}).then(() => {
-        ghost.remove();
-        endCollapse(fade);
-      });
+      .catch(() => {})
+      .then(cleanup);
   }) ?? (revealSource(), clearLayer());
 }
 
@@ -509,6 +571,9 @@ function watchSubpages() {
   const seen = new WeakSet();
   const handle = layer => {
     const active = layer.classList.contains('active');
+    if (active && layer.classList.contains('pl-collapse-out')) {
+      clearCollapse(layer);
+    }
     if (active && !seen.has(layer)) {
       seen.add(layer);
       dimNode();
@@ -516,6 +581,7 @@ function watchSubpages() {
       cascade(layer, expandedIn ? 'expand' : 'push');
     } else if (!active && seen.has(layer)) {
       seen.delete(layer);
+      if (!swipeActive) tidySwipe();
       const info = expanded.get(layer);
       expanded.delete(layer);
       if (info) playCollapse(layer, info);
@@ -544,6 +610,9 @@ function watchSubpages() {
 const BACK_BUTTON = '.subpage-back-btn, [data-subpage-close]';
 const NO_SWIPE = 'input, textarea, select, [contenteditable=""], [contenteditable="true"], [data-no-swipe-back], #background-preview, [data-nav-drag], .journal-deck, .moment-album-stack, #moment-album-layer, video, canvas, img';
 
+export let swipeActive = false;
+export function isSwipeActive() { return swipeActive; }
+
 function scrollsX(el, stop) {
   for (let n = el; n && n !== stop; n = n.parentElement) {
     const ox = getComputedStyle(n).overflowX;
@@ -562,28 +631,59 @@ function paintSwipe(s, x) {
   if (s.dim) s.dim.style.opacity = (1 - p).toFixed(3);
 }
 
+export function tidySwipe(s = null) {
+  if (typeof document === 'undefined') return;
+  if (s?.jankWatched) {
+    s.jankWatched = false;
+    endJankWatch();
+  }
+  document.querySelectorAll('.pl-swipe-under').forEach(el => {
+    el.classList.remove('pl-swipe-under');
+    el.style.transform = '';
+    el.style.opacity = '';
+    el.style.removeProperty?.('--pl-dim');
+    el.style.willChange = '';
+  });
+  const targets = [s?.layer, s?.under, s?.dim, appEl()].filter(Boolean);
+  targets.forEach(el => {
+    el.style.transform = '';
+    el.style.opacity = '';
+    el.style.removeProperty?.('--pl-dim');
+    el.style.willChange = '';
+  });
+  s?.layer?.classList.remove('pl-swiping', 'pl-swiped');
+  if (s) s.under?.classList.remove('pl-swipe-under');
+  document.querySelectorAll('.subpage-layer:is(.pl-swiping, .pl-swiped)').forEach(el => {
+    el.classList.remove('pl-swiping', 'pl-swiped');
+  });
+  shell()?.classList.remove('pl-swiping');
+}
+
 function installSwipeBack() {
   const INTERACTIVE = 'button, a[href], [role="button"], label, summary, select, [onclick], [data-action], .subpage-back-btn, [tabindex]:not([tabindex="-1"])';
   let g = null;
-  let settle = null;                                              // 还在跑的回弹：{ stop, s }
-  const tidy = s => {
-    [s.layer, s.under, s.dim].forEach(el => {
-      if (el) {
-        el.style.transform = '';
-        el.style.opacity = '';
-        el.style.removeProperty?.('--pl-dim');
-      }
-    });
-    s.layer.classList.remove('pl-swiping', 'pl-swiped');
-    s.under?.classList.remove('pl-swipe-under');
-    shell()?.classList.remove('pl-swiping');
-    endJankWatch();
+  let settle = null;                                              // 还在跑的回弹：{ stop, s, flyingOut }
+  const tidy = s => tidySwipe(s);
+  const stopSettle = () => {
+    if (!settle) return;
+    const p = settle;
+    settle = null;
+    p.stop();
+    tidy(p.s);
   };
   document.addEventListener('pointerdown', e => {
-    if (!on() || e.button > 0 || g) return;
+    if (!on() || e.button > 0) return;
+    if (g) {
+      const s = g;
+      g = null;
+      tidy(s);
+      swipeActive = false;
+    }
     const action = swipePointerDownAction({ flyingOut: Boolean(settle?.flyingOut), settling: Boolean(settle) });
     if (action === 'ignore') return;                                    // 飞出阶段不接受新手势，返回会做完
-    if (action === 'retake' && settle) { const p = settle; settle = null; p.stop(); tidy(p.s); }   // 只打断往回弹，不再触发它的返回
+    if (action === 'retake' && settle) {
+      stopSettle();
+    }
     const layer = e.target.closest?.('.subpage-layer.active');
     if (!layer || layer !== topLayer() || document.querySelector('#modal-layer.open')) return;
     if (e.target.closest(NO_SWIPE) || scrollsX(e.target, layer)) return;
@@ -604,8 +704,15 @@ function installSwipeBack() {
       if (g.onControl && (dx < 24 || dx <= 2 * Math.abs(dy))) return;
       const intent = swipeIntent({ dx, dy, zone: g.zone });
       if (intent === 'wait') return;
-      if (intent === 'abort') { g = null; return; }
+      if (intent === 'abort') {
+        const s = g;
+        g = null;
+        tidy(s);
+        swipeActive = false;
+        return;
+      }
       g.locked = true;
+      swipeActive = true;
       safe(() => g.layer.setPointerCapture?.(e.pointerId));
       const activeLayers = [...document.querySelectorAll('.subpage-layer.active')];
       const currIndex = activeLayers.indexOf(g.layer);
@@ -616,6 +723,7 @@ function installSwipeBack() {
       g.dim = underSubpage ? null : dimNode();
       g.layer.classList.add('pl-swiping');
       shell()?.classList.add('pl-swiping');
+      g.jankWatched = true;
       beginJankWatch();
     }
     g.x = Math.max(0, dx);
@@ -629,34 +737,100 @@ function installSwipeBack() {
     const s = g;
     g = null;
     if (s.raf) cancelAnimationFrame(s.raf);
-    if (!s.locked) return;
+    if (!s.locked) {
+      tidy(s);
+      swipeActive = false;
+      return;
+    }
     swallowNextClick();
-    const v = e.type === 'pointercancel' ? 0 : velocityOf(s.samples);
-    const done = e.type !== 'pointercancel' && swipeShouldComplete({ x: s.x, width: s.W, velocity: v });
+    const isCancel = e.type === 'pointercancel';
+    if (isCancel) {
+      tidy(s);
+      swipeActive = false;
+      return;
+    }
+    const v = velocityOf(s.samples);
+    const done = swipeShouldComplete({ x: s.x, width: s.W, velocity: v });
     const S = LAYER_MOTION.swipe;
-    const job = { s, stop: () => {}, flyingOut: done };
-    settle = job;
-    job.stop = springTo(s.x, done ? s.W : 0, v, { stiffness: S.stiffness, damping: S.damping }, x => paintSwipe(s, x), () => {
-      if (settle !== job) return;                                 // 已被新手势停掉
+    let stopped = false;
+    const stopSpring = springTo(s.x, done ? s.W : 0, v, { stiffness: S.stiffness, damping: S.damping }, x => {
+      if (!stopped) paintSwipe(s, x);
+    }, () => {
+      if (settle !== job || stopped) return;                                 // 已被新手势停掉
       settle = null;
       // 回弹期间可能已被实体返回键 / 点返回关掉：这一层不再是最上层就不再点返回，免得多关一层。
-      if (done && s.layer.classList.contains('active') && s.layer === topLayer()) {
-        s.layer.classList.add('pl-swiped');                         // 跳过默认推出动画
-        const back = s.layer.querySelector(BACK_BUTTON);
-        if (back) back.click();
-        else if (typeof globalThis.Mine?.closeSubpage === 'function') globalThis.Mine.closeSubpage();
+      if (done) {
+        if (s.layer.classList.contains('active') && s.layer === topLayer()) {
+          s.layer.classList.add('pl-swiped');                         // 跳过默认推出动画
+          const back = s.layer.querySelector(BACK_BUTTON);
+          if (back) back.click();
+          else if (typeof globalThis.Mine?.closeSubpage === 'function') globalThis.Mine.closeSubpage();
+        }
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+          tidy(s);
+          swipeActive = false;
+        }));
+      } else {
+        tidy(s);
+        swipeActive = false;
       }
-      requestAnimationFrame(() => requestAnimationFrame(() => tidy(s)));
     });
+    const job = {
+      s,
+      stop: () => {
+        stopped = true;
+        stopSpring();
+        tidy(s);
+        swipeActive = false;
+      },
+      flyingOut: done,
+    };
+    settle = job;
   };
   document.addEventListener('pointerup', end, { passive: true });
   document.addEventListener('pointercancel', end, { passive: true });
+  window.addEventListener?.('mine-system-back', () => {
+    stopSettle();
+    if (g) { const s = g; g = null; tidy(s); }
+    else { tidy(); }
+    swipeActive = false;
+  });
 }
 
-function swallowNextClick() {
-  const stop = ev => { if (!ev.isTrusted) return; ev.stopPropagation(); ev.preventDefault(); };   // 只吞手指松开那一下，脚本触发的返回 / 关闭照常
-  document.addEventListener('click', stop, { capture: true, once: true });
-  setTimeout(() => document.removeEventListener('click', stop, { capture: true }), 350);
+let swallowTimer = null;
+let currentSwallow = null;
+
+export function swallowNextClick(targetDoc = (typeof document !== 'undefined' ? document : null), timeoutMs = 350) {
+  if (!targetDoc) return;
+  if (currentSwallow) {
+    targetDoc.removeEventListener('click', currentSwallow, { capture: true });
+    clearTimeout(swallowTimer);
+    currentSwallow = null;
+    swallowTimer = null;
+  }
+  const expiry = Date.now() + timeoutMs;
+  const stop = ev => {
+    if (Date.now() > expiry) {
+      targetDoc.removeEventListener('click', stop, { capture: true });
+      if (currentSwallow === stop) currentSwallow = null;
+      return;
+    }
+    if (ev && ev.isTrusted === false) return;   // 只吞手指松开那一下，脚本触发的返回 / 关闭照常
+    ev.stopPropagation?.();
+    ev.preventDefault?.();
+    targetDoc.removeEventListener('click', stop, { capture: true });
+    clearTimeout(swallowTimer);
+    if (currentSwallow === stop) currentSwallow = null;
+  };
+  currentSwallow = stop;
+  targetDoc.addEventListener('click', stop, { capture: true });
+  swallowTimer = setTimeout(() => {
+    targetDoc.removeEventListener('click', stop, { capture: true });
+    if (currentSwallow === stop) {
+      currentSwallow = null;
+      swallowTimer = null;
+    }
+  }, timeoutMs);
 }
 
 /* ── Z3 弹层下拉 + S3 景深后退 ─────────────────────────────────── */
@@ -677,19 +851,46 @@ export function scrolledWithin(el, stop) {
 
 function watchSheets() {
   let lastSheet = null;
+  const resetSheet = s => {
+    if (!s) return;
+    s.style.transform = '';
+    delete s.dataset.plDetent;
+  };
   new MutationObserver(() => {
-    if (!on()) { root.classList.remove('pl-sheet-open'); return; }
+    const layer = document.querySelector(SHEET_LAYER);
+    const isOpen = Boolean(layer?.classList.contains('open'));
+    if (!on() || !isOpen) {
+      if (root?.classList.contains('pl-sheet-open')) root?.classList.remove('pl-sheet-open');
+      if (layer?.classList.contains('pl-sheet')) layer?.classList.remove('pl-sheet');
+      sheetMoveHook(null);
+      if (lastSheet) {
+        resetSheet(lastSheet);
+        lastSheet = null;
+      }
+      return;
+    }
     // 等这一帧布局完再判断是不是贴底弹层（打开动画从 translateY(100%) 起步，用 offset 而不是 rect）。
     requestAnimationFrame(() => {
-      const layer = document.querySelector(SHEET_LAYER);
-      const sheet = layer?.classList.contains('open') ? layer.querySelector(':scope > .modal') : null;
-      if (sheet && !sheet.dataset.plDetents && (sheet.querySelector('#quick-photo-modal, #quick-memo-modal') || sheet.matches('.quick-modal'))) {
-        sheet.dataset.plDetents = 'medium large';
+      const curLayer = document.querySelector(SHEET_LAYER);
+      const curOpen = Boolean(curLayer?.classList.contains('open'));
+      const sheet = curOpen ? curLayer.querySelector(':scope > .modal') : null;
+      if (!curOpen || !sheet) {
+        if (root?.classList.contains('pl-sheet-open')) root?.classList.remove('pl-sheet-open');
+        if (curLayer?.classList.contains('pl-sheet')) curLayer?.classList.remove('pl-sheet');
+        sheetMoveHook(null);
+        if (lastSheet) {
+          resetSheet(lastSheet);
+          lastSheet = null;
+        }
+        return;
       }
-      const bottom = Boolean(sheet && !sheet.matches(NO_DRAG) && (getComputedStyle(layer).alignItems === 'flex-end' || Boolean(sheet.dataset.plDetents)) && sheet.offsetHeight < innerHeight * 0.97);
-      root.classList.toggle('pl-sheet-open', bottom);
-      layer?.classList.toggle('pl-sheet', bottom);
-      sheetMoveHook(bottom ? layer : null);
+      if (lastSheet && lastSheet !== sheet) {
+        resetSheet(lastSheet);
+      }
+      const bottom = Boolean(sheet && !sheet.matches(NO_DRAG) && (getComputedStyle(curLayer).alignItems === 'flex-end' || Boolean(sheet.dataset.plDetents)) && sheet.offsetHeight < innerHeight * 0.97);
+      if (root && root.classList.contains('pl-sheet-open') !== bottom) root.classList.toggle('pl-sheet-open', bottom);
+      if (curLayer && curLayer.classList.contains('pl-sheet') !== bottom) curLayer.classList.toggle('pl-sheet', bottom);
+      sheetMoveHook(bottom ? curLayer : null);
       if (sheet && sheet.dataset.plDetents && !sheet.dataset.plDetent) {
         sheet.dataset.plDetent = 'medium';
         const geo = sheetGeometry({ height: sheet.offsetHeight, viewport: innerHeight, detents: true });
@@ -717,9 +918,10 @@ function paintSheet(s, y) {
 
 function clearSheet(s) {
   [s.sheet, s.app].forEach(el => { if (el) el.style.transform = ''; });
+  if (s.sheet) delete s.sheet.dataset.plDetent;
   s.scrim?.remove();
-  s.layer.classList.remove('pl-dragging');
-  root.classList.remove('pl-sheet-dragging');
+  if (s.layer?.classList.contains('pl-dragging')) s.layer.classList.remove('pl-dragging');
+  if (root?.classList.contains('pl-sheet-dragging')) root.classList.remove('pl-sheet-dragging');
 }
 
 function closeSheetLikeScrim(layer) {
@@ -759,13 +961,13 @@ function releaseSheet(s, y, v, restore = false) {
     Promise.all(anims.map(a => a.finished.catch(() => {}))).then(() => {
       try {
         endJankWatch();
-        s.layer.classList.add('pl-dragged');                          // 跳过默认关闭过渡
-        root.classList.remove('pl-sheet-open');
+        if (!s.layer.classList.contains('pl-dragged')) s.layer.classList.add('pl-dragged');                          // 跳过默认关闭过渡
+        if (root.classList.contains('pl-sheet-open')) root.classList.remove('pl-sheet-open');
         closeSheetLikeScrim(s.layer);
         requestAnimationFrame(() => {
           anims.forEach(a => a.cancel());
           clearSheet(s);
-          s.layer.classList.remove('pl-dragged');
+          if (s.layer.classList.contains('pl-dragged')) s.layer.classList.remove('pl-dragged');
           releaseClose();
         });
       } catch { releaseClose(); endJankWatch(); }
@@ -780,7 +982,11 @@ function releaseSheet(s, y, v, restore = false) {
     endJankWatch();
     if (s.geo.large !== s.geo.medium) s.sheet.dataset.plDetent = target === s.geo.large ? 'large' : 'medium';
     if (target === 0) clearSheet(s);
-    else { s.scrim?.remove(); s.layer.classList.remove('pl-dragging'); root.classList.remove('pl-sheet-dragging'); }
+    else {
+      s.scrim?.remove();
+      if (s.layer.classList.contains('pl-dragging')) s.layer.classList.remove('pl-dragging');
+      if (root.classList.contains('pl-sheet-dragging')) root.classList.remove('pl-sheet-dragging');
+    }
   });
 }
 

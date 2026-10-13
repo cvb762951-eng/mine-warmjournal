@@ -78,7 +78,9 @@ function ensureJournalImmersiveWatch() {
   if (!layer || journalImmersiveWatchStarted) return;
   journalImmersiveWatchStarted = true;
   new MutationObserver(() => {
-    if (!layer.classList.contains('open')) document.body.classList.remove('journal-open');
+    if (!layer.classList.contains('open') && document.body.classList.contains('journal-open')) {
+      document.body.classList.remove('journal-open');
+    }
   }).observe(layer, { attributes: true, attributeFilter: ['class'] });
 }
 

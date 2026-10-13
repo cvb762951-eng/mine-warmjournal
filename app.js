@@ -6,7 +6,7 @@ import { installPressFeedback, installMagneticDock } from './motion.js';
 import { installLayerMotion } from './motion-layers.js';
 import { installSignatureMotion } from './motion-signature.js';
 import { migrateState, dateKey } from './model.js';
-import { externalizeStateMedia, recoverReferencedMedia } from './media-store.js';
+import { externalizeStateMedia, recoverReferencedMedia, warmMediaRefs, firstPaintMediaRefs, stateMediaReferences } from './media-store.js';
 import { rebuildActivityLog } from './activity-log.js';
 import { openReleaseNotes } from './views/common.js';
 import { ensureReleaseActivities } from './release-activity.js';
@@ -269,15 +269,20 @@ async function boot() {
     recoverJournalDraftCache(state);
     // 版本更新：说明仍整份入库；当天活动只钉刚升级到的这一版（见 release-activity.js）。
     ensureReleaseActivities(state);
-    await callHelper('scheduleAutoSummary');
+    // 登记凌晨小结闹钟不挡首屏（失败只打日志）。
+    callHelper('scheduleAutoSummary').catch(error => console.warn('每日小结定时任务登记失败', error));
     callHelper('setAiHistory', [...(state.aiHistory || [])]);
-    // 记录引用着、却被误挪进回收站的照片/视频：启动时先挪回原处再解析地址（2026-10-13）。
-    await recoverReferencedMedia(state).catch(error => console.warn('回收站媒体找回失败', error));
-    const migratedMedia = await externalizeStateMedia(state);
-    // 浏览器媒体外置后用短引用覆盖 localStorage；Android 重复持久化由分区差异检查跳过。
-    const persisted = await persistState(state);
-    if (persisted === false) throw new Error('启动数据尚未保存。请重新打开 App 再试。');
-    notifyPersistedKeySeal(persisted);
+    // 冷启动只外置还嵌在 state 里的 dataURL；已有短引用的地址解析挪到首屏之后。
+    // 以前这里会对每一张照片 await Filesystem.getUri，照片一多就长时间停在加载态。
+    const migratedMedia = await externalizeStateMedia(state, { warmExisting: false });
+    if (migratedMedia.migrated > 0) {
+      // 只有真的外置了新引用才需要立刻落库；initializeStorage 已经写过一版。
+      const persisted = await persistState(state);
+      if (persisted === false) throw new Error('启动数据尚未保存。请重新打开 App 再试。');
+      notifyPersistedKeySeal(persisted);
+    }
+    // 今日页第一帧只要封面 / 最新 3 张 / 头像；其余后台补。
+    await warmMediaRefs(firstPaintMediaRefs(state)).catch(() => {});
     booted = true;
     if (autoSummaryLaunch) {
       try {
@@ -297,8 +302,8 @@ async function boot() {
     }
     // 每次打开默认今日页（仅影响本次打开，之后手动切页不受影响）。
     state.route = 'today';
-    await initializeNotificationChannel().catch(console.warn);
-    // 排闹钟不挡住第一帧。权限只在这一次启动里问一次，和页面渲染并行。
+    // 通知渠道与排闹钟都不挡第一帧。
+    initializeNotificationChannel().catch(console.warn);
     syncScheduledReminders({ requestPermission: true }).then(result => {
       if (result?.lastError) console.warn('提醒排程', result.lastError);
     }).catch(error => console.warn('提醒没有排上', error))
@@ -310,6 +315,13 @@ async function boot() {
       healPlainTheme(state.settings?.theme);
       if (await isTimerAlarmRinging().catch(() => false)) completionAlarmModal('计时');
     }
+    // 首屏画出后再：找回回收站里被引用的文件 → 给剩余媒体预热地址。
+    // 失败只打日志，不能拖垮已经显示出来的界面。
+    Promise.resolve()
+      .then(() => recoverReferencedMedia(state))
+      .catch(error => console.warn('回收站媒体找回失败', error))
+      .then(() => warmMediaRefs(stateMediaReferences(state)))
+      .catch(error => console.warn('媒体地址预热失败', error));
     if (pendingIncomingShare || Capacitor.isNativePlatform()) {
       pendingIncomingShare = false;
       setTimeout(() => callHelper('checkIncomingShare'), 120);

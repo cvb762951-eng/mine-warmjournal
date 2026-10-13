@@ -79,11 +79,11 @@ function isConfirmModal(modal) {
 
 function nudge(modal) {
   if (!modal || !on()) return;
-  modal.classList.remove('pl-nudge');
+  if (modal.classList.contains('pl-nudge')) modal.classList.remove('pl-nudge');
   // 强制重启发
   void modal.offsetWidth;
   modal.classList.add('pl-nudge');
-  const done = () => modal.classList.remove('pl-nudge');
+  const done = () => { if (modal.classList.contains('pl-nudge')) modal.classList.remove('pl-nudge'); };
   modal.addEventListener('animationend', done, { once: true });
   setTimeout(done, DIALOG_MOTION.nudgeMs + 40);
 }
@@ -98,7 +98,9 @@ function markConfirmSheets() {
   }
   const isConfirm = modal.classList.contains('confirm-sheet');
   // 打开期间给 layer 打标，方便 CSS :has 之外的兜底
-  layer.classList.toggle('pl-confirm-open', isConfirm);
+  if (layer.classList.contains('pl-confirm-open') !== isConfirm) {
+    layer.classList.toggle('pl-confirm-open', isConfirm);
+  }
   if (isConfirm) {
     // 兜底：焦点落到 [data-close] 取消钮，绝不自动 focus 删除
     const cancel = modal.querySelector('[data-close]');
@@ -172,7 +174,9 @@ function watchModals() {
   if (!layer) return;
   new MutationObserver(() => {
     safe(markConfirmSheets);
-    if (!layer.classList.contains('open')) layer.classList.remove('pl-confirm-open');
+    if (!layer.classList.contains('open') && layer.classList.contains('pl-confirm-open')) {
+      layer.classList.remove('pl-confirm-open');
+    }
   }).observe(layer, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
 }
 
