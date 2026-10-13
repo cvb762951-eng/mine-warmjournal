@@ -3048,7 +3048,7 @@ button.danger) {
   transform: none !important; rotate: none !important; border-radius: 10px !important; box-shadow: none !important; background: var(--pl-blue) !important; color: white !important;
   width: 36px; height: 36px; justify-self: center; align-self: center; animation: pl-day-in 180ms var(--pl-ease-out) both;
 }
-:root[data-theme="plain"] .calendar-view.cal-screen .cal-cell.today:not(.active) { box-shadow: inset 0 0 0 1.5px var(--pl-blue) !important; border-radius: 10px !important; transform: none !important; }
+:root[data-theme="plain"] .calendar-view.cal-screen .cal-cell.today:not(.active) { background: transparent !important; box-shadow: inset 0 0 0 1.5px var(--pl-blue) !important; border-radius: 10px !important; transform: none !important; }
 @keyframes pl-day-in { from { opacity: 0; transform: scale(.86); } }
 /* C2 档案标题条：白卡标题行，无描边 */
 :root[data-theme="plain"] .calendar-view .cal-detail-head {
