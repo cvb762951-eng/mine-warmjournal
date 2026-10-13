@@ -2,6 +2,7 @@ import { Capacitor, registerPlugin } from '@capacitor/core';
 import { Directory, Encoding, Filesystem } from '@capacitor/filesystem';
 import { persistState, protectedSnapshotMediaReferences, PERSIST_KEY_SKIPPED, KEY_SEAL_SKIPPED_NOTICE } from './storage.js';
 import { CATEGORIES, dateKey, makeDefaultState, makeDefaultNavTabs, DEFAULT_NAV_ROUTES, ledgerSummary, calibrateLedgerAccount, habitHeatmapData, previousCompleteWeekRange, calculateFlowScore } from './model.js';
+import { createDeferredSave } from './deferred-save.js';
 import { externalizeStateMedia, mediaSource, removeUnusedMedia, stateMediaReferences } from './media-store.js';
 import { liquidGlass, isLiquidGlassEnabled } from './liquid-glass.js';
 import { morphFrom, autoStagger, markPressables, prefersReducedMotion } from './motion.js';
@@ -130,6 +131,8 @@ export function applyCustomBackground(image = state.settings?.backgroundImage, o
 
 // ---- 公共函数 ----
 export const save = () => {
+  // 整份保存会带上当前页面，切页面留下的延后保存就不用再跑了。
+  if (typeof routeSave !== 'undefined') routeSave.cancelPending();
   const operation = saveQueue.then(async () => {
     await externalizeStateMedia(state);
     // 异步写入期间页面仍可能编辑状态；清理必须保护本次实际提交的引用。
@@ -153,6 +156,14 @@ export const save = () => {
   saveQueue = operation.catch(() => {});
   return operation;
 };
+
+// 切页面只改了 state.route：延后合并成一次整份保存，避免每次点进页面都 structuredClone + JSON.stringify 整个数据库。
+// 页面隐藏 / 关闭时立即补写；真实数据改动仍各自直接调用 save()，语义不变。
+const routeSave = createDeferredSave({ save: () => save() });
+if (typeof document !== 'undefined') {
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') routeSave.flush(); });
+  globalThis.addEventListener?.('pagehide', () => routeSave.flush());
+}
 
 // 放在保存承诺兑现之后再提示，避免被紧接着的「已保存」盖掉。
 export function notifyPersistedKeySeal(result) {
@@ -566,7 +577,7 @@ export function go(route, calendarDate = '', options = {}) {
     selected = targetCalendarDate;
     cursor = calendarDate ? new Date(`${calendarDate}T12:00:00`) : new Date();
   }
-  save().catch(error => show(error.message));
+  routeSave.request();
   render(true);
   if (options.resetScroll !== false) {
     setPageScrollTop(0);
