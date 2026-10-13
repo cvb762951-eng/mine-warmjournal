@@ -288,8 +288,8 @@ async function playSaveToTop() {
   await waitImage(still, 300);
   const to = still?.complete && still.naturalWidth ? containRect(still) : null;
   const visible = Boolean(to && to.top < innerHeight && to.top + to.height > 0);
-  fresh.classList.add('pl-arrive');
-  const clearArrive = () => fresh.classList.remove('pl-arrive');
+  if (!fresh.classList.contains('pl-arrive')) fresh.classList.add('pl-arrive');
+  const clearArrive = () => { if (fresh.classList.contains('pl-arrive')) fresh.classList.remove('pl-arrive'); };
   fresh.addEventListener('animationend', clearArrive, { once: true });
   setTimeout(clearArrive, MOMENTS_MOTION.arriveDelay + MOMENTS_MOTION.arriveMs + 40);
 
@@ -337,9 +337,11 @@ function ensureLayerIo() {
       const still = card.querySelector('.photo-blur-still');
       const go = () => {
         card.style.setProperty('--pl-lag', `${Math.min(batch++, 3) * 40}ms`);
-        card.classList.add('pl-in');
+        if (!card.classList.contains('pl-in')) card.classList.add('pl-in');
         const done = () => {
-          card.classList.remove('pl-pre', 'pl-in', 'pl-layers', 'pl-flat');
+          ['pl-pre', 'pl-in', 'pl-layers', 'pl-flat'].forEach(c => {
+            if (card.classList.contains(c)) card.classList.remove(c);
+          });
           card.style.removeProperty('--pl-lag');
         };
         card.addEventListener('transitionend', done, { once: true });
@@ -352,17 +354,25 @@ function ensureLayerIo() {
   return layerIo;
 }
 
-function prepareLayers(scope = document) {
+export function prepareLayers(scope = document) {
   if (!moving()) return;
   const io = ensureLayerIo();
   if (!io) return;
-  const vh = innerHeight;
-  scope.querySelectorAll?.('.snippet-item-card:not(.pl-pre):not(.pl-in)').forEach(card => {
-    if (card.closest('#moment-album-layer')) return;
-    if (card.getBoundingClientRect().top < vh) return;
-    card.classList.add('pl-pre', rich() ? 'pl-layers' : 'pl-flat');
+  const vh = typeof innerHeight !== 'undefined' ? innerHeight : 800;
+  const cards = Array.from(scope.querySelectorAll?.('.snippet-item-card:not(.pl-pre):not(.pl-in)') || [])
+    .filter(card => !card.closest?.('#moment-album-layer'));
+  if (!cards.length) return;
+  const belowFold = [];
+  for (const card of cards) {
+    if (card.getBoundingClientRect().top >= vh) {
+      belowFold.push(card);
+    }
+  }
+  const cls = rich() ? 'pl-layers' : 'pl-flat';
+  for (const card of belowFold) {
+    if (!card.classList.contains('pl-pre')) card.classList.add('pl-pre', cls);
     io.observe(card);
-  });
+  }
 }
 
 /* ── M4 长按浮起 ───────────────────────────────────────────────── */
@@ -375,7 +385,7 @@ function dropHold() {
   clearTimeout(hold.timer);
   if (hold.lifted) {
     swallow = true;
-    hold.card.classList.remove('pl-lifted');
+    if (hold.card.classList.contains('pl-lifted')) hold.card.classList.remove('pl-lifted');
     setTimeout(() => { swallow = false; }, 400);
   }
   hold = null;
@@ -394,11 +404,7 @@ function onLiftDown(event) {
     timer: setTimeout(() => {
       if (!hold || hold.card !== card) return;
       hold.lifted = true;
-      if (tier() === 'none') {
-        card.classList.add('pl-lifted');
-        return;
-      }
-      card.classList.add('pl-lifted');
+      if (!card.classList.contains('pl-lifted')) card.classList.add('pl-lifted');
     }, MOMENTS_MOTION.holdMs),
   };
 }
@@ -472,6 +478,6 @@ export function installMomentsMotion() {
     document.addEventListener('click', onLiftClick, true);
     document.addEventListener('contextmenu', onLiftMenu);
     watchDom();
-    prepareLayers(document.getElementById('screen-snippets') || document);
+    requestAnimationFrame(() => prepareLayers(document.getElementById('screen-snippets') || document));
   });
 }

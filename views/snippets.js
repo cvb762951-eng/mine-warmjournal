@@ -118,7 +118,10 @@ export function snippetsView() {
     </div>
     <div class="stream-sheet snippets-stream-sheet">
       <div class="sheet-handle"></div>
-      ${groups.length ? groups.map(group => `<section class="snippet-day-section"><div class="snippet-day-header"><div class="snippet-day-title">${dayGroupLabel(group.date)}</div><div class="snippet-day-count">${group.items.length} 条记录</div></div>${group.items.map(snippetStreamCard).join('')}</section>`).join('') : emptyState('还没有记录', snippetType === 'all' ? '点击「＋ 记录」记下第一张照片或一句话。' : '这个分类还没有记录。')}
+      ${groups.length ? (() => {
+        let cardIndex = 0;
+        return groups.map(group => `<section class="snippet-day-section"><div class="snippet-day-header"><div class="snippet-day-title">${dayGroupLabel(group.date)}</div><div class="snippet-day-count">${group.items.length} 条记录</div></div>${group.items.map(item => snippetStreamCard(item, cardIndex++ >= 4)).join('')}</section>`).join('');
+      })() : emptyState('还没有记录', snippetType === 'all' ? '点击「＋ 记录」记下第一张照片或一句话。' : '这个分类还没有记录。')}
     </div>
   </section>`;
 }
@@ -130,7 +133,7 @@ function dayGroupLabel(day) {
   return `<span class="snippet-day-date">${label}</span>${today ? '<span class="snippet-day-separator" aria-hidden="true">·</span><span class="snippet-day-relative">今天</span>' : ''}<span class="snippet-day-separator" aria-hidden="true">·</span><span class="snippet-day-week">星期${WEEK_DAYS[date.getDay()]}</span>`;
 }
 
-function snippetStreamCard(item) {
+function snippetStreamCard(item, lazy = true) {
   if (item.kind === 'photo') {
     const entry = item.entry;
     const photos = entry.photos?.length ? entry.photos : (entry.photo ? [entry.photo] : []);
@@ -141,10 +144,10 @@ function snippetStreamCard(item) {
     const liveStills = (entry.livePhotos || []).length;
     const badge = videos.length ? `<span class="snippet-photo-badge"><span class="material-symbols-outlined">movie</span>${videos.length > 1 ? videos.length + ' 段' : '视频'}</span>` : liveStills ? `<span class="snippet-photo-badge"><span class="material-symbols-outlined">motion_photos_on</span>${liveStills > 1 ? liveStills + ' 张实况' : '实况'}</span>` : photos.length > 1 ? `<span class="snippet-photo-badge"><span class="material-symbols-outlined">photo_camera</span>${photos.length} 张</span>` : '<span class="snippet-photo-badge"><span class="material-symbols-outlined">photo_camera</span>拍立得</span>';
     const visual = photos.length
-      ? snippetPhotoMosaic(entry, photos)
-      : cover ? `<div class="snippet-cover-frame is-video-cover photo-blur-frame is-edge">${snippetCoverImage(cover, entry.text || '随手拍')}</div>${videoDurationStamp(videos[0])}`
+      ? snippetPhotoMosaic(entry, photos, lazy)
+      : cover ? `<div class="snippet-cover-frame is-video-cover photo-blur-frame is-edge">${snippetCoverImage(cover, entry.text || '随手拍', lazy)}</div>${videoDurationStamp(videos[0])}`
         : videos.length ? `<div class="snippet-video-stream-placeholder"><span class="material-symbols-outlined">live_tv</span><small>在线视频</small></div>${videoDurationStamp(videos[0])}` : '';
-    const segments = videos.length > 1 ? `<div class="snippet-video-segments" aria-label="这条记录中的视频">${videos.map((item, index) => `<button type="button" class="photo-blur-frame is-edge" data-play-snippet-video="${entry.id}" data-video-index="${index}">${item.poster ? photoFrameLayersHtml(imgSrc(item.poster), { alt: `第 ${index + 1} 段视频封面`, padClass: 'snippet-cover-blur', stillClass: 'snippet-cover-main', lazy: true }) : '<span class="material-symbols-outlined">stream</span>'}<small>${index + 1}</small>${videoDurationStamp(item)}</button>`).join('')}</div>` : '';
+    const segments = videos.length > 1 ? `<div class="snippet-video-segments" aria-label="这条记录中的视频">${videos.map((item, index) => `<button type="button" class="photo-blur-frame is-edge" data-play-snippet-video="${entry.id}" data-video-index="${index}">${item.poster ? photoFrameLayersHtml(imgSrc(item.poster), { alt: `第 ${index + 1} 段视频封面`, padClass: 'snippet-cover-blur', stillClass: 'snippet-cover-main', lazy }) : '<span class="material-symbols-outlined">stream</span>'}<small>${index + 1}</small>${videoDurationStamp(item)}</button>`).join('')}</div>` : '';
     const localVideoIndex = videos.findIndex(item => item.sourceType !== 'hls' && !isHlsAddress(item.video));
     return `<article class="snippet-item-card"><div class="snippet-visual-wrap">${visual}${badge}</div>${segments}<div class="snippet-item-meta"><span>${time ? `${pad2(time.getHours())}:${pad2(time.getMinutes())} · 随手拍` : '随手拍'}</span>${tag ? `<span style="color:var(--sage-green);font-weight:700">#${esc(tag)}</span>` : ''}</div>${entry.text ? `<p class="snippet-item-text">${esc(entry.text)}</p>` : ''}<div class="snippet-item-actions"><button data-edit-snippet="${entry.id}">编辑</button><button class="danger" data-delete-snippet="${entry.id}">删除</button>${videos.length ? `<button class="view" data-play-snippet-video="${entry.id}" data-video-index="0"><span class="material-symbols-outlined">play_circle</span>播放视频</button>` : ''}${localVideoIndex >= 0 ? `<button class="view" data-refresh-video-poster="${entry.id}" data-video-index="${localVideoIndex}"><span class="material-symbols-outlined">image</span>选择封面</button>` : ''}${photos.length ? `<button class="view" data-view-snippet-photo="${entry.id}" data-photo-index="0">查看照片</button>` : ''}</div></article>`;
   }
@@ -167,11 +170,11 @@ function snippetStreamCard(item) {
    横向视频里虚化层被主图完全盖住、看不见，只有竖屏两侧才会显出虚化。
    两层用同一个地址，浏览器只下载一次 —— 不额外占存储，也不用重新处理图片。
    （与私密相册封面的做法一致，见 private-vault.js 的 vaultCoverImage。） */
-function snippetCoverImage(source, alt = '') {
+function snippetCoverImage(source, alt = '', lazy = true) {
   // 列表封面：有缩略图用缩略图，没有回退原图（大图浏览 / 导出仍用原图）。
   const thumbRef = thumbKeyFor(source) ? source : '';
   const url = thumbRef ? esc(thumbSource(source)) : imgSrc(source);
-  return photoFrameLayersHtml(url, { alt, padClass: 'snippet-cover-blur', stillClass: 'snippet-cover-main', lazy: true, thumbRef });
+  return photoFrameLayersHtml(url, { alt, padClass: 'snippet-cover-blur', stillClass: 'snippet-cover-main', lazy, thumbRef });
 }
 
 /* 照片格用同一套做法（2026-10-09 用户要求「竖屏照片也按这个风格处理」）：
@@ -181,19 +184,20 @@ function snippetCoverImage(source, alt = '') {
    两层同地址，浏览器只下载一次，不额外占存储。
    注意：上层用 position 但不给 z-index，靠 DOM 顺序压住虚化层，
    这样后面那个「+N」遮罩（同样是定位元素、且排在更后）才能正常盖在最上面。 */
-function snippetPhotoImage(source, alt = '', { thumb = false } = {}) {
+function snippetPhotoImage(source, alt = '', opts = {}) {
+  const { lazy = true, thumb = true } = typeof opts === 'boolean' ? { lazy: opts } : (opts || {});
   const thumbRef = thumb && thumbKeyFor(source) ? source : '';
   const url = thumbRef ? esc(thumbSource(source)) : imgSrc(source);
-  return photoFrameLayersHtml(url, { alt, padClass: 'snippet-photo-blur', stillClass: 'snippet-photo-main', lazy: true, thumbRef });
+  return photoFrameLayersHtml(url, { alt, padClass: 'snippet-photo-blur', stillClass: 'snippet-photo-main', lazy, thumbRef });
 }
 
 function snippetHasLive(entry) {
   return entry?.type === 'photo' && Boolean((entry.videos || []).length || (entry.livePhotos || []).length);
 }
 
-function snippetPhotoMosaic(entry, photos) {
+function snippetPhotoMosaic(entry, photos, lazy = true) {
   const visible = photos.slice(0, 5);
-  return `<div class="snippet-photo-mosaic count-${Math.min(visible.length, 5)}" aria-label="${photos.length} 张照片">${visible.map((photo, index) => `<button type="button" class="photo-blur-frame is-edge snippet-photo-tile" data-view-snippet-photo="${entry.id}" data-photo-index="${index}" aria-label="查看第 ${index + 1} 张照片">${snippetPhotoImage(photo, entry.text || `随手拍 ${index + 1}`, { thumb: true })}${photoHasLiveMark(photo, entry.livePhotos)}${index === visible.length - 1 && photos.length > visible.length ? `<span class="snippet-photo-more">+${photos.length - visible.length}</span>` : ''}</button>`).join('')}</div>`;
+  return `<div class="snippet-photo-mosaic count-${Math.min(visible.length, 5)}" aria-label="${photos.length} 张照片">${visible.map((photo, index) => `<button type="button" class="photo-blur-frame is-edge snippet-photo-tile" data-view-snippet-photo="${entry.id}" data-photo-index="${index}" aria-label="查看第 ${index + 1} 张照片">${snippetPhotoImage(photo, entry.text || `随手拍 ${index + 1}`, { thumb: true, lazy })}${photoHasLiveMark(photo, entry.livePhotos)}${index === visible.length - 1 && photos.length > visible.length ? `<span class="snippet-photo-more">+${photos.length - visible.length}</span>` : ''}</button>`).join('')}</div>`;
 }
 
 function photoHasLiveMark(still, livePhotos) {
@@ -1384,8 +1388,6 @@ function quickPhotoModal() {
     <div class="quick-modal-switch"><button type="button" id="quick-switch-memo">或写一条灵感速记 ›</button></div>
     <button type="button" class="quick-publish-btn snap" id="quick-save-snap"><span>收进今日生活相册</span><span class="material-symbols-outlined" aria-hidden="true">arrow_forward</span></button>
   </div>`, 'quick-modal');
-  const photoModal = $('#quick-photo-modal')?.closest('.modal');
-  if (photoModal) photoModal.dataset.plDetents = 'medium large';
   $('#quick-photo-preview')?.addEventListener('click', () => pickSnippetPhoto(true).catch(error => show(error.message)).then(refreshQuickPhotoPreview));
   $('#quick-photo-preview')?.addEventListener('keydown', event => {
     if (event.key !== 'Enter' && event.key !== ' ') return;
@@ -1451,8 +1453,6 @@ function quickMemoModal() {
     <div class="quick-modal-switch"><button type="button" id="quick-switch-snap">或发布一张随手拍 ›</button></div>
     <button type="button" class="quick-publish-btn memo" id="quick-save-memo"><span>贴在今日心流便签</span><span class="material-symbols-outlined" aria-hidden="true">push_pin</span></button>
   </div>`, 'quick-modal');
-  const memoModal = $('#quick-memo-modal')?.closest('.modal');
-  if (memoModal) memoModal.dataset.plDetents = 'medium large';
   $$('.quick-paper-tag').forEach(chip => chip.onclick = () => {
     pendingQuickTag = pendingQuickTag === chip.dataset.quickTag ? '' : chip.dataset.quickTag;
     $$('.quick-paper-tag').forEach(b => b.classList.toggle('active', b.dataset.quickTag === pendingQuickTag));

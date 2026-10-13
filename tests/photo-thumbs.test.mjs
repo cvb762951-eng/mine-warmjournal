@@ -63,7 +63,7 @@ test('私密空间不用缩略图；备份不经过缩略图', async () => {
 });
 
 test('只有随手拍列表换成缩略图，大图层 / 编辑器仍用原图', () => {
-  assert.match(snippets, /snippetPhotoImage\(photo, entry\.text \|\| `随手拍 \$\{index \+ 1\}`, \{ thumb: true \}\)/);
+  assert.match(snippets, /snippetPhotoImage\(photo, entry\.text \|\| `随手拍 \$\{index \+ 1\}`, \{ thumb: true, lazy \}\)/);
   assert.match(snippets, /snippetPhotoImage\(item\.photo, entry\.text \|\| `随手拍 \$\{item\.index \+ 1\}`\)/, '图集大牌仍用原图');
   assert.match(snippets, /snippetPhotoImage\(photo, `待保存照片 \$\{index \+ 1\}`\)/, '编辑器待保存照片仍用原图');
   assert.match(snippets, /watchThumbImages\(scope\)/);

@@ -493,12 +493,16 @@ let pressInstalled = false;
 /* <video> 在第一帧画出来之前，Android WebView 会铺一块原生白，而且盖在 CSS 背景上。
    新插入的视频先藏起来，有画面（或确定失败）再露出来。照片共享元素不走这里。 */
 function revealVideoFrame(video) {
-  video.classList.remove('is-awaiting-frame');
+  if (video.classList.contains('is-awaiting-frame')) {
+    video.classList.remove('is-awaiting-frame');
+  }
 }
 
 function armVideoFrame(video) {
   if (!video || video.localName !== 'video' || video.readyState >= 2) return;
-  video.classList.add('is-awaiting-frame');
+  if (!video.classList.contains('is-awaiting-frame')) {
+    video.classList.add('is-awaiting-frame');
+  }
 }
 
 function installVideoFrameGuard() {

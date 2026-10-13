@@ -15,8 +15,8 @@ const attr = value => String(value ?? '').replace(/&/g, '&amp;').replace(/"/g, '
 export function photoFrameLayersHtml(url, { alt = '', padClass = '', stillClass = '', lazy = false, thumbRef = '' } = {}) {
   // thumbRef：列表缩略图的原图引用（photo-thumbs.js 生成后按它换 src）；不传时输出与旧版完全一致。
   const loading = (lazy ? ' loading="lazy"' : '') + (thumbRef ? ` data-thumb-ref="${attr(thumbRef)}"` : '');
-  return `<img class="${PHOTO_PAD_CLASS}${padClass ? ` ${padClass}` : ''}" src="${url}" alt="" aria-hidden="true" draggable="false"${loading}>`
-    + `<img class="${PHOTO_STILL_CLASS}${stillClass ? ` ${stillClass}` : ''}" src="${url}" alt="${attr(alt)}" draggable="false"${loading}>`;
+  return `<img class="${PHOTO_PAD_CLASS}${padClass ? ` ${padClass}` : ''}" src="${url}" alt="" aria-hidden="true" draggable="false" decoding="async"${loading}>`
+    + `<img class="${PHOTO_STILL_CLASS}${stillClass ? ` ${stillClass}` : ''}" src="${url}" alt="${attr(alt)}" draggable="false" decoding="async"${loading}>`;
 }
 
 /** DOM 版本（牌组用），返回 [pad, still]。 */
@@ -26,6 +26,7 @@ export function photoFrameLayers(url, { padClass = '', stillClass = '' } = {}) {
     img.className = extra ? `${base} ${extra}` : base;
     img.alt = '';
     img.draggable = false;
+    img.decoding = 'async';
     img.src = url;
     return img;
   });
