@@ -223,7 +223,7 @@ backdrop-filter: blur(8px) saturate(120%);   /* ≤8px，不得用 20px */
 - `model.js` / `storage.js` / `core.js` —— 数据模型与内核
 - `ai-key-vault.js` / `ai-key-vault.js` 对应的原生加密逻辑
 - `tests/secondary-paper-system.test.mjs` —— 它锁定了纸张契约
-- 版本号（`index.html` 的 `?v=` / `build.gradle` / `package.json`）——由用户统一升版
+- 版本号（`package.json` / `app-updater.js` / `build.gradle` / `index.html` 的 `?v=` / `release-notes.js`）——由用户统一升版
 
 **如果视觉改动需要改数据结构**（比如新增持久化字段），先停下来问用户。
 

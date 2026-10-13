@@ -65,6 +65,7 @@ android {
         applicationId "com.mine.warmjournal"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
+        // 发版连同 package.json、app-updater.js、index.html 的 ?v=、release-notes.js 一起改。
         versionCode 130
         versionName "1.1.29"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"

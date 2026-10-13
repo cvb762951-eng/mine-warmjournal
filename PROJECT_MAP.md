@@ -53,13 +53,19 @@ cd android && ./gradlew assembleDebug
 - `android/local.properties` 已配置 SDK：`<本机 Android SDK 路径>`（本机配置不提交）
 - 历史构建产物存在，说明链路大概率仍通
 
-### 版本号三处同步（改一处必须改三处）
+### 版本号一起改（改一处必须改全）
+
+发版时一起改：`package.json`、`app-updater.js`、`android/app/build.gradle`、`index.html` 的 `?v=`、`release-notes.js` 里当前 versionCode 的条目。`scripts/check-versions.mjs` 在打包前核对；`index.html` 或更新说明漏改会直接失败。
+
+下表是 2026-10-08 的快照，不是当前版本。
 
 | 位置 | 字段 |
 |---|---|
-| `index.html` | `app.js?v=1.0.64`（1 处） |
+| `index.html` | `app.js?v=1.0.64`（以及其余 `?v=`） |
 | `android/app/build.gradle` | `versionCode 65`（每次 +1）/ `versionName "1.0.64"` |
 | `package.json` | `"version": "1.0.64"` |
+| `app-updater.js` | `APP_VERSION_NAME` / `APP_VERSION_CODE` |
+| `release-notes.js` | 当前 `versionCode` 的条目，`name` 与 versionName 相同 |
 
 **当前版本：1.0.64 / versionCode 65 / `SCHEMA_VERSION = 18`**
 

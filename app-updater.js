@@ -21,8 +21,10 @@ import { Directory, Filesystem } from '@capacitor/filesystem';
 const AppUpdater = registerPlugin('AppUpdater');
 
 /* 渲染时用的版本常量（设置页要同步显示，不能等异步）。
-   ⚠️ 必须与 android/app/build.gradle 的 versionName / versionCode 严格一致，
-   tests/app-version.test.mjs 会核对，不同步会直接失败。
+   ⚠️ 发版时五处一起改，scripts/check-versions.mjs 在打包前核对，漏一处直接失败：
+   package.json 的 version、这里的 APP_VERSION_NAME / APP_VERSION_CODE、
+   android/app/build.gradle 的 versionName / versionCode、
+   index.html 里所有 ?v=、release-notes.js 里当前 versionCode 的条目（name 与 versionName 相同）。
    真正做「有没有新版」判断时改用 currentVersion()，它以系统记录为准。 */
 export const APP_VERSION_NAME = '1.1.29';
 export const APP_VERSION_CODE = 130;

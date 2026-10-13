@@ -1,7 +1,8 @@
 // 版本说明注册表：每次发版在这里加一条。说明会写入本机「更新记录」；
 // 当天活动只出现用户刚升级到的那一版，不会把历史版本回放到各自的发布日。
-// ⚠️ code 必须与 android/app/build.gradle 的 versionCode 一致（tests/release-activity.test.mjs 锁着：
-//    当前版本必须有说明条目，漏了测试会挂）。
+// ⚠️ code 必须与 android/app/build.gradle 的 versionCode 一致，name 必须与 versionName 一致。
+//    tests/release-activity.test.mjs 和 scripts/check-versions.mjs 都会核对，漏了会在打包前失败。
+// ⚠️ 同一轮还要改 package.json、app-updater.js、index.html 的 ?v=。
 // ⚠️ date = 发布日（YYYY-MM-DD）；time = 同一时刻的北京时间（HH:mm:ss，UTC+8）。
 //    来自该版本 APK 的归档时间（Last-Modified 换算到 Asia/Shanghai）。更新动态落在
 //    date 这一天，卡片和说明上的时分用 time，不再一律写成中午 12:00。
@@ -632,6 +633,21 @@ export const RELEASE_NOTES = {
       '从二级页右滑返回时，后面那层会跟着手指一起退（不是等松手才动）',
       '清简主题画布加了一层很淡的纸纹理；弹层打开时手机外框背景变深，聚焦更清楚',
       '动画卡顿检测与确认框取消焦点等细节补齐'
+    ],
+    screenshots: []
+  },
+  130: {
+    name: '1.1.29', date: '2026-10-14', time: '07:30:45',
+    title: '启动更快，弹层不再卡死，更新改走 GitHub',
+    summary: '冷启动先出今日页，再补照片地址。关掉弹层不再把页面卡死；随手拍列表改用缩略图。应用内更新默认从 GitHub Release 取安装包。',
+    bullets: [
+      '冷启动不再在首屏前串行预热全库媒体地址，先出今日页，其余照片地址稍后再补',
+      '关掉弹层后页面不再卡死，返回和按钮恢复可用；快捷弹层不再把底部按钮推出屏幕',
+      '右滑返回被打断后不再挡住下一次点击；进入随手拍不再逐张测量卡一下',
+      '随手拍列表用独立缓存的缩略图，失败时回退原图；大图、编辑、导出、备份和私密空间仍用原图',
+      '恢复备份成功后清空缩略图缓存，避免同名文件对上旧图',
+      '切页面不再每次整份保存，多次切页合并后再写，进后台或关闭时立刻补写',
+      '应用内更新默认读取 GitHub Release 上的安装包'
     ],
     screenshots: []
   }
