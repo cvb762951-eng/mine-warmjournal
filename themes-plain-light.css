@@ -1740,3 +1740,136 @@ button.danger) {
 @media (prefers-reduced-motion: reduce) {
   :root[data-theme="plain"] .subpage-back-btn .material-symbols-outlined { transition: none; }
 }
+
+/* ==========================================================================
+   三十六 · 随手拍 / 日记 / 账本 / 日历（方案 #36 §4.3–4.6，照抄 preview 里 .a 的写法，选择器换成真实 DOM）
+   ========================================================================== */
+/* M1 统计头：四张小卡浅底、无投影（L2 里的小块不带投影） */
+:root[data-theme="plain"] :is(#screen-snippets, .snippets-view) .snippets-kpi-grid > .snippet-kpi-item {
+  background: var(--pl-inset) !important; box-shadow: none !important; border: 0 !important; border-radius: 14px !important;
+}
+/* M2 筛选标签：横向滚动 + scroll-snap，右缘渐隐；选中瞬时切换 */
+:root[data-theme="plain"] :is(#screen-snippets, .snippets-view) > .snippet-tabs-filter {
+  display: flex !important; flex-wrap: nowrap !important; gap: 6px !important; overflow-x: auto !important; scroll-snap-type: x proximity; scrollbar-width: none;
+  margin-left: 0 !important; margin-right: 0 !important; padding: 2px 0 6px !important;
+  -webkit-mask-image: linear-gradient(90deg, black 85%, transparent); mask-image: linear-gradient(90deg, black 85%, transparent);
+}
+:root[data-theme="plain"] :is(#screen-snippets, .snippets-view) > .snippet-tabs-filter::-webkit-scrollbar { display: none; }
+:root[data-theme="plain"] :is(#screen-snippets, .snippets-view) > .snippet-tabs-filter > .snippet-filter-pill {
+  flex: none !important; scroll-snap-align: start; padding: 0 12px !important; white-space: nowrap; transition: none !important;
+}
+/* M3 日期条：44px、浅蓝底、无描边 */
+:root[data-theme="plain"] :is(#screen-snippets, .snippets-view) .snippet-day-header {
+  height: 44px !important; min-height: 44px !important; padding: 0 14px !important; box-sizing: border-box;
+  display: flex !important; align-items: center !important; justify-content: space-between !important;
+  background: var(--pl-blue-soft) !important; border: 0 !important; border-radius: var(--pl-r-md) !important; box-shadow: none !important;
+}
+:root[data-theme="plain"] :is(#screen-snippets, .snippets-view) .snippet-day-header .snippet-day-title { font-size: 15px !important; }
+/* M4 拍立得 / 实况 / 视频角标：12px 圆角、墨色实底、不模糊 */
+:root[data-theme="plain"] :is(#screen-snippets, .snippets-view) .snippet-photo-badge {
+  background: var(--pl-badge) !important; border-radius: var(--pl-r-sm) !important; -webkit-backdrop-filter: none !important; backdrop-filter: none !important; color: white !important;
+}
+/* 卡片操作：32px 高、间距 8px、删除浅红底 */
+:root[data-theme="plain"] :is(#screen-snippets, .snippets-view) .snippet-item-actions { display: flex !important; justify-content: flex-end; gap: 8px !important; }
+:root[data-theme="plain"] :is(#screen-snippets, .snippets-view) .snippet-item-actions > button {
+  height: 32px !important; min-height: 32px !important; padding: 0 14px !important; border-radius: 999px !important; border: 0 !important; box-shadow: none !important;
+  background: var(--pl-blue-soft) !important; color: var(--pl-blue-deep) !important; font-size: 11px !important; font-weight: 700 !important;
+}
+:root[data-theme="plain"] :is(#screen-snippets, .snippets-view) .snippet-item-actions > button:is([data-delete-snippet], .danger) { background: var(--pl-danger-soft) !important; color: var(--pl-danger) !important; }
+
+/* 日记：日期标题上内边距 18px */
+:root[data-theme="plain"] :is(#screen-journal, .journal-view) .journal-magazine-hero-box { padding-top: 18px !important; }
+/* J2 小节标题：去胶囊，13px 粗体 + 6px 蓝点，与网格间距 8px */
+:root[data-theme="plain"] :is(#screen-journal, .journal-view) .picker-section-label { margin-bottom: 8px !important; }
+:root[data-theme="plain"] :is(#screen-journal, .journal-view) .picker-section-label > span {
+  display: inline-flex !important; align-items: center; gap: 6px; padding: 0 !important; margin: 0 !important; border: 0 !important; border-radius: 0 !important;
+  background: none !important; box-shadow: none !important; font-size: 13px !important; font-weight: 800 !important; color: var(--pl-blue-deep) !important; position: static !important;
+}
+:root[data-theme="plain"] :is(#screen-journal, .journal-view) .picker-section-label > span::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--pl-blue); flex: none; }
+/* J1 心情 / 天气选中：实心蓝 + 白字，对勾在格内右上角，scale .6→1 + 淡入 160ms */
+:root[data-theme="plain"] :is(#screen-journal, .journal-view) :is(.mood-pick-item, .weather-pick-item) { position: relative; }
+:root[data-theme="plain"] :is(#screen-journal, .journal-view) :is(.mood-pick-item, .weather-pick-item).active {
+  background: var(--pl-blue) !important; color: white !important; box-shadow: none !important; outline: 0 !important;
+}
+:root[data-theme="plain"] :is(#screen-journal, .journal-view) :is(.mood-pick-item, .weather-pick-item).active :is(small, span) { color: white !important; }
+:root[data-theme="plain"] :is(#screen-journal, .journal-view) :is(.mood-pick-item, .weather-pick-item).active::before { display: none !important; }
+:root[data-theme="plain"] :is(#screen-journal, .journal-view) :is(.mood-pick-item, .weather-pick-item).active::after {
+  z-index: 2 !important; -webkit-mask: none !important; mask: none !important; content: '' !important; position: absolute !important; right: 6px !important; top: 4px !important; left: auto !important; bottom: auto !important;
+  width: 14px !important; height: 14px !important; border-radius: 50% !important; box-shadow: none !important; border: 0 !important;
+  background: white url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='rgb(79,118,189)' stroke-width='3.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5'/%3E%3C/svg%3E") center / 10px 10px no-repeat !important;
+  animation: pl-pick-pop 160ms var(--pl-ease-out) both; transform: none; opacity: 1;
+}
+@keyframes pl-pick-pop { from { opacity: 0; transform: scale(.6); } }
+
+/* 账本：记一笔 44px（原方案正文 40px，预览 44px，按预览），投影降一档 */
+:root[data-theme="plain"] :is(#screen-ledger, .ledger-view) .ledger-add-btn { height: 44px !important; min-height: 44px !important; box-shadow: var(--pl-shadow-btn) !important; }
+/* L1 三项指标：一条浅底三栏，1px 竖线分隔，无投影 */
+:root[data-theme="plain"] :is(#screen-ledger, .ledger-view) .ledger-sub-stats {
+  display: grid !important; grid-template-columns: repeat(3, 1fr) !important; gap: 0 !important; background: var(--pl-inset) !important; border-radius: var(--pl-r-md) !important; box-shadow: none !important;
+}
+:root[data-theme="plain"] :is(#screen-ledger, .ledger-view) .ledger-sub-stats > * { background: transparent !important; box-shadow: none !important; border: 0 !important; border-radius: 0 !important; margin: 0 !important; min-width: 0; }
+:root[data-theme="plain"] :is(#screen-ledger, .ledger-view) .ledger-sub-stats > * + * { border-left: 1px solid var(--pl-line) !important; }
+/* L3 预算块：未设预算时收成一行 56px（设了预算后有进度条，不变） */
+:root[data-theme="plain"] :is(#screen-ledger, .ledger-view) .ledger-budget-box:has(> .level-bar[aria-label="尚未设置预算"]) {
+  height: 56px !important; min-height: 56px !important; padding: 0 14px !important; box-sizing: border-box; display: flex !important; align-items: center !important;
+  background: var(--pl-inset) !important; box-shadow: none !important; border: 0 !important;
+}
+/* 空预算时进度条（0%）不再占一行 */
+:root[data-theme="plain"] :is(#screen-ledger, .ledger-view) .ledger-budget-box > .level-bar[aria-label="尚未设置预算"] { display: none !important; }
+:root[data-theme="plain"] :is(#screen-ledger, .ledger-view) .ledger-budget-box:has(> .level-bar[aria-label="尚未设置预算"]) > .ledger-budget-head { width: 100%; margin: 0 !important; }
+/* 支出 / 收入：分段控件，蓝滑块 translateX 220ms */
+:root[data-theme="plain"] :is(#screen-ledger, .ledger-view) .ledger-quick-type {
+  position: relative !important; display: inline-grid !important; grid-template-columns: 1fr 1fr !important; padding: 3px !important; gap: 0 !important;
+  border-radius: 999px !important; background: var(--pl-inset) !important; border: 0 !important; box-shadow: none !important;
+}
+:root[data-theme="plain"] :is(#screen-ledger, .ledger-view) .ledger-quick-type::before {
+  content: ''; position: absolute; left: 3px; top: 3px; width: calc(50% - 3px); height: calc(100% - 6px); border-radius: 999px;
+  background: var(--pl-blue); box-shadow: var(--pl-shadow-btn); transition: transform 220ms var(--pl-ease-emph); pointer-events: none;
+}
+:root[data-theme="plain"] :is(#screen-ledger, .ledger-view) .ledger-quick-type:has(#strip-btn-income.active)::before { transform: translateX(100%); }
+:root[data-theme="plain"] :is(#screen-ledger, .ledger-view) .ledger-quick-type > button {
+  position: relative; z-index: 1; height: 32px !important; border-radius: 999px !important; background: transparent !important; box-shadow: none !important; border: 0 !important;
+  color: var(--ink-secondary) !important; font-weight: 800 !important; transition: color 220ms var(--pl-ease-emph) !important;
+}
+:root[data-theme="plain"] :is(#screen-ledger, .ledger-view) .ledger-quick-type > button.active { color: white !important; }
+:root[data-theme="plain"] #screen-ledger .ledger-quick-type > button:is(#strip-btn-expense, #strip-btn-income) { width: auto !important; min-width: 0 !important; padding: 0 !important; background: transparent !important; background-image: none !important; box-shadow: none !important; }
+:root[data-theme="plain"] #screen-ledger .ledger-quick-type > button:is(#strip-btn-expense, #strip-btn-income).active { color: white !important; }
+:root[data-theme="plain"] #screen-ledger .ledger-quick-type { width: auto !important; height: auto !important; background-image: none !important; }
+/* 分类：选中 12px 圆角 + 蓝描边 */
+:root[data-theme="plain"] :is(#screen-ledger, .ledger-view) .ledger-quick-cats > button { border-radius: var(--pl-r-sm) !important; border: 1px solid transparent !important; }
+:root[data-theme="plain"] :is(#screen-ledger, .ledger-view) .ledger-quick-cats > button.active { background: var(--pl-blue-soft) !important; border-color: var(--pl-blue) !important; color: var(--pl-blue-deep) !important; }
+/* L2 我的账户：¥ 块主题蓝浅底 12px 圆角；管理胶囊；2×2，名称单行省略 */
+:root[data-theme="plain"] :is(#screen-ledger, .ledger-view) .ledger-accounts-section { height: auto !important; }
+:root[data-theme="plain"] :is(#screen-ledger, .ledger-view) .ledger-accounts-head { grid-template-columns: 40px minmax(0,1fr) auto !important; gap: 10px !important; }
+:root[data-theme="plain"] :is(#screen-ledger, .ledger-view) .ledger-accounts-mark {
+  width: 40px !important; height: 40px !important; display: grid !important; place-items: center; background: var(--pl-blue-tint) !important; color: var(--pl-blue-deep) !important; border-radius: var(--pl-r-sm) !important; box-shadow: none !important; border: 0 !important;
+}
+:root[data-theme="plain"] :is(#screen-ledger, .ledger-view) .ledger-accounts-head .soft-button { border-radius: 999px !important; border: 1px solid var(--pl-line) !important; }
+:root[data-theme="plain"] :is(#screen-ledger, .ledger-view) .ledger-accounts-track {
+  display: grid !important; grid-template-columns: minmax(0,1fr) minmax(0,1fr) !important; grid-auto-flow: row !important; grid-auto-columns: auto !important; height: auto !important; gap: 8px !important; overflow: visible !important;
+}
+:root[data-theme="plain"] :is(#screen-ledger, .ledger-view) .ledger-accounts-track > .account-mini-card {
+  width: auto !important; min-width: 0 !important; flex: none !important; background: var(--pl-inset) !important; box-shadow: none !important; border: 0 !important; border-radius: 12px !important;
+}
+:root[data-theme="plain"] :is(#screen-ledger, .ledger-view) .account-mini-name { min-width: 0; max-width: 100%; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; display: block !important; }
+
+/* C1 日历选中日：36px、10px 圆角蓝块，不旋转；今天未选中显示蓝细环；新选中 scale .86→1 + 淡入 180ms */
+:root[data-theme="plain"] .calendar-view.cal-screen .cal-cell.active,
+:root[data-theme="plain"] .calendar-view.cal-screen .cal-cell.today.active {
+  transform: none !important; rotate: none !important; border-radius: 10px !important; box-shadow: none !important; background: var(--pl-blue) !important; color: white !important;
+  width: 36px; height: 36px; justify-self: center; align-self: center; animation: pl-day-in 180ms var(--pl-ease-out) both;
+}
+:root[data-theme="plain"] .calendar-view.cal-screen .cal-cell.today:not(.active) { background: transparent !important; box-shadow: inset 0 0 0 1.5px var(--pl-blue) !important; border-radius: 10px !important; transform: none !important; }
+@keyframes pl-day-in { from { opacity: 0; transform: scale(.86); } }
+/* C2 档案标题条：白卡标题行，无描边 */
+:root[data-theme="plain"] .calendar-view .cal-detail-head {
+  height: 56px !important; min-height: 56px; padding: 0 10px 0 16px !important; box-sizing: border-box; display: flex !important; align-items: center !important; justify-content: space-between !important;
+  background: var(--plain-surface) !important; border: 0 !important; border-radius: var(--pl-r-lg) !important; box-shadow: var(--pl-shadow-card) !important;
+}
+:root[data-theme="plain"] .calendar-view .cal-detail-head .sheet-title { font-size: 17px !important; }
+
+@media (prefers-reduced-motion: reduce) {
+  :root[data-theme="plain"] :is(#screen-journal, .journal-view) :is(.mood-pick-item, .weather-pick-item).active::after,
+  :root[data-theme="plain"] .calendar-view.cal-screen .cal-cell.active { animation: none !important; }
+  :root[data-theme="plain"] :is(#screen-ledger, .ledger-view) .ledger-quick-type::before { transition: none; }
+}
