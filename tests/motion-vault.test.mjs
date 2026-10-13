@@ -17,8 +17,9 @@ test('解锁三档：rich 缝隙分开，lite 淡入，none 直接切', () => {
   assert.equal(unlockMode('rich'), 'split');
   assert.equal(unlockMode('lite'), 'fade');
   assert.equal(unlockMode('none'), 'cut');
-  assert.match(motion, /scale\(\.94\)/);
-  assert.match(motion, /translate3d\(0,-32px,0\) scale\(1\.03\)/);
+  assert.doesNotMatch(motion, /scale\(\.94\)/);   // Opus §10.1 V1：内容不整体缩放
+  assert.match(motion, /translate3d\(0,-32px,0\)'/);   // Opus §10.1 V1：只位移不放大
+  assert.match(motion, /scale\(1\.18\)/);
 });
 
 test('进入文件夹不缩小背后页面', () => {
@@ -35,7 +36,8 @@ test('照片飞行只用一个 scale，比例差超过 0.5% 就放弃', () => {
   const fly = flightTransform({ left: 10, top: 20, width: 100, height: 75 }, { left: 30, top: 40, width: 200, height: 150 });
   assert.equal(fly, 'translate(20.00px, 20.00px) scale(2.0000)');
   assert.equal(flightTransform({ left: 0, top: 0, width: 400, height: 300 }, { left: 0, top: 0, width: 160, height: 90 }), null);
-  assert.match(ghostFrameTransform({ left: 0, top: 0, width: 100, height: 50 }, { left: 8, top: 12, width: 40, height: 30 }), /scale\(0\.4000, 0\.6000\)/);
+  assert.match(ghostFrameTransform({ left: 0, top: 0, width: 100, height: 50 }, { left: 8, top: 12, width: 45, height: 25 }), /scale\(0\.4500, 0\.5000\)/);
+  assert.equal(ghostFrameTransform({ left: 0, top: 0, width: 100, height: 50 }, { left: 8, top: 12, width: 40, height: 30 }), null);   // Opus §10.1 V3：|sx/sy − 1| > .25 不用幽灵
   assert.match(motion, /object-fit:contain|object-fit: contain/);
 });
 
@@ -146,8 +148,8 @@ test('锁定过渡不克隆已解锁页面', () => {
   assert.match(vis, /shieldWait = requestAnimationFrame\(tick\)/);
   for (const css of [plain, light]) {
     const block = css.slice(css.indexOf('三十一 · 私密空间动效'));
-    assert.match(block, /blur\(8px\)/);
-    assert.doesNotMatch(block, /blur\(24px\)/);
+    assert.match(block, /blur\(24px\)/);
+    assert.doesNotMatch(block, /blur\(8px\)/);
     assert.match(block, /pv-breath 1\.6s ease-in-out 3/);
     assert.doesNotMatch(block, /pv-breath[^;]*infinite/);
   }
