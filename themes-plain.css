@@ -2929,3 +2929,60 @@ button.danger) {
 :root[data-theme="plain"] .setting-icon-box {
   width: 40px !important; height: 40px !important; border-radius: var(--pl-r-sm) !important; background: var(--pl-blue-soft) !important; flex: none;
 }
+
+/* ==========================================================================
+   三十七 · 二级页（方案 #36：.sub / .subnav / .back / .sub .body 的「升级后」写法 + §9.11 Z9 返回箭头）
+   规格外的部分沿用 #47 / #49 的卡片 token：白卡、--pl-r-lg、--pl-shadow-card、不描边。
+   选择器带二级页 id，压过各页原先的 #subpage-xxx 规则。
+   ========================================================================== */
+:root[data-theme="plain"] :is(#subpage-timetable, #subpage-journal-reader, #subpage-ledger-detail, #subpage-habit-detail, #subpage-focus-detail, #subpage-media-detail, .subpage-layer) {
+  background: var(--plain-canvas) !important;
+}
+/* 头部：吸顶、冷蓝半透明底、三栏 80px / 1fr / 80px、无圆角无投影 */
+:root[data-theme="plain"] :is(#subpage-timetable, #subpage-journal-reader, #subpage-ledger-detail, #subpage-habit-detail, #subpage-focus-detail, #subpage-media-detail, .subpage-layer) > .subpage-nav-bar {
+  position: sticky !important; top: 0; z-index: 3;
+  display: grid !important; grid-template-columns: 80px minmax(0, 1fr) 80px !important; align-items: center !important; gap: 0 !important;
+  min-height: 0 !important; height: auto !important;
+  padding: calc(12px + var(--app-safe-top, 0px)) 14px 12px !important;
+  background: rgba(234, 240, 248, .96) !important; background-image: none !important;
+  border: 0 !important; border-radius: 0 !important; box-shadow: none !important;
+  -webkit-backdrop-filter: none !important; backdrop-filter: none !important;
+}
+/* 标题：居中、16px 衬线粗体、单行省略；副标题（课程表的手写体）收成 11px 灰字 */
+:root[data-theme="plain"] :is(#subpage-timetable, #subpage-journal-reader, #subpage-ledger-detail, #subpage-habit-detail, #subpage-focus-detail, #subpage-media-detail, .subpage-layer) .subpage-nav-title {
+  min-width: 0; text-align: center !important; justify-self: stretch;
+  font: 800 16px/1.2 var(--font-serif, Newsreader, serif) !important; color: var(--pl-ink, currentColor) !important;
+  white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; letter-spacing: 0 !important;
+}
+:root[data-theme="plain"] :is(#subpage-timetable, #subpage-journal-reader, #subpage-ledger-detail, #subpage-habit-detail, #subpage-focus-detail, #subpage-media-detail, .subpage-layer) .subpage-nav-title > b { display: block; font: inherit !important; overflow: hidden; text-overflow: ellipsis; }
+:root[data-theme="plain"] :is(#subpage-timetable, #subpage-journal-reader, #subpage-ledger-detail, #subpage-habit-detail, #subpage-focus-detail, #subpage-media-detail, .subpage-layer) .subpage-nav-title > small {
+  display: block; margin-top: 2px; font: 600 11px/1.2 var(--font-sans, system-ui) !important; color: var(--ink-secondary) !important; transform: none !important;
+}
+/* 返回：34px 白胶囊 + 1px 细线 */
+:root[data-theme="plain"] :is(#subpage-timetable, #subpage-journal-reader, #subpage-ledger-detail, #subpage-habit-detail, #subpage-focus-detail, #subpage-media-detail, .subpage-layer) .subpage-back-btn {
+  justify-self: start; display: inline-flex !important; align-items: center !important; gap: 4px !important;
+  width: auto !important; height: 34px !important; min-height: 34px !important; padding: 0 12px !important;
+  border-radius: 999px !important; background: var(--plain-surface) !important; background-image: none !important;
+  border: 1px solid rgba(85, 96, 108, .14) !important; box-shadow: none !important;
+  font-size: 12.5px !important; font-weight: 800 !important; color: var(--pl-ink, currentColor) !important; white-space: nowrap;
+}
+:root[data-theme="plain"] :is(#subpage-timetable, #subpage-journal-reader, #subpage-ledger-detail, #subpage-habit-detail, #subpage-focus-detail, #subpage-media-detail, .subpage-layer) .subpage-back-btn .material-symbols-outlined { font-size: 16px !important; }
+/* 右侧动作：与返回同一身份的 34px 圆钮 */
+:root[data-theme="plain"] :is(#subpage-timetable, #subpage-journal-reader, #subpage-ledger-detail, #subpage-habit-detail, #subpage-focus-detail, #subpage-media-detail, .subpage-layer) > .subpage-nav-bar > button:last-child:not(.subpage-back-btn) {
+  justify-self: end; width: 34px !important; height: 34px !important; min-height: 34px !important; padding: 0 !important; display: grid !important; place-items: center;
+  border-radius: 999px !important; background: var(--plain-surface) !important; border: 1px solid rgba(85, 96, 108, .14) !important; box-shadow: none !important; color: var(--pl-blue-deep) !important;
+}
+/* Z9 返回箭头：按下左移 3px（90ms），松手 420ms 回弹 */
+:root[data-theme="plain"] .subpage-back-btn .material-symbols-outlined { transition: transform 420ms var(--spring-release, var(--pl-ease-out)); }
+:root[data-theme="plain"] .subpage-back-btn:active .material-symbols-outlined,
+:root[data-theme="plain"] .subpage-back-btn[data-pressed] .material-symbols-outlined { transform: translateX(-3px); transition-duration: 90ms; }
+/* 内容：左右 14px、顶 6px、底 30px；内容卡沿用白卡 + 20px 圆角 + 卡片投影、不描边 */
+:root[data-theme="plain"] :is(#subpage-timetable, #subpage-journal-reader, #subpage-ledger-detail, #subpage-habit-detail, #subpage-focus-detail, #subpage-media-detail, .subpage-layer) > .subpage-nav-bar + :is(main, div, section) {
+  padding-left: 14px !important; padding-right: 14px !important; padding-top: 6px !important; padding-bottom: 30px !important;
+}
+:root[data-theme="plain"] :is(#subpage-timetable, #subpage-journal-reader, #subpage-ledger-detail, #subpage-habit-detail, #subpage-focus-detail, #subpage-media-detail, .subpage-layer) :is(.course-hero, .course-day-card, .course-daily-card, .card) {
+  background: var(--plain-surface) !important; background-image: none !important; border: 0 !important; border-radius: var(--pl-r-lg) !important; box-shadow: var(--pl-shadow-card) !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  :root[data-theme="plain"] .subpage-back-btn .material-symbols-outlined { transition: none; }
+}
