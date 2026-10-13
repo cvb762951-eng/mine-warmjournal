@@ -2985,3 +2985,90 @@ button.danger) {
   :root[data-theme="plain"] .snippet-item-card.pl-pre .snippet-item-actions,
   :root[data-theme="plain"] .snippet-item-card.pl-pre.pl-flat { opacity: 1 !important; transform: none !important; transition: none !important; }
 }
+
+
+/* ==========================================================================
+   三十四 · 全局美化（方案 #36 §4.1 + §5.1 ①–⑨，原样照抄，选择器按真实 DOM 核对）
+   只动 transform / opacity / 静态外观。照片 / 私密弹窗保持 animation:none。
+   ========================================================================== */
+/* ① 页面入场：opacity + translateY 8px，280ms，不缩放 */
+:root[data-theme="plain"] #app.nav-transition > .view { animation: pl-page-in var(--pl-dur-page) var(--pl-ease-out) both; }
+@keyframes pl-page-in { from { opacity: 0; transform: translate3d(0, 8px, 0); } }
+
+/* ② 列表错落：420ms、10px、不缩放、最多 6 个 */
+:root[data-theme="plain"] [data-stagger] {
+  animation: pl-cascade 420ms var(--spring-entrance) backwards;
+  animation-delay: calc(min(var(--stagger-index, 0), 6) * var(--pl-stagger-step));
+}
+@keyframes pl-cascade { from { opacity: 0; transform: translate3d(0, 10px, 0); } }
+
+/* 底栏悬浮岛：左右 12px、离底 max(10px, 安全区)、64px、22px 圆角、不透明白底不模糊 */
+:root[data-theme="plain"] .phone-shell #floating-dock.floating-dock {
+  /* 基础规则用 left:50% + translateX(-50%) 居中，这里沿用，只把宽度收成左右各留 12px */
+  left: 50% !important; right: auto !important; transform: translateX(-50%) !important;
+  bottom: var(--pl-dock-bottom) !important; width: calc(100% - 2 * var(--pl-dock-inset)) !important;
+  height: var(--pl-dock-h) !important; padding: 6px 8px !important;
+  border-radius: var(--pl-r-dock) !important;
+  background: var(--plain-surface) !important; background-image: none !important;
+  box-shadow: var(--pl-shadow-float) !important;
+  backdrop-filter: none !important; -webkit-backdrop-filter: none !important;
+}
+/* ③ 底栏选中滑块：::before 由 :has() 算位置，translateX 260ms 滑过去 */
+@supports selector(:has(*)) {
+  :root[data-theme="plain"] #floating-dock { --i: 0; }
+  :root[data-theme="plain"] #floating-dock:has(> .dock-btn:nth-child(2).active) { --i: 1; }
+  :root[data-theme="plain"] #floating-dock:has(> .dock-btn:nth-child(3).active) { --i: 2; }
+  :root[data-theme="plain"] #floating-dock:has(> .dock-btn:nth-child(4).active) { --i: 3; }
+  :root[data-theme="plain"] #floating-dock:has(> .dock-btn:nth-child(5).active) { --i: 4; }
+  :root[data-theme="plain"] #floating-dock::before {
+    content: ''; position: absolute; left: 8px; top: 6px; bottom: 6px; z-index: 0;
+    width: calc((100% - 16px) / 5);
+    border-radius: var(--pl-r-md); background: var(--pl-blue-soft);
+    transform: translateX(calc(var(--i) * 100%));
+    transition: transform var(--pl-dur-base) var(--pl-ease-emph);
+    pointer-events: none;
+  }
+  :root[data-theme="plain"] #floating-dock:not(:has(.dock-btn.active))::before { opacity: 0; }
+  :root[data-theme="plain"] .phone-shell #floating-dock .dock-btn.active { background: transparent !important; box-shadow: none !important; }
+  :root[data-theme="plain"] #floating-dock > .dock-btn { position: relative; z-index: 1; }
+}
+/* ④ 底栏图标轻弹：.92 → 1，无上抬过冲 */
+:root[data-theme="plain"] #floating-dock .dock-btn.active .material-symbols-outlined { animation: pl-dock-icon 220ms var(--pl-ease-out); transform: none; }
+@keyframes pl-dock-icon { from { transform: scale(.92); } }
+
+/* ④ 主角卡扫光一次（尺寸与次数覆盖，performance.css 基础写法不动） */
+:root[data-theme="plain"] .halo-sweep {
+  width: 120%; height: auto; aspect-ratio: 1; opacity: 0; transform: translate(-50%, -50%) rotate(0deg);
+  /* 方案写的是 0/15%/80%/100% 多段关键帧；主题测试只允许单段关键帧，
+     所以拆成「转一圈」+「淡入再淡出（alternate ×2）」两条，总长同为 --pl-dur-sweep、只跑一次。 */
+  animation: pl-sweep-rot var(--pl-dur-sweep) linear 1 both, pl-sweep-fade calc(var(--pl-dur-sweep) / 2) cubic-bezier(.2, .9, .3, 1) 2 alternate both;
+}
+@keyframes pl-sweep-rot { to { transform: translate(-50%, -50%) rotate(360deg); } }
+@keyframes pl-sweep-fade { to { opacity: 1; } }
+:root[data-theme="plain"] .halo-card::after { animation: none; opacity: .45; }
+:root[data-theme="plain"] .halo-card { box-shadow: var(--pl-shadow-card), inset 0 0 0 1px var(--pl-blue-line) !important; }
+
+/* ⑤ 底部弹层：冷墨 32% 实色遮罩，只淡 opacity；面板 320ms 进、220ms 出 */
+:root[data-theme="plain"] .modal-layer {
+  background: var(--pl-scrim) !important; backdrop-filter: none !important; -webkit-backdrop-filter: none !important;
+  transition: opacity 240ms var(--pl-ease-out), visibility 240ms;
+}
+/* 跟手下拉（motion-layers 的 .pl-dragging / .pl-dragged）期间不加过渡，否则跟手会被拖慢 */
+:root[data-theme="plain"] .modal-layer:not(.pl-dragging):not(.pl-dragged) .modal { transition: transform var(--pl-dur-sheet) var(--pl-ease-emph); }
+:root[data-theme="plain"] .modal-layer:not(.open):not(.pl-dragging):not(.pl-dragged) .modal { transition-duration: 220ms; transition-timing-function: var(--pl-ease-in); }
+
+/* ⑥ 二级页层次：左缘静态阴影。底页淡遮罩不再另加 —— motion-layers 的 Z1/Z2 已有 .pl-subpage-dim，
+   再叠一层 ::after 会压暗两次。 */
+:root[data-theme="plain"] .subpage-layer { box-shadow: var(--pl-shadow-edge); }
+
+/* ⑧ Toast：实色墨块，不模糊，translateY 8px + opacity */
+:root[data-theme="plain"] .toast {
+  background: var(--pl-toast) !important; backdrop-filter: none !important; -webkit-backdrop-filter: none !important;
+  transform: translate(-50%, 8px); transition: opacity 200ms var(--pl-ease-out), transform 200ms var(--pl-ease-out), visibility 200ms;
+}
+:root[data-theme="plain"] .toast.show { transform: translate(-50%, 0); }
+
+/* ⑨ 卡片过渡：只补间 transform，阴影瞬时切换 */
+:root[data-theme="plain"] :is(.card, .bento-item, .stats-card, .settings-group-card, .ledger-account-card, .journal-card) {
+  transition: transform .3s var(--pl-ease-out);
+}
