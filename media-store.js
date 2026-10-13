@@ -40,7 +40,7 @@ export const storedMediaName = value => isNativeRef(value) ? String(value).slice
 export function adoptNativeMediaFile(name, uri) {
   const ref = `${PREFIX}${name}`;
   urls.set(ref, Capacitor.convertFileSrc(uri));
-  return ref;
+  return markFresh(ref);
 }
 
 export async function resolveMediaReference(ref) {
@@ -136,7 +136,7 @@ export async function saveMediaFile(file) {
   await Filesystem.writeFile({ path: `${ROOT}/${name}`, data: await fileToBase64(file), directory: Directory.Data, recursive: true });
   const uri = await Filesystem.getUri({ path: `${ROOT}/${name}`, directory: Directory.Data });
   urls.set(ref, Capacitor.convertFileSrc(uri.uri));
-  return ref;
+  return markFresh(ref);
 }
 
 export async function mediaHealth(state) {
@@ -167,6 +167,39 @@ export function stateMediaReferences(state) {
 
 
 // 把文件移入回收站。移动失败时【保留原文件】—— 宁可不删，也不能误删。
+/* 新落盘媒体的保护期：本次运行里写入的引用，或文件 mtime 在保护期内，都不当孤儿处理。 */
+const FRESH_MEDIA_MS = 24 * 60 * 60 * 1000;
+const freshNames = new Set();
+const markFresh = ref => { if (isNativeRef(ref)) freshNames.add(String(ref).slice(PREFIX.length)); return ref; };
+export function isFreshMedia(name, mtime, now = Date.now()) {
+  if (freshNames.has(name)) return true;
+  const time = Number(mtime);
+  return Number.isFinite(time) && time > 0 && now - time < FRESH_MEDIA_MS;
+}
+
+/** 把被引用却躺在回收站里的媒体挪回原处。paths 形如 `${ROOT}/<name>`。 */
+export async function recoverTrashedMedia(paths = []) {
+  const wanted = new Map(paths.map(path => [path.slice(ROOT.length + 1), path]));
+  if (!wanted.size) return 0;
+  let recovered = 0;
+  try {
+    const listing = await Filesystem.readdir({ path: `${ROOT}/${TRASH_DIR}`, directory: Directory.Data });
+    const entries = (listing.files || [])
+      .filter(file => file.type !== 'directory')
+      .map(file => ({ file, name: file.name.replace(/^\d{13}--/, '') }))
+      .sort((a, b) => b.file.name.localeCompare(a.file.name));
+    for (const { file, name } of entries) {
+      if (!wanted.has(name)) continue;
+      const ok = await Filesystem.rename({
+        from: `${ROOT}/${TRASH_DIR}/${file.name}`, to: wanted.get(name),
+        directory: Directory.Data, toDirectory: Directory.Data
+      }).then(() => true, () => false);
+      if (ok) { wanted.delete(name); markFresh(`${PREFIX}${name}`); urls.delete(`${PREFIX}${name}`); recovered += 1; }
+    }
+  } catch { /* 回收站不存在：没有可找回的 */ }
+  return recovered;
+}
+
 async function moveToTrash(name) {
   try {
     await Filesystem.mkdir({ path: `${ROOT}/${TRASH_DIR}`, directory: Directory.Data, recursive: true }).catch(() => {});
@@ -213,6 +246,8 @@ export async function removeUnusedMedia(state, protectedRefs = []) {
         if (record.trashedAt) { delete record.trashedAt; await browserRequest('readwrite', store => store.put(record)); }
         continue;
       }
+      // 刚写入、还没进任何记录的待保存媒体不清理（同原生端保护期）。
+      if (Date.now() - (Number(record.updatedAt) || 0) < FRESH_MEDIA_MS) continue;
       const ref = `${BROWSER_PREFIX}${key}`;
       const source = urls.get(ref);
       if (source?.startsWith('blob:')) URL.revokeObjectURL(source);
@@ -228,11 +263,18 @@ export async function removeUnusedMedia(state, protectedRefs = []) {
   let removed = 0;
   try {
     const directory = await Filesystem.readdir({ path: ROOT, directory: Directory.Data });
+    const present = new Set((directory.files || []).map(file => `${ROOT}/${file.name}`));
+    // 记录里引用着、本体却已在回收站的文件：先挪回原处（2026-10-13 随手拍拍照后不显示）。
+    await recoverTrashedMedia([...used].filter(path => !present.has(path)));
+    const now = Date.now();
     for (const file of directory.files || []) {
       // 回收站自身与子目录一律不处理
       if (file.name === TRASH_DIR || file.type === 'directory') continue;
       const path = `${ROOT}/${file.name}`;
       if (used.has(path)) continue;
+      // 刚落盘、还没保存进任何记录的媒体（正在编辑的随手拍 / 日记 / 账本里待保存的照片）不清理：
+      // 编辑过程中别处触发的一次 save() 会把它们误判成孤儿。
+      if (isFreshMedia(file.name, file.mtime, now)) continue;
       if (await moveToTrash(file.name)) removed += 1;
     }
   } catch {}
@@ -249,7 +291,7 @@ async function writeDataImage(value) {
   await Filesystem.writeFile({ path: `${ROOT}/${name}`, data: match[2], directory: Directory.Data, recursive: true });
   const uri = await Filesystem.getUri({ path: `${ROOT}/${name}`, directory: Directory.Data });
   urls.set(ref, Capacitor.convertFileSrc(uri.uri));
-  return ref;
+  return markFresh(ref);
 }
 
 // 视频 dataURL → 媒体文件（mime 映射扩展名）。
@@ -262,7 +304,7 @@ async function writeMediaData(value) {
   await Filesystem.writeFile({ path: `${ROOT}/${name}`, data: match[2], directory: Directory.Data, recursive: true });
   const uri = await Filesystem.getUri({ path: `${ROOT}/${name}`, directory: Directory.Data });
   urls.set(ref, Capacitor.convertFileSrc(uri.uri));
-  return ref;
+  return markFresh(ref);
 }
 
 async function ensureUrl(ref) {
@@ -334,6 +376,7 @@ export async function saveNativeMediaSource(source, { name = 'video.mp4', size =
   if (!result?.name || !result?.uri) throw new Error('视频没有成功写入本机');
   const ref = `${PREFIX}${result.name}`;
   urls.set(ref, Capacitor.convertFileSrc(result.uri));
+  markFresh(ref);
   return ref;
 }
 
@@ -461,4 +504,17 @@ function fileToBase64(file) {
     reader.onerror = () => reject(new Error('无法读取视频文件'));
     reader.readAsDataURL(file);
   });
+}
+
+/** 启动时把记录引用着、却已进回收站的原生媒体找回来。 */
+export async function recoverReferencedMedia(state, extraRefs = []) {
+  if (!Capacitor.isNativePlatform()) return 0;
+  const paths = [...new Set([...mediaSlots(state).map(slot => slot.get()), ...extraRefs].filter(isNativeRef).map(pathFor))];
+  if (!paths.length) return 0;
+  let present = new Set();
+  try {
+    const directory = await Filesystem.readdir({ path: ROOT, directory: Directory.Data });
+    present = new Set((directory.files || []).map(file => `${ROOT}/${file.name}`));
+  } catch { /* 目录不存在：全部按缺失处理 */ }
+  return recoverTrashedMedia(paths.filter(path => !present.has(path)));
 }
