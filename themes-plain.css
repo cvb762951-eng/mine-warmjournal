@@ -1475,6 +1475,13 @@
   /* 柔角：和今日页卡片（16px 一档）对齐的中等圆角 */
   --radius-soft: 14px;
   --radius-soft-sm: 8px;
+  --pl-spring-snappy: linear(0, 0.0811 4.2%, 0.2578 8.3%, 0.4613 12.5%, 0.6460 16.7%, 0.8003 20.8%, 0.9133 25%, 0.9874 29.2%, 1.0290 33.3%, 1.0482 37.5%, 1.0517 41.7%, 1.0462 45.8%, 1.0367 50%, 1.0262 54.2%, 1.0167 58.3%, 1.0091 62.5%, 1.0037 66.7%, 1.0002 70.8%, 0.9982 75%, 0.9974 79.2%, 0.9973 83.3%, 0.9977 87.5%, 0.9982 91.7%, 0.9987 95.8%, 1);
+  --pl-ease-out: cubic-bezier(.22, .61, .36, 1);
+  --pl-ease-in: cubic-bezier(.4, 0, 1, 1);
+  /* 签名 / 随手拍弹簧（方案 8.1）；不支持 linear() 时整条无效，动画退回 emph */
+  --pl-spring-magnet: linear(0, 0.0882 4.2%, 0.2846 8.3%, 0.5130 12.5%, 0.7199 16.7%, 0.8878 20.8%, 1.0037 25%, 1.0707 29.2%, 1.0984 33.3%, 1.0994 37.5%, 1.0842 41.7%, 1.0619 45.8%, 1.0395 50%, 1.0199 54.2%, 1.0053 58.3%, 0.9959 62.5%, 0.9911 66.7%, 0.9897 70.8%, 0.9905 75%, 0.9925 79.2%, 0.9948 83.3%, 0.9970 87.5%, 0.9987 91.7%, 1.0000 95.8%, 1);
+  --pl-ease-emph: cubic-bezier(.32, .72, 0, 1);
+  --pl-shadow-float: 0 2px 6px rgba(46, 52, 59, 0.05), 0 16px 36px rgba(46, 52, 59, 0.12);
 }
 
 /* ---------------------------------------------------------------------------
@@ -2571,6 +2578,78 @@ button.danger) {
 }
 
 /* ==========================================================================
+   二十九 · 设计 token（方案 #36 docs/design-upgrade-plan.md §3.0 / §3.4 / §8.1，原样照抄）
+   只新增变量，已有变量（--pl-blue 等）沿用原值，不在这里重复定义。
+   本节只是定义，不改任何现有规则的取值 → 视觉零变化；后续按页面 PR 逐项引用。
+   ========================================================================== */
+:root[data-theme="plain"] {
+  /* —— 颜色：画布与纸面 —— */
+  --pl-tray: #F2F6FC;             /* ★ L1 底托（现写死在第十五节） */
+  --pl-inset: #F5F8FD;            /* ★ L2 卡内小块的浅底（替代卡内投影） */
+
+  /* —— 颜色：墨色 —— */
+  --pl-dock-idle: #6B7480;        /* ★ 底栏未选中（现写死在第十一节） */
+
+  /* —— 颜色：主题蓝 —— */
+
+  /* —— 颜色：语义 —— */
+  --pl-scrim: rgba(46, 52, 59, 0.32);        /* ★ 弹层遮罩（替代暖黑 65% + 模糊） */
+  --pl-toast: rgba(46, 52, 59, 0.92);        /* ★ toast 底（不模糊） */
+  --pl-badge: rgba(46, 52, 59, 0.72);        /* ★ 照片角标底（"拍立得"） */
+
+  /* —— 圆角：四档 —— */
+  --pl-r-lg: 20px;                /* ★ 大卡 */
+  --pl-r-md: 16px;                /* ★ 中块、底栏选中块 */
+  --pl-r-sm: 12px;                /* ★ 图标块、小卡、角标 */
+  --pl-r-pill: 999px;             /* ★ 胶囊 */
+  --pl-r-dock: 22px;              /* ★ 底栏 */
+
+  /* —— 阴影：三档 —— */
+  --pl-shadow-card: 0 1px 2px rgba(46, 52, 59, 0.035), 0 8px 20px rgba(46, 52, 59, 0.055);   /* ★ L2，与第十五节现值一致 */
+  --pl-shadow-float: 0 2px 6px rgba(46, 52, 59, 0.05), 0 16px 36px rgba(46, 52, 59, 0.12);   /* ★ L3：底栏、弹层、toast */
+  --pl-shadow-btn: 0 4px 12px rgba(79, 118, 189, 0.22);       /* ★ 主按钮（比现有 --pl-blue-glow .28 降一档） */
+  --pl-shadow-edge: -12px 0 32px rgba(46, 52, 59, 0.08);      /* ★ 二级页左缘，静态 */
+  --pl-tray-inset: inset 0 1px 2px rgba(46, 52, 59, 0.035);   /* ★ L1 底托内凹 */
+
+  /* —— 间距 —— */
+  --pl-page-x: 14px;              /* ★ 页面左右（与现状一致） */
+  --pl-gap: 10px;                 /* ★ 卡片之间 */
+  --pl-gap-sm: 8px;               /* ★ 卡内元素之间 */
+  --pl-card-pad: 16px;            /* ★ 卡片内边距 */
+
+  /* —— 尺寸 —— */
+  --pl-dock-h: 64px;              /* ★ 底栏高度，所有页一致 */
+  --pl-dock-inset: 12px;          /* ★ 底栏左右外边距 */
+  --pl-dock-bottom: max(10px, env(safe-area-inset-bottom));  /* ★ 底栏离底 */
+  --pl-tap-min: 44px;             /* ★ 最小点击区 */
+
+
+  /* —— 动效令牌 §3.4 —— */
+  --pl-dur-press: 100ms;   /* 按下 */
+  --pl-dur-quick: 180ms;   /* 小部件状态（对勾、选中日） */
+  --pl-dur-base: 260ms;    /* 底栏滑块、分段控件 */
+  --pl-dur-page: 280ms;    /* 页面入场 */
+  --pl-dur-sheet: 320ms;   /* 底部弹层、二级页 */
+  --pl-ease-out: cubic-bezier(.22, .61, .36, 1);   /* 进入 */
+  --pl-ease-emph: cubic-bezier(.32, .72, 0, 1);    /* 位移较大的进入（= 现有 --ease-ios） */
+  --pl-ease-in: cubic-bezier(.4, 0, 1, 1);         /* 退出：更快 */
+  --pl-dur-sweep: 1600ms;  /* 主角卡扫光，只跑一次 */
+  --pl-stagger-step: 30ms; /* 列表错落间隔 */
+  --pl-stagger-max: 6;     /* 最多错落几个，之后的同时出现 */
+
+  /* —— 签名动效令牌 §8.1 —— */
+  /* 弹簧：m=1, k=420, c=28 采样 24 点；约 513ms 落定，过冲 5.2% */
+  --pl-spring-snappy: linear(0, 0.0811 4.2%, 0.2578 8.3%, 0.4613 12.5%, 0.6460 16.7%, 0.8003 20.8%, 0.9133 25%, 0.9874 29.2%, 1.0290 33.3%, 1.0482 37.5%, 1.0517 41.7%, 1.0462 45.8%, 1.0367 50%, 1.0262 54.2%, 1.0167 58.3%, 1.0091 62.5%, 1.0037 66.7%, 1.0002 70.8%, 0.9982 75%, 0.9974 79.2%, 0.9973 83.3%, 0.9977 87.5%, 0.9982 91.7%, 0.9987 95.8%, 1);
+  --pl-dur-snappy: 520ms;
+  /* 弹簧：m=1, k=320, c=21；约 609ms 落定，过冲 10.2% */
+  --pl-spring-magnet: linear(0, 0.0882 4.2%, 0.2846 8.3%, 0.5130 12.5%, 0.7199 16.7%, 0.8878 20.8%, 1.0037 25%, 1.0707 29.2%, 1.0984 33.3%, 1.0994 37.5%, 1.0842 41.7%, 1.0619 45.8%, 1.0395 50%, 1.0199 54.2%, 1.0053 58.3%, 0.9959 62.5%, 0.9911 66.7%, 0.9897 70.8%, 0.9905 75%, 0.9925 79.2%, 0.9948 83.3%, 0.9970 87.5%, 0.9987 91.7%, 1.0000 95.8%, 1);
+  --pl-dur-magnet: 600ms;
+  --pl-ease-expo: cubic-bezier(.22, 1, .36, 1);   /* 刊头揭幕、共享展开的减速段 */
+  --pl-depth-scale: .94;                          /* S3 页面后退比例 */
+  --pl-tilt-max: 5deg;                            /* S9 倾斜上限 */
+}
+
+/* ==========================================================================
    三十 · 二级页与弹层（motion-layers.js · 方案 #36 第 9 节 Z1–Z4、第 8 节 S3）
    只动 transform / opacity；rich / lite / none 三档由 <html data-pl-motion> 决定。
    ========================================================================== */
@@ -2578,15 +2657,17 @@ button.danger) {
 :root[data-theme="plain"] .subpage-layer { box-shadow: -12px 0 32px rgba(46, 52, 59, 0.08); }
 :root[data-theme="plain"] .subpage-layer:not(.active):not(.pl-collapse-out) { box-shadow: none; }
 
-/* Z2 / S3：二级页推入时底页左移 20%（rich），盖一层只动 opacity 的 12% 遮罩 */
+/* Z2 / S3：二级页推入时底页左移 20%（rich），盖一层只动 opacity 的 12% 遮罩。
+   Z1 原位展开（.pl-z1-pending / .pl-z1-open）不加左移与遮罩：方案里左移只给「推入」，
+   收回时若 #app 从 -20% 弹回，会和固定定位的幽灵抢位置，收完回主页那一下就会卡。 */
 :root[data-theme="plain"] .phone-shell > .pl-subpage-dim {
   position: absolute; inset: 0; z-index: 159; pointer-events: none;
   background: rgba(46, 52, 59, 0.12); opacity: 0;
   transition: opacity 350ms cubic-bezier(.16, 1, .3, 1);
 }
-:root[data-theme="plain"] .phone-shell:has(.subpage-layer.active) > .pl-subpage-dim { opacity: 1; }
+:root[data-theme="plain"] .phone-shell:has(.subpage-layer.active):not(.pl-z1-open):not(.pl-z1-pending) > .pl-subpage-dim { opacity: 1; }
 :root[data-theme="plain"] .phone-shell > #app { transition: transform 350ms cubic-bezier(.16, 1, .3, 1); }
-:root[data-theme="plain"][data-pl-motion="rich"] .phone-shell:has(.subpage-layer.active) > #app { transform: translate3d(-20%, 0, 0); }
+:root[data-theme="plain"][data-pl-motion="rich"] .phone-shell:has(.subpage-layer.active):not(.pl-z1-open):not(.pl-z1-pending) > #app { transform: translate3d(-20%, 0, 0); }
 :root[data-theme="plain"] .subpage-layer:is(.pl-swiping, .pl-swiped) { transition: none !important; }
 :root[data-theme="plain"] .phone-shell.pl-swiping > :is(#app, .pl-subpage-dim) { transition: none !important; }
 
@@ -2732,4 +2813,609 @@ button.danger) {
   :root[data-theme="plain"] .vault-lock-paper.pv-nudge,
   :root[data-theme="plain"] .vault-item.pv-pop,
   :root[data-theme="plain"] .vault-item.selected { animation: none !important; }
+}
+
+/* ==========================================================================
+   三十三 · 确认框与小弹窗（motion-dialogs.js · 方案 #36 §9.7–9.11 Z5–Z9）
+   清简主题。点确认框遮罩不关闭，走 Z8 轻推。返回箭头选择器是 .subpage-back-btn。
+   ========================================================================== */
+
+/* Z5 确认框：居中卡片 */
+:root[data-theme="plain"] #modal-layer .modal.confirm-sheet {
+  position: fixed; left: 50%; top: 50%; bottom: auto; right: auto; margin: 0;
+  width: min(320px, calc(100% - 48px)); max-width: min(320px, calc(100% - 48px));
+  border-radius: 22px; padding: 20px;
+  box-shadow: var(--pl-shadow-float, 0 16px 36px rgba(46, 52, 59, 0.12));
+  transform: translate(-50%, -50%) scale(.98); opacity: 0;
+  transition: transform 140ms var(--pl-ease-in, ease-in), opacity 140ms var(--pl-ease-in, ease-in);
+  align-self: center;
+}
+:root[data-theme="plain"] #modal-layer.open .modal.confirm-sheet {
+  transform: translate(-50%, -50%); opacity: 1;
+  animation: pl-dialog-in 200ms var(--pl-ease-out, ease) both;
+}
+:root[data-theme="plain"][data-pl-motion="none"] #modal-layer.open .modal.confirm-sheet { animation: none; }
+@keyframes pl-dialog-in { 0% { opacity: 0; transform: translate(-50%, -50%) scale(.96); } }
+:root[data-theme="plain"][data-pl-motion="rich"] #modal-layer:has(.confirm-sheet),
+:root[data-theme="plain"][data-pl-motion="rich"] #modal-layer.pl-confirm-open {
+  background: rgba(46, 52, 59, .24);
+  -webkit-backdrop-filter: blur(10px) saturate(1.1);
+  backdrop-filter: blur(10px) saturate(1.1);
+}
+:root[data-theme="plain"]:not([data-pl-motion="rich"]) #modal-layer:has(.confirm-sheet),
+:root[data-theme="plain"]:not([data-pl-motion="rich"]) #modal-layer.pl-confirm-open {
+  background: rgba(46, 52, 59, .40);
+  -webkit-backdrop-filter: none; backdrop-filter: none;
+}
+:root[data-theme="plain"] #modal-layer .confirm-sheet .danger-icon {
+  animation: pl-pop-in 160ms var(--pl-ease-out, ease) 60ms both;
+}
+:root[data-theme="plain"][data-pl-motion="none"] #modal-layer .confirm-sheet .danger-icon { animation: none; }
+@keyframes pl-pop-in { 0% { opacity: 0; transform: scale(.9); } }
+:root[data-theme="plain"] #modal-layer .confirm-sheet .danger {
+  background: var(--pl-danger); color: var(--plain-surface); border-color: transparent;
+}
+
+/* Z6 二级页叠层：非最上层左移 20% */
+:root[data-theme="plain"][data-pl-motion="rich"] .subpage-layer.active:has(~ .subpage-layer.active) {
+  transform: translate3d(-20%, 0, 0);
+  transition: transform 350ms cubic-bezier(.16, 1, .3, 1);
+}
+:root[data-theme="plain"][data-pl-motion="rich"] .subpage-layer.active:has(~ .subpage-layer.active)::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: rgba(46, 52, 59, 0.12);
+}
+
+/* Z7 锚点菜单（日记牌组 ⋯ 不加 .pl-popover，保持原样） */
+:root[data-theme="plain"] .pl-popover { transform-origin: var(--pl-origin, 100% 0); }
+:root[data-theme="plain"]:not([data-pl-motion="none"]) .pl-popover.open {
+  animation: pl-pop-menu 180ms var(--pl-ease-out, ease) both;
+}
+:root[data-theme="plain"]:not([data-pl-motion="none"]) .pl-popover.open > * {
+  animation: pl-rise 160ms var(--pl-ease-out, ease) backwards;
+  animation-delay: calc(40ms + var(--pl-ci, 0) * 18ms);
+}
+:root[data-theme="plain"]:not([data-pl-motion="none"]) .pl-popover.closing {
+  animation: pl-pop-out 120ms var(--pl-ease-in, ease) both;
+}
+@keyframes pl-pop-menu { 0% { opacity: 0; transform: scale(.92); } }
+@keyframes pl-pop-out { 100% { opacity: 0; transform: scale(.96); } }
+
+/* Z8 防误关轻推 */
+:root[data-theme="plain"] .modal.confirm-sheet.pl-nudge {
+  animation: pl-nudge-dialog 260ms var(--pl-spring-snappy, var(--pl-ease-emph, ease));
+}
+:root[data-theme="plain"] .modal.pl-nudge:not(.confirm-sheet) {
+  animation: pl-nudge-sheet 260ms var(--pl-spring-snappy, var(--pl-ease-emph, ease));
+}
+@keyframes pl-nudge-dialog { 50% { transform: translate(-50%, -50%) scale(1.02); } }
+@keyframes pl-nudge-sheet { 50% { transform: translate3d(0, 8px, 0); } }
+
+/* Z9 返回箭头（main 上是 .subpage-back-btn，不是方案里的 .subpage-back） */
+:root[data-theme="plain"] .subpage-back-btn .material-symbols-outlined {
+  transition: transform 420ms var(--spring-release, cubic-bezier(.32, .72, 0, 1));
+}
+:root[data-theme="plain"] .subpage-back-btn[data-pressed] .material-symbols-outlined {
+  transform: translateX(-3px); transition-duration: 90ms;
+}
+:root[data-theme="plain"][data-pl-motion="none"] .subpage-back-btn .material-symbols-outlined { transition: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  :root[data-theme="plain"] #modal-layer.open .modal.confirm-sheet { animation: none !important; }
+  :root[data-theme="plain"] .pl-popover.open,
+  :root[data-theme="plain"] .pl-popover.open > *,
+  :root[data-theme="plain"] .modal.pl-nudge { animation: none !important; }
+  :root[data-theme="plain"] .subpage-back-btn .material-symbols-outlined { transition: none !important; }
+}
+
+/* ==========================================================================
+   三十二 · 随手拍动效（motion-moments.js · 方案 #36 第 10.5–10.8 节 M1–M4）
+   只旁听 DOM。照片飞行只用 translate + 单一 scale。不做「收成一叠」。
+   100 张上限与保存流程仍在 views/snippets.js，此处不改。
+   ========================================================================== */
+:root[data-theme="plain"] body > .pl-fly-photo,
+:root[data-theme="plain"] .pl-fly-photo {
+  position: fixed; z-index: 2147483000; object-fit: contain; transform-origin: 0 0;
+  pointer-events: none; will-change: transform; box-shadow: var(--pl-shadow-float, 0 16px 36px rgba(46, 52, 59, 0.12));
+}
+
+/* M2 新卡到达 */
+:root[data-theme="plain"]:not([data-pl-motion="none"]) .snippet-item-card.pl-arrive {
+  animation: pl-moments-arrive 220ms var(--pl-ease-out, cubic-bezier(.22,.61,.36,1)) 100ms backwards;
+}
+@keyframes pl-moments-arrive { from { opacity: 0; transform: translate3d(0, 10px, 0); } }
+
+/* M3 滚动分层淡入：只动照片框里两张 img 与文字区的 opacity / transform */
+:root[data-theme="plain"] .snippet-item-card.pl-pre.pl-layers .photo-blur-pad { opacity: 0 !important; }
+:root[data-theme="plain"] .snippet-item-card.pl-pre.pl-layers .photo-blur-still {
+  opacity: 0; transform: scale(.985);
+}
+:root[data-theme="plain"] .snippet-item-card.pl-pre.pl-layers .snippet-item-meta,
+:root[data-theme="plain"] .snippet-item-card.pl-pre.pl-layers .snippet-item-text,
+:root[data-theme="plain"] .snippet-item-card.pl-pre.pl-layers .snippet-item-actions {
+  opacity: 0; transform: translate3d(0, 6px, 0);
+}
+:root[data-theme="plain"] .snippet-item-card.pl-pre.pl-flat { opacity: 0; }
+:root[data-theme="plain"] .snippet-item-card.pl-in.pl-layers .photo-blur-pad {
+  opacity: .5 !important;
+  transition: opacity 200ms var(--pl-ease-out, ease) var(--pl-lag, 0ms);
+}
+:root[data-theme="plain"] .snippet-item-card.pl-in.pl-layers .photo-blur-still {
+  opacity: 1; transform: none;
+  transition: opacity 300ms var(--pl-ease-out, ease) calc(var(--pl-lag, 0ms) + 60ms),
+              transform 300ms var(--pl-ease-out, ease) calc(var(--pl-lag, 0ms) + 60ms);
+}
+:root[data-theme="plain"] .snippet-item-card.pl-in.pl-layers .snippet-item-meta,
+:root[data-theme="plain"] .snippet-item-card.pl-in.pl-layers .snippet-item-text,
+:root[data-theme="plain"] .snippet-item-card.pl-in.pl-layers .snippet-item-actions {
+  opacity: 1; transform: none;
+  transition: opacity 220ms var(--pl-ease-out, ease) calc(var(--pl-lag, 0ms) + 110ms),
+              transform 220ms var(--pl-ease-out, ease) calc(var(--pl-lag, 0ms) + 110ms);
+}
+:root[data-theme="plain"] .snippet-item-card.pl-in.pl-flat {
+  opacity: 1; transition: opacity 220ms var(--pl-ease-out, ease) var(--pl-lag, 0ms);
+}
+
+/* M4 长按浮起：阴影只补间 opacity，不补间 box-shadow */
+:root[data-theme="plain"] .snippets-view .snippet-item-card {
+  position: relative;
+  -webkit-touch-callout: none;
+  transition: transform 420ms var(--spring-release, cubic-bezier(.32,.72,0,1));
+}
+:root[data-theme="plain"] .snippets-view .snippet-item-card::after {
+  content: ''; position: absolute; inset: 0; border-radius: inherit;
+  box-shadow: var(--pl-shadow-float, 0 16px 36px rgba(46, 52, 59, 0.12));
+  opacity: 0; pointer-events: none;
+  transition: opacity 260ms var(--pl-ease-out, ease);
+}
+:root[data-theme="plain"] .snippets-view .snippet-item-card.pl-lifted {
+  transform: translate3d(0, -4px, 0) scale(1.012);
+  transition: transform 180ms var(--pl-ease-out, ease);
+  z-index: 2;
+}
+:root[data-theme="plain"] .snippets-view .snippet-item-card.pl-lifted::after { opacity: 1; }
+:root[data-theme="plain"][data-pl-motion="none"] .snippets-view .snippet-item-card { transition: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  :root[data-theme="plain"] .snippet-item-card.pl-arrive { animation: none !important; }
+  :root[data-theme="plain"] .snippet-item-card.pl-pre .photo-blur-pad,
+  :root[data-theme="plain"] .snippet-item-card.pl-pre .photo-blur-still,
+  :root[data-theme="plain"] .snippet-item-card.pl-pre .snippet-item-meta,
+  :root[data-theme="plain"] .snippet-item-card.pl-pre .snippet-item-text,
+  :root[data-theme="plain"] .snippet-item-card.pl-pre .snippet-item-actions,
+  :root[data-theme="plain"] .snippet-item-card.pl-pre.pl-flat { opacity: 1 !important; transform: none !important; transition: none !important; }
+}
+
+
+/* ==========================================================================
+   三十四 · 全局美化（方案 #36 §4.1 + §5.1 ①–⑨，原样照抄，选择器按真实 DOM 核对）
+   只动 transform / opacity / 静态外观。照片 / 私密弹窗保持 animation:none。
+   ========================================================================== */
+/* ① 页面入场：opacity + translateY 8px，280ms，不缩放 */
+:root[data-theme="plain"] #app.nav-transition > .view { animation: pl-page-in var(--pl-dur-page) var(--pl-ease-out) both; }
+@keyframes pl-page-in { from { opacity: 0; transform: translate3d(0, 8px, 0); } }
+
+/* ② 列表错落：420ms、10px、不缩放、最多 6 个 */
+:root[data-theme="plain"] [data-stagger] {
+  animation: pl-cascade 420ms var(--spring-entrance) backwards;
+  animation-delay: calc(min(var(--stagger-index, 0), 6) * var(--pl-stagger-step));
+}
+@keyframes pl-cascade { from { opacity: 0; transform: translate3d(0, 10px, 0); } }
+
+/* 底栏悬浮岛：左右 12px、离底 max(10px, 安全区)、64px、22px 圆角、不透明白底不模糊 */
+:root[data-theme="plain"] .phone-shell #floating-dock.floating-dock {
+  /* 基础规则用 left:50% + translateX(-50%) 居中，这里沿用，只把宽度收成左右各留 12px */
+  left: 50% !important; right: auto !important; transform: translateX(-50%) !important;
+  bottom: var(--pl-dock-bottom) !important; width: calc(100% - 2 * var(--pl-dock-inset)) !important;
+  height: var(--pl-dock-h) !important; padding: 6px 8px !important;
+  border-radius: var(--pl-r-dock) !important;
+  background: var(--plain-surface) !important; background-image: none !important;
+  box-shadow: var(--pl-shadow-float) !important;
+  backdrop-filter: none !important; -webkit-backdrop-filter: none !important;
+}
+/* ③ 底栏选中滑块：::before 由 :has() 算位置，translateX 260ms 滑过去 */
+@supports selector(:has(*)) {
+  :root[data-theme="plain"] #floating-dock { --i: 0; }
+  :root[data-theme="plain"] #floating-dock:has(> .dock-btn:nth-child(2).active) { --i: 1; }
+  :root[data-theme="plain"] #floating-dock:has(> .dock-btn:nth-child(3).active) { --i: 2; }
+  :root[data-theme="plain"] #floating-dock:has(> .dock-btn:nth-child(4).active) { --i: 3; }
+  :root[data-theme="plain"] #floating-dock:has(> .dock-btn:nth-child(5).active) { --i: 4; }
+  :root[data-theme="plain"] #floating-dock::before {
+    content: ''; position: absolute; left: 8px; top: 6px; bottom: 6px; z-index: 0;
+    width: calc((100% - 16px) / 5);
+    border-radius: var(--pl-r-md); background: var(--pl-blue-soft);
+    transform: translateX(calc(var(--i) * 100%));
+    transition: transform var(--pl-dur-base) var(--pl-ease-emph);
+    pointer-events: none;
+  }
+  :root[data-theme="plain"] #floating-dock:not(:has(.dock-btn.active))::before { opacity: 0; }
+  :root[data-theme="plain"] .phone-shell #floating-dock .dock-btn.active { background: transparent !important; box-shadow: none !important; }
+  :root[data-theme="plain"] #floating-dock > .dock-btn { position: relative; z-index: 1; }
+}
+/* ④ 底栏图标轻弹：.92 → 1，无上抬过冲 */
+:root[data-theme="plain"] #floating-dock .dock-btn.active .material-symbols-outlined { animation: pl-dock-icon 220ms var(--pl-ease-out); transform: none; }
+@keyframes pl-dock-icon { from { transform: scale(.92); } }
+
+/* ④ 主角卡扫光一次（尺寸与次数覆盖，performance.css 基础写法不动） */
+:root[data-theme="plain"] .halo-sweep {
+  width: 120%; height: auto; aspect-ratio: 1; opacity: 0; transform: translate(-50%, -50%) rotate(0deg);
+  /* 方案写的是 0/15%/80%/100% 多段关键帧；主题测试只允许单段关键帧，
+     所以拆成「转一圈」+「淡入再淡出（alternate ×2）」两条，总长同为 --pl-dur-sweep、只跑一次。 */
+  animation: pl-sweep-rot var(--pl-dur-sweep) linear 1 both, pl-sweep-fade calc(var(--pl-dur-sweep) / 2) cubic-bezier(.2, .9, .3, 1) 2 alternate both;
+}
+@keyframes pl-sweep-rot { to { transform: translate(-50%, -50%) rotate(360deg); } }
+@keyframes pl-sweep-fade { to { opacity: 1; } }
+:root[data-theme="plain"] .halo-card::after { animation: none; opacity: .45; }
+:root[data-theme="plain"] .halo-card { box-shadow: var(--pl-shadow-card), inset 0 0 0 1px var(--pl-blue-line) !important; }
+
+/* ⑤ 底部弹层：冷墨 32% 实色遮罩，只淡 opacity；面板 320ms 进、220ms 出 */
+:root[data-theme="plain"] .modal-layer {
+  background: var(--pl-scrim) !important; backdrop-filter: none !important; -webkit-backdrop-filter: none !important;
+  transition: opacity 240ms var(--pl-ease-out), visibility 240ms;
+}
+/* 跟手下拉（motion-layers 的 .pl-dragging / .pl-dragged）期间不加过渡，否则跟手会被拖慢 */
+:root[data-theme="plain"] .modal-layer:not(.pl-dragging):not(.pl-dragged) .modal { transition: transform var(--pl-dur-sheet) var(--pl-ease-emph); }
+:root[data-theme="plain"] .modal-layer:not(.open):not(.pl-dragging):not(.pl-dragged) .modal { transition-duration: 220ms; transition-timing-function: var(--pl-ease-in); }
+
+/* ⑥ 二级页层次：左缘静态阴影。底页淡遮罩不再另加 —— motion-layers 的 Z1/Z2 已有 .pl-subpage-dim，
+   再叠一层 ::after 会压暗两次。 */
+:root[data-theme="plain"] .subpage-layer { box-shadow: var(--pl-shadow-edge); }
+
+/* ⑧ Toast：实色墨块，不模糊，translateY 8px + opacity */
+:root[data-theme="plain"] .toast {
+  background: var(--pl-toast) !important; backdrop-filter: none !important; -webkit-backdrop-filter: none !important;
+  transform: translate(-50%, 8px); transition: opacity 200ms var(--pl-ease-out), transform 200ms var(--pl-ease-out), visibility 200ms;
+}
+:root[data-theme="plain"] .toast.show { transform: translate(-50%, 0); }
+
+/* ⑨ 卡片过渡：只补间 transform，阴影瞬时切换 */
+:root[data-theme="plain"] :is(.card, .bento-item, .stats-card, .settings-group-card, .ledger-account-card, .journal-card) {
+  transition: transform .3s var(--pl-ease-out);
+}
+
+/* ==========================================================================
+   三十五 · 今日 + 我的（方案 #36 §4.2 / §4.7，照抄 preview 里 .a 的写法，选择器换成真实 DOM）
+   ========================================================================== */
+/* T1 首屏两卡：同一基线、同高 72px、间距 10px（原来右卡 margin 10px 0 0 -5px：差 10px、叠 5px） */
+:root[data-theme="plain"] .today-view .magazine-hero { display: grid !important; grid-template-columns: minmax(0,1fr) minmax(0,1fr) !important; gap: 10px !important; align-items: start; }
+:root[data-theme="plain"] .today-view .magazine-hero > .weather-box,
+:root[data-theme="plain"] .today-view .magazine-hero > .today-hero-actions {
+  height: 72px !important; min-height: 72px; margin: 0 !important; flex: none !important; width: auto !important; min-width: 0; box-sizing: border-box;
+}
+/* T2 快捷入口：四张独立 16px 圆角小卡，间距 8px，图标主题蓝，去掉竖线 */
+:root[data-theme="plain"] .today-view .quick-access-grid { gap: 8px !important; background: transparent !important; padding: 0 !important; }
+:root[data-theme="plain"] .today-view .quick-access-grid > .qa-card {
+  border: 1px solid var(--pl-line) !important; border-radius: var(--pl-r-md) !important;
+  background: var(--plain-surface) !important; box-shadow: var(--pl-shadow-card) !important;
+}
+:root[data-theme="plain"] .today-view .qa-card .material-symbols-outlined { color: var(--pl-blue) !important; }
+
+/* Me1 个人卡：上下内边距 16px，头像 64px，相机角标收进圆内 */
+:root[data-theme="plain"] .profile-hero-card { padding-top: 16px !important; padding-bottom: 16px !important; min-height: 0 !important; height: auto !important; }
+:root[data-theme="plain"] .profile-hero-card .profile-avatar-control { width: 64px !important; height: 64px !important; margin: 0 !important; flex: none; }
+:root[data-theme="plain"] .profile-hero-card .profile-avatar-box {
+  width: 64px !important; height: 64px !important; box-sizing: border-box !important; border: 2px solid var(--pl-blue) !important; box-shadow: none !important; overflow: hidden; background: var(--pl-blue-soft);
+}
+:root[data-theme="plain"] .profile-hero-card .avatar-camera-badge { right: 0 !important; bottom: 0 !important; width: 22px; height: 22px; }
+/* Me2 四项统计：白卡四等分 + 1px 直竖线（不再是弧形分隔），数字滚动沿用 rollNumbers */
+:root[data-theme="plain"] .mine-kpi-row {
+  display: grid !important; grid-template-columns: repeat(4, 1fr) !important; gap: 0 !important;
+  background: var(--plain-surface) !important; border-radius: var(--pl-r-lg) !important; box-shadow: var(--pl-shadow-card) !important; padding: 12px 0 !important;
+}
+:root[data-theme="plain"] .mine-kpi-row > .mine-kpi-card {
+  background: transparent !important; border: 0 !important; border-radius: 0 !important; box-shadow: none !important; margin: 0 !important;
+}
+:root[data-theme="plain"] .mine-kpi-row > .mine-kpi-card + .mine-kpi-card { border-left: 1px solid var(--pl-line) !important; }
+/* Me3 列表图标块：40px、12px 圆角、浅蓝底 */
+:root[data-theme="plain"] .setting-icon-box {
+  width: 40px !important; height: 40px !important; border-radius: var(--pl-r-sm) !important; background: var(--pl-blue-soft) !important; flex: none;
+}
+
+/* ==========================================================================
+   三十七 · 二级页（方案 #36：.sub / .subnav / .back / .sub .body 的「升级后」写法 + §9.11 Z9 返回箭头）
+   规格外的部分沿用 #47 / #49 的卡片 token：白卡、--pl-r-lg、--pl-shadow-card、不描边。
+   选择器带二级页 id，压过各页原先的 #subpage-xxx 规则。
+   ========================================================================== */
+:root[data-theme="plain"] :is(#subpage-timetable, #subpage-journal-reader, #subpage-ledger-detail, #subpage-habit-detail, #subpage-focus-detail, #subpage-media-detail, .subpage-layer) {
+  background: var(--plain-canvas) !important;
+}
+/* 头部：吸顶、冷蓝半透明底、三栏 80px / 1fr / 80px、无圆角无投影 */
+:root[data-theme="plain"] :is(#subpage-timetable, #subpage-journal-reader, #subpage-ledger-detail, #subpage-habit-detail, #subpage-focus-detail, #subpage-media-detail, .subpage-layer) > .subpage-nav-bar {
+  position: sticky !important; top: 0; z-index: 3;
+  display: grid !important; grid-template-columns: 80px minmax(0, 1fr) 80px !important; align-items: center !important; gap: 0 !important;
+  min-height: 0 !important; height: auto !important;
+  padding: calc(12px + var(--app-safe-top, 0px)) 14px 12px !important;
+  background: rgba(234, 240, 248, .96) !important; background-image: none !important;
+  border: 0 !important; border-radius: 0 !important; box-shadow: none !important;
+  -webkit-backdrop-filter: none !important; backdrop-filter: none !important;
+}
+/* 标题：居中、16px 衬线粗体、单行省略；副标题（课程表的手写体）收成 11px 灰字 */
+:root[data-theme="plain"] :is(#subpage-timetable, #subpage-journal-reader, #subpage-ledger-detail, #subpage-habit-detail, #subpage-focus-detail, #subpage-media-detail, .subpage-layer) .subpage-nav-title {
+  min-width: 0; text-align: center !important; justify-self: stretch;
+  font: 800 16px/1.2 var(--font-serif, Newsreader, serif) !important; color: var(--pl-ink, currentColor) !important;
+  white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; letter-spacing: 0 !important;
+}
+:root[data-theme="plain"] :is(#subpage-timetable, #subpage-journal-reader, #subpage-ledger-detail, #subpage-habit-detail, #subpage-focus-detail, #subpage-media-detail, .subpage-layer) .subpage-nav-title > b { display: block; font: inherit !important; overflow: hidden; text-overflow: ellipsis; }
+:root[data-theme="plain"] :is(#subpage-timetable, #subpage-journal-reader, #subpage-ledger-detail, #subpage-habit-detail, #subpage-focus-detail, #subpage-media-detail, .subpage-layer) .subpage-nav-title > small {
+  display: block; margin-top: 2px; font: 600 11px/1.2 var(--font-sans, system-ui) !important; color: var(--ink-secondary) !important; transform: none !important;
+}
+/* 返回：34px 白胶囊 + 1px 细线 */
+:root[data-theme="plain"] :is(#subpage-timetable, #subpage-journal-reader, #subpage-ledger-detail, #subpage-habit-detail, #subpage-focus-detail, #subpage-media-detail, .subpage-layer) .subpage-back-btn {
+  justify-self: start; display: inline-flex !important; align-items: center !important; gap: 4px !important;
+  width: auto !important; height: 34px !important; min-height: 34px !important; padding: 0 12px !important;
+  border-radius: 999px !important; background: var(--plain-surface) !important; background-image: none !important;
+  border: 1px solid rgba(85, 96, 108, .14) !important; box-shadow: none !important;
+  font-size: 12.5px !important; font-weight: 800 !important; color: var(--pl-ink, currentColor) !important; white-space: nowrap;
+}
+:root[data-theme="plain"] :is(#subpage-timetable, #subpage-journal-reader, #subpage-ledger-detail, #subpage-habit-detail, #subpage-focus-detail, #subpage-media-detail, .subpage-layer) .subpage-back-btn .material-symbols-outlined { font-size: 16px !important; }
+/* 右侧动作：与返回同一身份的 34px 圆钮 */
+:root[data-theme="plain"] :is(#subpage-timetable, #subpage-journal-reader, #subpage-ledger-detail, #subpage-habit-detail, #subpage-focus-detail, #subpage-media-detail, .subpage-layer) > .subpage-nav-bar > button:last-child:not(.subpage-back-btn) {
+  justify-self: end; width: 34px !important; height: 34px !important; min-height: 34px !important; padding: 0 !important; display: grid !important; place-items: center;
+  border-radius: 999px !important; background: var(--plain-surface) !important; border: 1px solid rgba(85, 96, 108, .14) !important; box-shadow: none !important; color: var(--pl-blue-deep) !important;
+}
+/* Z9 返回箭头：按下左移 3px（90ms），松手 420ms 回弹 */
+:root[data-theme="plain"] .subpage-back-btn .material-symbols-outlined { transition: transform 420ms var(--spring-release, var(--pl-ease-out)); }
+:root[data-theme="plain"] .subpage-back-btn:active .material-symbols-outlined,
+:root[data-theme="plain"] .subpage-back-btn[data-pressed] .material-symbols-outlined { transform: translateX(-3px); transition-duration: 90ms; }
+/* 内容：左右 14px、顶 6px、底 30px；内容卡沿用白卡 + 20px 圆角 + 卡片投影、不描边 */
+:root[data-theme="plain"] :is(#subpage-timetable, #subpage-journal-reader, #subpage-ledger-detail, #subpage-habit-detail, #subpage-focus-detail, #subpage-media-detail, .subpage-layer) > .subpage-nav-bar + :is(main, div, section) {
+  padding-left: 14px !important; padding-right: 14px !important; padding-top: 6px !important; padding-bottom: 30px !important;
+}
+:root[data-theme="plain"] :is(#subpage-timetable, #subpage-journal-reader, #subpage-ledger-detail, #subpage-habit-detail, #subpage-focus-detail, #subpage-media-detail, .subpage-layer) :is(.course-hero, .course-day-card, .course-daily-card, .card) {
+  background: var(--plain-surface) !important; background-image: none !important; border: 0 !important; border-radius: var(--pl-r-lg) !important; box-shadow: var(--pl-shadow-card) !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  :root[data-theme="plain"] .subpage-back-btn .material-symbols-outlined { transition: none; }
+}
+
+/* ==========================================================================
+   三十六 · 随手拍 / 日记 / 账本 / 日历（方案 #36 §4.3–4.6，照抄 preview 里 .a 的写法，选择器换成真实 DOM）
+   ========================================================================== */
+/* M1 统计头：四张小卡浅底、无投影（L2 里的小块不带投影） */
+:root[data-theme="plain"] :is(#screen-snippets, .snippets-view) .snippets-kpi-grid > .snippet-kpi-item {
+  background: var(--pl-inset) !important; box-shadow: none !important; border: 0 !important; border-radius: 14px !important;
+}
+/* M2 筛选标签：横向滚动 + scroll-snap，右缘渐隐；选中瞬时切换 */
+:root[data-theme="plain"] :is(#screen-snippets, .snippets-view) > .snippet-tabs-filter {
+  display: flex !important; flex-wrap: nowrap !important; gap: 6px !important; overflow-x: auto !important; scroll-snap-type: x proximity; scrollbar-width: none;
+  margin-left: 0 !important; margin-right: 0 !important; padding: 2px 0 6px !important;
+  -webkit-mask-image: linear-gradient(90deg, black 85%, transparent); mask-image: linear-gradient(90deg, black 85%, transparent);
+}
+:root[data-theme="plain"] :is(#screen-snippets, .snippets-view) > .snippet-tabs-filter::-webkit-scrollbar { display: none; }
+:root[data-theme="plain"] :is(#screen-snippets, .snippets-view) > .snippet-tabs-filter > .snippet-filter-pill {
+  flex: none !important; scroll-snap-align: start; padding: 0 12px !important; white-space: nowrap; transition: none !important;
+}
+/* M3 日期条：44px、浅蓝底、无描边 */
+:root[data-theme="plain"] :is(#screen-snippets, .snippets-view) .snippet-day-header {
+  height: 44px !important; min-height: 44px !important; padding: 0 14px !important; box-sizing: border-box;
+  display: flex !important; align-items: center !important; justify-content: space-between !important;
+  background: var(--pl-blue-soft) !important; border: 0 !important; border-radius: var(--pl-r-md) !important; box-shadow: none !important;
+}
+:root[data-theme="plain"] :is(#screen-snippets, .snippets-view) .snippet-day-header .snippet-day-title { font-size: 15px !important; }
+/* M4 拍立得 / 实况 / 视频角标：12px 圆角、墨色实底、不模糊 */
+:root[data-theme="plain"] :is(#screen-snippets, .snippets-view) .snippet-photo-badge {
+  background: var(--pl-badge) !important; border-radius: var(--pl-r-sm) !important; -webkit-backdrop-filter: none !important; backdrop-filter: none !important; color: white !important;
+}
+/* 卡片操作：32px 高、间距 8px、删除浅红底 */
+:root[data-theme="plain"] :is(#screen-snippets, .snippets-view) .snippet-item-actions { display: flex !important; justify-content: flex-end; gap: 8px !important; }
+:root[data-theme="plain"] :is(#screen-snippets, .snippets-view) .snippet-item-actions > button {
+  height: 32px !important; min-height: 32px !important; padding: 0 14px !important; border-radius: 999px !important; border: 0 !important; box-shadow: none !important;
+  background: var(--pl-blue-soft) !important; color: var(--pl-blue-deep) !important; font-size: 11px !important; font-weight: 700 !important;
+}
+:root[data-theme="plain"] :is(#screen-snippets, .snippets-view) .snippet-item-actions > button:is([data-delete-snippet], .danger) { background: var(--pl-danger-soft) !important; color: var(--pl-danger) !important; }
+
+/* 日记：日期标题上内边距 18px */
+:root[data-theme="plain"] :is(#screen-journal, .journal-view) .journal-magazine-hero-box { padding-top: 18px !important; }
+/* J2 小节标题：去胶囊，13px 粗体 + 6px 蓝点，与网格间距 8px */
+:root[data-theme="plain"] :is(#screen-journal, .journal-view) .picker-section-label { margin-bottom: 8px !important; }
+:root[data-theme="plain"] :is(#screen-journal, .journal-view) .picker-section-label > span {
+  display: inline-flex !important; align-items: center; gap: 6px; padding: 0 !important; margin: 0 !important; border: 0 !important; border-radius: 0 !important;
+  background: none !important; box-shadow: none !important; font-size: 13px !important; font-weight: 800 !important; color: var(--pl-blue-deep) !important; position: static !important;
+}
+:root[data-theme="plain"] :is(#screen-journal, .journal-view) .picker-section-label > span::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--pl-blue); flex: none; }
+/* J1 心情 / 天气选中：实心蓝 + 白字，对勾在格内右上角，scale .6→1 + 淡入 160ms */
+:root[data-theme="plain"] :is(#screen-journal, .journal-view) :is(.mood-pick-item, .weather-pick-item) { position: relative; }
+:root[data-theme="plain"] :is(#screen-journal, .journal-view) :is(.mood-pick-item, .weather-pick-item).active {
+  background: var(--pl-blue) !important; color: white !important; box-shadow: none !important; outline: 0 !important;
+}
+:root[data-theme="plain"] :is(#screen-journal, .journal-view) :is(.mood-pick-item, .weather-pick-item).active :is(small, span) { color: white !important; }
+:root[data-theme="plain"] :is(#screen-journal, .journal-view) :is(.mood-pick-item, .weather-pick-item).active::before { display: none !important; }
+:root[data-theme="plain"] :is(#screen-journal, .journal-view) :is(.mood-pick-item, .weather-pick-item).active::after {
+  z-index: 2 !important; -webkit-mask: none !important; mask: none !important; content: '' !important; position: absolute !important; right: 6px !important; top: 4px !important; left: auto !important; bottom: auto !important;
+  width: 14px !important; height: 14px !important; border-radius: 50% !important; box-shadow: none !important; border: 0 !important;
+  background: white url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='rgb(79,118,189)' stroke-width='3.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5'/%3E%3C/svg%3E") center / 10px 10px no-repeat !important;
+  animation: pl-pick-pop 160ms var(--pl-ease-out) both; transform: none; opacity: 1;
+}
+@keyframes pl-pick-pop { from { opacity: 0; transform: scale(.6); } }
+
+/* 账本：记一笔 44px（原方案正文 40px，预览 44px，按预览），投影降一档 */
+:root[data-theme="plain"] :is(#screen-ledger, .ledger-view) .ledger-add-btn { height: 44px !important; min-height: 44px !important; box-shadow: var(--pl-shadow-btn) !important; }
+/* L1 三项指标：一条浅底三栏，1px 竖线分隔，无投影 */
+:root[data-theme="plain"] :is(#screen-ledger, .ledger-view) .ledger-sub-stats {
+  display: grid !important; grid-template-columns: repeat(3, 1fr) !important; gap: 0 !important; background: var(--pl-inset) !important; border-radius: var(--pl-r-md) !important; box-shadow: none !important;
+}
+:root[data-theme="plain"] :is(#screen-ledger, .ledger-view) .ledger-sub-stats > * { background: transparent !important; box-shadow: none !important; border: 0 !important; border-radius: 0 !important; margin: 0 !important; min-width: 0; }
+:root[data-theme="plain"] :is(#screen-ledger, .ledger-view) .ledger-sub-stats > * + * { border-left: 1px solid var(--pl-line) !important; }
+/* L3 预算块：未设预算时收成一行 56px（设了预算后有进度条，不变） */
+:root[data-theme="plain"] :is(#screen-ledger, .ledger-view) .ledger-budget-box:has(> .level-bar[aria-label="尚未设置预算"]) {
+  height: 56px !important; min-height: 56px !important; padding: 0 14px !important; box-sizing: border-box; display: flex !important; align-items: center !important;
+  background: var(--pl-inset) !important; box-shadow: none !important; border: 0 !important;
+}
+/* 空预算时进度条（0%）不再占一行 */
+:root[data-theme="plain"] :is(#screen-ledger, .ledger-view) .ledger-budget-box > .level-bar[aria-label="尚未设置预算"] { display: none !important; }
+:root[data-theme="plain"] :is(#screen-ledger, .ledger-view) .ledger-budget-box:has(> .level-bar[aria-label="尚未设置预算"]) > .ledger-budget-head { width: 100%; margin: 0 !important; }
+/* 支出 / 收入：分段控件，蓝滑块 translateX 220ms */
+:root[data-theme="plain"] :is(#screen-ledger, .ledger-view) .ledger-quick-type {
+  position: relative !important; display: inline-grid !important; grid-template-columns: 1fr 1fr !important; padding: 3px !important; gap: 0 !important;
+  border-radius: 999px !important; background: var(--pl-inset) !important; border: 0 !important; box-shadow: none !important;
+}
+:root[data-theme="plain"] :is(#screen-ledger, .ledger-view) .ledger-quick-type::before {
+  content: ''; position: absolute; left: 3px; top: 3px; width: calc(50% - 3px); height: calc(100% - 6px); border-radius: 999px;
+  background: var(--pl-blue); box-shadow: var(--pl-shadow-btn); transition: transform 220ms var(--pl-ease-emph); pointer-events: none;
+}
+:root[data-theme="plain"] :is(#screen-ledger, .ledger-view) .ledger-quick-type:has(#strip-btn-income.active)::before { transform: translateX(100%); }
+:root[data-theme="plain"] :is(#screen-ledger, .ledger-view) .ledger-quick-type > button {
+  position: relative; z-index: 1; height: 32px !important; border-radius: 999px !important; background: transparent !important; box-shadow: none !important; border: 0 !important;
+  color: var(--ink-secondary) !important; font-weight: 800 !important; transition: color 220ms var(--pl-ease-emph) !important;
+}
+:root[data-theme="plain"] :is(#screen-ledger, .ledger-view) .ledger-quick-type > button.active { color: white !important; }
+:root[data-theme="plain"] #screen-ledger .ledger-quick-type > button:is(#strip-btn-expense, #strip-btn-income) { width: auto !important; min-width: 0 !important; padding: 0 !important; background: transparent !important; background-image: none !important; box-shadow: none !important; }
+:root[data-theme="plain"] #screen-ledger .ledger-quick-type > button:is(#strip-btn-expense, #strip-btn-income).active { color: white !important; }
+:root[data-theme="plain"] #screen-ledger .ledger-quick-type { width: auto !important; height: auto !important; background-image: none !important; }
+/* 分类：选中 12px 圆角 + 蓝描边 */
+:root[data-theme="plain"] :is(#screen-ledger, .ledger-view) .ledger-quick-cats > button { border-radius: var(--pl-r-sm) !important; border: 1px solid transparent !important; }
+:root[data-theme="plain"] :is(#screen-ledger, .ledger-view) .ledger-quick-cats > button.active { background: var(--pl-blue-soft) !important; border-color: var(--pl-blue) !important; color: var(--pl-blue-deep) !important; }
+/* L2 我的账户：¥ 块主题蓝浅底 12px 圆角；管理胶囊；2×2，名称单行省略 */
+:root[data-theme="plain"] :is(#screen-ledger, .ledger-view) .ledger-accounts-section { height: auto !important; }
+:root[data-theme="plain"] :is(#screen-ledger, .ledger-view) .ledger-accounts-head { grid-template-columns: 40px minmax(0,1fr) auto !important; gap: 10px !important; }
+:root[data-theme="plain"] :is(#screen-ledger, .ledger-view) .ledger-accounts-mark {
+  width: 40px !important; height: 40px !important; display: grid !important; place-items: center; background: var(--pl-blue-tint) !important; color: var(--pl-blue-deep) !important; border-radius: var(--pl-r-sm) !important; box-shadow: none !important; border: 0 !important;
+}
+:root[data-theme="plain"] :is(#screen-ledger, .ledger-view) .ledger-accounts-head .soft-button { border-radius: 999px !important; border: 1px solid var(--pl-line) !important; }
+:root[data-theme="plain"] :is(#screen-ledger, .ledger-view) .ledger-accounts-track {
+  display: grid !important; grid-template-columns: minmax(0,1fr) minmax(0,1fr) !important; grid-auto-flow: row !important; grid-auto-columns: auto !important; height: auto !important; gap: 8px !important; overflow: visible !important;
+}
+:root[data-theme="plain"] :is(#screen-ledger, .ledger-view) .ledger-accounts-track > .account-mini-card {
+  width: auto !important; min-width: 0 !important; flex: none !important; background: var(--pl-inset) !important; box-shadow: none !important; border: 0 !important; border-radius: 12px !important;
+}
+:root[data-theme="plain"] :is(#screen-ledger, .ledger-view) .account-mini-name { min-width: 0; max-width: 100%; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; display: block !important; }
+
+/* C1 日历选中日：36px、10px 圆角蓝块，不旋转；今天未选中显示蓝细环；新选中 scale .86→1 + 淡入 180ms */
+:root[data-theme="plain"] .calendar-view.cal-screen .cal-cell.active,
+:root[data-theme="plain"] .calendar-view.cal-screen .cal-cell.today.active {
+  transform: none !important; rotate: none !important; border-radius: 10px !important; box-shadow: none !important; background: var(--pl-blue) !important; color: white !important;
+  width: 36px; height: 36px; justify-self: center; align-self: center; animation: pl-day-in 180ms var(--pl-ease-out) both;
+}
+:root[data-theme="plain"] .calendar-view.cal-screen .cal-cell.today:not(.active) { background: transparent !important; box-shadow: inset 0 0 0 1.5px var(--pl-blue) !important; border-radius: 10px !important; transform: none !important; }
+@keyframes pl-day-in { from { opacity: 0; transform: scale(.86); } }
+/* C2 档案标题条：白卡标题行，无描边 */
+:root[data-theme="plain"] .calendar-view .cal-detail-head {
+  height: 56px !important; min-height: 56px; padding: 0 10px 0 16px !important; box-sizing: border-box; display: flex !important; align-items: center !important; justify-content: space-between !important;
+  background: var(--plain-surface) !important; border: 0 !important; border-radius: var(--pl-r-lg) !important; box-shadow: var(--pl-shadow-card) !important;
+}
+:root[data-theme="plain"] .calendar-view .cal-detail-head .sheet-title { font-size: 17px !important; }
+
+@media (prefers-reduced-motion: reduce) {
+  :root[data-theme="plain"] :is(#screen-journal, .journal-view) :is(.mood-pick-item, .weather-pick-item).active::after,
+  :root[data-theme="plain"] .calendar-view.cal-screen .cal-cell.active { animation: none !important; }
+  :root[data-theme="plain"] :is(#screen-ledger, .ledger-view) .ledger-quick-type::before { transition: none; }
+}
+
+/* ==========================================================================
+   三十七 · 签名动效（方案 #36 §8：S1、S4–S12，原样照抄，选择器按真实 DOM 核对）
+   JS 在 motion-signature.js；档位 rich / lite / none 由 <html data-pl-motion> 决定。
+   只动 transform / opacity；照片表面不挂任何签名动效。
+   ========================================================================== */
+/* S1 刊头晨光：五行从遮罩里升起 620ms expo，行间 70ms；lite 保留，none 直接显示 */
+:root[data-theme="plain"] .pl-rv { display: inline-block; vertical-align: bottom; padding-bottom: .08em; margin-bottom: -.08em; clip-path: inset(-1em -1em 0 -1em); }   /* 只裁下缘：大日期字号大、行高紧，overflow:hidden 会裁掉字头 */
+:root[data-theme="plain"] .pl-rv-in { display: inline-block; }
+:root[data-theme="plain"] .magazine-title-date > .date-num > .pl-rv > .pl-rv-in { display: inline-flex; align-items: inherit; gap: inherit; }
+:root[data-theme="plain"] .magazine-brand-line > .pl-rv { display: flex; width: 100%; }
+:root[data-theme="plain"] .magazine-brand-line > .pl-rv > .pl-rv-in { display: flex; width: 100%; justify-content: inherit; align-items: center; gap: inherit; }
+:root[data-theme="plain"]:is([data-pl-motion="rich"], [data-pl-motion="lite"]) .today-view .magazine-header:is(.pl-mast-play, .pl-mast-done) > * { animation: none !important; }   /* 摘掉 play 类后不能让旧的 v3-masthead-rise 重播 */
+:root[data-theme="plain"]:is([data-pl-motion="rich"], [data-pl-motion="lite"]) .pl-mast-play .pl-rv-in {
+  animation: pl-rv-up 620ms var(--pl-ease-expo) both;
+  animation-delay: calc(var(--ri) * 70ms);
+}
+:root[data-theme="plain"]:is([data-pl-motion="rich"], [data-pl-motion="lite"]) .pl-mast-play .editorial-cover-motto::after {
+  transform-origin: left; animation: pl-rule-in 480ms var(--pl-ease-expo) 360ms both;
+}
+@keyframes pl-rv-up { from { transform: translateY(105%); } }
+@keyframes pl-rule-in { from { transform: scaleX(0); } }
+
+/* S4 视差页头：0–240px 滚动区间，合成线程驱动；只 rich；不支持 animation-timeline 时静止 */
+@supports (animation-timeline: scroll()) {
+  /* 真实滚动容器是 #app；页面自己的 .view 也是 overflow:auto 但不滚，scroll(nearest) 会落到它身上不动，所以给 #app 起名 */
+  :root[data-theme="plain"][data-pl-motion="rich"] #app { scroll-timeline: --pl-page block; }
+  :root[data-theme="plain"][data-pl-motion="rich"] :is(.subpage-header > .subpage-title, .ledger-page-header > .ledger-page-title, .cal-screen-head > .cal-screen-title) {
+    animation: pl-px-1 linear both; animation-timeline: --pl-page; animation-range: 0 240px; }
+  :root[data-theme="plain"][data-pl-motion="rich"] :is(.subpage-header > .subpage-subtitle, .ledger-page-header > .ledger-page-subtitle, .cal-screen-head > .cal-screen-subtitle) {
+    animation: pl-px-2 linear both; animation-timeline: --pl-page; animation-range: 0 240px; }
+  :root[data-theme="plain"][data-pl-motion="rich"] :is(.moments-corner-note, .ledger-corner-note, .cal-corner-note) {
+    animation: pl-px-3 linear both; animation-timeline: --pl-page; animation-range: 0 240px; }
+}
+@keyframes pl-px-1 { to { transform: translate3d(0, 96px, 0); opacity: .15; } }
+@keyframes pl-px-2 { to { transform: translate3d(0, 72px, 0); opacity: 0; } }
+@keyframes pl-px-3 { to { transform: translate3d(0, 40px, 0) rotate(10deg); } }   /* 起点 = 纸签自身的 rotate(4deg) */
+
+/* S5 磁吸游标：整张月网格只有一块 36px 蓝游标，magnet 弹簧滑行；文字 140ms 后变白 */
+:root[data-theme="plain"] .calendar-full-grid.pl-has-cursor { position: relative; }
+:root[data-theme="plain"] .pl-cal-cursor { position: absolute; left: 0; top: 0; width: 36px; height: 36px; border-radius: 10px;
+  background: var(--pl-blue); box-shadow: var(--pl-shadow-btn); pointer-events: none; z-index: 0;
+  transition: transform var(--pl-dur-magnet) var(--pl-ease-emph), opacity 180ms var(--pl-ease-out);
+  transition-timing-function: var(--pl-spring-magnet), var(--pl-ease-out); }
+:root[data-theme="plain"] .pl-cal-cursor.pl-cursor-jump { transition: none; }
+:root[data-theme="plain"] .pl-cal-cursor.pl-cursor-fade { transition: opacity 180ms var(--pl-ease-out); }
+:root[data-theme="plain"][data-pl-motion="none"] .pl-cal-cursor { transition: none; }
+:root[data-theme="plain"] .calendar-view.cal-screen .calendar-full-grid.pl-has-cursor .cal-cell { position: relative; z-index: 1; transition: color 0s; }
+:root[data-theme="plain"] .calendar-view.cal-screen .calendar-full-grid.pl-has-cursor .cal-cell.active {
+  background: transparent !important; animation: none !important; transition: color 0s 140ms; }
+:root[data-theme="plain"] .calendar-view.cal-screen .calendar-full-grid.pl-has-cursor.pl-cursor-sliding .cal-cell.active { color: inherit !important; }
+:root[data-theme="plain"] .calendar-view.cal-screen .calendar-full-grid.pl-has-cursor .cal-cell.today.active { box-shadow: none !important; }
+
+/* S6 弹性滑块：底栏选中块、账本支出/收入分段换 snappy 弹簧 */
+:root[data-theme="plain"] #floating-dock::before,
+:root[data-theme="plain"] :is(#screen-ledger, .ledger-view) .ledger-quick-type::before {
+  transition-duration: var(--pl-dur-snappy);
+  transition-timing-function: var(--pl-ease-emph);
+  transition-timing-function: var(--pl-spring-snappy);
+}
+
+/* S7 数字翻牌：每位 600ms magnet，从个位起每位 +40ms */
+:root[data-theme="plain"] .pl-reels { font-variant-numeric: tabular-nums; white-space: nowrap; }
+:root[data-theme="plain"] .pl-reel { display: inline-block; height: 1.1em; overflow: hidden; vertical-align: top; }
+:root[data-theme="plain"] .pl-reel > span { display: block; transform: translateY(calc(var(--d) * -1.1em));
+  transition: transform var(--pl-dur-magnet) var(--pl-ease-emph) calc(var(--di) * 40ms);
+  transition-timing-function: var(--pl-spring-magnet); }
+:root[data-theme="plain"] .pl-reel b { display: block; height: 1.1em; line-height: 1.1em; font: inherit; }
+:root[data-theme="plain"] .pl-reels { line-height: 1.1em; }
+:root[data-theme="plain"][data-pl-motion="none"] .pl-reel > span { transition: none; }
+
+/* S8 主角卡微光：900ms 起一道淡光 1100ms 掠过，只一次；只 rich */
+:root[data-theme="plain"][data-pl-motion="rich"] .halo-card { overflow: hidden; }
+:root[data-theme="plain"] .halo-card > :is(.pl-sheen, .pl-glare) { display: none; }
+:root[data-theme="plain"][data-pl-motion="rich"] .halo-card > .pl-sheen {
+  display: block; position: absolute; inset: 0 auto 0 0; width: 55%; z-index: 2; pointer-events: none;
+  background: linear-gradient(100deg, transparent 20%, rgba(79,118,189,.10) 45%, rgba(255,255,255,.7) 50%, rgba(79,118,189,.10) 55%, transparent 80%);
+  opacity: 0; transform: translateX(-110%);   /* 运动由 JS 的 animate() 播：translateX(-110% → 200%)，opacity 0 → 1（15%）→ 1（85%）→ 0，1100ms，900ms 起 */
+}
+
+/* S9 指尖倾斜：最多 5°，perspective 900，按下 140ms，松手 520ms release；按压缩放由 --pl-press 接管 */
+:root[data-theme="plain"][data-pl-motion="rich"] .halo-card.pl-tilt,
+:root[data-theme="plain"][data-pl-motion="rich"] .halo-card.pl-tilt[data-pressed] {
+  transform: perspective(900px) rotateX(var(--pl-rx, 0deg)) rotateY(var(--pl-ry, 0deg)) scale(var(--pl-press, 1)) !important;
+  transition: transform 520ms var(--spring-release);
+}
+:root[data-theme="plain"][data-pl-motion="rich"] .halo-card.pl-tilting { --pl-press: .988; transition-duration: 140ms; transition-timing-function: var(--pl-ease-out); }
+:root[data-theme="plain"][data-pl-motion="rich"] .halo-card > .pl-glare {
+  display: block; position: absolute; left: 0; top: 0; width: 160px; height: 160px; z-index: 1; pointer-events: none;
+  background: radial-gradient(closest-side, rgba(146, 183, 238, .28), transparent);
+  transform: translate(var(--pl-gx, 0), var(--pl-gy, 0)); opacity: 0; transition: opacity 200ms var(--pl-ease-out);
+}
+:root[data-theme="plain"][data-pl-motion="rich"] .halo-card.pl-tilting > .pl-glare { opacity: 1; }
+
+/* S10 墨晕：从落点晕开一圈 16% 的蓝，520ms；只 rich */
+:root[data-theme="plain"][data-pl-motion="rich"] :is(.setting-item-row, .cal-tool-btn, .qa-card, .snippet-tool-btn, .subpage-layer .detail-sheet-row) { position: relative; overflow: hidden; }
+:root[data-theme="plain"] .pl-ink { position: absolute; border-radius: 50%; background: var(--pl-blue); pointer-events: none; z-index: 0;
+  transform: scale(1); opacity: 0; animation: pl-ink 520ms var(--pl-ease-out) backwards; }
+@keyframes pl-ink { from { transform: scale(.1); opacity: .16; } }
+
+/* S11 三拍入场：页头 0ms → 主角卡 80ms（14px / 460ms）→ 其余 140ms + 序号 × 32ms；今日页头由 S1 接管 */
+:root[data-theme="plain"]:not([data-pl-motion="none"]) [data-stagger] { animation-delay: calc(140ms + min(var(--stagger-index, 0), 6) * 32ms); }
+:root[data-theme="plain"]:not([data-pl-motion="none"]) :is(.subpage-header, .ledger-page-header, .cal-screen-head) { animation: pl-head-in 420ms var(--spring-entrance) 0ms backwards; }
+:root[data-theme="plain"]:not([data-pl-motion="none"]) .halo-card { animation: pl-hero-in 460ms var(--spring-entrance) 80ms backwards; }
+@keyframes pl-head-in { from { opacity: 0; transform: translate3d(0, 8px, 0); } }
+@keyframes pl-hero-in { from { opacity: 0; transform: translate3d(0, 14px, 0); } }
+
+/* S12 Toast 弹性落位：进 460ms snappy，出 160ms ease-in */
+:root[data-theme="plain"] .toast { transform: translate(-50%, 14px) scale(.96);
+  transition: opacity 160ms var(--pl-ease-in), transform 160ms var(--pl-ease-in), visibility 160ms; }
+:root[data-theme="plain"] .toast.show { transform: translate(-50%, 0);
+  transition: opacity 200ms var(--pl-ease-out), transform 460ms var(--pl-ease-out), visibility 0s;
+  transition-timing-function: var(--pl-ease-out), var(--pl-spring-snappy), linear; }
+
+@media (prefers-reduced-motion: reduce) {
+  :root[data-theme="plain"] .pl-cal-cursor,
+  :root[data-theme="plain"] .pl-reel > span { transition: none !important; }
+  :root[data-theme="plain"] :is(.subpage-header, .ledger-page-header, .cal-screen-head, .halo-card) { animation: none !important; }
 }

@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="plain" data-pl-motion="rich">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>确认框与小弹窗 Z5–Z9 · 演示</title>
+<link rel="stylesheet" href="../themes-plain-light.css">
+<style>
+  :root { --app-safe-top: env(safe-area-inset-top,0); --app-safe-bottom: env(safe-area-inset-bottom,0); --spring-release: cubic-bezier(.32,.72,0,1); --ease-spring: cubic-bezier(.16,1,.3,1); }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: #EEF2F7; font-family: system-ui, "PingFang SC", sans-serif; color: #2E343B; }
+  .phone-shell { position: relative; width: min(100%, 420px); height: 100dvh; margin: 0 auto; overflow: hidden; background: #F4F6F9; display: flex; flex-direction: column; }
+  #app { position: relative; z-index: 1; flex: 1; overflow: auto; padding: calc(12px + var(--app-safe-top)) 14px 24px; }
+  h1 { font-size: 20px; margin: 0 0 6px; } .hint { font-size: 12.5px; color: #6b7480; line-height: 1.55; margin: 0 0 12px; }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+  .row button, .subpage-back-btn { min-height: 40px; padding: 0 14px; border-radius: 999px; border: 1px solid #4F76BD; background: #fff; color: #4F76BD; font: inherit; font-size: 13px; display: inline-flex; align-items: center; gap: 4px; }
+  .tier button[aria-pressed="true"] { background: #4F76BD; color: #fff; }
+  .subpage-layer { position: absolute; inset: 0; z-index: 160; background: #F4F6F9; transform: translateX(100%); visibility: hidden; transition: transform .35s var(--ease-spring), visibility .35s; display: flex; flex-direction: column; }
+  .subpage-layer.active { transform: translateX(0); visibility: visible; }
+  .subpage-nav-bar { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 8px; padding: calc(10px + var(--app-safe-top)) 12px 10px; background: rgba(244,246,249,.94); }
+  .subpage-body { padding: 12px 14px; }
+  .card { background: #fff; border-radius: 14px; padding: 14px; border: 1px solid rgba(85,96,108,.12); margin-bottom: 10px; }
+  .modal-layer { position: fixed; inset: 0; z-index: 240; display: none; align-items: flex-end; justify-content: center; background: rgba(18,16,14,.45); }
+  .modal-layer.open { display: flex; }
+  .modal { width: min(100%, 420px); background: #fff; border-radius: 22px 22px 0 0; padding: 18px 18px calc(22px + var(--app-safe-bottom)); }
+  .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 14px; }
+  .modal-actions button { min-height: 40px; padding: 0 16px; border-radius: 999px; border: 1px solid rgba(85,96,108,.2); background: #fff; font: inherit; }
+  .modal-actions .danger { background: #B4564F; color: #fff; border-color: transparent; }
+  .anchor-wrap { position: relative; display: inline-block; }
+  .pl-popover[hidden] { display: none !important; }
+  .pl-popover { position: absolute; right: 0; top: 110%; min-width: 160px; background: #fff; border-radius: 12px; border: 1px solid rgba(85,96,108,.12); box-shadow: var(--pl-shadow-float); padding: 6px; z-index: 5; }
+  .pl-popover button { display: block; width: 100%; text-align: left; border: 0; background: transparent; padding: 10px 12px; border-radius: 8px; font: inherit; }
+</style>
+</head>
+<body>
+<div class="phone-shell">
+  <main id="app">
+    <h1>Z5–Z9 确认框与小弹窗</h1>
+    <p class="hint">对标 Opus #36 §9.7–9.11。确认框居中、点遮罩轻推不关；二级页叠层左移；锚点菜单从按钮角长出；返回箭头按下左移 3px。日记牌组 ⋯ 不改。</p>
+    <div class="row tier" id="tier">
+      <button data-tier="rich">完整</button><button data-tier="lite">低端机</button><button data-tier="none">减弱动态</button>
+    </div>
+    <div class="row">
+      <button type="button" id="open-confirm">打开确认框（Z5/Z8）</button>
+      <button type="button" id="open-form">未保存表单（Z8）</button>
+      <button type="button" id="open-sub">打开二级页（Z6/Z9）</button>
+      <span class="anchor-wrap">
+        <button type="button" class="subpage-nav-action" id="open-menu" aria-label="更多">⋯ 菜单（Z7）</button>
+        <div class="pl-popover" id="demo-menu" hidden data-pl-popover-menu>
+          <button type="button">编辑</button>
+          <button type="button">分享</button>
+          <button type="button">删除</button>
+        </div>
+      </span>
+    </div>
+    <div class="card">点确认框/未保存表单外面的遮罩：应轻推，不关闭。点取消才关。</div>
+  </main>
+  <div class="subpage-layer" id="sub-a">
+    <nav class="subpage-nav-bar">
+      <button type="button" class="subpage-back-btn" data-close-a><span class="material-symbols-outlined">arrow_back</span>返回</button>
+      <span class="subpage-nav-title">第一层</span>
+      <button type="button" id="open-sub2">再进一层</button>
+    </nav>
+    <div class="subpage-body"><div class="card">这是第一层二级页。再开第二层时，这一层应左移 20%（Z6）。按住返回看箭头左移（Z9）。</div></div>
+  </div>
+  <div class="subpage-layer" id="sub-b">
+    <nav class="subpage-nav-bar">
+      <button type="button" class="subpage-back-btn" data-close-b><span class="material-symbols-outlined">arrow_back</span>返回</button>
+      <span class="subpage-nav-title">第二层</span>
+      <span></span>
+    </nav>
+    <div class="subpage-body"><div class="card">第二层。下面那层应被压住并左移。</div></div>
+  </div>
+</div>
+<div class="modal-layer" id="modal-layer"></div>
+<script type="module">
+  import { installDialogMotion } from '../motion-dialogs.js';
+  const layer = document.getElementById('modal-layer');
+  const $ = s => document.querySelector(s);
+  function openModal(html, cls = '') {
+    layer.innerHTML = `<div class="modal ${cls}" role="dialog">${html}</div>`;
+    layer.classList.add('open');
+  }
+  function closeModal() { layer.classList.remove('open'); layer.innerHTML = ''; }
+  $('#open-confirm').onclick = () => openModal(
+    `<h2>确认删除</h2><p>此操作无法撤销。</p><div class="modal-actions"><button type="button" data-close>取消</button><button class="danger" id="confirm-delete">删除</button></div>`,
+    'confirm-sheet'
+  );
+  $('#open-form').onclick = () => openModal(
+    `<form id="snippet-form"><h2>新增随手拍</h2><div class="snippet-photo-cell" style="width:72px;height:72px;background:#dfe6ef;border-radius:10px;margin:8px 0"></div><textarea name="text">未保存的说明</textarea><div class="modal-actions"><button type="button" data-close>取消</button><button class="save">保存</button></div></form>`,
+    'snippet-form-modal'
+  );
+  layer.addEventListener('click', e => {
+    if (e.target === layer) return; // Z8 捕获阶段处理
+    if (e.target.closest('[data-close], #confirm-delete')) closeModal();
+  });
+  $('#open-sub').onclick = () => $('#sub-a').classList.add('active');
+  $('#open-sub2').onclick = () => $('#sub-b').classList.add('active');
+  document.querySelector('[data-close-a]').onclick = () => { $('#sub-a').classList.remove('active'); $('#sub-b').classList.remove('active'); };
+  document.querySelector('[data-close-b]').onclick = () => $('#sub-b').classList.remove('active');
+  const menu = $('#demo-menu');
+  $('#open-menu').onclick = e => {
+    e.stopPropagation();
+    menu.hidden = !menu.hidden;
+    if (!menu.hidden) {
+      menu.classList.add('pl-popover', 'open');
+      [...menu.children].forEach((c, i) => c.style.setProperty('--pl-ci', i));
+    } else menu.classList.remove('open');
+  };
+  document.addEventListener('click', e => {
+    if (!e.target.closest('.anchor-wrap')) { menu.hidden = true; menu.classList.remove('open'); }
+  });
+  function syncTier() {
+    document.querySelectorAll('[data-tier]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.tier === document.documentElement.dataset.plMotion)));
+  }
+  $('#tier').onclick = e => {
+    const t = e.target.closest('[data-tier]'); if (!t) return;
+    document.documentElement.dataset.plMotion = t.dataset.tier; syncTier();
+  };
+  // 补一个 material 字体回退
+  const style = document.createElement('style');
+  style.textContent = `.material-symbols-outlined{font-family:system-ui;font-style:normal}`;
+  document.head.append(style);
+  installDialogMotion();
+  syncTier();
+</script>
+</body>
+</html>
