@@ -295,7 +295,8 @@ async function boot() {
     // 排闹钟不挡住第一帧。权限只在这一次启动里问一次，和页面渲染并行。
     syncScheduledReminders({ requestPermission: true }).then(result => {
       if (result?.lastError) console.warn('提醒排程', result.lastError);
-    }).catch(error => console.warn('提醒没有排上', error));
+    }).catch(error => console.warn('提醒没有排上', error))
+      .finally(() => window.dispatchEvent(new Event('reminders:synced')));
     syncCountdownWidget();
     if (state.timer.running && state.timer.mode !== 'stopwatch' && state.timer.endAt <= Date.now()) await completeTimer(true);
     else {

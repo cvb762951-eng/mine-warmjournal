@@ -25,6 +25,7 @@ test('设置页不再盲写「已开启」，回前台会刷新', () => {
   assert.match(mine, /reminders:synced[\s\S]{0,120}refreshReminderStatus/);
   const app = readFileSync(new URL('../app.js', import.meta.url), 'utf8');
   assert.match(app, /syncScheduledReminders\([\s\S]{0,200}finally\([\s\S]{0,80}reminders:synced/);
+  assert.match(app, /syncScheduledReminders\(\{ requestPermission: true \}\)[\s\S]{0,300}finally\([\s\S]{0,80}reminders:synced/, '冷启动排程结束后也要发 reminders:synced');
   const notifications = readFileSync(new URL('../notifications.js', import.meta.url), 'utf8');
   for (const name of ['getReminderStatus', 'openExactAlarmSettings', 'openNotificationSettings']) assert.match(notifications, new RegExp(`export async function ${name}\\(`));
   assert.doesNotMatch(notifications, /from '\.\/views\/mine\.js'/, 'notifications.js 不能反向依赖 mine.js（避免循环引用）');
