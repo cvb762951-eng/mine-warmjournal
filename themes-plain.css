@@ -2941,7 +2941,7 @@ button.danger) {
 :root[data-theme="plain"] :is(#screen-snippets, .snippets-view) > .snippet-tabs-filter {
   display: flex !important; flex-wrap: nowrap !important; gap: 6px !important; overflow-x: auto !important; scroll-snap-type: x proximity; scrollbar-width: none;
   margin-left: -14px !important; margin-right: -14px !important; padding: 2px 14px 6px !important;
-  -webkit-mask-image: linear-gradient(90deg, #000 85%, transparent); mask-image: linear-gradient(90deg, #000 85%, transparent);
+  -webkit-mask-image: linear-gradient(90deg, black 85%, transparent); mask-image: linear-gradient(90deg, black 85%, transparent);
 }
 :root[data-theme="plain"] :is(#screen-snippets, .snippets-view) > .snippet-tabs-filter::-webkit-scrollbar { display: none; }
 :root[data-theme="plain"] :is(#screen-snippets, .snippets-view) > .snippet-tabs-filter > .snippet-filter-pill {
@@ -2956,7 +2956,7 @@ button.danger) {
 :root[data-theme="plain"] :is(#screen-snippets, .snippets-view) .snippet-day-header .snippet-day-title { font-size: 15px !important; }
 /* M4 拍立得 / 实况 / 视频角标：12px 圆角、墨色实底、不模糊 */
 :root[data-theme="plain"] :is(#screen-snippets, .snippets-view) .snippet-photo-badge {
-  background: var(--pl-badge) !important; border-radius: var(--pl-r-sm) !important; -webkit-backdrop-filter: none !important; backdrop-filter: none !important; color: #fff !important;
+  background: var(--pl-badge) !important; border-radius: var(--pl-r-sm) !important; -webkit-backdrop-filter: none !important; backdrop-filter: none !important; color: white !important;
 }
 /* 卡片操作：32px 高、间距 8px、删除浅红底 */
 :root[data-theme="plain"] :is(#screen-snippets, .snippets-view) .snippet-item-actions { display: flex !important; justify-content: flex-end; gap: 8px !important; }
@@ -2978,17 +2978,17 @@ button.danger) {
 /* J1 心情 / 天气选中：实心蓝 + 白字，对勾在格内右上角，scale .6→1 + 淡入 160ms */
 :root[data-theme="plain"] :is(#screen-journal, .journal-view) :is(.mood-pick-item, .weather-pick-item) { position: relative; }
 :root[data-theme="plain"] :is(#screen-journal, .journal-view) :is(.mood-pick-item, .weather-pick-item).active {
-  background: var(--pl-blue) !important; color: #fff !important; box-shadow: none !important; outline: 0 !important;
+  background: var(--pl-blue) !important; color: white !important; box-shadow: none !important; outline: 0 !important;
 }
-:root[data-theme="plain"] :is(#screen-journal, .journal-view) :is(.mood-pick-item, .weather-pick-item).active :is(small, span) { color: #fff !important; }
+:root[data-theme="plain"] :is(#screen-journal, .journal-view) :is(.mood-pick-item, .weather-pick-item).active :is(small, span) { color: white !important; }
 :root[data-theme="plain"] :is(#screen-journal, .journal-view) :is(.mood-pick-item, .weather-pick-item).active::before { display: none !important; }
 :root[data-theme="plain"] :is(#screen-journal, .journal-view) :is(.mood-pick-item, .weather-pick-item).active::after {
   z-index: 2 !important; -webkit-mask: none !important; mask: none !important; content: '' !important; position: absolute !important; right: 6px !important; top: 4px !important; left: auto !important; bottom: auto !important;
   width: 14px !important; height: 14px !important; border-radius: 50% !important; box-shadow: none !important; border: 0 !important;
-  background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%234F76BD' stroke-width='3.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5'/%3E%3C/svg%3E") center / 10px 10px no-repeat !important;
+  background: white url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='rgb(79,118,189)' stroke-width='3.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5'/%3E%3C/svg%3E") center / 10px 10px no-repeat !important;
   animation: pl-pick-pop 160ms var(--pl-ease-out) both; transform: none; opacity: 1;
 }
-@keyframes pl-pick-pop { from { opacity: 0; transform: scale(.6); } to { opacity: 1; transform: none; } }
+@keyframes pl-pick-pop { from { opacity: 0; transform: scale(.6); } }
 
 /* 账本：记一笔 44px（原方案正文 40px，预览 44px，按预览），投影降一档 */
 :root[data-theme="plain"] :is(#screen-ledger, .ledger-view) .ledger-add-btn { height: 44px !important; min-height: 44px !important; box-shadow: var(--pl-shadow-btn) !important; }
@@ -3018,11 +3018,11 @@ button.danger) {
 :root[data-theme="plain"] :is(#screen-ledger, .ledger-view) .ledger-quick-type:has(#strip-btn-income.active)::before { transform: translateX(100%); }
 :root[data-theme="plain"] :is(#screen-ledger, .ledger-view) .ledger-quick-type > button {
   position: relative; z-index: 1; height: 32px !important; border-radius: 999px !important; background: transparent !important; box-shadow: none !important; border: 0 !important;
-  color: var(--pl-ink-2, #55606C) !important; font-weight: 800 !important; transition: color 220ms var(--pl-ease-emph) !important;
+  color: var(--ink-secondary) !important; font-weight: 800 !important; transition: color 220ms var(--pl-ease-emph) !important;
 }
-:root[data-theme="plain"] :is(#screen-ledger, .ledger-view) .ledger-quick-type > button.active { color: #fff !important; }
+:root[data-theme="plain"] :is(#screen-ledger, .ledger-view) .ledger-quick-type > button.active { color: white !important; }
 :root[data-theme="plain"] #screen-ledger .ledger-quick-type > button:is(#strip-btn-expense, #strip-btn-income) { width: auto !important; min-width: 0 !important; padding: 0 !important; background: transparent !important; background-image: none !important; box-shadow: none !important; }
-:root[data-theme="plain"] #screen-ledger .ledger-quick-type > button:is(#strip-btn-expense, #strip-btn-income).active { color: #fff !important; }
+:root[data-theme="plain"] #screen-ledger .ledger-quick-type > button:is(#strip-btn-expense, #strip-btn-income).active { color: white !important; }
 :root[data-theme="plain"] #screen-ledger .ledger-quick-type { width: auto !important; height: auto !important; background-image: none !important; }
 /* 分类：选中 12px 圆角 + 蓝描边 */
 :root[data-theme="plain"] :is(#screen-ledger, .ledger-view) .ledger-quick-cats > button { border-radius: var(--pl-r-sm) !important; border: 1px solid transparent !important; }
@@ -3045,15 +3045,15 @@ button.danger) {
 /* C1 日历选中日：36px、10px 圆角蓝块，不旋转；今天未选中显示蓝细环；新选中 scale .86→1 + 淡入 180ms */
 :root[data-theme="plain"] .calendar-view.cal-screen .cal-cell.active,
 :root[data-theme="plain"] .calendar-view.cal-screen .cal-cell.today.active {
-  transform: none !important; rotate: none !important; border-radius: 10px !important; box-shadow: none !important; background: var(--pl-blue) !important; color: #fff !important;
+  transform: none !important; rotate: none !important; border-radius: 10px !important; box-shadow: none !important; background: var(--pl-blue) !important; color: white !important;
   width: 36px; height: 36px; justify-self: center; align-self: center; animation: pl-day-in 180ms var(--pl-ease-out) both;
 }
 :root[data-theme="plain"] .calendar-view.cal-screen .cal-cell.today:not(.active) { box-shadow: inset 0 0 0 1.5px var(--pl-blue) !important; border-radius: 10px !important; transform: none !important; }
-@keyframes pl-day-in { from { opacity: 0; transform: scale(.86); } to { opacity: 1; transform: none; } }
+@keyframes pl-day-in { from { opacity: 0; transform: scale(.86); } }
 /* C2 档案标题条：白卡标题行，无描边 */
 :root[data-theme="plain"] .calendar-view .cal-detail-head {
   height: 56px !important; min-height: 56px; padding: 0 10px 0 16px !important; box-sizing: border-box; display: flex !important; align-items: center !important; justify-content: space-between !important;
-  background: var(--plain-surface, #fff) !important; border: 0 !important; border-radius: var(--pl-r-lg) !important; box-shadow: var(--pl-shadow-card) !important;
+  background: var(--plain-surface) !important; border: 0 !important; border-radius: var(--pl-r-lg) !important; box-shadow: var(--pl-shadow-card) !important;
 }
 :root[data-theme="plain"] .calendar-view .cal-detail-head .sheet-title { font-size: 17px !important; }
 
