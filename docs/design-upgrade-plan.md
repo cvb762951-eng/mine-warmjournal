@@ -1062,7 +1062,426 @@ P .toast.show { transform: translate(-50%, 0);
 
 ### 8.6 落地顺序补充
 
-签名动效排在第 6 节的步骤 A–F **之后**，作为步骤 G 一次落完：`motion-signature.js`（新文件）+ `themes-plain-light.css`"二十九 · 签名动效" + `app.js` 一行调用 + `assets/plain-grain-160.png`。建议新增测试 `tests/plain-signature-motion.test.mjs`，锁住三件事：签名规则都带 plain 前缀；所有 `@keyframes` 只出现 `transform` / `opacity`；`motion-signature.js` 不 import `model.js` / `storage.js` / `notifications.js`。
+签名动效排在第 6 节的步骤 A–F **之后**，作为步骤 G 一次落完（第 9 节的二级页与弹窗手势是步骤 H，排在 G 之后）：`motion-signature.js`（新文件）+ `themes-plain-light.css`"二十九 · 签名动效" + `app.js` 一行调用 + `assets/plain-grain-160.png`。建议新增测试 `tests/plain-signature-motion.test.mjs`，锁住三件事：签名规则都带 plain 前缀；所有 `@keyframes` 只出现 `transform` / `opacity`；`motion-signature.js` 不 import `model.js` / `storage.js` / `notifications.js`。
+
+---
+
+## 9. 二级页与弹窗：连贯、跟手、可打断
+
+第 8 节让页面"好看地出现"，这一节让二级页和弹窗**能被手直接操纵**：从哪里来、回哪里去，拖到一半可以反悔，松手后按手指的速度把剩下的路走完。
+
+### 9.0 原则
+
+1. **空间连续。** 二级页从被点的卡片或列表行原位展开，标题飞到导航栏；返回时原路收回。找不到来源（比如被重绘掉了）才退回普通推入。
+2. **手势可打断、可反悔。** 拖动过程中元素严格跟手（1:1），松手时用手指的速度作为初速度交给弹簧（`SpringODE.to(target, velocity)`，`motion.js` 已支持），速度方向决定完成还是回弹。
+3. **背景与前景同进度。** 弹层下拉、右滑返回时，背后的页面按同一个进度值 `p` 同步变化。每帧只写 2–3 个元素的 `transform` / `opacity`，不写 CSS 变量到祖先节点（会让整棵子树重算样式）。
+4. **内容浮现要短。** 弹层和二级页内的子元素依次浮现，总时长 ≤ 380ms，从不禁用点击。用户在浮现过程中点按钮、滚动都直接生效。
+5. **三档照旧。** 手势本身在三档都可用（跟手是直接操纵，不算动画）。差别在松手后的动画和背景联动：
+
+| 项 | rich | lite | none（减弱动态效果） |
+|---|---|---|---|
+| Z1 原位展开 + 标题飞行 | 开 | 开 | 关，普通显示 |
+| Z2 右滑返回 | 跟手 + 底页视差 + 遮罩 | 跟手 + 遮罩，底页不动 | 跟手；松手直接到终点 |
+| Z3 弹层下拉 | 跟手 + 背景缩小变暗 | 跟手 + 遮罩变淡，背景不缩放 | 跟手；松手直接到终点 |
+| Z4 内容浮现 | 开 | 开 | 关 |
+| Z5 确认框 | 缩放 + 模糊背景 | 缩放 + 实色遮罩（不模糊） | 直接出现 + 实色遮罩 |
+| Z6–Z9 | 开 | 开 | 关 |
+
+6. **落点。** 新增 `motion-layers.js`，导出 `installLayerMotion()`，在 `installSignatureMotion()` 里调用，不再改 `app.js`。CSS 进 `themes-plain-light.css`"三十 · 二级页与弹窗"。仍然**不改** `core.js`（`openSubpage` / 关闭逻辑）和任何 `views/*.js`：打开靠观察 `.subpage-layer.active` / `.modal-layer.open` 的出现，关闭靠触发现有的返回按钮或遮罩点击（选择器以真实 DOM 为准，标 `/* 核对 */`）。
+
+### 9.1 参数总表
+
+| # | 项 | 关键参数 |
+|---|---|---|
+| Z1 | 原位展开 | 幽灵 440ms `cubic-bezier(.32,.72,0,1)`；标题同时长同曲线、等比缩放 = 导航字号 / 来源字号；落地后标题 80ms 交叉淡入；收回：内容 160ms 淡出，80ms 起幽灵与标题 360ms 回程 |
+| Z2 | 右滑返回 | 边缘区 x ≤ 24px，判定距离 8px，`dx > |dy|`；全页区 x < 60% 屏宽，判定距离 12px，`dx > 2|dy|`；完成条件：`v > 520px/s` 或 `p > .35 且 v > −160px/s`；弹簧 k=360, c=38（临界阻尼附近，不过冲）；底页 `translateX(−20% × (1−p))`，遮罩 `opacity = .12 × (1−p)` |
+| Z3 | 弹层下拉 | 判定 6px，`|dy| > |dx|`；上拉橡皮筋 `R(d) = 40 × (1 − 1 / (1 + d/120))`；投影 `y + v × 0.18s`；关闭条件：`v > 900px/s` 或下拉 > max(110px, 可见高度 28%)；关闭补间时长 `clamp(4 × 剩余距离 / v, 140, 260)ms`，曲线 `cubic-bezier(.2,.8,.2,1)`；回弹弹簧 k=520, c=40；背景 `translateY(10px × p) scale(1 − .06p)`，遮罩 `opacity = p` |
+| Z3+ | 弹层分档 | 中档 = 屏高 52%，高档 = 屏高 92%；松手按投影点选最近一档 |
+| Z4 | 内容浮现 | 弹层：60ms 起，每项 +24ms，最多 5 项，单项 220ms `--pl-ease-out`，位移 8px；二级页：推入时 140ms 起、展开时 200ms 起，每项 +28ms，最多 6 项，单项 240ms，位移 10px |
+| Z5 | 确认框 | 进 `scale(.96 → 1)` + 淡入 200ms `--pl-ease-out`；出 `scale(1 → .98)` + 淡出 140ms `--pl-ease-in`；遮罩 `rgba(46,52,59,.24)` + 静态 `blur(10px)`，只补间 opacity |
+| Z6 | 二级页叠层 | 第二层推入时第一层也 `translateX(−20%)` + 遮罩，规则与 Z2 一致 |
+| Z7 | 锚点弹出菜单 | 从触发按钮所在角 `scale(.92 → 1)` + 淡入 180ms `--pl-ease-out`；菜单项每项 +18ms；出 120ms |
+| Z8 | 防误关轻推 | 不允许点遮罩关闭时（确认框、未保存表单），点遮罩 → 面板 `scale(1 → 1.02 → 1)`（确认框）或 `translateY(0 → 8px → 0)`（弹层），260ms `--pl-spring-snappy` |
+| Z9 | 返回箭头 | 按下箭头 `translateX(−3px)` 90ms，松手 420ms `--spring-release` |
+
+### 9.2 共用工具
+
+```js
+// motion-layers.js
+import { SpringODE } from './motion.js';
+const root = document.documentElement;
+const tier = () => root.dataset.plMotion || 'rich';          // 由 motion-signature.js 写入
+const on = () => root.dataset.theme === 'plain';
+const rich = () => on() && tier() === 'rich';
+const moving = () => on() && tier() !== 'none';
+
+/** 最近 100ms 的平均速度（px/s）。samples: [[timeStamp, value], ...] */
+function velocityOf(samples) {
+  const last = samples.at(-1);
+  const first = samples.find(s => last[0] - s[0] <= 100) || samples[0];
+  const dt = last[0] - first[0];
+  return dt > 0 ? ((last[1] - first[1]) / dt) * 1000 : 0;
+}
+
+/** 用手指速度驱动一段弹簧。none 档直接跳到终点。返回取消函数。 */
+function springTo(from, to, velocity, { stiffness, damping }, onUpdate, onDone) {
+  if (!moving()) { onUpdate(to); onDone?.(); return () => {}; }
+  const spring = new SpringODE({ mass: 1, stiffness, damping, precision: 0.5 });
+  spring.current = from;                                        /* 核对：SpringODE 设置起点的方式 */
+  spring.onUpdate = value => onUpdate(value);
+  spring.onRest = () => { onUpdate(to); onDone?.(); };           /* 核对：静止回调名 */
+  spring.to(to, velocity);
+  return () => spring.stop();
+}
+
+/** 橡皮筋：超出范围时阻力越来越大，最多 40px */
+const rubber = d => 40 * (1 - 1 / (1 + d / 120));
+```
+
+### 9.3 Z1 原位展开 + 标题飞行
+
+在第 8 节 S2（幽灵展开到头卡）基础上加两件事：
+
+1. **来源扩大到列表行。** 我的列表行、设置行、账户行等整行可点的元素都可以作为来源。行通常在一张白卡里，幽灵从一开始就带 `--pl-shadow-float`，看起来像这一行"被拿起来"。
+2. **标题飞行。** 来源里的标题文字复制一份（只复制第一个文本节点），从原位置**等比**缩放、平移到导航栏标题的中心。导航栏真标题先隐藏，克隆落地后交叉淡入 80ms。等比缩放 = 导航字号 / 来源字号，一般在 0.9–1.2 之间，文字不会糊。
+
+```js
+const TITLE_IN = ':scope b, :scope .entry-title, :scope .row-title';    /* 核对：来源里的标题 */
+const NAV_TITLE = '.subpage-header .subpage-title';                      /* 核对：导航栏标题 */
+
+function textRect(el) {
+  const node = [...el.childNodes].find(n => n.nodeType === 3 && n.textContent.trim());
+  if (!node) return null;
+  const range = document.createRange();
+  range.selectNodeContents(node);
+  return { rect: range.getBoundingClientRect(), text: node.textContent.trim() };
+}
+
+function flyTitle(src, layer) {
+  const from = src.querySelector(TITLE_IN) || src;
+  const nav = layer.querySelector(NAV_TITLE);
+  const t = textRect(from);
+  if (!nav || !t) return null;
+  const cs = getComputedStyle(from);
+  const scale = parseFloat(getComputedStyle(nav).fontSize) / parseFloat(cs.fontSize);
+  const n = nav.getBoundingClientRect();
+  const fly = Object.assign(document.createElement('span'), { className: 'pl-fly-title', textContent: t.text });
+  Object.assign(fly.style, { left: t.rect.left + 'px', top: t.rect.top + 'px', font: cs.font, color: cs.color, letterSpacing: cs.letterSpacing });
+  document.body.append(fly);
+  const to = `translate(${n.left + n.width / 2 - (t.rect.left + t.rect.width / 2)}px, ${n.top + n.height / 2 - (t.rect.top + t.rect.height / 2)}px) scale(${scale.toFixed(3)})`;
+  layer.classList.add('pl-title-pending');
+  fly.animate([{ transform: 'none' }, { transform: to }], { duration: 440, easing: 'cubic-bezier(.32,.72,0,1)', fill: 'forwards' })
+    .finished.then(() => {
+      layer.classList.remove('pl-title-pending');
+      return fly.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 80, fill: 'forwards' }).finished;
+    }).then(() => fly.remove());
+  return { to, text: t.text, style: fly.style.cssText };      // 收回时用同一份几何反向播放
+}
+```
+
+```css
+P .pl-fly-title { position: fixed; z-index: 191; white-space: nowrap; pointer-events: none; transform-origin: 50% 50%; will-change: transform; }
+P .subpage-layer.pl-title-pending :is(.subpage-header .subpage-title) { opacity: 0; }        /* 核对 */
+P .subpage-layer :is(.subpage-header .subpage-title) { transition: opacity 80ms linear; }
+```
+
+**收回时序**：
+
+1. 二级页内容 160ms 淡出。
+2. 从 80ms 起，标题克隆从导航栏、幽灵从头卡，各自 360ms 原路返回。
+3. 原卡复现，幽灵 100ms 淡出。
+
+总共约 540ms，但 240ms 后底页就已可点（遮罩已撤）。
+
+### 9.4 Z2 右滑返回
+
+两个起手区，适配两种 Android 导航方式：
+
+- **边缘区**（x ≤ 24px）：三键导航机型上最自然的位置。全面屏手势机型的系统返回手势会先接管这块区域，走现有的返回处理（播放 Z1 的收回或普通推出），不冲突。
+- **全页区**（x < 屏宽 60%）：全面屏手势机型上也能用的应用内返回，要求明显的横向意图（`dx > 2|dy|`），避免和纵向滚动抢。
+
+**不起手的情况**：起点在横向滚动容器里（`scrollWidth > clientWidth` 且 `overflow-x` 为 auto/scroll）、在 `input` / `textarea` / `[contenteditable]` / `input[type=range]` 里、在任何照片表面或牌组 / 图集里、在 `[data-no-swipe-back]` 里，或者当前没有 `.subpage-layer.active`。
+
+| 阶段 | 行为 |
+|---|---|
+| 判定 | 边缘区 8px、全页区 12px 后决定；不满足横向条件就放弃，交还给滚动 |
+| 跟手 | 二级页 `translateX(x)`，`x = max(0, dx)`，向左不越界；`p = x / 屏宽` |
+| 联动 | 底页 `translateX(−20% × (1 − p))`（rich）；遮罩 `opacity = .12 × (1 − p)`；二级页左缘静态阴影 |
+| 松手 | `v` = 最近 100ms 平均速度；完成：`v > 520` 或 `p > .35 且 v > −160`；否则回弹 |
+| 收尾 | 弹簧 k=360, c=38，初速度 = `v`；完成后触发现有返回（跳过默认推出动画）；来自 Z1 展开的页面不再缩回原卡，原卡 160ms 淡入 |
+
+```js
+const BACK_BUTTON = '.subpage-header .subpage-back';                       /* 核对 */
+const NO_SWIPE = 'input, textarea, [contenteditable], [data-no-swipe-back], .journal-deck, .album-stack, [class*="photo-"]'; /* 核对 */
+
+function scrollsX(el, stop) {
+  for (let n = el; n && n !== stop; n = n.parentElement) {
+    const ox = getComputedStyle(n).overflowX;
+    if ((ox === 'auto' || ox === 'scroll') && n.scrollWidth > n.clientWidth + 1) return true;
+  }
+  return false;
+}
+
+function installSwipeBack() {
+  let g = null;
+  document.addEventListener('pointerdown', e => {
+    if (!on() || e.button > 0) return;
+    const layer = e.target.closest('.subpage-layer.active');
+    if (!layer || layer !== [...document.querySelectorAll('.subpage-layer.active')].at(-1)) return;
+    if (e.target.closest(NO_SWIPE) || scrollsX(e.target, layer)) return;
+    const W = innerWidth;
+    const edge = e.clientX <= 24;
+    if (!edge && e.clientX > W * 0.6) return;
+    g = { layer, W, edge, x0: e.clientX, y0: e.clientY, id: e.pointerId, locked: false, samples: [[e.timeStamp, 0]], x: 0, raf: 0 };
+  }, { capture: true, passive: true });
+
+  document.addEventListener('pointermove', e => {
+    if (!g || e.pointerId !== g.id) return;
+    const dx = e.clientX - g.x0, dy = e.clientY - g.y0;
+    if (!g.locked) {
+      if (Math.hypot(dx, dy) < (g.edge ? 8 : 12)) return;
+      const horizontal = dx > 0 && (g.edge ? dx > Math.abs(dy) : dx > 2 * Math.abs(dy));
+      if (!horizontal) { g = null; return; }
+      g.locked = true;
+      g.layer.setPointerCapture?.(e.pointerId);
+      g.under = document.getElementById('app');
+      g.dim = document.querySelector('.pl-subpage-dim');                  /* 第 5.1 节 ⑥ 的遮罩，落地时做成真节点 */
+      g.layer.classList.add('pl-swiping');
+    }
+    g.x = Math.max(0, dx);
+    g.samples.push([e.timeStamp, g.x]);
+    if (g.samples.length > 12) g.samples.shift();
+    if (!g.raf) g.raf = requestAnimationFrame(() => { g && (g.raf = 0, paintSwipe(g, g.x)); });
+  }, { passive: true });
+
+  const end = e => {
+    if (!g || e.pointerId !== g.id) return;
+    const s = g; g = null;
+    if (!s.locked) return;
+    const v = velocityOf(s.samples);
+    const p = s.x / s.W;
+    const done = v > 520 || (p > 0.35 && v > -160);
+    springTo(s.x, done ? s.W : 0, v, { stiffness: 360, damping: 38 }, x => paintSwipe(s, x), () => {
+      if (done) {
+        s.layer.classList.add('pl-swiped');                              // 让默认推出动画跳过
+        s.layer.querySelector(BACK_BUTTON)?.click();
+      }
+      requestAnimationFrame(() => {
+        s.layer.classList.remove('pl-swiping', 'pl-swiped');
+        [s.layer, s.under, s.dim].forEach(el => el && (el.style.transform = el.style.opacity = ''));
+      });
+    });
+  };
+  document.addEventListener('pointerup', end, { passive: true });
+  document.addEventListener('pointercancel', end, { passive: true });
+}
+
+function paintSwipe(s, x) {
+  const p = Math.min(1, Math.max(0, x / s.W));
+  s.layer.style.transform = `translate3d(${x}px, 0, 0)`;
+  if (rich() && s.under) s.under.style.transform = `translate3d(${(-20 * (1 - p)).toFixed(2)}%, 0, 0)`;
+  if (s.dim) s.dim.style.opacity = (1 - p).toFixed(3);
+}
+```
+
+```css
+P .subpage-layer.active { touch-action: pan-y; }                         /* 横向手势归我们，纵向滚动归浏览器 */
+P .subpage-layer:is(.pl-swiping, .pl-swiped) { transition: none !important; }
+P .phone-shell:has(.subpage-layer.pl-swiping) > #app { transition: none !important; }
+P .pl-subpage-dim { background: rgba(46, 52, 59, .12); }                 /* 替换 5.1 ⑥ 的 6%，右滑时纵深更明显 */
+```
+
+**Android 14 预测性返回**：系统手势本身也能提供进度（`OnBackAnimationCallback`），接上后系统返回也能跟手。这需要原生插件，不在本轮范围内，只记作后续方向。
+
+### 9.5 Z3 弹层跟手下拉（含分档）
+
+**起手区**：抓手条 + 标题行（面板顶部 56px）任何时候都可以拖；内容区只有在 `scrollTop ≤ 0` 且向下拖时才接管，否则交给内容滚动。按钮上起手也可以，一旦判定为拖动就吞掉这次点击。
+
+| 阶段 | 行为 |
+|---|---|
+| 判定 | 6px，`|dy| > |dx|` |
+| 跟手 | `y = base + dy`；`y < 0`（高于最高档）时 `y = −R(−y)` 橡皮筋 |
+| 进度 | `p = clamp(1 − (y − y中档) / (面板高 − y中档), 0, 1)`；中档及以上 `p = 1` |
+| 联动 | 背后 `#app`：`translateY(10px × p) scale(1 − .06 × p)`（rich）；遮罩 `opacity = p` |
+| 松手 | 投影 `y投 = y + v × 0.18`；目标取 [高档, 中档, 关闭] 中离 `y投` 最近的；**关闭还要满足** `v > 900` 或下拉 > max(110px, 可见高度 × 28%)，否则停在中档 |
+| 关闭补间 | WAAPI 同时驱动面板、`#app`、遮罩三者；时长 `clamp(4 × 剩余 / max(v, 1), 140, 260)ms`；曲线 `cubic-bezier(.2,.8,.2,1)`（起始斜率 4，恰好接住手指速度） |
+| 回弹 / 换档 | `SpringODE` k=520, c=40，初速度 `v`，`onUpdate` 里同步写三者 |
+
+不声明分档的弹层只有一档（打开即"中档"，高档 = 中档），规则不变。需要分档的弹层在面板上加 `data-pl-detents="medium large"`。这只是 CSS 与手势读取的标记，不影响业务逻辑，可以由 JS 在打开时按面板内容高度自动判断（内容高于屏 60% 才启用）。
+
+```js
+const SHEET = '#modal-layer.open .modal';                                  /* 核对 */
+const SHEET_HEAD = '.modal-grabber, .modal-header, .modal-title';         /* 核对 */
+
+function sheetGeometry(sheet) {
+  const H = innerHeight, h = sheet.offsetHeight;
+  const detents = sheet.dataset.plDetents ? [Math.max(0, h - H * 0.92), Math.max(0, h - H * 0.52)] : [0, 0];
+  return { h, large: detents[0], medium: detents[1], closed: h };
+}
+
+function paintSheet(s, y) {
+  const p = Math.min(1, Math.max(0, 1 - (y - s.geo.medium) / (s.geo.closed - s.geo.medium)));
+  s.sheet.style.transform = `translate3d(0, ${y.toFixed(1)}px, 0)`;
+  if (rich()) s.app.style.transform = `translateY(${(10 * p).toFixed(2)}px) scale(${(1 - 0.06 * p).toFixed(4)})`;
+  s.scrim.style.opacity = p.toFixed(3);
+}
+
+function releaseSheet(s, y, v) {
+  const proj = y + v * 0.18;
+  const { large, medium, closed } = s.geo;
+  let target = [large, medium, closed].reduce((a, b) => Math.abs(b - proj) < Math.abs(a - proj) ? b : a);
+  const pulled = y - medium;
+  if (target === closed && !(v > 900 || pulled > Math.max(110, (closed - medium) * 0.28))) target = medium;
+  if (target === closed) {
+    const ms = moving() ? Math.min(260, Math.max(140, (4 * (closed - y)) / Math.max(v, 1) * 1000)) : 0;
+    const opts = { duration: ms, easing: 'cubic-bezier(.2,.8,.2,1)', fill: 'forwards' };
+    const p0 = Math.min(1, Math.max(0, 1 - pulled / (closed - medium)));
+    const anims = [
+      s.sheet.animate([{ transform: `translate3d(0, ${y}px, 0)` }, { transform: `translate3d(0, ${closed}px, 0)` }], opts),
+      s.scrim.animate([{ opacity: p0 }, { opacity: 0 }], opts),
+    ];
+    if (rich()) anims.push(s.app.animate([{ transform: s.app.style.transform || 'none' }, { transform: 'none' }], opts));
+    Promise.all(anims.map(a => a.finished)).then(() => {
+      s.sheet.closest('.modal-layer').classList.add('pl-dragged');        // 跳过默认关闭过渡
+      closeCurrentSheet();                                                 /* 核对：触发现有关闭（遮罩点击或取消按钮） */
+      requestAnimationFrame(() => { anims.forEach(a => a.cancel()); clearSheetStyles(s); });
+    });
+    return;
+  }
+  springTo(y, target, v, { stiffness: 520, damping: 40 }, yy => paintSheet(s, yy), () => {
+    s.sheet.dataset.plDetent = target === large && large !== medium ? 'large' : 'medium';
+    s.base = target;
+  });
+}
+```
+
+```css
+P #modal-layer.open .modal { touch-action: none; }                        /* 抓手区；内容滚动区单独 pan-y */
+P #modal-layer.open .modal :is(.modal-body, .modal-scroll) { touch-action: pan-y; }   /* 核对 */
+P #modal-layer:is(.pl-dragging, .pl-dragged) :is(.modal, *) { transition: none !important; }
+P .phone-shell:has(#modal-layer.pl-dragging) > #app { transition: none !important; }
+P .modal[data-pl-detents] { height: 92vh; }
+P .modal[data-pl-detents]:not([data-pl-detent="large"]) { transform: translate3d(0, calc(92vh - 52vh), 0); }
+```
+
+### 9.6 Z4 内容依次浮现
+
+```css
+/* 弹层：面板约 40% 到位时开始，最后一项 156ms 起、376ms 落定 */
+P[data-pl-motion]:not([data-pl-motion="none"]) #modal-layer.open .modal > :nth-child(-n + 5) {
+  animation: pl-rise 220ms var(--pl-ease-out) backwards;
+  animation-delay: calc(60ms + (var(--pl-ci, 0)) * 24ms);
+}
+/* 二级页：推入 140ms 起；Z1 展开 200ms 起 */
+P[data-pl-motion]:not([data-pl-motion="none"]) .subpage-layer.pl-cascade .subpage-body > :nth-child(-n + 6) {   /* 核对 */
+  animation: pl-rise-10 240ms var(--pl-ease-out) backwards;
+  animation-delay: calc(var(--pl-c0, 140ms) + var(--pl-ci, 0) * 28ms);
+}
+P .subpage-layer.pl-expand-in { --pl-c0: 200ms; }
+@keyframes pl-rise { from { opacity: 0; transform: translate3d(0, 8px, 0); } to { opacity: 1; transform: none; } }
+@keyframes pl-rise-10 { from { opacity: 0; transform: translate3d(0, 10px, 0); } to { opacity: 1; transform: none; } }
+```
+
+```js
+// 打开时给前 N 个子元素写序号；600ms 后撤掉 .pl-cascade，层内再次渲染不会重播
+function cascade(container, items, max) {
+  [...items].slice(0, max).forEach((el, i) => el.style.setProperty('--pl-ci', i));
+  container.classList.add('pl-cascade');
+  setTimeout(() => container.classList.remove('pl-cascade'), 600);
+}
+```
+
+`:nth-child(-n + 5)` 之后的元素不参与，和面板一起出现。浮现只用 `animation-fill-mode: backwards`，结束后不残留 transform，不影响内部 `position: sticky`。
+
+### 9.7 Z5 确认框与删除提示
+
+现状：确认框是底部弹层（`.modal.confirm-sheet`），和其他弹层一样用 65% 暖黑遮罩 + 全屏模糊，从底部升起。清简主题下改成**居中卡片**：危险操作需要停下来想一下，居中比底部更有"停顿"的语义。
+
+| 参数 | 值 |
+|---|---|
+| 尺寸 | `width: min(320px, 100% − 48px)`，圆角 22px，内边距 20px，`--pl-shadow-float` |
+| 进 | `translate(−50%, −50%) scale(.96) → scale(1)` + `opacity 0 → 1`，200ms `--pl-ease-out`，**无过冲** |
+| 出 | `scale(1) → scale(.98)` + `opacity → 0`，140ms `--pl-ease-in` |
+| 图标 | 危险图标（浅红圆底）`scale(.9) → 1` + 淡入，160ms，60ms 起 |
+| 遮罩（rich） | `rgba(46,52,59,.24)` + `backdrop-filter: blur(10px) saturate(1.1)`；模糊半径固定不补间，只补间遮罩层的 opacity（200ms / 140ms） |
+| 遮罩（lite / none） | `rgba(46,52,59,.40)`，不模糊 |
+| 按钮 | 取消在左（中性），删除在右（实心 `--pl-danger` 白字）；默认焦点在取消 |
+| 点遮罩 | 不关闭，触发 Z8 轻推 |
+
+```css
+P #modal-layer .modal.confirm-sheet {                                      /* 核对 */
+  position: fixed; left: 50%; top: 50%; bottom: auto; right: auto;
+  width: min(320px, calc(100% - 48px)); border-radius: 22px; padding: 20px;
+  box-shadow: var(--pl-shadow-float);
+  transform: translate(-50%, -50%) scale(.98); opacity: 0;
+  transition: transform 140ms var(--pl-ease-in), opacity 140ms var(--pl-ease-in);
+}
+P #modal-layer.open .modal.confirm-sheet {
+  transform: translate(-50%, -50%); opacity: 1;
+  animation: pl-dialog-in 200ms var(--pl-ease-out) both;
+}
+@keyframes pl-dialog-in { from { opacity: 0; transform: translate(-50%, -50%) scale(.96); } to { opacity: 1; transform: translate(-50%, -50%); } }
+P[data-pl-motion="rich"] #modal-layer:has(.confirm-sheet) {
+  background: rgba(46, 52, 59, .24);
+  -webkit-backdrop-filter: blur(10px) saturate(1.1); backdrop-filter: blur(10px) saturate(1.1);
+}
+P:not([data-pl-motion="rich"]) #modal-layer:has(.confirm-sheet) { background: rgba(46, 52, 59, .40); backdrop-filter: none; }
+P #modal-layer .confirm-sheet .danger-icon { animation: pl-pop-in 160ms var(--pl-ease-out) 60ms both; }   /* 核对 */
+P #modal-layer .confirm-sheet .danger { background: var(--pl-danger); color: #fff; }                       /* 核对 */
+```
+
+**性能说明**：模糊是这一节唯一的 `backdrop-filter`。它只在确认框打开期间存在，半径不变，背后页面静止，所以合成器只在淡入淡出那 200ms 里每帧重算；打开后没有新的帧就不重算。lite 档直接去掉。
+
+### 9.8 Z6 二级页叠层
+
+二级页里再进二级页（例如设置 → 某项详情）时，下面那层也按 Z2 的规则 `translateX(−20%)` 并压 12% 遮罩；右滑最上层时，下面那层按 `p` 回到原位。规则写成"所有非最上层的 `.subpage-layer.active`"，不需要知道层数。
+
+```css
+P[data-pl-motion="rich"] .subpage-layer.active:has(~ .subpage-layer.active) {
+  transform: translate3d(-20%, 0, 0); transition: transform 350ms cubic-bezier(.16, 1, .3, 1);
+}
+```
+
+### 9.9 Z7 锚点弹出菜单
+
+导航栏 ⋯、卡片 ⋯ 这类菜单，从触发按钮所在的角长出来，而不是从屏幕中间。**日记牌组摊开里的 ⋯ 菜单不改**。
+
+```css
+P .pl-popover { transform-origin: var(--pl-origin, 100% 0); }              /* JS 按触发按钮在菜单的哪个角写 --pl-origin */
+P .pl-popover.open { animation: pl-pop-menu 180ms var(--pl-ease-out) both; }
+P .pl-popover.open > * { animation: pl-rise 160ms var(--pl-ease-out) backwards; animation-delay: calc(40ms + var(--pl-ci, 0) * 18ms); }
+P .pl-popover.closing { animation: pl-pop-out 120ms var(--pl-ease-in) both; }
+@keyframes pl-pop-menu { from { opacity: 0; transform: scale(.92); } to { opacity: 1; transform: none; } }
+@keyframes pl-pop-out { to { opacity: 0; transform: scale(.96); } }
+```
+
+### 9.10 Z8 防误关轻推
+
+确认框，以及有未保存输入的表单弹层，点遮罩不关闭，面板轻轻"回应"一下，告诉用户"要用按钮"：
+
+```css
+P .modal.confirm-sheet.pl-nudge { animation: pl-nudge-dialog 260ms var(--pl-spring-snappy); }
+P .modal.pl-nudge:not(.confirm-sheet) { animation: pl-nudge-sheet 260ms var(--pl-spring-snappy); }
+@keyframes pl-nudge-dialog { 50% { transform: translate(-50%, -50%) scale(1.02); } }
+@keyframes pl-nudge-sheet { 50% { transform: translate3d(0, 8px, 0); } }
+```
+
+JS：在遮罩的 `pointerup` 上判断"不允许点外关闭"，给面板加 `.pl-nudge`，`animationend` 时移除。
+
+### 9.11 Z9 返回箭头
+
+```css
+P .subpage-back .material-symbols-outlined { transition: transform 420ms var(--spring-release); }      /* 核对 */
+P .subpage-back[data-pressed] .material-symbols-outlined { transform: translateX(-3px); transition-duration: 90ms; }
+```
+
+### 9.12 验收补充
+
+1. 右滑返回：边缘起手和全页起手各 10 次，快甩、慢拖过半、拖到 30% 松手、拖出后往回拉，结果分别是完成、完成、回弹、回弹。
+2. 弹层下拉：慢拉 100px 松手回弹；慢拉 140px 松手关闭；从中档快速上甩到高档；从高档快速下甩到中档而不是直接关闭（除非投影越过关闭线）。
+3. 拖动过程中 6 倍 CPU 降速：拖动帧不掉到 30fps 以下；松手后的补间连续长帧不超过 2 个。
+4. 减弱动态效果下：拖动仍然跟手，松手直接到终点；确认框直接出现、没有模糊。
+5. 横向滚动的标签行、输入框、照片、牌组里起手不会触发右滑返回。
 
 ---
 
