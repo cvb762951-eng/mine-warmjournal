@@ -18,6 +18,9 @@ test('新落盘媒体有保护期，清理时跳过', () => {
 test('被引用却在回收站里的媒体会被挪回', () => {
   assert.match(media, /await recoverTrashedMedia\(\[\.\.\.used\]\.filter\(path => !present\.has\(path\)\)\);/);
   assert.match(media, /export async function recoverReferencedMedia\(state/);
-  const boot = app.indexOf('await recoverReferencedMedia(state)');
-  assert.ok(boot > 0 && boot < app.indexOf('const migratedMedia = await externalizeStateMedia(state);'), '启动时要先找回再解析地址');
+  // 冷启动把回收站找回挪到首屏之后（避免扫盘挡住加载态）；清理路径里仍会顺带找回。
+  const renderAt = app.indexOf('render();');
+  const recoverAt = app.indexOf('recoverReferencedMedia(state)');
+  assert.ok(recoverAt > 0 && renderAt > 0 && recoverAt > renderAt, '启动时在首屏之后找回回收站媒体');
+  assert.match(app, /warmMediaRefs\(stateMediaReferences\(state\)\)/);
 });
