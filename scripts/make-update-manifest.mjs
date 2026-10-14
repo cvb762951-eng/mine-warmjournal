@@ -128,7 +128,7 @@ if (previous && Number(previous.versionCode) >= versionCode && previous.sha256 !
   console.error(`  上次发布：${previous.versionName} (${previous.versionCode})  sha256 ${String(previous.sha256).slice(0, 12)}…`);
   console.error(`  本次发布：${versionName} (${versionCode})  sha256 ${sha256.slice(0, 12)}…`);
   console.error('  内容和版本号必须一起变，否则老用户点「检查更新」会永远显示「已是最新」。');
-  console.error('  请先把 build.gradle 的 versionCode +1、versionName 递增，重新打包后再来。');
+  console.error('  请先把 versionCode +1、versionName 递增（package.json、app-updater.js、build.gradle、index.html 的 ?v=、release-notes.js），重新打包后再来。');
   process.exit(1);
 }
 
