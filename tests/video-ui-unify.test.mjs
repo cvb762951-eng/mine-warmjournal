@@ -12,8 +12,10 @@ const unifyCss = css.slice(css.indexOf('统一视频：大图里的普通视频'
 
 test('大图里的普通视频不再内嵌 <video controls>，改走公共播放会话', () => {
   assert.doesNotMatch(common, /<video id="photo-viewer-image"[^>]*\scontrols/);
-  assert.match(common, /import \{ openVideoSession, plainVideoCache \} from '\.\.\/video-session\.js'/);
-  assert.match(common, /export function openPhotoViewerVideo[\s\S]*?openVideoSession\(\{[\s\S]*?sourceCache: plainVideoCache/);
+  assert.match(common, /import \{ openVideoSession \} from '\.\.\/video-session\.js'/);
+  assert.match(common, /export function openPhotoViewerVideo[\s\S]*?openVideoSession\(\{[\s\S]*?sourceCache: viewerVideoCache/);
+  assert.doesNotMatch(common, /sourceCache: plainVideoCache/);
+  assert.doesNotMatch(common, /viewer-video-\$\{/);
   assert.match(common, /photo-viewer-play-btn/);
   // 页面自己的会话优先（随手拍相册要写回续播进度）
   assert.match(common, /typeof options\.onOpenVideo === 'function'\) return options\.onOpenVideo\(active, current\)/);
@@ -56,4 +58,41 @@ test('新代码没有新增 MutationObserver', () => {
   const added = [common, snippets].join('\n');
   const before = (added.match(/new MutationObserver/g) || []).length;
   assert.equal(before, 0, `common/snippets 里的 MutationObserver 数量异常：${before}`);
+});
+
+// 从源码里取出 viewerVideoId / viewerVideoCache 单独执行（common.js 依赖 DOM，不能直接 import）。
+function loadViewerHelpers() {
+  const start = common.indexOf('export function viewerVideoId');
+  const end = common.indexOf('function viewerSessionItem');
+  const code = common.slice(start, end).replace(/export /g, '');
+  return new Function(`${code}; return { viewerVideoId, viewerVideoCache };`)();
+}
+
+test('没有 id 的两条视频地址不同，就不会共用缓存条目，也不会越积越多', async () => {
+  const { viewerVideoId, viewerVideoCache } = loadViewerHelpers();
+  const diaryA = { poster: 'a.jpg', video: 'file:///diary-a/1.mp4' };
+  const diaryB = { poster: 'b.jpg', video: 'file:///diary-b/1.mp4' };
+  assert.notEqual(viewerVideoId(diaryA), viewerVideoId(diaryB));
+  assert.equal(viewerVideoId({ ...diaryA }), viewerVideoId(diaryA));
+  const a = await viewerVideoCache.resolve({ id: viewerVideoId(diaryA), resolveSource: () => diaryA.video });
+  const b = await viewerVideoCache.resolve({ id: viewerVideoId(diaryB), resolveSource: () => diaryB.video });
+  assert.equal(a, diaryA.video);
+  assert.equal(b, diaryB.video);
+  assert.equal(viewerVideoCache.has(viewerVideoId(diaryA)), false, '大图视频不留缓存');
+  // 就算同一个位置号，也拿到各自的地址（以前都是 viewer-video-0，B 会播出 A）
+  const again = await viewerVideoCache.resolve({ id: viewerVideoId(diaryB), resolveSource: () => diaryB.video });
+  assert.equal(again, diaryB.video);
+});
+
+test('大图视频缓存不 revoke 页面自己的 blob 地址', () => {
+  const { viewerVideoCache } = loadViewerHelpers();
+  const original = globalThis.URL.revokeObjectURL;
+  let revoked = 0;
+  globalThis.URL.revokeObjectURL = () => { revoked += 1; };
+  try {
+    viewerVideoCache.drop('viewer:blob:x');
+    viewerVideoCache.retain([]);
+    viewerVideoCache.release();
+  } finally { globalThis.URL.revokeObjectURL = original; }
+  assert.equal(revoked, 0);
 });

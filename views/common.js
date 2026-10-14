@@ -5,7 +5,7 @@ import { thumbSource, thumbKeyFor, watchThumbImages } from '../photo-thumbs.js';
 import { MOODS, WEATHERS, WEEK_DAYS, dateKey, habitProgressForDate, habitGoalMet, formatShanghaiDateTime } from '../model.js';
 import { mediaFocusSummary } from '../analytics.js';
 import { rebuildActivityLog } from '../activity-log.js';
-import { openVideoSession, plainVideoCache } from '../video-session.js';
+import { openVideoSession } from '../video-session.js';
 
 // ---- 专注-习惯联动逻辑（focus / habits / calendar 共用）----
 export function activeFocusProject() {
@@ -175,9 +175,29 @@ export function mediaCard(entry) {
 
 // 大图里的普通视频不再内嵌 <video controls>，统一交给公共播放会话（与私密空间同一个播放器）。
 // 页面有自己的会话（带续播、观看记录写回）时通过 options.onOpenVideo 接管；否则只读打开，不写任何数据。
+// 大图里的视频地址本来就是页面自己的（data:/file:/blob:），不需要再缓存：
+// 不放进全局 plainVideoCache（没有 id 的视频会按位置撞 id、串台，还越积越多），
+// 也绝不 revoke —— blob 归原页面管。id 按地址生成，地址不同就不会是同一条。
+export function viewerVideoId(item) {
+  return `viewer:${item?.video || ''}`;
+}
+
+export const viewerVideoCache = Object.freeze({
+  has: () => false,
+  get: () => undefined,
+  inflight: () => false,
+  resolve: item => {
+    try { return Promise.resolve(item.resolveSource()); }
+    catch (error) { return Promise.reject(error); }
+  },
+  drop() {},
+  retain() {},
+  release() {}
+});
+
 function viewerSessionItem(item, index, meta) {
   return {
-    id: item.id || `viewer-video-${index}`,
+    id: viewerVideoId(item),
     resolveSource: () => item.video,
     poster: item.poster || '',
     label: item.label || meta?.[index]?.text?.slice(0, 20) || '视频',
@@ -202,7 +222,7 @@ export function openPhotoViewerVideo(photos, active, meta = null, options = {}) 
   return openVideoSession({
     items: entries.map(({ item, index }) => viewerSessionItem(item, index, meta)),
     startIndex: start,
-    sourceCache: plainVideoCache
+    sourceCache: viewerVideoCache
   }).catch(error => show(error?.message || '视频无法播放'));
 }
 
