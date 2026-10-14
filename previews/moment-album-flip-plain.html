@@ -1,0 +1,658 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="plain">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>随手拍 · 图集翻卡 清简美化预览</title>
+  <link rel="stylesheet" href="../fonts.css">
+  <link rel="stylesheet" href="../performance.css">
+  <link rel="stylesheet" href="../styles.css">
+  <link rel="stylesheet" href="../themes.css">
+  <link rel="stylesheet" href="../themes-plain.css">
+  <link rel="stylesheet" href="../themes-plain-light.css">
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      min-height: 100%;
+      background: #EAF0F8;
+      font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Noto Sans SC", sans-serif;
+      color: #2E343B;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body {
+      padding: 20px 16px 48px;
+      box-sizing: border-box;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .preview-header {
+      width: min(100%, 420px);
+      margin: 0 0 16px;
+      text-align: center;
+    }
+
+    .preview-header h1 {
+      margin: 0 0 6px;
+      font-size: 19px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      color: #2E343B;
+    }
+
+    .preview-header p {
+      margin: 0 0 12px;
+      font-size: 12px;
+      line-height: 1.6;
+      color: #6B7480;
+    }
+
+    .preview-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+      width: min(100%, 420px);
+    }
+
+    .btn-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      height: 32px;
+      padding: 0 14px;
+      border-radius: 999px;
+      border: 1px solid rgba(85, 96, 108, 0.16);
+      background: #FBFCFE;
+      color: #2E343B;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      box-shadow: 0 1px 3px rgba(46, 52, 59, 0.05);
+      transition: all 0.15s ease;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .btn-pill:hover {
+      background: #F2F6FC;
+    }
+
+    .btn-pill:active {
+      transform: scale(0.97);
+    }
+
+    .btn-pill.active {
+      background: #4F76BD;
+      color: #FFFFFF;
+      border-color: #4F76BD;
+      box-shadow: 0 2px 8px rgba(79, 118, 189, 0.32);
+    }
+
+    .status-badge {
+      font-size: 11px;
+      color: #55606C;
+      font-family: ui-monospace, monospace;
+      padding: 4px 10px;
+      background: rgba(85, 96, 108, 0.08);
+      border-radius: 6px;
+      margin-top: 4px;
+      display: inline-block;
+    }
+
+    /* 手机外壳容器 (~390px 模拟 iPhone 视口) */
+    .phone-mockup {
+      position: relative;
+      width: 390px;
+      max-width: 100%;
+      height: 760px;
+      border-radius: 36px;
+      background: #F4F7FC;
+      border: 8px solid #1E232A;
+      box-shadow: 0 24px 60px rgba(46, 52, 59, 0.18), 0 4px 16px rgba(46, 52, 59, 0.08);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      box-sizing: border-box;
+    }
+
+    /* 手机顶部灵动岛与状态栏装饰 */
+    .mock-status-bar {
+      height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 20px;
+      font-size: 12px;
+      font-weight: 600;
+      color: #2E343B;
+      z-index: 10;
+      flex-shrink: 0;
+    }
+
+    .mock-island {
+      width: 100px;
+      height: 24px;
+      background: #1E232A;
+      border-radius: 20px;
+      margin: 0 auto;
+    }
+
+    /* 模拟底层的随手拍信息流背景 */
+    .mock-feed-backdrop {
+      flex: 1;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      opacity: 0.6;
+      filter: blur(0.5px);
+    }
+
+    .mock-feed-card {
+      background: #FBFCFE;
+      border: 1px solid rgba(85, 96, 108, 0.12);
+      border-radius: 16px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .mock-feed-line {
+      height: 12px;
+      border-radius: 6px;
+      background: rgba(85, 96, 108, 0.1);
+    }
+
+    /* 限制预览层在手机框内绝对定位，居中弹窗 + 全屏遮罩 */
+    .phone-mockup .moment-album-layer {
+      position: absolute;
+      inset: 0;
+      z-index: 100;
+    }
+    .phone-mockup .moment-album-sheet { max-height: calc(100% - 8px); }
+    .phone-mockup .moment-album-stage { height: 270px; }
+
+    /* 说明与对比列表 */
+    .feature-points {
+      width: min(100%, 420px);
+      margin-top: 20px;
+      padding: 14px 18px;
+      background: #FBFCFE;
+      border-radius: 16px;
+      border: 1px solid rgba(85, 96, 108, 0.12);
+      box-shadow: 0 1px 3px rgba(46, 52, 59, 0.04);
+      box-sizing: border-box;
+    }
+
+    .feature-points h2 {
+      font-size: 13px;
+      margin: 0 0 8px;
+      font-weight: 600;
+      color: #2E343B;
+    }
+
+    .feature-points ul {
+      margin: 0;
+      padding-left: 18px;
+      font-size: 12px;
+      color: #55606C;
+      line-height: 1.7;
+    }
+  </style>
+</head>
+<body>
+
+  <header class="preview-header">
+    <h1>随手拍 · 图集翻卡 清简美化</h1>
+    <p>专为「清简 Plain」主题打磨的居中翻卡弹窗与视觉阶梯。支持跟手拖拽、左右翻页与居中缩放展开。</p>
+  </header>
+
+  <div class="preview-toolbar">
+    <button type="button" class="btn-pill" id="btn-open" aria-label="打开图集">打开 (Scale+Fade)</button>
+    <button type="button" class="btn-pill" id="btn-prev" aria-label="上一张">◀ 上一张</button>
+    <button type="button" class="btn-pill" id="btn-next" aria-label="下一张">下一张 ▶</button>
+    <button type="button" class="btn-pill active" id="btn-toggle-theme">主题：清简 (Plain)</button>
+    <div class="status-badge" id="gesture-status">手势：就绪 (阈值 56px / 700px/s)</div>
+  </div>
+
+  <div class="phone-mockup">
+    <div class="mock-status-bar">
+      <span>09:41</span>
+      <div class="mock-island"></div>
+      <span>5G</span>
+    </div>
+
+    <!-- 模拟底层随手拍列表 -->
+    <div class="mock-feed-backdrop" aria-hidden="true">
+      <div class="mock-feed-card">
+        <div class="mock-feed-line" style="width: 40%;"></div>
+        <div class="mock-feed-line" style="width: 85%;"></div>
+        <div class="mock-feed-line" style="width: 60%;"></div>
+      </div>
+      <div class="mock-feed-card">
+        <div class="mock-feed-line" style="width: 50%;"></div>
+        <div class="mock-feed-line" style="width: 70%;"></div>
+      </div>
+    </div>
+
+    <!-- 真实 DOM 结构的相册层 -->
+    <div id="moment-album-layer" class="moment-album-layer open" role="dialog" aria-modal="true">
+      <div class="moment-album-sheet" id="moment-album-sheet">
+        <header class="moment-album-head">
+          <button type="button" class="moment-album-close" id="album-close-btn" aria-label="关闭图集">
+            <span class="material-symbols-outlined">close</span>
+          </button>
+          <div class="moment-album-title">
+            <span class="moment-album-kicker">MOMENTS ALBUM</span>
+            <strong id="album-title-text">晴空漫步 · 街角掠影</strong>
+            <small id="album-date-text">2026-10-14 · 随手拍多图 5 张</small>
+          </div>
+        </header>
+
+        <p class="moment-album-caption">清简主题专属美化：18px 柔和圆角与 10px 同心相框、冷调蓝灰多层环境与接触阴影、叠牌深阶纵深（-18px / -34px），彻底撤除暖色纸纹。</p>
+
+        <div class="moment-album-stage" id="moment-album-stage">
+          <div class="moment-album-stack" id="moment-album-stack">
+            <button type="button" class="moment-album-card" data-depth="0" data-moment-album-kind="photo" data-moment-album-index="0" aria-label="查看第 1 张照片：初秋街角">
+              <span class="moment-album-frame photo-blur-frame is-edge">
+                <img class="photo-blur-pad" src="data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22480%22%20height%3D%22360%22%20viewBox%3D%220%200%20480%20360%22%3E%3Cdefs%3E%3ClinearGradient%20id%3D%22g%22%20x1%3D%220%25%22%20y1%3D%220%25%22%20x2%3D%22100%25%22%20y2%3D%22100%25%22%3E%3Cstop%20offset%3D%220%25%22%20stop-color%3D%22%23D5E0F2%22%2F%3E%3Cstop%20offset%3D%22100%25%22%20stop-color%3D%22%23E2EAF8%22%2F%3E%3C%2FlinearGradient%3E%3C%2Fdefs%3E%3Crect%20width%3D%22480%22%20height%3D%22360%22%20fill%3D%22url(%23g)%22%2F%3E%3Ccircle%20cx%3D%22374%22%20cy%3D%22100%22%20r%3D%2264%22%20fill%3D%22%234F76BD%22%20opacity%3D%220.45%22%2F%3E%3Crect%20x%3D%2248%22%20y%3D%22216%22%20width%3D%22192%22%20height%3D%2290%22%20rx%3D%2212%22%20fill%3D%22%234F76BD%22%20opacity%3D%220.25%22%2F%3E%3Ctext%20x%3D%2232%22%20y%3D%22312%22%20fill%3D%22%232E343B%22%20font-size%3D%2222%22%20font-weight%3D%22600%22%20font-family%3D%22system-ui%2C%20sans-serif%22%3E%E5%88%9D%E7%A7%8B%E8%A1%97%E8%A7%92%3C%2Ftext%3E%3Ctext%20x%3D%2232%22%20y%3D%22336%22%20fill%3D%22%2355606C%22%20font-size%3D%2213%22%20font-family%3D%22system-ui%2C%20sans-serif%22%3E4%3A3%20%C2%B7%20%E5%86%B7%E8%B0%83%E6%99%A8%E5%85%89%3C%2Ftext%3E%3C%2Fsvg%3E" alt="" aria-hidden="true" style="opacity: 0.12;">
+                <img class="photo-blur-still" src="data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22480%22%20height%3D%22360%22%20viewBox%3D%220%200%20480%20360%22%3E%3Cdefs%3E%3ClinearGradient%20id%3D%22g%22%20x1%3D%220%25%22%20y1%3D%220%25%22%20x2%3D%22100%25%22%20y2%3D%22100%25%22%3E%3Cstop%20offset%3D%220%25%22%20stop-color%3D%22%23D5E0F2%22%2F%3E%3Cstop%20offset%3D%22100%25%22%20stop-color%3D%22%23E2EAF8%22%2F%3E%3C%2FlinearGradient%3E%3C%2Fdefs%3E%3Crect%20width%3D%22480%22%20height%3D%22360%22%20fill%3D%22url(%23g)%22%2F%3E%3Ccircle%20cx%3D%22374%22%20cy%3D%22100%22%20r%3D%2264%22%20fill%3D%22%234F76BD%22%20opacity%3D%220.45%22%2F%3E%3Crect%20x%3D%2248%22%20y%3D%22216%22%20width%3D%22192%22%20height%3D%2290%22%20rx%3D%2212%22%20fill%3D%22%234F76BD%22%20opacity%3D%220.25%22%2F%3E%3Ctext%20x%3D%2232%22%20y%3D%22312%22%20fill%3D%22%232E343B%22%20font-size%3D%2222%22%20font-weight%3D%22600%22%20font-family%3D%22system-ui%2C%20sans-serif%22%3E%E5%88%9D%E7%A7%8B%E8%A1%97%E8%A7%92%3C%2Ftext%3E%3Ctext%20x%3D%2232%22%20y%3D%22336%22%20fill%3D%22%2355606C%22%20font-size%3D%2213%22%20font-family%3D%22system-ui%2C%20sans-serif%22%3E4%3A3%20%C2%B7%20%E5%86%B7%E8%B0%83%E6%99%A8%E5%85%89%3C%2Ftext%3E%3C%2Fsvg%3E" alt="初秋街角" style="object-fit: contain;">
+              </span>
+            </button>
+            <button type="button" class="moment-album-card" data-depth="1" data-moment-album-kind="photo" data-moment-album-index="1" aria-label="查看第 2 张照片：窗前晴空">
+              <span class="moment-album-frame photo-blur-frame is-edge">
+                <img class="photo-blur-pad" src="data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22480%22%20height%3D%22270%22%20viewBox%3D%220%200%20480%20270%22%3E%3Cdefs%3E%3ClinearGradient%20id%3D%22g%22%20x1%3D%220%25%22%20y1%3D%220%25%22%20x2%3D%22100%25%22%20y2%3D%22100%25%22%3E%3Cstop%20offset%3D%220%25%22%20stop-color%3D%22%23D0DFEE%22%2F%3E%3Cstop%20offset%3D%22100%25%22%20stop-color%3D%22%23E7EFF8%22%2F%3E%3C%2FlinearGradient%3E%3C%2Fdefs%3E%3Crect%20width%3D%22480%22%20height%3D%22270%22%20fill%3D%22url(%23g)%22%2F%3E%3Ccircle%20cx%3D%22374%22%20cy%3D%2275%22%20r%3D%2248%22%20fill%3D%22%233D5F9E%22%20opacity%3D%220.45%22%2F%3E%3Crect%20x%3D%2248%22%20y%3D%22162%22%20width%3D%22192%22%20height%3D%2267%22%20rx%3D%2212%22%20fill%3D%22%233D5F9E%22%20opacity%3D%220.25%22%2F%3E%3Ctext%20x%3D%2232%22%20y%3D%22222%22%20fill%3D%22%232E343B%22%20font-size%3D%2222%22%20font-weight%3D%22600%22%20font-family%3D%22system-ui%2C%20sans-serif%22%3E%E7%AA%97%E5%89%8D%E6%99%B4%E7%A9%BA%3C%2Ftext%3E%3Ctext%20x%3D%2232%22%20y%3D%22246%22%20fill%3D%22%2355606C%22%20font-size%3D%2213%22%20font-family%3D%22system-ui%2C%20sans-serif%22%3E16%3A9%20%C2%B7%20%E8%BE%BD%E8%BF%9C%E5%A4%A9%E8%89%B2%3C%2Ftext%3E%3C%2Fsvg%3E" alt="" aria-hidden="true" style="opacity: 0.12;">
+                <img class="photo-blur-still" src="data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22480%22%20height%3D%22270%22%20viewBox%3D%220%200%20480%20270%22%3E%3Cdefs%3E%3ClinearGradient%20id%3D%22g%22%20x1%3D%220%25%22%20y1%3D%220%25%22%20x2%3D%22100%25%22%20y2%3D%22100%25%22%3E%3Cstop%20offset%3D%220%25%22%20stop-color%3D%22%23D0DFEE%22%2F%3E%3Cstop%20offset%3D%22100%25%22%20stop-color%3D%22%23E7EFF8%22%2F%3E%3C%2FlinearGradient%3E%3C%2Fdefs%3E%3Crect%20width%3D%22480%22%20height%3D%22270%22%20fill%3D%22url(%23g)%22%2F%3E%3Ccircle%20cx%3D%22374%22%20cy%3D%2275%22%20r%3D%2248%22%20fill%3D%22%233D5F9E%22%20opacity%3D%220.45%22%2F%3E%3Crect%20x%3D%2248%22%20y%3D%22162%22%20width%3D%22192%22%20height%3D%2267%22%20rx%3D%2212%22%20fill%3D%22%233D5F9E%22%20opacity%3D%220.25%22%2F%3E%3Ctext%20x%3D%2232%22%20y%3D%22222%22%20fill%3D%22%232E343B%22%20font-size%3D%2222%22%20font-weight%3D%22600%22%20font-family%3D%22system-ui%2C%20sans-serif%22%3E%E7%AA%97%E5%89%8D%E6%99%B4%E7%A9%BA%3C%2Ftext%3E%3Ctext%20x%3D%2232%22%20y%3D%22246%22%20fill%3D%22%2355606C%22%20font-size%3D%2213%22%20font-family%3D%22system-ui%2C%20sans-serif%22%3E16%3A9%20%C2%B7%20%E8%BE%BD%E8%BF%9C%E5%A4%A9%E8%89%B2%3C%2Ftext%3E%3C%2Fsvg%3E" alt="窗前晴空" style="object-fit: contain;">
+              </span>
+            </button>
+            <button type="button" class="moment-album-card" data-depth="2" data-moment-album-kind="photo" data-moment-album-index="2" aria-label="查看第 3 张照片：静物标本">
+              <span class="moment-album-frame photo-blur-frame is-edge">
+                <img class="photo-blur-pad" src="data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22480%22%20height%3D%22480%22%20viewBox%3D%220%200%20480%20480%22%3E%3Cdefs%3E%3ClinearGradient%20id%3D%22g%22%20x1%3D%220%25%22%20y1%3D%220%25%22%20x2%3D%22100%25%22%20y2%3D%22100%25%22%3E%3Cstop%20offset%3D%220%25%22%20stop-color%3D%22%23D8E5DC%22%2F%3E%3Cstop%20offset%3D%22100%25%22%20stop-color%3D%22%23EDF5F0%22%2F%3E%3C%2FlinearGradient%3E%3C%2Fdefs%3E%3Crect%20width%3D%22480%22%20height%3D%22480%22%20fill%3D%22url(%23g)%22%2F%3E%3Ccircle%20cx%3D%22374%22%20cy%3D%22134%22%20r%3D%2286%22%20fill%3D%22%234D7056%22%20opacity%3D%220.45%22%2F%3E%3Crect%20x%3D%2248%22%20y%3D%22288%22%20width%3D%22192%22%20height%3D%22120%22%20rx%3D%2212%22%20fill%3D%22%234D7056%22%20opacity%3D%220.25%22%2F%3E%3Ctext%20x%3D%2232%22%20y%3D%22432%22%20fill%3D%22%232E343B%22%20font-size%3D%2222%22%20font-weight%3D%22600%22%20font-family%3D%22system-ui%2C%20sans-serif%22%3E%E9%9D%99%E7%89%A9%E6%A0%87%E6%9C%AC%3C%2Ftext%3E%3Ctext%20x%3D%2232%22%20y%3D%22456%22%20fill%3D%22%2355606C%22%20font-size%3D%2213%22%20font-family%3D%22system-ui%2C%20sans-serif%22%3E1%3A1%20%C2%B7%20%E6%96%B9%E5%BD%A2%E6%9E%84%E5%9B%BE%3C%2Ftext%3E%3C%2Fsvg%3E" alt="" aria-hidden="true" style="opacity: 0.12;">
+                <img class="photo-blur-still" src="data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22480%22%20height%3D%22480%22%20viewBox%3D%220%200%20480%20480%22%3E%3Cdefs%3E%3ClinearGradient%20id%3D%22g%22%20x1%3D%220%25%22%20y1%3D%220%25%22%20x2%3D%22100%25%22%20y2%3D%22100%25%22%3E%3Cstop%20offset%3D%220%25%22%20stop-color%3D%22%23D8E5DC%22%2F%3E%3Cstop%20offset%3D%22100%25%22%20stop-color%3D%22%23EDF5F0%22%2F%3E%3C%2FlinearGradient%3E%3C%2Fdefs%3E%3Crect%20width%3D%22480%22%20height%3D%22480%22%20fill%3D%22url(%23g)%22%2F%3E%3Ccircle%20cx%3D%22374%22%20cy%3D%22134%22%20r%3D%2286%22%20fill%3D%22%234D7056%22%20opacity%3D%220.45%22%2F%3E%3Crect%20x%3D%2248%22%20y%3D%22288%22%20width%3D%22192%22%20height%3D%22120%22%20rx%3D%2212%22%20fill%3D%22%234D7056%22%20opacity%3D%220.25%22%2F%3E%3Ctext%20x%3D%2232%22%20y%3D%22432%22%20fill%3D%22%232E343B%22%20font-size%3D%2222%22%20font-weight%3D%22600%22%20font-family%3D%22system-ui%2C%20sans-serif%22%3E%E9%9D%99%E7%89%A9%E6%A0%87%E6%9C%AC%3C%2Ftext%3E%3Ctext%20x%3D%2232%22%20y%3D%22456%22%20fill%3D%22%2355606C%22%20font-size%3D%2213%22%20font-family%3D%22system-ui%2C%20sans-serif%22%3E1%3A1%20%C2%B7%20%E6%96%B9%E5%BD%A2%E6%9E%84%E5%9B%BE%3C%2Ftext%3E%3C%2Fsvg%3E" alt="静物标本" style="object-fit: contain;">
+              </span>
+            </button>
+          </div>
+        </div>
+
+        <footer class="moment-album-foot">
+          <span class="moment-album-hint">轻触查看大图 · 左右拖动翻下一张</span>
+          <span class="moment-album-counter" id="moment-album-counter">1 / 5</span>
+        </footer>
+      </div>
+    </div>
+  </div>
+
+  <section class="feature-points">
+    <h2>清简美化要点验收</h2>
+    <ul>
+      <li><strong>居中弹窗形态</strong>：脱离底部抽屉，居中展示（遮罩居中对齐、全四角 20px 圆角），支持 scale+fade 动效。</li>
+      <li><strong>形状与圆角</strong>：外卡 <code>border-radius: 18px</code>，相框 <code>10px</code>，自然同心收敛。</li>
+      <li><strong>多层冷调阴影</strong>：顶部主牌立体通透，后层叠牌更安静收敛，使用 <code>rgba(46,52,59,…)</code>。</li>
+      <li><strong>叠牌纵深层次</strong>：从原本的 -12px/-24px 提升为 -18px/-34px，顶边露角显著、两翼缩放阶梯更清晰。</li>
+      <li><strong>手势与动效一致</strong>：JS 插值跟手精准匹配静止状态，松手吸回 / 翻牌手感舒适。</li>
+    </ul>
+  </section>
+
+  <script type="module">
+    // 模拟 5 张具有不同比例与清简冷调色板的矢量 SVG 照片
+    const makeSvgPhoto = (title, subtitle, aspect, colorA, colorB, accent) => {
+      const w = 480;
+      const h = Math.round(w / aspect);
+      const svg = `
+        <svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
+          <defs>
+            <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="${colorA}"/>
+              <stop offset="100%" stop-color="${colorB}"/>
+            </linearGradient>
+          </defs>
+          <rect width="${w}" height="${h}" fill="url(#g)"/>
+          <circle cx="${w * 0.78}" cy="${h * 0.28}" r="${Math.min(w, h) * 0.18}" fill="${accent}" opacity="0.45"/>
+          <rect x="${w * 0.1}" y="${h * 0.6}" width="${w * 0.4}" height="${h * 0.25}" rx="12" fill="${accent}" opacity="0.25"/>
+          <text x="32" y="${h - 48}" fill="#2E343B" font-size="22" font-weight="600" font-family="system-ui, -apple-system, sans-serif">${title}</text>
+          <text x="32" y="${h - 24}" fill="#55606C" font-size="13" font-family="system-ui, -apple-system, sans-serif">${subtitle}</text>
+        </svg>
+      `;
+      return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+    };
+
+    const PHOTOS = [
+      { id: 1, title: '初秋街角', sub: '4:3 · 冷调晨光', aspect: 4 / 3, url: makeSvgPhoto('初秋街角', '4:3 · 冷调晨光', 4 / 3, '#D5E0F2', '#E2EAF8', '#4F76BD') },
+      { id: 2, title: '窗前晴空', sub: '16:9 · 辽远天色', aspect: 16 / 9, url: makeSvgPhoto('窗前晴空', '16:9 · 辽远天色', 16 / 9, '#D0DFEE', '#E7EFF8', '#3D5F9E') },
+      { id: 3, title: '静物标本', sub: '1:1 · 方形构图', aspect: 1, url: makeSvgPhoto('静物标本', '1:1 · 方形构图', 1, '#D8E5DC', '#EDF5F0', '#4D7056') },
+      { id: 4, title: '林间小径', sub: '3:4 · 竖向光影', aspect: 3 / 4, url: makeSvgPhoto('林间小径', '3:4 · 竖向光影', 3 / 4, '#D6E2E8', '#EBF2F6', '#55606C') },
+      { id: 5, title: '傍晚余温', sub: '4:5 · 暮色微凉', aspect: 4 / 5, url: makeSvgPhoto('傍晚余温', '4:5 · 暮色微凉', 4 / 5, '#DFD8E8', '#F1EDF6', '#72608A') }
+    ];
+
+    const MOMENT_ALBUM_DEPTH_WARM = [
+      { y: 0, s: 1, o: 1 },
+      { y: -12, s: 0.972, o: 0.96 },
+      { y: -24, s: 0.944, o: 0.9 }
+    ];
+
+    const MOMENT_ALBUM_DEPTH_PLAIN = [
+      { y: 0, s: 1, o: 1 },
+      { y: -18, s: 0.95, o: 0.94 },
+      { y: -34, s: 0.9, o: 0.86 }
+    ];
+
+    function getDepthTable() {
+      return document.documentElement.dataset.theme === 'plain'
+        ? MOMENT_ALBUM_DEPTH_PLAIN
+        : MOMENT_ALBUM_DEPTH_WARM;
+    }
+
+    const MOMENT_ALBUM_THROW_MS = 300;
+    const MOMENT_ALBUM_OUT = 'cubic-bezier(.2,.8,.2,1)';
+    const MOMENT_ALBUM_SPRING = 'cubic-bezier(.34,1.56,.64,1)';
+
+    function deckCutDecision({ dx = 0, width = 1, velocity = 0 }) {
+      const threshold = 56;
+      const fast = Math.abs(velocity) > 700;
+      if (dx <= -threshold || (fast && velocity < 0 && dx < -12)) return 'next';
+      if (dx >= threshold || (fast && velocity > 0 && dx > 12)) return 'prev';
+      return 'stay';
+    }
+
+    const stage = document.getElementById('moment-album-stage');
+    const stack = document.getElementById('moment-album-stack');
+    const counter = document.getElementById('moment-album-counter');
+    const gestureStatus = document.getElementById('gesture-status');
+
+    let currentIndex = 0;
+    const totalCount = PHOTOS.length;
+
+    function createCardNode(item, depth) {
+      const card = document.createElement('button');
+      card.type = 'button';
+      card.className = 'moment-album-card';
+      card.dataset.depth = String(depth);
+      card.dataset.momentAlbumKind = 'photo';
+      card.dataset.momentAlbumIndex = String(item.id - 1);
+      card.setAttribute('aria-label', `查看第 ${item.id} 张照片：${item.title}`);
+
+      card.innerHTML = `
+        <span class="moment-album-frame photo-blur-frame is-edge">
+          <img class="photo-blur-pad" src="${item.url}" alt="" aria-hidden="true" style="opacity: 0.12;">
+          <img class="photo-blur-still" src="${item.url}" alt="${item.title}" style="object-fit: contain;">
+        </span>
+      `;
+      return card;
+    }
+
+    function renderStack() {
+      stack.innerHTML = '';
+      const depthCount = Math.min(3, totalCount);
+      for (let depth = 0; depth < depthCount; depth++) {
+        const item = PHOTOS[(currentIndex + depth) % totalCount];
+        stack.appendChild(createCardNode(item, depth));
+      }
+      counter.textContent = `${currentIndex + 1} / ${totalCount}`;
+    }
+
+    function settleCards(ms = 240, easing = MOMENT_ALBUM_OUT) {
+      stack.querySelectorAll('.moment-album-card').forEach(card => {
+        card.style.transition = ms ? `transform ${ms}ms ${easing}, opacity ${ms}ms ${easing}` : 'none';
+        card.style.transform = '';
+        card.style.opacity = '';
+      });
+    }
+
+    function flip(step, { fromX = 0, velocity = 0 } = {}) {
+      if (totalCount < 2) return;
+      const ms = MOMENT_ALBUM_THROW_MS;
+      currentIndex = ((currentIndex + step) % totalCount + totalCount) % totalCount;
+      const cards = [...stack.querySelectorAll('.moment-album-card')].filter(c => c.dataset.depth !== 'out').sort((a, b) => a.dataset.depth - b.dataset.depth);
+      const width = stack.clientWidth || 320;
+      const depthCount = Math.min(3, totalCount);
+
+      if (step > 0) {
+        const out = cards.shift();
+        cards.forEach((card, i) => { card.dataset.depth = String(i); });
+        if (depthCount > cards.length) {
+          const fresh = createCardNode(PHOTOS[(currentIndex + cards.length) % totalCount], cards.length);
+          if (fresh) { stack.appendChild(fresh); cards.push(fresh); }
+        }
+        if (out) {
+          out.dataset.depth = 'out';
+          const dir = fromX > 0 || (fromX === 0 && velocity > 0) ? 1 : -1;
+          const tilt = dir * 10;
+          out.style.transition = 'none';
+          out.style.transform = `translate3d(${fromX}px,0,0) rotate(${Math.max(-6, Math.min(6, fromX / 30))}deg)`;
+          void out.offsetWidth;
+          out.style.transition = `transform ${ms}ms ${MOMENT_ALBUM_OUT}, opacity ${ms}ms ${MOMENT_ALBUM_OUT}`;
+          out.style.transform = `translate3d(${dir * width * 1.15}px,0,0) rotate(${tilt}deg)`;
+          out.style.opacity = '0';
+          setTimeout(() => out.remove(), ms + 40);
+        }
+      } else {
+        const fresh = createCardNode(PHOTOS[currentIndex], 0);
+        cards.forEach((card, i) => { card.dataset.depth = String(i + 1); });
+        if (cards.length >= depthCount) {
+          const drop = cards.pop();
+          drop?.remove();
+        }
+        if (fresh) {
+          stack.insertBefore(fresh, stack.firstChild);
+          fresh.style.transition = 'none';
+          fresh.style.transform = `translate3d(${-width * 1.1}px,0,0) rotate(-8deg)`;
+          fresh.style.opacity = '0';
+          void fresh.offsetWidth;
+        }
+      }
+
+      [...stack.querySelectorAll('.moment-album-card')].forEach(card => {
+        if (card.dataset.depth === 'out') return;
+        card.style.transition = `transform ${ms}ms ${MOMENT_ALBUM_OUT}, opacity ${ms}ms ${MOMENT_ALBUM_OUT}`;
+        card.style.transform = '';
+        card.style.opacity = '';
+      });
+      counter.textContent = `${currentIndex + 1} / ${totalCount}`;
+    }
+
+    // 绑定与 snippets.js 相同的完整拖拽与插值手势
+    let pointerId = null;
+    let startX = 0;
+    let startY = 0;
+    let dx = 0;
+    let dragging = false;
+    let moved = false;
+    let samples = [];
+
+    const topCard = () => stack.querySelector('.moment-album-card[data-depth="0"]');
+    const backCards = () => [1, 2].map(d => stack.querySelector(`.moment-album-card[data-depth="${d}"]`));
+
+    const paint = () => {
+      const card = topCard();
+      if (!card) return;
+      const tilt = Math.max(-6, Math.min(6, dx / 30));
+      card.style.transition = 'none';
+      card.style.transform = `translate3d(${dx}px,0,0) rotate(${tilt}deg)`;
+
+      const p = dx < 0 ? Math.min(1, -dx / 56) : 0;
+      const depths = getDepthTable();
+      backCards().forEach((back, i) => {
+        if (!back) return;
+        const a = depths[i + 1];
+        const b = depths[i];
+        back.style.transition = 'none';
+        back.style.transform = `translate3d(0,${a.y + (b.y - a.y) * p}px,0) scale(${a.s + (b.s - a.s) * p})`;
+        back.style.opacity = String(a.o + (b.o - a.o) * p);
+      });
+    };
+
+    const getVelocity = () => {
+      const now = performance.now();
+      const recent = samples.filter(s => now - s.t < 100);
+      if (recent.length < 2) return 0;
+      const first = recent[0];
+      const last = recent[recent.length - 1];
+      const dt = last.t - first.t;
+      return dt > 0 ? ((last.x - first.x) / dt) * 1000 : 0;
+    };
+
+    stage.addEventListener('pointerdown', event => {
+      if (pointerId !== null) return;
+      pointerId = event.pointerId;
+      startX = event.clientX;
+      startY = event.clientY;
+      dx = 0;
+      dragging = true;
+      moved = false;
+      samples = [{ x: event.clientX, t: performance.now() }];
+      try { stage.setPointerCapture(pointerId); } catch {}
+      gestureStatus.textContent = '手势：开始拖拽...';
+    });
+
+    stage.addEventListener('pointermove', event => {
+      if (!dragging || event.pointerId !== pointerId) return;
+      dx = event.clientX - startX;
+      const dy = event.clientY - startY;
+      samples.push({ x: event.clientX, t: performance.now() });
+      if (samples.length > 8) samples.shift();
+      if (!moved && Math.abs(dx) < 6 && Math.abs(dy) < 6) return;
+      if (!moved && Math.abs(dy) > Math.abs(dx)) {
+        dragging = false;
+        pointerId = null;
+        gestureStatus.textContent = '手势：检测到纵向滚动，释放控制';
+        return;
+      }
+      moved = true;
+      paint();
+      gestureStatus.textContent = `拖动: dx=${Math.round(dx)}px`;
+    });
+
+    const onPointerEnd = event => {
+      if (!dragging || (event && event.pointerId !== pointerId)) return;
+      dragging = false;
+      if (pointerId !== null) {
+        try { stage.releasePointerCapture(pointerId); } catch {}
+      }
+      pointerId = null;
+
+      if (!moved) {
+        gestureStatus.textContent = '轻触卡片：打开原图大图';
+        topCard()?.animate?.([
+          { transform: 'scale(1)' },
+          { transform: 'scale(0.97)' },
+          { transform: 'scale(1)' }
+        ], { duration: 200, easing: MOMENT_ALBUM_OUT });
+        return;
+      }
+
+      const velocity = getVelocity();
+      const decision = deckCutDecision({ dx, width: stage.clientWidth || 320, velocity });
+      gestureStatus.textContent = `判定: ${decision} (dx=${Math.round(dx)}, v=${Math.round(velocity)}px/s)`;
+
+      if (decision === 'stay') {
+        settleCards(280, MOMENT_ALBUM_SPRING);
+      } else {
+        flip(decision === 'next' ? 1 : -1, { fromX: dx, velocity });
+      }
+    };
+
+    stage.addEventListener('pointerup', onPointerEnd);
+    stage.addEventListener('pointercancel', () => {
+      dragging = false;
+      pointerId = null;
+      settleCards(200);
+      gestureStatus.textContent = '手势已取消';
+    });
+
+    // 控件交互
+    document.getElementById('btn-prev').addEventListener('click', () => {
+      flip(-1);
+      gestureStatus.textContent = '点击上一张';
+    });
+
+    document.getElementById('btn-next').addEventListener('click', () => {
+      flip(1);
+      gestureStatus.textContent = '点击下一张';
+    });
+
+    const themeToggleBtn = document.getElementById('btn-toggle-theme');
+    themeToggleBtn.addEventListener('click', () => {
+      const isPlain = document.documentElement.dataset.theme === 'plain';
+      if (isPlain) {
+        document.documentElement.removeAttribute('data-theme');
+        themeToggleBtn.textContent = '主题：暖色 (Warm)';
+        themeToggleBtn.classList.remove('active');
+        gestureStatus.textContent = '切换至暖色主题 (观察层叠与阴影对比)';
+      } else {
+        document.documentElement.dataset.theme = 'plain';
+        themeToggleBtn.textContent = '主题：清简 (Plain)';
+        themeToggleBtn.classList.add('active');
+        gestureStatus.textContent = '切换至清简主题 (18px/10px 圆角 + -18px/-34px 深度)';
+      }
+      renderStack();
+    });
+
+    const layer = document.getElementById('moment-album-layer');
+    const sheet = document.getElementById('moment-album-sheet');
+
+    function replayOpen() {
+      layer.hidden = false;
+      layer.classList.remove('is-closing');
+      layer.classList.add('open');
+      layer.style.pointerEvents = 'auto';
+      gestureStatus.textContent = '图集已打开 (Scale+Fade In 居中展开)';
+      try {
+        sheet.animate([
+          { transform: 'scale(0.94)', opacity: 0 },
+          { transform: 'none', opacity: 1 }
+        ], { duration: 240, easing: MOMENT_ALBUM_OUT });
+        layer.animate([
+          { opacity: 0 },
+          { opacity: 1 }
+        ], { duration: 200, easing: 'ease-out' });
+      } catch {}
+    }
+
+    function closeAlbum() {
+      if (!layer.classList.contains('open')) return;
+      layer.classList.add('is-closing');
+      gestureStatus.textContent = '图集已关闭 (Scale+Fade Out 居中收起)';
+      try {
+        const anim = sheet.animate([
+          { transform: 'none', opacity: 1 },
+          { transform: 'scale(0.94)', opacity: 0 }
+        ], { duration: 200, easing: MOMENT_ALBUM_OUT, fill: 'forwards' });
+        layer.animate([
+          { opacity: 1 },
+          { opacity: 0 }
+        ], { duration: 200, fill: 'forwards' });
+        anim.onfinish = () => {
+          layer.classList.remove('open', 'is-closing');
+          layer.style.pointerEvents = 'none';
+        };
+      } catch {
+        layer.classList.remove('open', 'is-closing');
+        layer.style.pointerEvents = 'none';
+      }
+    }
+
+    document.getElementById('btn-open').addEventListener('click', () => {
+      replayOpen();
+    });
+
+    document.getElementById('album-close-btn').addEventListener('click', () => {
+      closeAlbum();
+    });
+
+    layer.addEventListener('click', event => {
+      if (event.target === layer) {
+        closeAlbum();
+      }
+    });
+
+    // 初始渲染
+    renderStack();
+  </script>
+</body>
+</html>
