@@ -1,0 +1,755 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#EAF0F8">
+<title>暖色生活志 · 随手拍相册缩略图网格预览</title>
+<link rel="stylesheet" href="../fonts.css">
+<style>
+/* ============================================================
+   预览页外壳与设计令牌（清简主题 Plain Look）
+   ============================================================ */
+:root {
+  --canvas: #EAF0F8;
+  --surface: #FBFCFE;
+  --card: #FFFFFF;
+  --ink: #2E343B;
+  --ink-secondary: #5A6572;
+  --ink-muted: #8A929C;
+  --blue: #4F76BD;
+  --blue-deep: #3D5F9E;
+  --blue-soft: #EDF1FA;
+  --line: rgba(85, 96, 108, 0.12);
+  --line-strong: rgba(85, 96, 108, 0.22);
+  --sh-card: 0 1px 3px rgba(46, 52, 59, 0.04), 0 8px 24px rgba(46, 52, 59, 0.06);
+  --sh-float: 0 4px 16px rgba(46, 52, 59, 0.12);
+  --f-serif: 'Newsreader', 'Noto Serif SC', Georgia, serif;
+  --f-sans: 'Noto Sans SC', 'PingFang SC', system-ui, sans-serif;
+  --pw: min(390px, calc(100vw - 24px));
+  --phh: clamp(600px, calc(100svh - 120px), 820px);
+}
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; padding: 0; background: var(--canvas); color: var(--ink); font-family: var(--f-sans); }
+
+/* ---------- 预览顶部控制条 ---------- */
+.demo-bar {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 16px 16px 8px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.demo-title h1 { margin: 0; font-family: var(--f-serif); font-size: 20px; font-weight: 800; color: var(--ink); }
+.demo-title p { margin: 4px 0 0; font-size: 12px; color: var(--ink-secondary); line-height: 1.4; }
+.demo-actions { display: flex; gap: 8px; align-items: center; }
+.demo-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 14px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  transition: all .15s ease;
+}
+.demo-btn:hover { background: var(--blue-soft); border-color: var(--blue); color: var(--blue-deep); }
+.demo-btn.active { background: var(--blue); border-color: var(--blue); color: #fff; }
+
+/* ---------- 手机模型居中外壳 ---------- */
+.stage { display: flex; justify-content: center; padding: 8px 12px 32px; }
+.phone-shell {
+  position: relative;
+  width: var(--pw);
+  height: var(--phh);
+  border-radius: 36px;
+  overflow: hidden;
+  background: #F4F7FC;
+  box-shadow: 0 0 0 8px #262a31, 0 28px 70px rgba(30, 40, 60, 0.28);
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 顶部状态条 */
+.status-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 20px 4px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--ink-secondary);
+  user-select: none;
+}
+
+/* 随手拍主页面滚动流 */
+.moments-screen {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 8px 14px 60px;
+  scrollbar-width: none;
+}
+.moments-screen::-webkit-scrollbar { display: none; }
+
+.moments-header { text-align: center; padding: 12px 0 14px; }
+.moments-header h2 { margin: 0; font-family: var(--f-serif); font-size: 22px; font-weight: 800; letter-spacing: -.02em; }
+.moments-header small { display: block; margin-top: 4px; font-size: 11px; color: var(--ink-muted); letter-spacing: .08em; }
+
+/* 搜索栏与相册按钮（任务核心入口） */
+.snippet-search-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 12px 0 16px;
+}
+.snippet-search-paper {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 12px;
+  border-radius: 12px;
+  background: #fff;
+  border: 1px solid var(--line);
+  box-shadow: 0 1px 3px rgba(46, 52, 59, 0.03);
+}
+.snippet-search-paper svg { width: 18px; height: 18px; fill: var(--ink-muted); flex: none; }
+.snippet-search-input {
+  width: 100%;
+  border: 0;
+  outline: none;
+  background: transparent;
+  font-size: 12px;
+  color: var(--ink);
+}
+.snippet-search-input::placeholder { color: var(--ink-muted); }
+
+/* 相册入口按钮（#snippet-album） */
+.snippet-tool-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--blue-deep);
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(46, 52, 59, 0.03);
+  transition: transform .15s ease, background-color .15s ease;
+}
+.snippet-tool-btn:active { transform: scale(0.94); background: var(--blue-soft); }
+.snippet-tool-btn svg { width: 20px; height: 20px; fill: currentColor; }
+
+.snippet-add-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 40px;
+  padding: 0 12px;
+  border-radius: 12px;
+  border: 0;
+  background: var(--blue);
+  color: #fff;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(79, 118, 189, 0.28);
+}
+.snippet-add-btn svg { width: 18px; height: 18px; fill: currentColor; }
+
+/* 随手拍分类胶囊 */
+.snippet-tabs-filter {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  margin-bottom: 16px;
+}
+.snippet-tabs-filter::-webkit-scrollbar { display: none; }
+.snippet-filter-pill {
+  flex: none;
+  height: 28px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.7);
+  color: var(--ink-secondary);
+  font-size: 11.5px;
+  font-weight: 600;
+}
+.snippet-filter-pill.active { background: #fff; border-color: var(--blue); color: var(--blue-deep); }
+
+/* 示例随手拍内容卡片 */
+.sample-card {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 12px;
+  margin-bottom: 12px;
+  box-shadow: var(--sh-card);
+}
+.sample-card-head { display: flex; justify-content: space-between; font-size: 11px; color: var(--ink-muted); margin-bottom: 8px; }
+.sample-card-img { width: 100%; height: 140px; border-radius: 10px; object-fit: cover; display: block; margin-bottom: 8px; }
+.sample-card-p { margin: 0; font-size: 13px; line-height: 1.5; color: var(--ink); }
+
+/* ============================================================
+   相册缩略图网格层（#snippet-album-grid）—— 清简主题规范复刻
+   ============================================================ */
+#snippet-album-grid,
+.snippet-album-grid {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: none;
+  flex-direction: column;
+  background: #FBFCFE;
+  color: #2E343B;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+}
+#snippet-album-grid.open { display: flex; }
+#snippet-album-grid.is-closing { pointer-events: none; }
+
+/* 网格层头部（返回 + 标题 + 数量） */
+.snippet-album-grid-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 44px;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px 10px;
+  background: rgba(251, 252, 254, 0.94);
+  backdrop-filter: blur(12px) saturate(140%);
+  -webkit-backdrop-filter: blur(12px) saturate(140%);
+  border-bottom: 1px solid rgba(85, 96, 108, 0.1);
+}
+.snippet-album-grid-back {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid rgba(85, 96, 108, 0.16);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--ink);
+  cursor: pointer;
+  transition: transform .15s ease;
+}
+.snippet-album-grid-back:active { transform: scale(0.92); }
+.snippet-album-grid-back svg { width: 20px; height: 20px; fill: currentColor; }
+
+.snippet-album-grid-title-wrap {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 8px;
+  min-width: 0;
+}
+.snippet-album-grid-title {
+  margin: 0;
+  font-family: var(--f-serif);
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+.snippet-album-grid-count {
+  font-size: 12px;
+  font-weight: 500;
+  color: #8A929C;
+  font-variant-numeric: tabular-nums;
+}
+.snippet-album-grid-actions { width: 44px; }
+
+/* 3 列正方形网格 */
+.snippet-album-grid-body {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2px;
+  padding: 2px 2px 32px;
+  box-sizing: border-box;
+}
+
+/* 单元格：aspect-ratio:1 + content-visibility:auto + contain-intrinsic-size */
+.snippet-album-grid-cell {
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  background: #E8EDF5;
+  overflow: hidden;
+  cursor: pointer;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 120px;
+}
+.snippet-album-grid-cell img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  border: 0;
+}
+
+.snippet-grid-video-placeholder {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: #3D5F9E;
+  color: #fff;
+}
+.snippet-grid-video-placeholder svg { width: 32px; height: 32px; fill: currentColor; }
+
+.snippet-grid-play-badge {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: rgba(18, 16, 14, 0.65);
+  color: #fff;
+  pointer-events: none;
+}
+.snippet-grid-play-badge svg { width: 14px; height: 14px; fill: currentColor; }
+
+/* ============================================================
+   大图查看器（PhotoViewer Contain 模态）
+   ============================================================ */
+.photo-viewer-modal {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  display: none;
+  flex-direction: column;
+  background: #000;
+  color: #fff;
+}
+.photo-viewer-modal.open { display: flex; }
+.photo-viewer-chrome-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: linear-gradient(180deg, rgba(0,0,0,0.65) 0%, rgba(0,0,0,0) 100%);
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  z-index: 5;
+}
+.photo-viewer-index { font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.photo-viewer-close {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 0;
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+  cursor: pointer;
+}
+.photo-viewer-close svg { width: 20px; height: 20px; fill: currentColor; }
+
+.photo-viewer-stage {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 10px;
+  position: relative;
+}
+.photo-viewer-stage img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  user-select: none;
+}
+
+.photo-viewer-chrome-bottom {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  z-index: 5;
+  padding: 16px 16px 20px;
+  background: linear-gradient(0deg, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0) 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.photo-viewer-meta { font-size: 12px; line-height: 1.4; }
+.photo-viewer-meta time { color: rgba(255, 255, 255, 0.7); display: block; font-size: 11px; margin-bottom: 2px; }
+.photo-viewer-nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 4px;
+}
+.photo-viewer-nav button {
+  height: 32px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  font-size: 12px;
+  cursor: pointer;
+}
+.photo-viewer-nav button:disabled { opacity: 0.3; cursor: default; }
+
+/* 提示通知 */
+.demo-toast {
+  position: absolute;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 8px 16px;
+  border-radius: 999px;
+  background: rgba(46, 52, 59, 0.92);
+  color: #fff;
+  font-size: 11.5px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity .25s ease;
+  z-index: 60;
+  white-space: nowrap;
+}
+.demo-toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<div class="demo-bar">
+  <div class="demo-title">
+    <h1>随手拍 · 跨天相册缩略图网格演示</h1>
+    <p>点击搜索栏旁相册按钮 → 打开相册网格层 (#grid) → 点击单元格看大图 → 返回保持原滚动位置</p>
+  </div>
+  <div class="demo-actions">
+    <button type="button" class="demo-btn" id="btn-hash-grid">#grid 直达</button>
+    <button type="button" class="demo-btn" id="btn-toggle-motion">动效：完整 (Rich)</button>
+  </div>
+</div>
+
+<div class="stage">
+  <div class="phone-shell">
+    <div class="status-bar">
+      <span>09:41</span>
+      <span>Mine Moments</span>
+      <span>100%</span>
+    </div>
+
+    <!-- 1. 随手拍列表页 -->
+    <main class="moments-screen" id="screen-snippets">
+      <header class="moments-header">
+        <h2>Mine Moments</h2>
+        <small>Historical Archive · 随手拍 · 随手记</small>
+      </header>
+
+      <!-- 搜索栏 + 相册按钮 -->
+      <div class="snippet-search-box">
+        <label class="snippet-search-paper">
+          <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+          <input class="snippet-search-input" placeholder="搜索照片、灵感便签、书籍..." readonly>
+        </label>
+        <button type="button" id="snippet-album" class="snippet-tool-btn" aria-label="跨天相册">
+          <svg viewBox="0 0 24 24"><path d="M22 16V4c0-1.1-.9-2-2-2H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2zm-11-4l2.03 2.71L16 11l4 5H8l3-4zM2 6v14c0 1.1.9 2 2 2h14v-2H4V6H2z"/></svg>
+        </button>
+        <button type="button" class="snippet-add-btn">
+          <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+          <span>记录</span>
+        </button>
+      </div>
+
+      <div class="snippet-tabs-filter">
+        <button class="snippet-filter-pill active">全部 (18)</button>
+        <button class="snippet-filter-pill">随手拍 (14)</button>
+        <button class="snippet-filter-pill">视频 (4)</button>
+      </div>
+
+      <div class="sample-card">
+        <div class="sample-card-head"><span>10月14日 · 随手拍</span><span>今天</span></div>
+        <img class="sample-card-img" id="hero-img" alt="今日照片">
+        <p class="sample-card-p">清晨光线洒在书桌上，一杯热手冲与新写下的生活随记。</p>
+      </div>
+
+      <div class="sample-card">
+        <div class="sample-card-head"><span>10月13日 · 灵感速记</span><span>昨天</span></div>
+        <p class="sample-card-p">“生活不在于收集了多少物品，而在于记住了多少微小而真实的时刻。”</p>
+      </div>
+    </main>
+
+    <!-- 2. 全屏相册缩略图网格层（#snippet-album-grid） -->
+    <div id="snippet-album-grid" class="snippet-album-grid" role="dialog" aria-modal="true" hidden>
+      <header class="snippet-album-grid-header">
+        <button type="button" class="snippet-album-grid-back" id="snippet-album-grid-back" aria-label="返回">
+          <svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+        </button>
+        <div class="snippet-album-grid-title-wrap">
+          <h2 class="snippet-album-grid-title">相册</h2>
+          <span class="snippet-album-grid-count" id="snippet-grid-count">18 张</span>
+        </div>
+        <div class="snippet-album-grid-actions"></div>
+      </header>
+      <div class="snippet-album-grid-body" id="snippet-grid-body">
+        <!-- 3 列网格单元由脚本填充 -->
+      </div>
+    </div>
+
+    <!-- 3. 大图查看器（PhotoViewer Modal） -->
+    <div class="photo-viewer-modal" id="photo-viewer-modal" role="dialog" aria-modal="true">
+      <div class="photo-viewer-chrome-top">
+        <span class="photo-viewer-index" id="viewer-index">1 / 18</span>
+        <button type="button" class="photo-viewer-close" id="viewer-close" aria-label="关闭大图">
+          <svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </div>
+      <div class="photo-viewer-stage" id="viewer-stage">
+        <img id="viewer-img" alt="大图查看">
+      </div>
+      <div class="photo-viewer-chrome-bottom">
+        <div class="photo-viewer-meta">
+          <time id="viewer-time">2026-10-14 08:30</time>
+          <span id="viewer-caption">这一段影像的记录说明</span>
+        </div>
+        <div class="photo-viewer-nav">
+          <button type="button" id="viewer-prev">上一张</button>
+          <small style="color:rgba(255,255,255,0.6)">双指缩放 · 左右切换</small>
+          <button type="button" id="viewer-next">下一张</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="demo-toast" id="demo-toast"></div>
+  </div>
+</div>
+
+<script>
+// ---------- 演示数据：18 个不同色调的生成式 SVG 图片 ----------
+function makeSvgData(title, color1, color2, isVideo = false) {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="600" height="600" viewBox="0 0 600 600">
+    <defs>
+      <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stop-color="${color1}"/>
+        <stop offset="100%" stop-color="${color2}"/>
+      </linearGradient>
+    </defs>
+    <rect width="600" height="600" fill="url(#g)"/>
+    <circle cx="300" cy="270" r="110" fill="rgba(255,255,255,0.22)"/>
+    <text x="300" y="440" font-family="sans-serif" font-size="28" font-weight="700" fill="#ffffff" text-anchor="middle">${title}</text>
+  </svg>`;
+  return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+}
+
+const ITEMS = [
+  { isVideo: false, title: '晨光手冲', time: '10月14日 08:15', caption: '手冲咖啡的蒸汽在阳光下升起。', c1: '#c47e68', c2: '#e5c3a6' },
+  { isVideo: false, title: '窗前绿植', time: '10月14日 07:30', caption: '薄荷和蕨叶在晨风中微晃。', c1: '#4d7056', c2: '#9ec2a8' },
+  { isVideo: true,  title: '街道小雨', time: '10月13日 18:20', caption: '傍晚下起细雨，路灯刚亮。', c1: '#4F76BD', c2: '#8CA5D8', hasPoster: true },
+  { isVideo: false, title: '书影翻阅', time: '10月13日 14:10', caption: '在旧书店翻到一本心心念念的诗集。', c1: '#8A5D3B', c2: '#C99E75' },
+  { isVideo: false, title: '午后烘焙', time: '10月13日 11:45', caption: '刚出炉的司康，弥漫黄油香。', c1: '#D48B47', c2: '#F3C58E' },
+  { isVideo: true,  title: '猫咪午睡', time: '10月12日 16:00', caption: '阳光晒在毛毯上，蜷缩成一团。', c1: '#7E6B8F', c2: '#B8A7C9', hasPoster: true },
+  { isVideo: false, title: '暮色天际', time: '10月12日 18:40', caption: '粉紫色的晚霞染满了半边天空。', c1: '#844D68', c2: '#D689A4' },
+  { isVideo: false, title: '湖畔漫步', time: '10月12日 10:20', caption: '秋天湖面像一面平静的镜子。', c1: '#3D5F9E', c2: '#7FA2E0' },
+  { isVideo: false, title: '手作陶杯', time: '10月11日 15:30', caption: '第一次拉坯做的粗陶茶杯。', c1: '#5A6572', c2: '#9EAAB8' },
+  { isVideo: true,  title: '落叶微风', time: '10月11日 13:05', caption: '银杏叶慢动作飘落在石阶上。', c1: '#C68B2C', c2: '#E9C368', hasPoster: false },
+  { isVideo: false, title: '夜读摘抄', time: '10月10日 22:15', caption: '台灯下的静心时光。', c1: '#1F2937', c2: '#4B5563' },
+  { isVideo: false, title: '清爽冷萃', time: '10月10日 15:50', caption: '加了柠檬片的埃塞俄比亚冷萃。', c1: '#A3684B', c2: '#DEAB8D' },
+  { isVideo: false, title: '山野远足', time: '10月09日 09:20', caption: '登上山顶俯瞰整座小镇。', c1: '#2E5B44', c2: '#68A882' },
+  { isVideo: false, title: '花店一角', time: '10月08日 17:10', caption: '打包了一束洋桔梗和尤加利。', c1: '#B35E75', c2: '#E4A2B4' },
+  { isVideo: true,  title: '壁炉余温', time: '10月07日 21:00', caption: '柴火偶尔哔剥作响。', c1: '#9A3A26', c2: '#D9735D', hasPoster: true },
+  { isVideo: false, title: '手账复盘', time: '10月06日 20:30', caption: '整理这一周的开销与习惯打卡。', c1: '#4A6274', c2: '#8BA1B3' },
+  { isVideo: false, title: '晴空云朵', time: '10月05日 14:00', caption: '秋高气爽，天格外蓝。', c1: '#2B6CB0', c2: '#63B3ED' },
+  { isVideo: false, title: '街角面包', time: '10月04日 08:00', caption: '清晨刚出炉的法棍和可颂。', c1: '#B7791F', c2: '#F6E05E' }
+].map(item => ({
+  ...item,
+  url: makeSvgData(item.title, item.c1, item.c2, item.isVideo)
+}));
+
+// 设置主页面的 Hero 图
+document.getElementById('hero-img').src = ITEMS[0].url;
+
+// ---------- 动效档位切换 ----------
+let currentTier = 'rich'; // 'rich' | 'none'
+const btnToggleMotion = document.getElementById('btn-toggle-motion');
+btnToggleMotion.onclick = () => {
+  currentTier = currentTier === 'rich' ? 'none' : 'rich';
+  btnToggleMotion.textContent = currentTier === 'rich' ? '动效：完整 (Rich)' : '动效：减弱 (None/Lite)';
+  showToast(currentTier === 'rich' ? '已切为 Rich 细腻淡入上浮动效' : '已切为 Lite/Reduced 瞬切无动效');
+};
+
+// ---------- 网格层元素与状态 ----------
+const gridLayer = document.getElementById('snippet-album-grid');
+const gridBody = document.getElementById('snippet-grid-body');
+const btnSnippetAlbum = document.getElementById('snippet-album');
+const btnGridBack = document.getElementById('snippet-album-grid-back');
+const btnHashGrid = document.getElementById('btn-hash-grid');
+
+// 填充 18 宫格单元
+gridBody.innerHTML = ITEMS.map((item, index) => {
+  let innerHtml = '';
+  if (item.isVideo) {
+    if (item.hasPoster) {
+      innerHtml = `<img src="${item.url}" alt="${item.title}" loading="lazy" decoding="async">`;
+    } else {
+      innerHtml = `<span class="snippet-grid-video-placeholder"><svg viewBox="0 0 24 24"><path d="M18 4l2 4h-3l-2-4h-2l2 4h-3l-2-4H8l2 4H7L5 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4h-4z"/></svg></span>`;
+    }
+    innerHtml += `<span class="snippet-grid-play-badge"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></span>`;
+  } else {
+    innerHtml = `<img src="${item.url}" alt="${item.title}" loading="lazy" decoding="async">`;
+  }
+  return `<button type="button" class="snippet-album-grid-cell" data-index="${index}" aria-label="${item.title}">${innerHtml}</button>`;
+}).join('');
+
+function openGrid() {
+  if (gridLayer.classList.contains('open')) return;
+  gridLayer.hidden = false;
+  if (!gridLayer.classList.contains('open')) gridLayer.classList.add('open');
+
+  if (currentTier === 'rich' && gridLayer.animate) {
+    gridLayer.animate([
+      { opacity: 0, transform: 'translate3d(0, 18px, 0)' },
+      { opacity: 1, transform: 'none' }
+    ], { duration: 220, easing: 'cubic-bezier(.2, .8, .2, 1)' });
+  }
+  btnHashGrid.classList.add('active');
+  if (location.hash !== '#grid') {
+    history.replaceState(null, '', '#grid');
+  }
+}
+
+function closeGrid() {
+  if (!gridLayer.classList.contains('open')) return;
+  const finish = () => {
+    if (gridLayer.classList.contains('is-closing')) gridLayer.classList.remove('is-closing');
+    if (gridLayer.classList.contains('open')) gridLayer.classList.remove('open');
+    gridLayer.hidden = true;
+  };
+
+  if (currentTier === 'rich' && gridLayer.animate) {
+    if (!gridLayer.classList.contains('is-closing')) gridLayer.classList.add('is-closing');
+    try {
+      const anim = gridLayer.animate([
+        { opacity: 1, transform: 'none' },
+        { opacity: 0, transform: 'translate3d(0, 16px, 0)' }
+      ], { duration: 180, easing: 'cubic-bezier(.2, .8, .2, 1)', fill: 'forwards' });
+      anim.onfinish = finish;
+      setTimeout(finish, 240);
+    } catch { finish(); }
+  } else {
+    finish();
+  }
+  btnHashGrid.classList.remove('active');
+  if (location.hash === '#grid') {
+    history.replaceState(null, '', location.pathname);
+  }
+}
+
+// 按钮绑定
+btnSnippetAlbum.onclick = () => openGrid();
+btnGridBack.onclick = () => closeGrid();
+btnHashGrid.onclick = () => {
+  if (gridLayer.classList.contains('open')) closeGrid();
+  else openGrid();
+};
+
+// ---------- 大图查看器（PhotoViewer）----------
+const viewerModal = document.getElementById('photo-viewer-modal');
+const viewerImg = document.getElementById('viewer-img');
+const viewerIndexText = document.getElementById('viewer-index');
+const viewerTime = document.getElementById('viewer-time');
+const viewerCaption = document.getElementById('viewer-caption');
+const viewerClose = document.getElementById('viewer-close');
+const viewerPrev = document.getElementById('viewer-prev');
+const viewerNext = document.getElementById('viewer-next');
+
+let activeViewerIndex = 0;
+
+function openViewer(index) {
+  activeViewerIndex = Math.max(0, Math.min(ITEMS.length - 1, Number(index) || 0));
+  renderViewerItem();
+  if (!viewerModal.classList.contains('open')) viewerModal.classList.add('open');
+}
+
+function renderViewerItem() {
+  const item = ITEMS[activeViewerIndex];
+  viewerImg.src = item.url;
+  viewerIndexText.textContent = `${activeViewerIndex + 1} / ${ITEMS.length}`;
+  viewerTime.textContent = item.time;
+  viewerCaption.textContent = item.caption;
+  viewerPrev.disabled = activeViewerIndex <= 0;
+  viewerNext.disabled = activeViewerIndex >= ITEMS.length - 1;
+}
+
+function closeViewer() {
+  if (viewerModal.classList.contains('open')) {
+    viewerModal.classList.remove('open');
+    showToast(`已返回网格，当前滚动位置依然保留`);
+  }
+}
+
+// 点击网格单元格：打开大图查看器（不重新渲染网格，保持滚动位置）
+gridBody.querySelectorAll('[data-index]').forEach(cell => {
+  cell.onclick = () => {
+    const idx = Number(cell.dataset.index);
+    openViewer(idx);
+  };
+});
+
+viewerClose.onclick = () => closeViewer();
+viewerPrev.onclick = () => { if (activeViewerIndex > 0) { activeViewerIndex--; renderViewerItem(); } };
+viewerNext.onclick = () => { if (activeViewerIndex < ITEMS.length - 1) { activeViewerIndex++; renderViewerItem(); } };
+
+// ---------- 键盘与 Hash 监听 ----------
+window.addEventListener('keydown', event => {
+  if (event.key === 'Escape') {
+    if (viewerModal.classList.contains('open')) closeViewer();
+    else if (gridLayer.classList.contains('open')) closeGrid();
+  }
+});
+
+window.addEventListener('hashchange', () => {
+  if (location.hash === '#grid') openGrid();
+  else if (gridLayer.classList.contains('open')) closeGrid();
+});
+
+// 检查页面加载时的初始 Hash
+if (location.hash === '#grid') {
+  openGrid();
+}
+
+function showToast(msg) {
+  const toast = document.getElementById('demo-toast');
+  toast.textContent = msg;
+  toast.classList.add('show');
+  clearTimeout(toast._timer);
+  toast._timer = setTimeout(() => toast.classList.remove('show'), 2200);
+}
+</script>
+</body>
+</html>

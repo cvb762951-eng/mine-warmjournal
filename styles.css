@@ -9795,3 +9795,184 @@ body #modal-layer .modal.confirm-sheet .modal-actions .danger { padding: 0 16px 
 .setting-reminder-status-action:active { background: color-mix(in srgb, var(--warm-sage, #7e9d86) 14%, transparent); }
 .setting-reminder-status-action[hidden] { display: none; }
 @media (prefers-reduced-motion: reduce) { .setting-reminder-status-action { transition: none; } }
+
+/* ── 随手拍相册网格层（#snippet-album-grid，全屏 3 栏，清简 theme look）── */
+#snippet-album-grid,
+.snippet-album-grid {
+  position: fixed;
+  inset: 0;
+  z-index: 210;
+  display: none;
+  flex-direction: column;
+  background: var(--sheet, #fdfcf9);
+  color: var(--ink, #181614);
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+  margin: 0 auto;
+  max-width: var(--app-max-width, 567px);
+  width: 100%;
+}
+
+.phone-shell #snippet-album-grid,
+.phone-shell .snippet-album-grid {
+  position: absolute;
+}
+
+#snippet-album-grid.open,
+.snippet-album-grid.open {
+  display: flex;
+}
+
+#snippet-album-grid.is-closing,
+.snippet-album-grid.is-closing {
+  pointer-events: none;
+}
+
+
+.snippet-album-grid-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 44px;
+  align-items: center;
+  gap: 8px;
+  padding: calc(10px + var(--app-safe-top, 0px)) 12px 10px;
+  background: rgba(253, 252, 249, 0.94);
+  border-bottom: 1px solid rgba(85, 96, 108, 0.08);
+}
+
+
+.snippet-album-grid-back {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid rgba(85, 96, 108, 0.16);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.85);
+  color: var(--ink, #181614);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.15s ease;
+}
+
+.snippet-album-grid-back:active {
+  transform: scale(0.92);
+}
+
+.snippet-album-grid-back .material-symbols-outlined {
+  font-size: 20px;
+}
+
+.snippet-album-grid-title-wrap {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.snippet-album-grid-title {
+  margin: 0;
+  font-family: 'Newsreader', 'Noto Serif SC', serif;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  color: inherit;
+}
+
+.snippet-album-grid-count {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink-muted, #878177);
+  font-variant-numeric: tabular-nums;
+}
+
+
+.snippet-album-grid-actions {
+  width: 44px;
+}
+
+.snippet-album-grid-body {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2px;
+  padding: 2px 2px calc(24px + var(--app-safe-bottom, 0px));
+  box-sizing: border-box;
+}
+
+.snippet-album-grid-cell {
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  background: #efe7d6;
+  overflow: hidden;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 120px;
+}
+
+
+.snippet-album-grid-cell img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  border: 0;
+}
+
+.snippet-grid-video-placeholder {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: #1b2f27;
+  color: #f6efdf;
+}
+
+
+.snippet-grid-video-placeholder .material-symbols-outlined {
+  font-size: 32px;
+}
+
+.snippet-grid-play-badge {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: rgba(18, 16, 14, 0.65);
+  color: #fff;
+  pointer-events: none;
+}
+
+.snippet-grid-play-badge .material-symbols-outlined {
+  font-size: 15px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #snippet-album-grid,
+  .snippet-album-grid {
+    transition: none !important;
+    animation: none !important;
+  }
+}

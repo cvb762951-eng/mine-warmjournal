@@ -70,7 +70,7 @@ function syncAiChatChrome(active) {
 registerHelper('syncAiChatChrome', syncAiChatChrome);
 // 弹窗/二级页共用同一原生返回消费状态；AI 聊天仍由 syncAiChatChrome 独立维护。
 function syncSystemBackConsumption() {
-  const active = Boolean(callHelper('isModalOpen')) || Boolean(callHelper('isMomentAlbumOpen')) || Boolean(callHelper('isSubpageOpen')) || Boolean(callHelper('isAiChatActive')) || Boolean(callHelper('canGoBack'));
+  const active = Boolean(callHelper('isModalOpen')) || Boolean(callHelper('isMomentAlbumOpen')) || Boolean(callHelper('isSnippetAlbumGridOpen')) || Boolean(callHelper('isSubpageOpen')) || Boolean(callHelper('isAiChatActive')) || Boolean(callHelper('canGoBack'));
   Promise.resolve(SystemBack.setSubpageActive?.({ active })).catch(() => {});
   return active;
 }
@@ -89,6 +89,7 @@ window.addEventListener('mine-system-back', () => {
     return;
   }
   if (callHelper('isMomentAlbumOpen')) { callHelper('closeMomentAlbum'); return; }
+  if (callHelper('isSnippetAlbumGridOpen')) { callHelper('closeSnippetAlbumGrid'); return; }
   if (callHelper('closeSubpage')) return;
   if (callHelper('returnToAiOverview')) { syncAiChatChrome(); return; }
   goBack();

@@ -7,7 +7,7 @@ import { makeSnippet, makeTodo, snippetEntries, dateKey, WEEK_DAYS, activeStreak
 import { photoViewer, micButtonHtml, bindVoiceInput } from './common.js';
 import { compressSnippetPhoto, captureVideoFrame, importPhotoBatch, isSupportedJournalPhoto } from '../photo-utils.js';
 import { livePhotoMarkHtml, photosWithLiveMotion } from '../motion-photo.js';
-import { thumbSource, thumbKeyFor, watchThumbImages } from '../photo-thumbs.js';
+import { hasThumb, thumbSource, thumbKeyFor, watchThumbImages } from '../photo-thumbs.js';
 import { mediaSource, saveMediaFile, saveNativeMediaSource } from '../media-store.js';
 import { attachVideoSource, formatVideoDuration, isHlsAddress, normalizeHlsAddress, presentWatchSession, summarizeWatchSession } from '../video-player.js';
 import { openVideoSession, plainVideoCache } from '../video-session.js';
@@ -71,6 +71,139 @@ function openSnippetAlbum(startIndex = 0) {
       openSnippetAlbum(stream.findIndex(item => item.entryId === nextId));
     } : null
   });
+}
+
+// ---- 全屏相册缩略图网格层（#snippet-album-grid）----
+const TRANSPARENT_1X1 = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+
+function snippetGridMediaHtml(item, index) {
+  const isVideo = item && typeof item === 'object' && item.video;
+  if (isVideo) {
+    const poster = item.poster;
+    let visual = '';
+    if (poster) {
+      if (hasThumb(poster)) {
+        visual = `<img src="${esc(thumbSource(poster))}" alt="视频 ${index + 1} 封面" loading="lazy" decoding="async">`;
+      } else if (thumbKeyFor(poster)) {
+        visual = `<img src="${TRANSPARENT_1X1}" data-thumb-ref="${esc(poster)}" alt="视频 ${index + 1} 封面" loading="lazy" decoding="async">`;
+      } else {
+        visual = `<img src="${imgSrc(poster)}" alt="视频 ${index + 1} 封面" loading="lazy" decoding="async">`;
+      }
+    } else {
+      visual = `<span class="snippet-grid-video-placeholder"><span class="material-symbols-outlined">movie</span></span>`;
+    }
+    return `${visual}<span class="snippet-grid-play-badge" aria-hidden="true"><span class="material-symbols-outlined">play_arrow</span></span>`;
+  }
+
+  const ref = item;
+  if (hasThumb(ref)) {
+    return `<img src="${esc(thumbSource(ref))}" alt="照片 ${index + 1}" loading="lazy" decoding="async">`;
+  }
+  if (thumbKeyFor(ref)) {
+    return `<img src="${TRANSPARENT_1X1}" data-thumb-ref="${esc(ref)}" alt="照片 ${index + 1}" loading="lazy" decoding="async">`;
+  }
+  return `<img src="${imgSrc(ref)}" alt="照片 ${index + 1}" loading="lazy" decoding="async">`;
+}
+
+let snippetAlbumGridCloseToken = 0;
+
+function ensureSnippetAlbumGridLayer() {
+  let layer = $('#snippet-album-grid');
+  if (layer) return layer;
+  layer = document.createElement('div');
+  layer.id = 'snippet-album-grid';
+  layer.className = 'snippet-album-grid';
+  layer.hidden = true;
+  layer.setAttribute('role', 'dialog');
+  layer.setAttribute('aria-modal', 'true');
+  const host = $('.phone-shell') || document.body;
+  host.appendChild(layer);
+  return layer;
+}
+
+export function isSnippetAlbumGridOpen() {
+  const layer = $('#snippet-album-grid');
+  return Boolean(layer && layer.classList.contains('open') && !layer.classList.contains('is-closing'));
+}
+
+export function closeSnippetAlbumGrid() {
+  const layer = $('#snippet-album-grid');
+  if (!layer) return false;
+  const wasOpen = layer.classList.contains('open');
+  if (!wasOpen) return false;
+  const token = ++snippetAlbumGridCloseToken;
+  const finish = () => {
+    if (token !== snippetAlbumGridCloseToken) return;
+    if (layer.classList.contains('is-closing')) layer.classList.remove('is-closing');
+    if (layer.classList.contains('open')) layer.classList.remove('open');
+    layer.hidden = true;
+    callHelper('syncSystemBackConsumption');
+  };
+  const tier = momentAlbumTier();
+  if (tier === 'rich' && layer.animate) {
+    if (!layer.classList.contains('is-closing')) layer.classList.add('is-closing');
+    try {
+      const anim = layer.animate([
+        { opacity: 1, transform: 'none' },
+        { opacity: 0, transform: 'translate3d(0, 16px, 0)' }
+      ], { duration: 180, easing: 'cubic-bezier(.2, .8, .2, 1)', fill: 'forwards' });
+      anim.onfinish = finish;
+      setTimeout(finish, 300);
+    } catch {
+      finish();
+    }
+  } else {
+    finish();
+  }
+  callHelper('syncSystemBackConsumption');
+  return wasOpen;
+}
+
+export function openSnippetAlbumGrid() {
+  const stream = snippetPhotoStream();
+  if (!stream.length) return;
+  const layer = ensureSnippetAlbumGridLayer();
+  snippetAlbumGridCloseToken += 1;
+  if (layer.classList.contains('is-closing')) layer.classList.remove('is-closing');
+  layer.getAnimations?.().forEach(anim => anim.cancel());
+
+  layer.innerHTML = `<header class="snippet-album-grid-header">
+    <button type="button" class="snippet-album-grid-back" id="snippet-album-grid-back" aria-label="返回">
+      <span class="material-symbols-outlined">arrow_back</span>
+    </button>
+    <div class="snippet-album-grid-title-wrap">
+      <h2 class="snippet-album-grid-title">相册</h2>
+      <span class="snippet-album-grid-count">${stream.length} 张</span>
+    </div>
+    <div class="snippet-album-grid-actions"></div>
+  </header>
+  <div class="snippet-album-grid-body">
+    ${stream.map((entry, index) => `<button type="button" class="snippet-album-grid-cell" data-grid-index="${index}" aria-label="第 ${index + 1} 项">${snippetGridMediaHtml(entry.item, index)}</button>`).join('')}
+  </div>`;
+
+  layer.querySelector('#snippet-album-grid-back')?.addEventListener('click', () => closeSnippetAlbumGrid());
+  layer.querySelectorAll('[data-grid-index]').forEach(cell => {
+    cell.onclick = () => {
+      const index = Number(cell.dataset.gridIndex);
+      openSnippetAlbum(index);
+    };
+  });
+
+  layer.hidden = false;
+  if (!layer.classList.contains('open')) layer.classList.add('open');
+
+  const tier = momentAlbumTier();
+  if (tier === 'rich' && layer.animate) {
+    try {
+      layer.animate([
+        { opacity: 0, transform: 'translate3d(0, 20px, 0)' },
+        { opacity: 1, transform: 'none' }
+      ], { duration: 220, easing: 'cubic-bezier(.2, .8, .2, 1)' });
+    } catch {}
+  }
+
+  watchThumbImages(layer);
+  callHelper('syncSystemBackConsumption');
 }
 
 export function snippetsView() {
@@ -2059,7 +2192,7 @@ function photoLightbox(entry, active = 0) {
 
 function bindSnippets() {
   $('#new-snippet')?.addEventListener('click', () => quickPhotoModal());
-  $('#snippet-album')?.addEventListener('click', () => openSnippetAlbum());
+  $('#snippet-album')?.addEventListener('click', () => openSnippetAlbumGrid());
   $$('[data-snippet-type]').forEach(button => button.onclick = () => { snippetType = button.dataset.snippetType; render(); });
   $$('[data-edit-snippet]').forEach(button => button.onclick = () => snippetForm(state.snippets.find(entry => entry.id === button.dataset.editSnippet)));
   $$('[data-delete-snippet]').forEach(button => button.onclick = () => confirmDelete('删除这条随手记素材？已经加入日记的内容不会受影响。', async () => { state.snippets = state.snippets.filter(entry => entry.id !== button.dataset.deleteSnippet); await save(); render(); callHelper('scheduleAiRefresh'); }));
@@ -2108,6 +2241,7 @@ const pad2 = value => String(value).padStart(2, '0');
 
 registerOnRender(() => {
   if (state.route !== 'snippets' && isMomentAlbumOpen()) closeMomentAlbum();
+  if (state.route !== 'snippets' && isSnippetAlbumGridOpen()) closeSnippetAlbumGrid();
 });
 
 registerHelper('snippetForm', snippetForm);
@@ -2117,6 +2251,9 @@ registerHelper('openPhotoLightbox', photoLightbox);
 registerHelper('openMomentAlbumBrowse', openMomentAlbumBrowse);
 registerHelper('isMomentAlbumOpen', isMomentAlbumOpen);
 registerHelper('closeMomentAlbum', closeMomentAlbum);
+registerHelper('openSnippetAlbumGrid', openSnippetAlbumGrid);
+registerHelper('isSnippetAlbumGridOpen', isSnippetAlbumGridOpen);
+registerHelper('closeSnippetAlbumGrid', closeSnippetAlbumGrid);
 registerHelper('closeVideoPlayer', stopActiveVideoPlayer);
 registerHelper('playSnippetVideo', playSnippetVideo);
 registerHelper('openSnippetVideos', openSnippetVideos);
