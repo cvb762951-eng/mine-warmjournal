@@ -546,7 +546,7 @@
     });
 
     // ---- 随手拍快捷标签镜像逻辑（本地存储 key: mwj-preview-quick-tags） ----
-    const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     const QUICK_TAG_DEFAULTS = ['日常生活', '手冲咖啡', '学习心流', '夏日碎影'];
     const PREVIEW_TAG_KEY = 'mwj-preview-quick-tags';
 
@@ -786,7 +786,7 @@
           didLongPress = false;
           startX = e.clientX;
           startY = e.clientY;
-          const tag = chip.dataset.quickTag?.replace(/^[#＃]+/, '');
+          const tag = (chip.dataset.quickTag || '').replace(/^[#＃]+/, '');
           pressTimer = setTimeout(() => {
             pressTimer = null;
             didLongPress = true;
@@ -815,7 +815,7 @@
           cancelPress();
           didLongPress = true;
           suppressClickUntil = Date.now() + 450;
-          const tag = chip.dataset.quickTag?.replace(/^[#＃]+/, '');
+          const tag = (chip.dataset.quickTag || '').replace(/^[#＃]+/, '');
           confirmingTag = tag;
           isAddingTag = false;
           renderPreviewQuickTagRow();
