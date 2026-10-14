@@ -9519,7 +9519,7 @@ body #modal-layer .modal.confirm-sheet .modal-actions .danger { padding: 0 16px 
   border-radius: var(--radius-soft, 14px);
   background: var(--warm-sheet, #fdfcf9);
   border: 1px solid rgba(220, 212, 198, 0.65);
-  box-shadow: 0 16px 44px rgba(32, 24, 15, 0.18);
+  box-shadow: 0 12px 36px rgba(32, 24, 15, 0.12);
   color: var(--warm-ink, #181614);
   overflow: hidden;
   box-sizing: border-box;

@@ -107,9 +107,11 @@
     /* 手机外壳容器 (~390px 模拟 iPhone 视口) */
     .phone-mockup {
       position: relative;
-      width: 390px;
-      max-width: 100%;
+      width: 100%;
+      max-width: 390px;
       height: 760px;
+      height: min(780px, 85vh);
+      flex-shrink: 0;
       border-radius: 36px;
       background: #F4F7FC;
       border: 8px solid #1E232A;
@@ -176,7 +178,14 @@
       z-index: 100;
     }
     .phone-mockup .moment-album-sheet { max-height: calc(100% - 8px); }
-    .phone-mockup .moment-album-stage { height: 270px; }
+    .phone-mockup .moment-album-stage {
+      height: 270px;
+      padding-top: 12px;
+      box-sizing: border-box;
+    }
+    .phone-mockup .moment-album-stack {
+      top: 12px;
+    }
 
     /* 说明与对比列表 */
     .feature-points {
@@ -203,6 +212,22 @@
       font-size: 12px;
       color: #55606C;
       line-height: 1.7;
+    }
+
+    @media (max-width: 480px) {
+      body {
+        padding: 0;
+      }
+      .phone-mockup {
+        width: 100%;
+        max-width: 100%;
+        margin: 0;
+        height: 100vh;
+        height: 100dvh;
+        border: none;
+        border-radius: 0;
+        box-shadow: none;
+      }
     }
   </style>
 </head>

@@ -1360,7 +1360,7 @@
 }
 
 :root[data-theme="plain"] .moment-album-card {
-  background-color: var(--plain-surface, #FBFCFE) !important;
+  background-color: var(--plain-surface) !important;
 }
 
 :root[data-theme="plain"] #app:has(.calendar-view),
