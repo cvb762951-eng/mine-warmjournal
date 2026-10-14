@@ -11,6 +11,7 @@ import { imgSrc } from '../core.js';
 import { showVideoFramePicker } from '../video-frame-picker.js';
 import { showVideoEditor } from '../video-editor.js';
 import { formatVideoDuration } from '../video-player.js';
+import { openVideoSession, privateVideoCache } from '../video-session.js';
 import { readVideoMetadata, captureVideoCropFrame } from '../video-poster.js';
 import { redactSnapshotMediaReferences } from '../storage.js';
 import { makeSnippet, HABIT_HEAD_MAX_SECONDS } from '../model.js';
@@ -26,8 +27,14 @@ let vaultSelectionMode = false;
 let vaultExperienceMode = 'library';
 const vaultSelectedIds = new Set();
 const thumbnailUrls = new Map();
-const decryptedVideoUrls = new Map();
-const decryptingVideoUrls = new Map();
+
+function forgetVaultVideo(id) {
+  privateVideoCache.drop(id);
+}
+
+function releaseVaultPlaybackCache() {
+  privateVideoCache.release();
+}
 let externalUiDepth = 0;
 let vaultFullscreenActive = false;
 let pendingVisibilityLock = null;
@@ -368,7 +375,7 @@ async function restoreVaultVideoToMoments(item) {
     await persistPrivateVault(state);
     await save();
     thumbnailUrls.delete(item.id);
-    decryptedVideoUrls.delete(item.id);
+    forgetVaultVideo(item.id);
     closeModal(); render(); show('视频已恢复到随手拍');
   } catch (error) {
     state.snippets = previousSnippets;
@@ -389,7 +396,7 @@ function deleteVaultItem(item) {
     privateVaultContent().items = privateVaultContent().items.filter(entry => entry.id !== item.id);
     await deleteVaultAssets([item.assetRef, item.posterRef]);
     thumbnailUrls.delete(item.id);
-    decryptedVideoUrls.delete(item.id);
+    forgetVaultVideo(item.id);
     await persistPrivateVault(state); await save(); render();
   });
 }
@@ -818,7 +825,7 @@ function deleteSelectedVaultItems() {
     items.forEach(item => { touchFolder(item.folderId); const folder = privateVaultContent().folders.find(entry => entry.coverItemId === item.id); if (folder) folder.coverItemId = ''; });
     privateVaultContent().items = privateVaultContent().items.filter(item => !vaultSelectedIds.has(item.id));
     await deleteVaultAssets(items.flatMap(item => [item.assetRef, item.posterRef]).filter(Boolean));
-    items.forEach(item => { thumbnailUrls.delete(item.id); decryptedVideoUrls.delete(item.id); });
+    items.forEach(item => { thumbnailUrls.delete(item.id); forgetVaultVideo(item.id); });
     vaultSelectedIds.clear(); vaultSelectionMode = false;
     await persistPrivateVault(state); await save(); render();
   });
@@ -974,16 +981,48 @@ async function openItem(item) {
   return openVaultPhoto(item);
 }
 
+function vaultPlaybackItem(item) {
+  const current = privateVaultContent()?.items?.find(entry => entry.id === item?.id) || item;
+  return {
+    id: current.id,
+    resolveSource: () => current.sourceType === 'hls' ? current.remoteUrl : openVaultAsset(current, privateVaultKey()),
+    poster: thumbnailUrls.get(current.id) || '',
+    label: cleanVaultVideoTitle(current.name, current.date),
+    date: current.date || '',
+    note: current.note || '',
+    position: current.position || 0,
+    duration: current.duration || 0,
+    trim: current.trim || null,
+    crop: current.crop || null,
+    watchHistory: current.watchHistory || [],
+    sourceType: current.sourceType || '',
+    sourceLabel: current.sourceType === 'hls' ? '私密在线视频' : 'App私有视频',
+    width: current.width || 0,
+    height: current.height || 0
+  };
+}
+
 async function vaultVideoSource(item) {
   if (item.sourceType === 'hls') return item.remoteUrl;
-  if (decryptedVideoUrls.has(item.id)) return decryptedVideoUrls.get(item.id);
-  if (decryptingVideoUrls.has(item.id)) return decryptingVideoUrls.get(item.id);
-  const pending = openVaultAsset(item, privateVaultKey()).then(source => {
-    decryptedVideoUrls.set(item.id, source);
-    return source;
-  }).finally(() => decryptingVideoUrls.delete(item.id));
-  decryptingVideoUrls.set(item.id, pending);
-  return pending;
+  return privateVideoCache.resolve(vaultPlaybackItem(item));
+}
+
+function rememberVaultPlayback(sessionItem, patch) {
+  if (!privateVaultUnlocked()) return;
+  // 写回仍在列表里的那一条。解密出来的播放地址绝不能进私密元数据。滑动时只改内存。
+  const record = privateVaultContent()?.items?.find(entry => entry.id === sessionItem?.id);
+  if (!record) return;
+  record.position = Math.max(0, Math.floor(Number(patch?.position) || 0));
+  const seconds = Math.max(0, Math.floor(Number(patch?.duration) || 0));
+  if (seconds) record.duration = seconds;
+  if (patch?.width && patch?.height) { record.width = Math.floor(patch.width); record.height = Math.floor(patch.height); }
+  if (Array.isArray(patch?.watchHistory)) record.watchHistory = patch.watchHistory.slice(-100);
+}
+
+async function flushVaultPlayback() {
+  if (!privateVaultUnlocked()) return;
+  await persistPrivateVault(state);
+  await save();
 }
 
 function vaultVideosForCurrentFolder() {
@@ -1010,67 +1049,55 @@ function currentVaultVideoScopeLabel() {
   return '全部内容';
 }
 
-async function openVaultVideo(item, providedItems = null, providedIndex = -1, feedDirection = '', resetFeedAudio = false) {
-  const items = providedItems || shuffledVaultVideos(item?.id || '');
-  const index = providedIndex >= 0 ? providedIndex : Math.max(0, items.findIndex(entry => entry.id === item.id));
-  if (item.sourceType !== 'hls' && !decryptedVideoUrls.has(item.id)) showVaultPreparing(item, decryptingVideoUrls.has(item.id) ? '相邻视频正在预载…' : '准备完成后会自动打开');
-  const source = await vaultVideoSource(item);
-  if (!privateVaultUnlocked() || state.route !== 'private-vault') return closeModal();
-  let progressDirty = false;
-  // 保存会把条目规范化。播放器必须写回当前仍在列表里的那一条，不能写到切集前拿到的旧对象上。
-  const live = () => privateVaultContent()?.items?.find(entry => entry.id === item.id) || item;
-  const current = live();
-  callHelper('playSnippetVideo', { video: source, poster: thumbnailUrls.get(item.id) || '', label: cleanVaultVideoTitle(current.name, current.date), sourceType: current.sourceType || '', position: current.position || 0, duration: current.duration || 0, trim: current.trim || null, crop: current.crop || null }, null, index, {
-    count: items.length,
-    immersiveFeed: true,
-    loopNavigation: true,
-    resetFeedAudio,
-    feedDirection,
-    folders: vaultFeedFolders(),
-    episodeTitle: currentVaultVideoScopeLabel(),
-    episodes: items.map(entry => ({ name: cleanVaultVideoTitle(entry.name || '私密视频', entry.date), label: cleanVaultVideoTitle(entry.name || '私密视频', entry.date), poster: thumbnailUrls.get(entry.id) || '', duration: entry.duration || 0, date: entry.date || '' })),
-    description: current.note || '',
-    date: current.date || '',
-    sourceLabel: current.sourceType === 'hls' ? '私密在线视频' : 'App私有视频',
-    watchHistory: current.watchHistory || [],
-    autoAdvance: false,
-    onReady: ({ duration, width, height }) => {
-      const record = live();
-      const seconds = Math.max(0, Math.floor(Number(duration) || 0));
-      if (seconds && record.duration !== seconds) { record.duration = seconds; progressDirty = true; }
-      if (width && height) { record.width = width; record.height = height; }
-      const stamp = $(`[data-vault-duration="${item.id}"]`);
-      if (stamp && seconds) stamp.textContent = formatVideoDuration(vaultPlayableDuration(record));
-    },
-    onProgress: ({ position, duration }) => {
-      const record = live();
-      if (record.position !== position) { record.position = position; progressDirty = true; }
-      const seconds = Math.max(0, Math.floor(Number(duration) || 0));
-      if (seconds && record.duration !== seconds) { record.duration = seconds; progressDirty = true; }
-    },
-    onEnded: () => { live().position = 0; progressDirty = true; },
-    onWatchSession: session => {
-      const record = live();
-      record.watchHistory = [...(record.watchHistory || []), session].slice(-100);
-      progressDirty = true;
-    },
-    onClose: async () => { if (progressDirty && privateVaultUnlocked()) { await persistPrivateVault(state); await save(); } },
-    onDeleteCurrent: () => deleteVaultVideoFromFeed(item, items, index),
-    deleteConfirmText: '永久删除当前私密视频？删除后将清理私密媒体文件，且无法恢复。',
-    onOpenLibrary: () => { vaultExperienceMode = 'library'; closeModal(); render(); },
-    onFolderNavigate: (mode, id) => { vaultBrowseMode = mode; activeFolderId = id || ''; const scoped = shuffledVaultVideos(); if (scoped.length) openVaultVideo(scoped[0], scoped, 0).catch(error => show(error.message)); else show('这个文件夹还没有视频'); },
-    onNavigate: (next, direction) => openVaultVideo(items[next], items, next, direction).catch(error => show(error.message))
-  });
+function presentVaultFeedChrome() {
   bindVaultVideoFullscreen();
   const feedModal = document.querySelector('#modal-layer > .modal.vault-feed-modal');
   feedModal?.setAttribute('data-no-sheet-drag', '');
   feedModal?.querySelector('#warm-video-player')?.setAttribute('data-no-swipe-back', '');
   feedModal?.querySelector('.warm-video-stage')?.setAttribute('data-no-swipe-back', '');
-  [items[index - 1], items[index + 1]].filter(Boolean).forEach(neighbor => vaultVideoSource(neighbor).catch(() => {}));
+}
+
+async function openVaultVideo(item, providedItems = null, providedIndex = -1, feedDirection = '', resetFeedAudio = false) {
+  const items = providedItems || shuffledVaultVideos(item?.id || '');
+  const index = providedIndex >= 0 ? providedIndex : Math.max(0, items.findIndex(entry => entry.id === item.id));
+  if (!item || index < 0) return;
+  if (item.sourceType !== 'hls' && !privateVideoCache.has(item.id)) showVaultPreparing(item, privateVideoCache.inflight(item.id) ? '相邻视频正在预载…' : '准备完成后会自动打开');
+  await openVideoSession({
+    items: items.map(vaultPlaybackItem),
+    startIndex: index,
+    scopeLabel: currentVaultVideoScopeLabel(),
+    episodeTitle: currentVaultVideoScopeLabel(),
+    folders: vaultFeedFolders(),
+    immersiveFeed: true,
+    loopNavigation: true,
+    autoAdvance: false,
+    resetFeedAudio,
+    feedDirection,
+    sourceCache: privateVideoCache,
+    deleteConfirmText: '永久删除当前私密视频？删除后将清理私密媒体文件，且无法恢复。',
+    accept: () => privateVaultUnlocked() && state.route === 'private-vault',
+    currentItem: sessionItem => vaultPlaybackItem(sessionItem),
+    remember: rememberVaultPlayback,
+    flush: flushVaultPlayback,
+    onMediaReady: ({ item: sessionItem, duration, width, height }) => {
+      const record = privateVaultContent()?.items?.find(entry => entry.id === sessionItem?.id);
+      if (!record) return;
+      const seconds = Math.max(0, Math.floor(Number(duration) || 0));
+      if (seconds && record.duration !== seconds) record.duration = seconds;
+      if (width && height) { record.width = width; record.height = height; }
+      const stamp = $(`[data-vault-duration="${record.id}"]`);
+      if (stamp && seconds) stamp.textContent = formatVideoDuration(vaultPlayableDuration(record));
+    },
+    onDelete: (sessionItem, at) => deleteVaultVideoFromFeed(items.find(entry => entry.id === sessionItem?.id) || item, items, at),
+    onOpenLibrary: () => { vaultExperienceMode = 'library'; closeModal(); render(); },
+    onFolderNavigate: (mode, id) => { vaultBrowseMode = mode; activeFolderId = id || ''; const scoped = shuffledVaultVideos(); if (scoped.length) openVaultVideo(scoped[0], scoped, 0).catch(error => show(error.message)); else show('这个文件夹还没有视频'); },
+    onPresented: presentVaultFeedChrome
+  });
 }
 
 async function deleteVaultVideoFromFeed(item, items, index) {
   if (!item || !privateVaultUnlocked()) throw new Error('私密空间已经锁定');
+  await Promise.resolve(callHelper('closeVideoPlayer'));
   const remaining = items.filter(entry => entry.id !== item.id);
   touchFolder(item.folderId);
   const folder = privateVaultContent().folders.find(entry => entry.coverItemId === item.id);
@@ -1078,7 +1105,7 @@ async function deleteVaultVideoFromFeed(item, items, index) {
   privateVaultContent().items = privateVaultContent().items.filter(entry => entry.id !== item.id);
   await deleteVaultAssets([item.assetRef, item.posterRef].filter(Boolean));
   thumbnailUrls.delete(item.id);
-  decryptedVideoUrls.delete(item.id);
+  forgetVaultVideo(item.id);
   await persistPrivateVault(state);
   await save();
   closeModal();
@@ -1376,13 +1403,12 @@ function scheduleVisibilityLock() {
   pendingVisibilityLock = setTimeout(() => {
     if (document.visibilityState !== 'hidden' || externalUiDepth > 0 || vaultFullscreenActive || !privateVaultUnlocked()) return;
     thumbnailUrls.clear();
-    decryptedVideoUrls.clear();
-    decryptingVideoUrls.clear();
     const closing = Promise.resolve(callHelper('closeVideoPlayer'));
     closing.finally(() => {
       closeModal();
       if (document.visibilityState !== 'hidden' || externalUiDepth > 0 || vaultFullscreenActive || !privateVaultUnlocked()) return;
       resetVaultFingerprintAttempt();
+      releaseVaultPlaybackCache();
       lockPrivateVault().finally(() => { if (state.route === 'private-vault') render(); });
     });
   }, 300);
@@ -1392,7 +1418,7 @@ async function lockAndLeave() {
   await Promise.resolve(callHelper('closeVideoPlayer'));
   closeModal();
   thumbnailUrls.clear();
-  if (!passwordlessForThisRun) { decryptedVideoUrls.clear(); decryptingVideoUrls.clear(); await lockPrivateVault(); }
+  if (!passwordlessForThisRun) { releaseVaultPlaybackCache(); await lockPrivateVault(); }
   resetVaultFingerprintAttempt();
   activeFolderId = ''; vaultBrowseMode = 'folders'; vaultSelectionMode = false; vaultSelectedIds.clear();
   goBack();
@@ -1490,14 +1516,13 @@ function bindPrivateVault() {
     passwordlessForThisRun = false;
     resetVaultFingerprintAttempt();
     thumbnailUrls.clear();
-    decryptedVideoUrls.clear();
-    decryptingVideoUrls.clear();
     activeFolderId = '';
     vaultBrowseMode = 'folders';
     vaultSelectionMode = false;
     vaultSelectedIds.clear();
     await Promise.resolve(callHelper('closeVideoPlayer'));
     closeModal();
+    releaseVaultPlaybackCache();
     await lockPrivateVault();
     render();
   });
@@ -1668,8 +1693,7 @@ registerOnRender(() => {
       closing.finally(() => {
         if (!privateVaultUnlocked()) return;
         resetVaultFingerprintAttempt();
-        decryptedVideoUrls.clear();
-        decryptingVideoUrls.clear();
+        releaseVaultPlaybackCache();
         lockPrivateVault();
       });
     }

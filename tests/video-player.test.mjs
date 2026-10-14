@@ -397,8 +397,8 @@ test('private immersive feed exposes folder and scoped episode navigation', () =
 
 test('Calendar media strip and activity records open videos in the real player', () => {
   assert.match(calendar, /data-view-day-media/);
-  assert.match(calendar, /callHelper\('playSnippetVideo', item\.video, entry, item\.index\)/);
-  assert.match(app, /if \(snippet\?\.videos\?\.length\) return callHelper\('playSnippetVideo'/);
+  assert.match(calendar, /callHelper\('openSnippetVideos'/);
+  assert.match(app, /if \(snippet\?\.videos\?\.length\) return callHelper\('openSnippetVideos'/);
 });
 
 test('沉浸式视频流播完后循环重播当前视频，而不是停在最后一帧', () => {

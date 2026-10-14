@@ -226,9 +226,13 @@ function bindCalendar() {
     const item = media[Number(button.dataset.viewDayMedia)];
     if (!item) return;
     if (item.kind === 'video') {
-      // 视频播放器没有稳定落点，直接播
-      const entry = state.snippets.find(snippet => snippet.id === item.entryId);
-      callHelper('playSnippetVideo', item.video, entry, item.index);
+      const videos = media.filter(entry => entry.kind === 'video' && entry.video?.video);
+      const start = Math.max(0, videos.findIndex(entry => entry === item));
+      callHelper('openSnippetVideos', videos.map(entry => ({
+        video: entry.video,
+        entry: state.snippets.find(snippet => snippet.id === entry.entryId) || null,
+        index: entry.index
+      })), start, '这一天');
       return;
     }
     const photos = media.filter(entry => entry.kind === 'photo');

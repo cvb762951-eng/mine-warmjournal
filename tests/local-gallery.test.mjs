@@ -6,6 +6,7 @@ const view = await readFile(new URL('../views/local-gallery.js', import.meta.url
 const native = await readFile(new URL('../android/app/src/main/java/com/mine/focus/LocalGalleryPlugin.java', import.meta.url), 'utf8');
 const manifest = await readFile(new URL('../android/app/src/main/AndroidManifest.xml', import.meta.url), 'utf8');
 const player = await readFile(new URL('../views/snippets.js', import.meta.url), 'utf8');
+const videoSession = await readFile(new URL('../video-session.js', import.meta.url), 'utf8');
 const mine = await readFile(new URL('../views/mine.js', import.meta.url), 'utf8');
 const storage = await readFile(new URL('../storage.js', import.meta.url), 'utf8');
 
@@ -30,25 +31,37 @@ test('gallery requests Android media access and reports partial access honestly'
 });
 
 test('本机相册复用沉浸式视频流，并与私密空间功能对齐', () => {
-  assert.match(view, /galleryMode: true, transientMedia: true/);
-  assert.match(view, /onNavigate: \(next, direction\) => openGalleryVideo/);
+  assert.match(view, /galleryMode: true/);
+  assert.match(view, /openVideoSession\(/);
+  assert.match(view, /plainVideoCache/);
+  assert.match(videoSession, /transientMedia: true/);
+  assert.match(videoSession, /const next = items\?\.\[index \+ 1\]/);
   assert.match(view, /photoViewer\(photos\.map\(source\)/);
   assert.match(view, /const photos = items\.filter\(entry => entry\.kind === 'photo'\)/);
   assert.match(view, /const videos = items\.filter\(entry => entry\.kind === 'video'\)/);
-  // 本机视频仍然不保存播放进度：它们是系统相册的原文件，App 不去改
+  // 播放器本身仍不会因为 transientMedia 在每次进度回调里 save()；续播由会话在关闭时写入。
   assert.match(player, /activeVideoDirty && !activeVideoOptions\?\.transientMedia/);
+  assert.match(view, /localGalleryProgress/);
+  assert.match(view, /rememberGalleryPlayback/);
+  assert.match(view, /flushGalleryPlayback/);
+  const memory = view.slice(view.indexOf('function rememberGalleryPlayback'), view.indexOf('async function flushGalleryPlayback'));
+  assert.doesNotMatch(memory, /save\(/);
+  const flush = view.slice(view.indexOf('async function flushGalleryPlayback'), view.indexOf('async function deleteGalleryVideo'));
+  assert.match(flush, /await save\(\)/);
+  assert.doesNotMatch(view.slice(view.indexOf('function gallerySessionItem'), view.indexOf('function rememberGalleryPlayback')), /save\(/);
   // 2026-10-09 用户要求「全部功能对标」：删除 / 选集 / 观看记录三项已与私密空间一致。
   // 旧断言（galleryMode 时隐藏删除、禁用选集）已按新要求移除。
   assert.match(player, /id="vault-feed-delete"/);
   assert.match(player, /id="vault-feed-history"/);
-  assert.match(view, /onDeleteCurrent:/, '本机相册要提供删除回调');
+  assert.match(view, /onDelete:/, '本机相册要提供删除回调');
   assert.match(view, /watchHistory: galleryWatchHistory\(item\)/, '本机相册要接上观看记录');
-  assert.match(view, /onWatchSession: session => recordGalleryWatch\(item, session\)/, '要记录观看会话');
+  assert.match(view, /state\.localGalleryWatchHistory = \[\.\.\.history/, '观看会话在关闭时并入历史');
   // 删除走系统相册原件（content://），由原生插件拉起系统删除授权页
   assert.match(view, /NativeMediaStore\.deleteOriginalMedia/);
   assert.match(view, /startsWith\('content:\/\/'\)/, '只接受 content:// 的相册原件');
   // 观看历史是新的 state 顶层字段，必须登记进 SECTIONS，否则真机不落库
-  assert.match(storage, /'localGalleryWatchHistory'\]/, '观看历史必须进 SECTIONS 白名单');
+  assert.match(storage, /'localGalleryWatchHistory'/, '观看历史必须进 SECTIONS 白名单');
+  assert.match(storage, /'localGalleryProgress'/, '续播进度必须进 SECTIONS 白名单');
   assert.match(view, /if \(thumbnails\.size > 180\)/);
   // 读取插件本身仍不含删除能力（删除由 NativeMediaStorePlugin 负责）
   assert.doesNotMatch(native, /delete\(|createDeleteRequest|openOutputStream|FileOutputStream/);

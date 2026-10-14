@@ -1,8 +1,9 @@
 import { Capacitor, registerPlugin } from '@capacitor/core';
-import { $, $$, esc, goBack, render, show, closeModal, callHelper, registerView, registerBinder, state, save } from '../core.js';
+import { $, $$, esc, goBack, render, show, closeModal, registerView, registerBinder, state, save } from '../core.js';
 import { photoViewer } from './common.js';
 import { NativeMediaStore } from '../native-media-store.js';
 import { photoFrameLayersHtml } from '../photo-frame.js';
+import { openVideoSession, plainVideoCache } from '../video-session.js';
 
 const Gallery = registerPlugin('LocalGallery');
 const PAGE_SIZE = 48;
@@ -190,14 +191,11 @@ async function openGalleryItem(index) {
 
    工具条按钮（选集 / 观看记录 / 删除）已统一渲染，这里补上对应的数据与回调：
    · 观看历史 —— 存在 state.localGalleryWatchHistory（顶层字段，已在 SECTIONS 登记）。
-     本机视频的「播放进度」刻意不保存：它们是系统相册的原文件，App 不去改它们，
-     所以只记「看过、看了多久」，不记「看到第几秒」。
+     播放进度记在 state.localGalleryProgress，整个播放弹层关闭时写一次，方便下次续播。
+     App 仍然不改系统相册里的原文件。
    · 删除 —— 调用原生 deleteOriginalMedia。它只接受 content:// 开头的 URI，
      并且会拉起 Android 系统自己的删除授权页，用户必须在系统弹窗里再确认一次。
    --------------------------------------------------------------------------- */
-
-// 当前正在播放的下标，删除按钮据此定位「当前这一个」。
-let activeGalleryIndex = -1;
 
 function galleryWatchHistory(item) {
   const id = item?.id || '';
@@ -205,18 +203,56 @@ function galleryWatchHistory(item) {
   return id ? all.filter(entry => entry.id === id) : [];
 }
 
-function recordGalleryWatch(item, session) {
-  if (!item?.id || !session) return;
-  const entry = {
-    id: String(item.id),
-    name: String(item.name || '').slice(0, 120),
-    watchedSeconds: Math.max(0, Math.floor(Number(session.watchedSeconds) || 0)),
-    startedAt: Number(session.startedAt) || Date.now(),
-    endedAt: Number(session.endedAt) || Date.now()
+function galleryProgress(item) {
+  const stored = state.localGalleryProgress?.[item?.id] || {};
+  return { position: Math.max(0, Math.floor(Number(stored.position) || 0)), duration: Math.max(0, Math.floor(Number(stored.duration) || 0)) };
+}
+
+function gallerySessionItem(item) {
+  const progress = galleryProgress(item);
+  return {
+    id: item.id,
+    galleryId: item.id,
+    resolveSource: () => source(item),
+    poster: thumbnail(item),
+    label: item.name || '本机视频',
+    date: '',
+    note: '',
+    position: progress.position,
+    duration: progress.duration,
+    trim: null,
+    crop: null,
+    watchHistory: galleryWatchHistory(item),
+    sourceType: '',
+    sourceLabel: item.albumName || '本机视频'
   };
-  const history = Array.isArray(state.localGalleryWatchHistory) ? state.localGalleryWatchHistory : [];
-  state.localGalleryWatchHistory = [...history, entry].slice(-200);
-  save().catch(() => { /* 观看历史写失败不影响播放 */ });
+}
+
+function rememberGalleryPlayback(sessionItem, patch) {
+  const id = String(sessionItem?.galleryId || sessionItem?.id || '');
+  if (!id) return;
+  const progress = { ...(state.localGalleryProgress || {}) };
+  const position = Math.max(0, Math.floor(Number(patch?.position) || 0));
+  const duration = Math.max(0, Math.floor(Number(patch?.duration) || 0));
+  if (position || duration) progress[id] = { ...(position ? { position } : {}), ...(duration ? { duration } : {}) };
+  else delete progress[id];
+  state.localGalleryProgress = progress;
+  const seen = new Set(galleryWatchHistory({ id }).map(entry => `${entry.startedAt}:${entry.endedAt}:${entry.watchedSeconds}`));
+  const fresh = (Array.isArray(patch?.watchHistory) ? patch.watchHistory : []).filter(entry => !seen.has(`${entry.startedAt}:${entry.endedAt}:${entry.watchedSeconds}`));
+  if (fresh.length) {
+    const history = Array.isArray(state.localGalleryWatchHistory) ? state.localGalleryWatchHistory : [];
+    state.localGalleryWatchHistory = [...history, ...fresh.map(entry => ({
+      id,
+      name: String(sessionItem.label || '').slice(0, 120),
+      watchedSeconds: Math.max(0, Math.floor(Number(entry.watchedSeconds) || 0)),
+      startedAt: Number(entry.startedAt) || Date.now(),
+      endedAt: Number(entry.endedAt) || Date.now()
+    }))].slice(-200);
+  }
+}
+
+async function flushGalleryPlayback() {
+  await save();
 }
 
 async function deleteGalleryVideo(item) {
@@ -230,24 +266,27 @@ async function deleteGalleryVideo(item) {
   render();
 }
 
-function openGalleryVideo(videos, active, feedDirection = '', playlist = null) {
+function openGalleryVideo(videos, active) {
   const item = videos[active];
   if (!item || state.route !== 'local-gallery') return;
-  activeGalleryIndex = active;
-  const episodes = playlist || videos.map(entry => ({ label: entry.name, poster: thumbnail(entry) }));
-  callHelper('playSnippetVideo', { video: source(item), poster: thumbnail(item), label: item.name }, null, active, {
-    count: videos.length, immersiveFeed: true, loopNavigation: true, galleryMode: true, transientMedia: true,
-    feedDirection, episodeTitle: '本机相册', sourceLabel: item.albumName || '本机视频',
-    episodes,
-    // —— 与私密空间对齐的三项 ——
-    watchHistory: galleryWatchHistory(item),
-    onWatchSession: session => recordGalleryWatch(item, session),
-    onDeleteCurrent: async () => deleteGalleryVideo(videos[activeGalleryIndex] || item),
-    deleteConfirmText: `删除手机相册里的「${item.name}」？\n\n这一步会删掉手机中的原文件，之后系统还会再让你确认一次。`,
+  return openVideoSession({
+    items: videos.map(gallerySessionItem),
+    startIndex: active,
+    scopeLabel: '本机相册',
+    episodeTitle: '本机相册',
+    sourceCache: plainVideoCache,
+    immersiveFeed: true,
+    loopNavigation: true,
+    galleryMode: true,
     folders: [{ mode: 'all', id: '', name: '全部相册', count: videos.length }, ...albums.map(album => ({ mode: 'album', id: album.id, name: album.name, count: album.count }))],
-    onNavigate: (next, direction) => openGalleryVideo(videos, next, direction, episodes),
+    remember: rememberGalleryPlayback,
+    flush: flushGalleryPlayback,
+    currentItem: sessionItem => gallerySessionItem(videos.find(entry => entry.id === sessionItem.id) || item),
+    onDelete: sessionItem => deleteGalleryVideo(videos.find(entry => entry.id === sessionItem?.id) || item),
+    deleteConfirmText: sessionItem => `删除手机相册里的「${sessionItem?.label || item.name}」？\n\n这一步会删掉手机中的原文件，之后系统还会再让你确认一次。`,
     onOpenLibrary: () => closeModal(),
-    onFolderNavigate: (mode, id) => { closeModal(); kind = 'video'; albumId = mode === 'all' ? '' : id; loadScope(); }
+    onFolderNavigate: (mode, id) => { closeModal(); kind = 'video'; albumId = mode === 'all' ? '' : id; loadScope(); },
+    accept: () => state.route === 'local-gallery'
   });
 }
 

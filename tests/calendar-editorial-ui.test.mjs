@@ -15,7 +15,7 @@ test('Calendar keeps the real archive controls and state-derived content', () =>
   assert.match(source, /photosForDay\(day\)/);
   assert.match(source, /mediaForDay\(day\)/);
   assert.match(source, /data-view-day-media/);
-  assert.match(source, /callHelper\('playSnippetVideo', item\.video, entry, item\.index\)/);
+  assert.match(source, /callHelper\('openSnippetVideos'/);
   assert.match(source, /day-video-thumb/);
   assert.match(source, /todayCompletion\(state, day\)/);
 });

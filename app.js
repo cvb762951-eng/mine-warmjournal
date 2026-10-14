@@ -117,7 +117,7 @@ function openCalendarEvent(id) {
   if (item.kind === 'photo') {
     const snippet = state.snippets.find(entry => entry.type === 'photo' && entry.id === item.sourceId);
     const photos = snippet?.photos?.length ? snippet.photos : (snippet?.photo ? [snippet.photo] : []);
-    if (snippet?.videos?.length) return callHelper('playSnippetVideo', snippet.videos[0], snippet, 0);
+    if (snippet?.videos?.length) return callHelper('openSnippetVideos', snippet.videos.map((video, index) => ({ video, entry: snippet, index })), 0, '随手拍');
     return photoViewer(photos, 0);
   }
   if (item.kind === 'note') return snippetForm(state.snippets.find(entry => entry.id === item.sourceId));
