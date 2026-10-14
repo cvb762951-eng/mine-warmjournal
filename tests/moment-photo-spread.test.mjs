@@ -1,0 +1,171 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+
+const snippets = readFileSync(new URL('../views/snippets.js', import.meta.url), 'utf8');
+const moments = readFileSync(new URL('../motion-moments.js', import.meta.url), 'utf8');
+const styles = readFileSync(new URL('../styles.css', import.meta.url), 'utf8');
+const plainThemes = readFileSync(new URL('../themes-plain.css', import.meta.url), 'utf8');
+
+function extractSpreadCssBlock(source, fileName) {
+  const startMarker = '/* moment-spread start */';
+  const endMarker = '/* moment-spread end */';
+  const start = source.indexOf(startMarker);
+  const end = source.indexOf(endMarker, start);
+  assert.ok(start >= 0, `${fileName} 中应包含 /* moment-spread start */ 标记`);
+  assert.ok(end > start, `${fileName} 中应包含 /* moment-spread end */ 标记`);
+  return source.slice(start, end + endMarker.length);
+}
+
+test('momentSpreadHtml 函数存在，使用 photoFrameLayersHtml，最多展示 4 张并输出 moment-spread-more，rot 公式带 * 4', () => {
+  assert.match(snippets, /function momentSpreadHtml\(/);
+  const start = snippets.indexOf('function momentSpreadHtml(');
+  const end = snippets.indexOf('function snippetPhotoGrid(');
+  assert.ok(start >= 0 && end > start, 'momentSpreadHtml 函数定义块存在');
+  const block = snippets.slice(start, end);
+
+  assert.match(block, /photoFrameLayersHtml\(/, 'momentSpreadHtml 应调用 photoFrameLayersHtml');
+  assert.match(block, /Math\.min\([^,]+,\s*4\)/, '最多展示 4 张');
+  assert.match(block, /moment-spread-more/, '多于 4 张时包含 moment-spread-more 提示');
+  assert.match(block, /\*\s*4/, '旋转公式使用 * 4');
+  assert.match(block, /data-spread-sig/, '应输出 data-spread-sig 属性');
+});
+
+test('quickPhotoPreview 与 snippetPhotoGrid 均调用 momentSpreadHtml', () => {
+  const quickStart = snippets.indexOf('function quickPhotoPreview(');
+  const quickEnd = snippets.indexOf('function refreshQuickPhotoPreview(');
+  assert.ok(quickStart >= 0 && quickEnd > quickStart, 'quickPhotoPreview 函数存在');
+  const quickBlock = snippets.slice(quickStart, quickEnd);
+  assert.match(quickBlock, /momentSpreadHtml\(/, 'quickPhotoPreview 应调用 momentSpreadHtml');
+
+  const gridStart = snippets.indexOf('function snippetPhotoGrid(');
+  const gridEnd = snippets.indexOf('function bindSnippetPhotoGrid(');
+  assert.ok(gridStart >= 0 && gridEnd > gridStart, 'snippetPhotoGrid 函数存在');
+  const gridBlock = snippets.slice(gridStart, gridEnd);
+  assert.match(gridBlock, /momentSpreadHtml\(/, 'snippetPhotoGrid 应调用 momentSpreadHtml');
+});
+
+test('motion-moments.js 包含选图飞入、收叠与叠边延迟飞行逻辑', () => {
+  assert.match(moments, /moment-spread-card/, '包含 moment-spread-card 选择器');
+  assert.match(moments, /40/, '飞入包含 40ms stagger');
+  assert.match(moments, /cubic-bezier\(\.34,\s*1\.56,\s*\.64,\s*1\)/, '包含弹性缓动 cubic-bezier(.34,1.56,.64,1)');
+  assert.match(moments, /rotate\(\$\{\s*\(i\s*-\s*1\)\s*\*\s*2\}deg\)|rotate\(\$\{[^}]*\}\s*deg\)/, '保存时包含扇形叠合');
+  assert.match(moments, /delay:\s*60|60ms|delay:\s*Math\.max\([^)]*,\s*[^)]*-\s*60\)/, '叠边飞行延迟 60ms');
+  assert.match(moments, /import\s*\{\s*prefersReducedMotion\s*\}\s*from\s*'\.\/motion\.js'/, '导入 prefersReducedMotion');
+  assert.doesNotMatch(moments, /不做「收成一叠」/, '已不再包含「不做「收成一叠」」说明');
+});
+
+test('openMomentAlbumBrowse 调用 waitMomentAlbumFirstImage 消除首帧白闪，且 helper 不调用 .decode(', () => {
+  assert.match(snippets, /function waitMomentAlbumFirstImage\(/, '存在 waitMomentAlbumFirstImage 函数');
+  const waitStart = snippets.indexOf('function waitMomentAlbumFirstImage(');
+  const waitEnd = snippets.indexOf('function openMomentAlbumBrowse(');
+  assert.ok(waitStart >= 0 && waitEnd > waitStart, 'waitMomentAlbumFirstImage 位于 openMomentAlbumBrowse 之前');
+  const helperBlock = snippets.slice(waitStart, waitEnd);
+
+  assert.doesNotMatch(helperBlock, /\.decode\(/, 'waitMomentAlbumFirstImage 不得调用 .decode(');
+
+  const browseStart = snippets.indexOf('function openMomentAlbumBrowse(');
+  const browseEnd = snippets.indexOf('function openMomentMediaBrowse(');
+  assert.ok(browseStart >= 0 && browseEnd > browseStart, 'openMomentAlbumBrowse 函数存在');
+  const browseBlock = snippets.slice(browseStart, browseEnd);
+
+  assert.match(browseBlock, /waitMomentAlbumFirstImage\(/, 'openMomentAlbumBrowse 调用 waitMomentAlbumFirstImage');
+  assert.match(browseBlock, /momentAlbumCloseToken/, '包含 closeToken 校验防止异步泄漏');
+});
+
+test('styles.css 与 themes-plain.css 中的 moment-spread 块内无 !important 且无 object-fit: cover', () => {
+  const stylesBlock = extractSpreadCssBlock(styles, 'styles.css');
+  const plainBlock = extractSpreadCssBlock(plainThemes, 'themes-plain.css');
+
+  for (const [name, block] of [['styles.css', stylesBlock], ['themes-plain.css', plainBlock]]) {
+    assert.doesNotMatch(block, /!important/, `${name} 的 moment-spread 块内不得包含 !important`);
+    assert.doesNotMatch(block, /object-fit\s*:\s*cover/, `${name} 的 moment-spread 块内不得包含 object-fit: cover`);
+    assert.match(block, /object-fit\s*:\s*contain/, `${name} 的 moment-spread 块应使用 object-fit: contain`);
+  }
+});
+
+test('snippetPhotoGrid 输出 moment-spread-manage 与 data-moment-spread-all，且 CSS 默认隐藏缩略图网格 :not(.is-managing)', () => {
+  const gridStart = snippets.indexOf('function snippetPhotoGrid(');
+  const gridEnd = snippets.indexOf('function bindSnippetPhotoGrid(');
+  assert.ok(gridStart >= 0 && gridEnd > gridStart, 'snippetPhotoGrid 函数存在');
+  const gridBlock = snippets.slice(gridStart, gridEnd);
+
+  assert.match(gridBlock, /moment-spread-manage/, '包含 moment-spread-manage 容器');
+  assert.match(gridBlock, /data-moment-spread-all/, '包含 data-moment-spread-all 按钮');
+
+  const stylesBlock = extractSpreadCssBlock(styles, 'styles.css');
+  assert.match(stylesBlock, /:not\(\.is-managing\)\s*\.snippet-photo-grid-inner\s*\{\s*display\s*:\s*none;?\s*\}/, 'styles.css 包含未管理时隐藏网格的规则');
+});
+
+test('快捷弹窗层级是标题、大舞台、图说、底栏，并保留选图保存与导入视频', () => {
+  const start = snippets.indexOf('function quickPhotoModal(');
+  const end = snippets.indexOf('function quickPhotoPreview(');
+  assert.ok(start >= 0 && end > start);
+  const block = snippets.slice(start, end);
+  for (const id of ['quick-photo-preview', 'quick-snap-caption', 'quick-capture-snap', 'quick-pick-snap', 'quick-pick-video', 'quick-save-snap', 'quick-switch-memo']) {
+    assert.match(block, new RegExp(`id="${id}"`), `快捷弹窗保留 #${id}`);
+  }
+  assert.match(block, /quick-capture-bar/, '拍照/选图/导入视频/保存收成一行工具条');
+  assert.match(block, /class="quick-publish-btn snap"/);
+  assert.doesNotMatch(block, /quick-hls|m3u8|quick-toggle-hls/);
+});
+
+test('表单选图用舞台和底栏，管理只走查看全部，m3u8 仍留在表单', () => {
+  const formStart = snippets.indexOf('function snippetForm(');
+  const formEnd = snippets.indexOf('function aiStructureCard(');
+  assert.ok(formStart >= 0 && formEnd > formStart);
+  const form = snippets.slice(formStart, formEnd);
+  assert.match(form, /snippet-photo-stage/);
+  assert.match(form, /snippet-capture-bar/);
+  assert.match(form, /id="capture-snippet-photo"/);
+  assert.match(form, /id="pick-snippet-photo"/);
+  assert.match(form, /id="pick-snippet-video"/);
+  assert.match(form, /id="snippet-hls-url"/);
+  assert.match(form, /id="add-snippet-hls"/);
+
+  const gridStart = snippets.indexOf('function snippetPhotoGrid(');
+  const gridEnd = snippets.indexOf('function bindSnippetPhotoGrid(');
+  const grid = snippets.slice(gridStart, gridEnd);
+  assert.match(grid, /moment-spread-manage/);
+  assert.match(grid, /data-moment-spread-all/);
+  assert.match(grid, /查看全部/);
+});
+
+test('预览页加载真实样式，清简主题，锚点 #page #spread #save', () => {
+  const preview = readFileSync(new URL('../previews/moment-photo-spread.html', import.meta.url), 'utf8');
+  assert.match(preview, /data-theme="plain"/);
+  assert.match(preview, /href="\.\.\/styles\.css"/);
+  assert.match(preview, /href="\.\.\/themes\.css"/);
+  assert.match(preview, /href="\.\.\/themes-plain\.css"/);
+  assert.match(preview, /href="\.\.\/themes-plain-light\.css"/);
+  assert.match(preview, /id="page"/);
+  assert.match(preview, /id="spread"/);
+  assert.match(preview, /id="save"/);
+  assert.match(preview, /href="#page"/);
+  assert.match(preview, /href="#spread"/);
+  assert.match(preview, /href="#save"/);
+  assert.doesNotMatch(preview, /quick-hls|m3u8/);
+  assert.doesNotMatch(preview, /quick-photo-paper|quick-control-kraft|quick-photo-dropzone/);
+  assert.match(preview, /plain-moment-btn/);
+});
+
+test('清简舞台与页面同一底色，照片 contain，布局样式无 !important', () => {
+  const plainBlock = extractSpreadCssBlock(plainThemes, 'themes-plain.css');
+  assert.match(plainBlock, /#quick-photo-preview[\s\S]*?background:\s*var\(--plain-canvas\)/);
+  assert.match(plainBlock, /quick-capture-bar/);
+  assert.match(plainBlock, /snippet-photo-stage/);
+  assert.match(plainBlock, /object-fit:\s*contain/);
+  assert.doesNotMatch(plainBlock, /!important/);
+  assert.doesNotMatch(plainBlock, /object-fit\s*:\s*cover/);
+  assert.match(snippets, /waitMomentAlbumFirstImage\(layer,\s*180\)/);
+});
+
+test('themes-plain.css moment-spread 块无 hardcoded hex、无 !important，并使用 var(...) 覆盖 #quick-photo-preview 背景', () => {
+  const plainBlock = extractSpreadCssBlock(plainThemes, 'themes-plain.css');
+  assert.doesNotMatch(plainBlock, /#[0-9a-f]{3,8}/i, 'themes-plain.css moment-spread 块内不得包含 hardcoded hex');
+  assert.doesNotMatch(plainBlock, /!important/, 'themes-plain.css moment-spread 块内不得包含 !important');
+  assert.doesNotMatch(plainBlock, /object-fit\s*:\s*cover/, 'themes-plain.css moment-spread 块内不得包含 object-fit: cover');
+  assert.match(plainBlock, /#quick-photo-preview/, 'themes-plain.css moment-spread 块应覆盖 #quick-photo-preview');
+  assert.match(plainBlock, /background\s*:\s*var\(/, 'themes-plain.css moment-spread 块使用 var( 覆盖 background');
+});
+

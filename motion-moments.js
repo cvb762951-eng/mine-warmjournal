@@ -3,7 +3,7 @@
  *
  * 方案出处：PR #36 docs/design-upgrade-plan.md §10.0 / 10.5–10.8。
  *   M1 快门 / 相册飞入表单网格
- *   M2 保存后第一张飞到列表新卡（编辑不飞；不做「收成一叠」）
+ *   M2 保存后收成一叠，封面飞到列表新卡，叠边晚 60ms 飞至同一位置淡出（cvb 2026-10-14 选 A；编辑不飞）
  *   M3 首屏外卡片分层淡入
  *   M4 长按卡片浮起
  *
@@ -216,7 +216,38 @@ function shotIn(el, x, y, i, easing) {
   ], { duration: MOMENTS_MOTION.shotMs, delay: i * MOMENTS_MOTION.shotStagger, easing, fill: 'backwards' });
 }
 
+export function playSpreadFlyIn(scope = document) {
+  if (!moving()) return;
+  const spreads = scope.querySelectorAll?.('.moment-spread') || [];
+  spreads.forEach(spread => {
+    const sig = spread.dataset.spreadSig || '';
+    if (!sig || spread.dataset.lastSpreadSig === sig) return;
+    spread.dataset.lastSpreadSig = sig;
+    const cards = [...spread.querySelectorAll('.moment-spread-card')];
+    if (!cards.length) return;
+    const isRich = rich();
+    const duration = isRich ? 320 : 180;
+    const easing = isRich ? 'cubic-bezier(.34,1.56,.64,1)' : 'ease-out';
+    cards.forEach((card, i) => {
+      const comp = getComputedStyle(card);
+      const rot = comp.getPropertyValue('--rot').trim() || '0deg';
+      const lift = comp.getPropertyValue('--lift').trim() || '0px';
+      const delay = isRich ? i * 40 : 0;
+      card.animate([
+        { transform: `translate3d(0,40px,0) rotate(${rot}) scale(.9)`, opacity: 0 },
+        { transform: `rotate(${rot}) translateY(${lift})`, opacity: 1 }
+      ], {
+        duration,
+        delay,
+        easing,
+        fill: 'backwards'
+      });
+    });
+  });
+}
+
 function playShotIn() {
+  playSpreadFlyIn();
   if (!shotFrom || !moving() || performance.now() - shotFrom.t > MOMENTS_MOTION.shotWaitMs) return;
   const easing = springMagnet();
   const { x, y } = shotFrom;
@@ -257,7 +288,52 @@ function rememberSave(event) {
   const form = event.target;
   if (!event.quick && form?.id !== 'snippet-form') return;
   if (!on() || !moving()) return;
-  const still = form.querySelector('#quick-photo-preview > img, .snippet-photo-thumb .photo-blur-still, .snippet-photo-thumb img.photo-blur-still');
+
+  const spreadCards = [...form.querySelectorAll('.moment-spread-card')];
+  let spreadClones = null;
+  let collapsePromise = null;
+
+  if (spreadCards.length > 0) {
+    const isRich = rich();
+    const collapseMs = isRich ? 260 : 160;
+    const r0 = spreadCards[0].getBoundingClientRect();
+    spreadClones = spreadCards.map((card, i) => {
+      const r = card.getBoundingClientRect();
+      const clone = card.cloneNode(true);
+      clone.className = 'moment-spread-card pl-spread-clone ' + (i === 0 ? 'is-cover' : 'is-edge');
+      Object.assign(clone.style, {
+        position: 'fixed',
+        left: `${r.left}px`,
+        top: `${r.top}px`,
+        width: `${r.width}px`,
+        height: `${r.height}px`,
+        margin: '0',
+        pointerEvents: 'none',
+        zIndex: String(9990 + i),
+        transform: 'none'
+      });
+      document.body.appendChild(clone);
+
+      const dx = (r0.left + r0.width / 2) - (r.left + r.width / 2) + i * 2;
+      const dy = (r0.top + r0.height / 2) - (r.top + r.height / 2) - i * 2;
+      const rot = (i - 1) * 2;
+      const anim = clone.animate([
+        { transform: 'none' },
+        { transform: `translate3d(${dx}px, ${dy}px, 0) rotate(${rot}deg)` }
+      ], {
+        duration: collapseMs,
+        easing: 'ease-out',
+        fill: 'forwards'
+      });
+      return { clone, anim, i, originalRect: r, collapsedDx: dx, collapsedDy: dy, collapsedRot: rot };
+    });
+    collapsePromise = Promise.all(spreadClones.map(item => item.anim.finished.catch(() => {})));
+    setTimeout(() => {
+      spreadClones?.forEach(item => item.clone?.remove());
+    }, MOMENTS_MOTION.saveWaitMs);
+  }
+
+  const still = form.querySelector('.moment-spread-card .photo-blur-still, #quick-photo-preview > img, .snippet-photo-thumb .photo-blur-still, .snippet-photo-thumb img.photo-blur-still');
   const ready = Boolean(still?.complete && still.naturalWidth);
   const isCover = ready && getComputedStyle(still).objectFit === 'cover';
   const cover = isCover ? coverRect(still) : null;
@@ -268,6 +344,8 @@ function rememberSave(event) {
     photo,
     clip: cover ? cover.clip : null,
     src: still?.currentSrc || still?.src || '',
+    spreadClones,
+    collapsePromise,
     before: new Map(
       [...document.querySelectorAll('.snippet-item-card')].map(card => [cardKey(card), card.getBoundingClientRect().top]),
     ),
@@ -280,6 +358,7 @@ async function playSaveToTop() {
   const cards = [...document.querySelectorAll('.snippet-item-card')];
   const fresh = cards.find(card => !s.before.has(cardKey(card)));
   if (!saveShouldFly({ editing: s.editing, hasFreshCard: Boolean(fresh) })) {
+    s.spreadClones?.forEach(item => item.clone?.remove());
     if (s.editing) saved = null;
     return;
   }
@@ -293,7 +372,54 @@ async function playSaveToTop() {
   fresh.addEventListener('animationend', clearArrive, { once: true });
   setTimeout(clearArrive, MOMENTS_MOTION.arriveDelay + MOMENTS_MOTION.arriveMs + 40);
 
-  if (visible && s.photo && s.src) {
+  if (!visible) s.spreadClones?.forEach(item => item.clone?.remove());
+  if (visible && s.spreadClones && s.spreadClones.length) {
+    await (s.collapsePromise || Promise.resolve());
+    still.style.opacity = '0';
+    const show = () => {
+      still.style.opacity = '';
+      still.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 80, fill: 'backwards' });
+      s.spreadClones?.forEach(item => item.clone?.remove());
+    };
+
+    const coverItem = s.spreadClones[0];
+    const coverClone = coverItem.clone;
+    const fromCover = containRect(coverClone.querySelector('.photo-blur-still')) || coverClone.getBoundingClientRect();
+    const coverScale = to.width / (fromCover.width || 1);
+    // 克隆的 transform-origin 是中心，所以按中心点对齐，缩放后不会偏
+    const coverDx = (to.left + to.width / 2) - (fromCover.left + fromCover.width / 2);
+    const coverDy = (to.top + to.height / 2) - (fromCover.top + fromCover.height / 2);
+
+    const coverAnim = coverClone.animate([
+      { transform: `translate3d(${coverItem.collapsedDx}px, ${coverItem.collapsedDy}px, 0) rotate(${coverItem.collapsedRot}deg)` },
+      { transform: `translate3d(${coverItem.collapsedDx + coverDx}px, ${coverItem.collapsedDy + coverDy}px, 0) scale(${coverScale}) rotate(0deg)` }
+    ], {
+      duration: MOMENTS_MOTION.saveMs,
+      easing: EMPH,
+      fill: 'forwards'
+    });
+
+    const edgeItems = s.spreadClones.slice(1);
+    edgeItems.forEach(edgeItem => {
+      const edgeClone = edgeItem.clone;
+      const fromEdge = edgeClone.getBoundingClientRect();
+      const edgeDx = (to.left + to.width / 2) - (fromEdge.left + fromEdge.width / 2);
+      const edgeDy = (to.top + to.height / 2) - (fromEdge.top + fromEdge.height / 2);
+      const edgeScale = (to.width / (fromEdge.width || 1)) * 0.9;
+      edgeClone.animate([
+        { transform: `translate3d(${edgeItem.collapsedDx}px, ${edgeItem.collapsedDy}px, 0) rotate(${edgeItem.collapsedRot}deg)`, opacity: 1 },
+        { transform: `translate3d(${edgeItem.collapsedDx + edgeDx}px, ${edgeItem.collapsedDy + edgeDy}px, 0) scale(${edgeScale}) rotate(0deg)`, opacity: 0 }
+      ], {
+        duration: Math.max(120, MOMENTS_MOTION.saveMs - 60),
+        delay: 60,
+        easing: EMPH,
+        fill: 'forwards'
+      });
+    });
+
+    coverAnim.finished.catch(() => {}).then(show);
+  } else if (visible && s.photo && s.src) {
+    s.spreadClones?.forEach(item => item.clone?.remove());
     still.style.opacity = '0';
     const anim = flyPhoto(s.src, s.photo, to, { duration: MOMENTS_MOTION.saveMs, easing: EMPH, clip: s.clip });
     const show = () => { still.style.opacity = ''; };
@@ -444,11 +570,14 @@ function watchDom() {
   new MutationObserver(records => {
     if (!on()) return;
     for (const record of records) {
+      if (record.type === 'attributes' && record.attributeName === 'data-spread-sig') {
+        needShot = true;
+      }
       for (const node of record.addedNodes) {
         if (node.nodeType !== 1) continue;
         if (
-          node.matches?.('.snippet-photo-cell, #snippet-photo-grid, .snippet-photo-grid-inner, #quick-photo-preview > img')
-          || node.querySelector?.('.snippet-photo-cell')
+          node.matches?.('.snippet-photo-cell, #snippet-photo-grid, .snippet-photo-grid-inner, #quick-photo-preview > img, .moment-spread, .moment-spread-card')
+          || node.querySelector?.('.snippet-photo-cell, .moment-spread, .moment-spread-card')
         ) needShot = true;
         if (
           node.matches?.('.snippet-item-card, #screen-snippets, .snippets-stream-sheet, .snippet-day-section')
@@ -460,7 +589,7 @@ function watchDom() {
       }
     }
     if (needShot || needSave || needLayers) kick();
-  }).observe(document.body, { childList: true, subtree: true });
+  }).observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['data-spread-sig'] });
 }
 
 let installed = false;

@@ -1,0 +1,931 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="plain">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>随手拍多图展开与叠合动效 · 演示预览</title>
+  <link rel="stylesheet" href="../fonts.css">
+  <link rel="stylesheet" href="../performance.css">
+  <link rel="stylesheet" href="../styles.css">
+  <link rel="stylesheet" href="../themes.css">
+  <link rel="stylesheet" href="../themes-plain.css">
+  <link rel="stylesheet" href="../themes-plain-light.css">
+  <style>
+    :root {
+      --preview-bg: #EAF0F8;
+      --preview-border: rgba(85, 96, 108, 0.16);
+    }
+    body {
+      margin: 0;
+      padding: 24px 16px 48px;
+      background: var(--plain-canvas, #EAF0F8);
+      color: var(--ink, #2E343B);
+      font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Noto Sans SC", sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      box-sizing: border-box;
+    }
+    .preview-header {
+      max-width: 440px;
+      width: 100%;
+      margin-bottom: 16px;
+      text-align: center;
+    }
+    .preview-header h1 {
+      margin: 0 0 6px;
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--ink, #2E343B);
+      letter-spacing: -0.02em;
+    }
+    .preview-header p {
+      margin: 0 0 14px;
+      font-size: 13px;
+      color: var(--muted, #7A838E);
+    }
+    .preview-controls {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      max-width: 440px;
+      width: 100%;
+      margin-bottom: 20px;
+    }
+    .control-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .control-btn, .anchor-btn {
+      padding: 7px 14px;
+      font-size: 13px;
+      font-weight: 600;
+      border-radius: 999px;
+      border: 1px solid var(--preview-border);
+      background: #FBFCFE;
+      color: var(--ink, #2E343B);
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.15s ease;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 2px 6px rgba(46, 52, 59, 0.06);
+    }
+    .control-btn:hover, .anchor-btn:hover {
+      background: #E8EDF5;
+    }
+    .control-btn.active, .anchor-btn.active {
+      background: var(--accent, #55606C);
+      color: #FBFCFE;
+      border-color: var(--accent, #55606C);
+    }
+    .phone-container {
+      width: 390px;
+      height: 844px;
+      flex: none;
+      border-radius: 46px;
+      background: var(--plain-canvas, #EAF0F8);
+      border: 10px solid #1E232A;
+      box-shadow: 0 24px 50px rgba(46, 52, 59, 0.22);
+      overflow-y: auto;
+      overflow-x: hidden;
+      position: relative;
+      box-sizing: border-box;
+      display: flex;
+      flex-direction: column;
+      scrollbar-width: none;
+    }
+    .phone-container .app, .phone-container #app {
+      min-height: 100%;
+    }
+    .phone-container #modal-layer {
+      position: absolute; inset: 0; z-index: 20;
+      background: transparent;
+    }
+    .phone-container::-webkit-scrollbar {
+      display: none;
+    }
+    .phone-notch {
+      position: sticky;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 30px;
+      z-index: 100;
+      background: transparent;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 6px 24px 0;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--ink, #2E343B);
+      flex-shrink: 0;
+    }
+    .phone-content {
+      position: relative;
+      flex: 1;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+    .demo-divider {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--muted, #7A838E);
+      font-size: 11px;
+      margin: 8px 0 -8px;
+    }
+    .demo-divider::before, .demo-divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--preview-border);
+    }
+    .fake-snippet-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .fake-item-card {
+      background: #FBFCFE;
+      border: 1px solid var(--preview-border);
+      border-radius: 12px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      box-shadow: 0 2px 8px rgba(46, 52, 59, 0.05);
+    }
+    .fake-target-wrap {
+      position: relative;
+      width: 100%;
+      height: 96px;
+      border-radius: 8px;
+      overflow: hidden;
+      background: #E8EDF5;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .fake-target-wrap img.fake-target-still {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      opacity: 0;
+      transition: opacity 0.12s ease;
+    }
+    .fake-item-meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 11px;
+      color: var(--muted, #7A838E);
+    }
+    .fake-item-meta strong {
+      color: #315b49;
+    }
+    .fake-item-text {
+      margin: 0;
+      font-size: 13px;
+      line-height: 1.45;
+      color: var(--ink, #2E343B);
+    }
+    /* 飞行克隆元素层级 */
+    .fly-clone {
+      position: fixed;
+      pointer-events: none;
+      z-index: 9999;
+      box-sizing: border-box;
+      border: 3px solid #FBFCFE;
+      border-radius: 8px;
+      box-shadow: 0 6px 16px rgba(46, 52, 59, 0.12);
+      background: #FBFCFE;
+      overflow: hidden;
+    }
+    .fly-clone img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
+    }
+  </style>
+</head>
+<body>
+
+  <header class="preview-header">
+    <h1>随手拍多图展开与叠合动效</h1>
+    <p>多图展开扇面 · 40ms 错开飞入 · 保存收成一叠 · 封面飞落 · 叠边延后 60ms</p>
+  </header>
+
+  <div class="preview-controls">
+    <div class="control-row">
+      <span style="font-size:12px;color:var(--muted)">动效档位：</span>
+      <button type="button" class="control-btn active" data-tier="rich">完整 rich</button>
+      <button type="button" class="control-btn" data-tier="lite">轻量 lite</button>
+      <button type="button" class="control-btn" data-tier="none">减弱动态 none</button>
+    </div>
+    <div class="control-row">
+      <span style="font-size:12px;color:var(--muted)">场景回放：</span>
+      <a href="#page" class="anchor-btn" id="btn-page">整页 (#page)</a>
+      <a href="#pick" class="anchor-btn" id="btn-pick">选图飞入 (#pick)</a>
+      <a href="#spread" class="anchor-btn" id="btn-spread">展开状态 (#spread)</a>
+      <a href="#save" class="anchor-btn" id="btn-save">保存收叠 (#save)</a>
+    </div>
+  </div>
+
+  <div class="phone-container" id="page">
+    <div class="phone-notch">
+      <span>09:41</span>
+      <span style="display:flex;gap:4px">
+        <span class="material-symbols-outlined" style="font-size:13px">signal_cellular_4_bar</span>
+        <span class="material-symbols-outlined" style="font-size:13px">wifi</span>
+        <span class="material-symbols-outlined" style="font-size:13px">battery_full</span>
+      </span>
+    </div>
+
+    <div class="phone-content">
+      <div id="app" class="app">
+        <main class="snippets-view" aria-hidden="true">
+          <header class="subpage-nav-bar"><button type="button" class="subpage-back" aria-label="返回"><span class="material-symbols-outlined">arrow_back</span><span>返回</span></button><strong>随手拍</strong></header>
+          <section class="snippets-stream-sheet">
+            <div class="demo-divider" id="save">保存落点</div>
+            <article class="fake-item-card" id="fake-list-card">
+              <div class="fake-target-wrap" id="fake-target-slot">
+                <img class="fake-target-still photo-blur-still" id="fake-target-img" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='400'><defs><linearGradient id='g1' x1='0' y1='0' x2='1' y2='1'><stop offset='0%' stop-color='%23F6A28E'/><stop offset='100%' stop-color='%23F4C2A1'/></linearGradient></defs><rect width='100%' height='100%' fill='url(%23g1)'/><text x='50%' y='48%' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='32' font-weight='bold' fill='%23ffffff'>1:1 方形</text><text x='50%' y='60%' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='18' fill='%23ffffff'>待保存照片 1</text></svg>" alt="">
+              </div>
+              <div class="fake-item-meta">
+                <span>刚刚 · 随手拍</span>
+                <strong>#日常生活</strong>
+              </div>
+              <p class="fake-item-text">午后书桌上的光斑与手冲香气</p>
+            </article>
+            <article class="snippet-item-card"><div class="snippet-visual-wrap"><div class="snippet-cover-frame photo-blur-frame is-edge" style="aspect-ratio:4/3;background:var(--pl-blue-soft)"></div></div><div class="snippet-item-meta"><span>今天 · 随手拍</span></div><p class="snippet-item-text">窗边的一杯手冲</p></article>
+          </section>
+        </main>
+      </div>
+      <div id="modal-layer" class="modal-layer open">
+      <div class="modal quick-modal quick-photo-sheet" role="dialog" aria-modal="true" tabindex="-1">
+      <!-- 快捷发布弹窗卡片（与 quickPhotoModal 输出结构完全一致） -->
+      <div class="quick-modal-card" id="quick-photo-modal">
+        <div class="quick-modal-head">
+          <div class="quick-modal-heading">
+            <span class="quick-modal-title-mark material-symbols-outlined" aria-hidden="true">photo_camera</span>
+            <span>
+              <small class="quick-modal-kicker">VISUAL MOMENT</small>
+              <h2 class="quick-modal-title">随手拍 <em>留住此刻</em></h2>
+            </span>
+          </div>
+          <button type="button" data-close class="quick-modal-close" aria-label="关闭随手拍">
+            <span class="material-symbols-outlined" aria-hidden="true">close</span>
+          </button>
+        </div>
+
+        <!-- 随手拍多图展示台 -->
+        <div class="quick-photo-preview" id="quick-photo-preview" role="button" tabindex="0" aria-label="拍摄或选择照片">
+          <div class="moment-spread count-4" id="spread" data-spread-sig="6:placeholder-mix">
+            <!-- 卡片 1 (1:1 方形) -->
+            <span class="moment-spread-card" style="--i:0;--rot:-6deg;--lift:-6px">
+              <span class="moment-spread-frame photo-blur-frame is-edge">
+                <img class="photo-blur-pad moment-spread-blur" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='400'><defs><linearGradient id='g1' x1='0' y1='0' x2='1' y2='1'><stop offset='0%' stop-color='%23F6A28E'/><stop offset='100%' stop-color='%23F4C2A1'/></linearGradient></defs><rect width='100%' height='100%' fill='url(%23g1)'/><text x='50%' y='48%' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='32' font-weight='bold' fill='%23ffffff'>1:1 方形</text><text x='50%' y='60%' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='18' fill='%23ffffff'>待保存照片 1</text></svg>" alt="" aria-hidden="true">
+                <img class="photo-blur-still moment-spread-still" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='400'><defs><linearGradient id='g1' x1='0' y1='0' x2='1' y2='1'><stop offset='0%' stop-color='%23F6A28E'/><stop offset='100%' stop-color='%23F4C2A1'/></linearGradient></defs><rect width='100%' height='100%' fill='url(%23g1)'/><text x='50%' y='48%' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='32' font-weight='bold' fill='%23ffffff'>1:1 方形</text><text x='50%' y='60%' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='18' fill='%23ffffff'>待保存照片 1</text></svg>" alt="待保存照片 1">
+              </span>
+            </span>
+            <!-- 卡片 2 (4:3 横图) -->
+            <span class="moment-spread-card" style="--i:1;--rot:-2deg;--lift:10px">
+              <span class="moment-spread-frame photo-blur-frame is-edge">
+                <img class="photo-blur-pad moment-spread-blur" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='300'><defs><linearGradient id='g2' x1='0' y1='0' x2='1' y2='1'><stop offset='0%' stop-color='%237FA68E'/><stop offset='100%' stop-color='%23B2D2BD'/></linearGradient></defs><rect width='100%' height='100%' fill='url(%23g2)'/><text x='50%' y='48%' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='32' font-weight='bold' fill='%23ffffff'>4:3 横图</text><text x='50%' y='64%' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='18' fill='%23ffffff'>待保存照片 2</text></svg>" alt="" aria-hidden="true">
+                <img class="photo-blur-still moment-spread-still" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='300'><defs><linearGradient id='g2' x1='0' y1='0' x2='1' y2='1'><stop offset='0%' stop-color='%237FA68E'/><stop offset='100%' stop-color='%23B2D2BD'/></linearGradient></defs><rect width='100%' height='100%' fill='url(%23g2)'/><text x='50%' y='48%' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='32' font-weight='bold' fill='%23ffffff'>4:3 横图</text><text x='50%' y='64%' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='18' fill='%23ffffff'>待保存照片 2</text></svg>" alt="待保存照片 2">
+              </span>
+            </span>
+            <!-- 卡片 3 (3:4 竖图) -->
+            <span class="moment-spread-card" style="--i:2;--rot:2deg;--lift:-6px">
+              <span class="moment-spread-frame photo-blur-frame is-edge">
+                <img class="photo-blur-pad moment-spread-blur" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='300' height='400'><defs><linearGradient id='g3' x1='0' y1='0' x2='1' y2='1'><stop offset='0%' stop-color='%236A89A7'/><stop offset='100%' stop-color='%23A4C2E0'/></linearGradient></defs><rect width='100%' height='100%' fill='url(%23g3)'/><text x='50%' y='48%' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='30' font-weight='bold' fill='%23ffffff'>3:4 竖图</text><text x='50%' y='58%' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='18' fill='%23ffffff'>待保存照片 3</text></svg>" alt="" aria-hidden="true">
+                <img class="photo-blur-still moment-spread-still" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='300' height='400'><defs><linearGradient id='g3' x1='0' y1='0' x2='1' y2='1'><stop offset='0%' stop-color='%236A89A7'/><stop offset='100%' stop-color='%23A4C2E0'/></linearGradient></defs><rect width='100%' height='100%' fill='url(%23g3)'/><text x='50%' y='48%' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='30' font-weight='bold' fill='%23ffffff'>3:4 竖图</text><text x='50%' y='58%' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='18' fill='%23ffffff'>待保存照片 3</text></svg>" alt="待保存照片 3">
+              </span>
+            </span>
+            <!-- 卡片 4 (16:9 宽屏，带 +2 徽章) -->
+            <span class="moment-spread-card" style="--i:3;--rot:6deg;--lift:10px">
+              <span class="moment-spread-frame photo-blur-frame is-edge">
+                <img class="photo-blur-pad moment-spread-blur" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='480' height='270'><defs><linearGradient id='g4' x1='0' y1='0' x2='1' y2='1'><stop offset='0%' stop-color='%23A67C52'/><stop offset='100%' stop-color='%23D4AE85'/></linearGradient></defs><rect width='100%' height='100%' fill='url(%23g4)'/><text x='50%' y='48%' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='32' font-weight='bold' fill='%23ffffff'>16:9 宽屏</text><text x='50%' y='66%' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='18' fill='%23ffffff'>待保存照片 4</text></svg>" alt="" aria-hidden="true">
+                <img class="photo-blur-still moment-spread-still" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='480' height='270'><defs><linearGradient id='g4' x1='0' y1='0' x2='1' y2='1'><stop offset='0%' stop-color='%23A67C52'/><stop offset='100%' stop-color='%23D4AE85'/></linearGradient></defs><rect width='100%' height='100%' fill='url(%23g4)'/><text x='50%' y='48%' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='32' font-weight='bold' fill='%23ffffff'>16:9 宽屏</text><text x='50%' y='66%' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='18' fill='%23ffffff'>待保存照片 4</text></svg>" alt="待保存照片 4">
+              </span>
+              <button type="button" class="moment-spread-more" data-moment-spread-all aria-label="查看全部 6 张照片">+2</button>
+            </span>
+          </div>
+
+          <span class="quick-photo-overlay">
+            <small>6 张照片</small><button type="button" class="quick-photo-view-all plain-moment-btn" data-moment-spread-all>查看全部</button>
+          </span>
+        </div>
+
+        <div class="quick-photo-meta">
+          <label class="quick-field-label" for="quick-snap-caption">图说</label>
+          <input class="quick-input-field" id="quick-snap-caption" maxlength="40" placeholder="写一句图说" value="午后书桌上的光斑与手冲香气">
+          <div class="quick-tag-row" id="quick-tag-row" aria-label="选择标签"></div>
+        </div>
+
+        <div class="quick-capture-bar" role="toolbar" aria-label="随手拍操作">
+          <div class="quick-photo-actions">
+            <button type="button" id="quick-capture-snap" class="plain-moment-btn"><span class="material-symbols-outlined" aria-hidden="true">photo_camera</span><span>拍照</span></button>
+            <button type="button" id="quick-pick-snap" class="plain-moment-btn"><span class="material-symbols-outlined" aria-hidden="true">photo_library</span><span>选图</span></button>
+          </div>
+          <div class="quick-video-actions">
+            <button type="button" id="quick-pick-video" class="plain-moment-btn"><span class="material-symbols-outlined" aria-hidden="true">video_library</span><span>导入视频</span></button>
+          </div>
+          <button type="button" class="quick-publish-btn snap" id="quick-save-snap" aria-label="收进今日生活相册"><span class="material-symbols-outlined" aria-hidden="true">check</span><span>保存</span></button>
+        </div>
+
+        <div class="quick-modal-switch">
+          <button type="button" id="quick-switch-memo">或写一条灵感速记 ›</button>
+        </div>
+      </div>
+      </div><!-- .modal -->
+      </div><!-- #modal-layer -->
+    </div>
+  </div>
+
+  <script>
+    let currentTier = 'rich';
+
+    const tierButtons = document.querySelectorAll('[data-tier]');
+    tierButtons.forEach(btn => {
+      btn.onclick = () => {
+        currentTier = btn.dataset.tier;
+        tierButtons.forEach(b => b.classList.toggle('active', b === btn));
+      };
+    });
+
+    const stageSpread = document.getElementById('spread');
+    const fakeTargetImg = document.getElementById('fake-target-img');
+    const fakeTargetSlot = document.getElementById('fake-target-slot');
+    const quickModal = document.getElementById('quick-photo-modal');
+
+    function resetSpread() {
+      // 清理任何残留飞行克隆
+      document.querySelectorAll('.fly-clone').forEach(el => el.remove());
+      const cards = stageSpread.querySelectorAll('.moment-spread-card');
+      cards.forEach(card => {
+        card.style.transform = '';
+        card.style.opacity = '1';
+        card.style.transition = 'none';
+      });
+      fakeTargetImg.style.opacity = '0';
+      quickModal.style.opacity = '1';
+    }
+
+    // 动作 1：选图飞入 (#pick)
+    function playPickAnimation() {
+      resetSpread();
+      if (currentTier === 'none') return;
+
+      const cards = [...stageSpread.querySelectorAll('.moment-spread-card')];
+      const isRich = currentTier === 'rich';
+      const duration = isRich ? 320 : 180;
+      const easing = isRich ? 'cubic-bezier(.34,1.56,.64,1)' : 'ease-out';
+
+      cards.forEach((card, i) => {
+        const comp = getComputedStyle(card);
+        const rot = comp.getPropertyValue('--rot').trim() || '0deg';
+        const lift = comp.getPropertyValue('--lift').trim() || '0px';
+        const delay = isRich ? i * 40 : 0;
+        card.animate([
+          { transform: `translate3d(0, 40px, 0) rotate(${rot}) scale(.9)`, opacity: 0 },
+          { transform: `rotate(${rot}) translateY(${lift})`, opacity: 1 }
+        ], {
+          duration,
+          delay,
+          easing,
+          fill: 'backwards'
+        });
+      });
+    }
+
+    // 动作 2：展开静态态 (#spread)
+    function playSpreadStatic() {
+      resetSpread();
+    }
+
+    // 动作 3：保存收叠与叠边飞行 (#save)
+    async function playSaveAnimation() {
+      resetSpread();
+      if (currentTier === 'none') {
+        fakeTargetImg.style.opacity = '1';
+        return;
+      }
+
+      const cards = [...stageSpread.querySelectorAll('.moment-spread-card')];
+      if (!cards.length) return;
+
+      const isRich = currentTier === 'rich';
+      const collapseMs = isRich ? 260 : 160;
+      const flightMs = isRich ? 480 : 300;
+      const r0 = cards[0].getBoundingClientRect();
+
+      // 1. 克隆卡片到 body 用于收拢和飞行
+      const clones = cards.map((card, i) => {
+        const r = card.getBoundingClientRect();
+        const clone = document.createElement('div');
+        clone.className = 'fly-clone';
+        clone.style.left = `${r.left}px`;
+        clone.style.top = `${r.top}px`;
+        clone.style.width = `${r.width}px`;
+        clone.style.height = `${r.height}px`;
+        clone.style.zIndex = String(9990 + i);
+
+        // 内部填充真实图
+        const originalImg = card.querySelector('.photo-blur-still');
+        const img = document.createElement('img');
+        img.src = originalImg ? originalImg.src : '';
+        clone.appendChild(img);
+        document.body.appendChild(clone);
+
+        const dx = (r0.left + r0.width / 2) - (r.left + r.width / 2) + i * 2;
+        const dy = (r0.top + r0.height / 2) - (r.top + r.height / 2) - i * 2;
+        const rot = (i - 1) * 2;
+
+        return { clone, originalRect: r, dx, dy, rot, i };
+      });
+
+      // 隐藏弹窗中的原始卡片
+      cards.forEach(c => c.style.opacity = '0');
+
+      // 2. 收叠动画
+      await Promise.all(clones.map(item => {
+        return item.clone.animate([
+          { transform: 'none' },
+          { transform: `translate3d(${item.dx}px, ${item.dy}px, 0) rotate(${item.rot}deg)` }
+        ], {
+          duration: collapseMs,
+          easing: 'ease-out',
+          fill: 'forwards'
+        }).finished.catch(() => {});
+      }));
+
+      // 3. 封面飞向目标卡
+      const toRect = fakeTargetSlot.getBoundingClientRect();
+      const cover = clones[0];
+      const coverDx = toRect.left - cover.originalRect.left;
+      const coverDy = toRect.top - cover.originalRect.top;
+      const coverScale = toRect.width / cover.originalRect.width;
+
+      const coverAnim = cover.clone.animate([
+        { transform: `translate3d(${cover.dx}px, ${cover.dy}px, 0) rotate(${cover.rot}deg)` },
+        { transform: `translate3d(${cover.dx + coverDx}px, ${cover.dy + coverDy}px, 0) scale(${coverScale}) rotate(0deg)` }
+      ], {
+        duration: flightMs,
+        easing: 'cubic-bezier(.32,.72,0,1)',
+        fill: 'forwards'
+      });
+
+      // 4. 叠边晚 60ms 飞向同一位置并淡出
+      const edges = clones.slice(1);
+      edges.forEach(edge => {
+        const edgeDx = (toRect.left + toRect.width / 2) - (edge.originalRect.left + edge.originalRect.width / 2);
+        const edgeDy = (toRect.top + toRect.height / 2) - (edge.originalRect.top + edge.originalRect.height / 2);
+        const edgeScale = (toRect.width / edge.originalRect.width) * 0.9;
+
+        edge.clone.animate([
+          { transform: `translate3d(${edge.dx}px, ${edge.dy}px, 0) rotate(${edge.rot}deg)`, opacity: 1 },
+          { transform: `translate3d(${edge.dx + edgeDx}px, ${edge.dy + edgeDy}px, 0) scale(${edgeScale}) rotate(0deg)`, opacity: 0 }
+        ], {
+          duration: Math.max(120, flightMs - 60),
+          delay: 60,
+          easing: 'cubic-bezier(.32,.72,0,1)',
+          fill: 'forwards'
+        });
+      });
+
+      await coverAnim.finished.catch(() => {});
+      // 落定：假卡片中的照片淡入显现，移除克隆
+      fakeTargetImg.style.opacity = '1';
+      clones.forEach(c => c.clone.remove());
+    }
+
+    // 路由分发
+    function handleHash() {
+      const hash = location.hash || '#spread';
+      document.querySelectorAll('.anchor-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.getAttribute('href') === hash);
+      });
+      if (hash === '#page') {
+        // 整页：空舞台（无照片）或已摊开状态都可看底色与层级
+        playSpreadStatic();
+      } else if (hash === '#pick') {
+        playPickAnimation();
+      } else if (hash === '#save') {
+        playSaveAnimation();
+      } else {
+        playSpreadStatic();
+      }
+    }
+
+    window.addEventListener('hashchange', handleHash);
+    // 页面加载默认根据当前 hash 播放或展示
+    handleHash();
+
+    // 点击按钮绑定
+    document.getElementById('quick-save-snap').addEventListener('click', () => {
+      if (pendingQuickTag) {
+        const nextStore = recordQuickTag(getPreviewStore(), pendingQuickTag);
+        savePreviewStore(nextStore);
+        renderPreviewQuickTagRow();
+      }
+      location.hash = '#save';
+    });
+    document.getElementById('quick-photo-preview').addEventListener('click', () => {
+      location.hash = '#pick';
+    });
+
+    // ---- 随手拍快捷标签镜像逻辑（本地存储 key: mwj-preview-quick-tags） ----
+    const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    const QUICK_TAG_DEFAULTS = ['日常生活', '手冲咖啡', '学习心流', '夏日碎影'];
+    const PREVIEW_TAG_KEY = 'mwj-preview-quick-tags';
+
+    function normalizeQuickTag(raw) {
+      if (raw === null || raw === undefined) return '';
+      let s = String(raw).trim();
+      s = s.replace(/^[#＃]+/, '').trim();
+      if (!s) return '';
+      const chars = Array.from(s);
+      if (chars.length > 20) {
+        return chars.slice(0, 20).join('');
+      }
+      return s;
+    }
+
+    function normalizeStore(store) {
+      if (!store || typeof store !== 'object') {
+        return { items: [], hidden: [] };
+      }
+      let rawItems = [];
+      let rawHidden = [];
+      if (Array.isArray(store)) {
+        rawItems = store;
+      } else {
+        rawItems = Array.isArray(store.items) ? store.items : [];
+        rawHidden = Array.isArray(store.hidden) ? store.hidden : [];
+      }
+
+      const itemMap = new Map();
+      for (const it of rawItems) {
+        if (!it || typeof it !== 'object') continue;
+        const tag = normalizeQuickTag(it.tag);
+        if (!tag) continue;
+        const count = typeof it.count === 'number' && Number.isFinite(it.count) ? it.count : 0;
+        const lastUsed = typeof it.lastUsed === 'number' && Number.isFinite(it.lastUsed) ? it.lastUsed : 0;
+        if (!itemMap.has(tag)) {
+          itemMap.set(tag, { tag, count, lastUsed });
+        } else {
+          const existing = itemMap.get(tag);
+          existing.count = Math.max(existing.count, count);
+          existing.lastUsed = Math.max(existing.lastUsed, lastUsed);
+        }
+      }
+
+      const hidden = [];
+      const seenHidden = new Set();
+      for (const h of rawHidden) {
+        const tag = normalizeQuickTag(h);
+        if (!tag || seenHidden.has(tag)) continue;
+        seenHidden.add(tag);
+        hidden.push(tag);
+      }
+
+      return { items: Array.from(itemMap.values()), hidden };
+    }
+
+    function quickTagList(store) {
+      const { items, hidden } = normalizeStore(store);
+      const hiddenSet = new Set(hidden);
+
+      const sortedItems = [...items].sort((a, b) => {
+        const countDiff = (b.count || 0) - (a.count || 0);
+        if (countDiff !== 0) return countDiff;
+        return (b.lastUsed || 0) - (a.lastUsed || 0);
+      });
+
+      const result = [];
+      const seen = new Set();
+
+      for (const item of sortedItems) {
+        if (!seen.has(item.tag)) {
+          seen.add(item.tag);
+          result.push(item.tag);
+        }
+      }
+
+      for (const def of QUICK_TAG_DEFAULTS) {
+        const tag = normalizeQuickTag(def);
+        if (tag && !hiddenSet.has(tag) && !seen.has(tag)) {
+          seen.add(tag);
+          result.push(tag);
+        }
+      }
+
+      return result;
+    }
+
+    function recordQuickTag(store, raw, now = Date.now()) {
+      const tag = normalizeQuickTag(raw);
+      const { items, hidden } = normalizeStore(store);
+      if (!tag) {
+        return { items: [...items], hidden: [...hidden] };
+      }
+
+      const newHidden = hidden.filter(h => h !== tag);
+      const newItems = [];
+      let found = false;
+
+      for (const it of items) {
+        if (it.tag === tag) {
+          if (!found) {
+            newItems.push({
+              tag,
+              count: (it.count || 0) + 1,
+              lastUsed: now
+            });
+            found = true;
+          }
+        } else {
+          newItems.push({ ...it });
+        }
+      }
+
+      if (!found) {
+        newItems.push({
+          tag,
+          count: 1,
+          lastUsed: now
+        });
+      }
+
+      return { items: newItems, hidden: newHidden };
+    }
+
+    function addQuickTag(store, raw, now = Date.now()) {
+      const tag = normalizeQuickTag(raw);
+      const { items, hidden } = normalizeStore(store);
+      if (!tag) {
+        return { items: [...items], hidden: [...hidden] };
+      }
+
+      const newHidden = hidden.filter(h => h !== tag);
+      const newItems = [];
+      let found = false;
+
+      for (const it of items) {
+        if (it.tag === tag) {
+          if (!found) {
+            newItems.push({ ...it });
+            found = true;
+          }
+        } else {
+          newItems.push({ ...it });
+        }
+      }
+
+      if (!found) {
+        newItems.push({
+          tag,
+          count: 0,
+          lastUsed: now
+        });
+      }
+
+      return { items: newItems, hidden: newHidden };
+    }
+
+    function removeQuickTag(store, raw) {
+      const tag = normalizeQuickTag(raw);
+      const { items, hidden } = normalizeStore(store);
+      if (!tag) {
+        return { items: [...items], hidden: [...hidden] };
+      }
+
+      const newItems = items.filter(it => it.tag !== tag);
+      const newHidden = hidden.filter(h => h !== tag);
+      if (QUICK_TAG_DEFAULTS.includes(tag)) {
+        newHidden.push(tag);
+      }
+
+      return { items: newItems, hidden: newHidden };
+    }
+
+    function getPreviewStore() {
+      try {
+        const raw = localStorage.getItem(PREVIEW_TAG_KEY);
+        return raw ? JSON.parse(raw) : null;
+      } catch {
+        return null;
+      }
+    }
+
+    function savePreviewStore(store) {
+      try {
+        localStorage.setItem(PREVIEW_TAG_KEY, JSON.stringify(store));
+      } catch (e) {
+        console.warn(e);
+      }
+    }
+
+    let pendingQuickTag = '#日常生活';
+    let isAddingTag = false;
+    let confirmingTag = null;
+    let suppressClickUntil = 0;
+
+    function renderPreviewQuickTagRow() {
+      const row = document.getElementById('quick-tag-row');
+      if (!row) return;
+
+      const store = getPreviewStore();
+      const tags = quickTagList(store);
+
+      let html = '';
+      for (const tag of tags) {
+        const fullTag = '#' + tag;
+        if (confirmingTag === tag) {
+          html += `<span class="quick-tag-confirm-bar">删除 #${esc(tag)} ？ <button type="button" class="quick-tag-confirm-del" data-del-tag="${esc(tag)}">删除</button> / <button type="button" class="quick-tag-confirm-cancel">取消</button></span>`;
+        } else {
+          html += `<button type="button" class="quick-paper-tag ${pendingQuickTag === fullTag ? 'active' : ''}" data-quick-tag="${esc(fullTag)}">${esc(fullTag)}</button>`;
+        }
+      }
+
+      if (isAddingTag) {
+        html += `<span class="quick-tag-input-wrap"><input class="quick-tag-input" maxlength="20" placeholder="新标签"><button type="button" class="quick-tag-btn-add">添加</button></span>`;
+      } else {
+        html += `<button type="button" class="quick-paper-tag quick-tag-add" data-quick-tag-add>＋ 自定义</button>`;
+      }
+
+      row.innerHTML = html;
+
+      row.querySelectorAll('button[data-quick-tag]').forEach(chip => {
+        let pressTimer = null;
+        let startX = 0;
+        let startY = 0;
+        let didLongPress = false;
+
+        const cancelPress = () => {
+          if (pressTimer) {
+            clearTimeout(pressTimer);
+            pressTimer = null;
+          }
+        };
+
+        chip.addEventListener('pointerdown', e => {
+          if (e.button !== 0 && e.pointerType === 'mouse') return;
+          cancelPress();
+          didLongPress = false;
+          startX = e.clientX;
+          startY = e.clientY;
+          const tag = (chip.dataset.quickTag || '').replace(/^[#＃]+/, '');
+          pressTimer = setTimeout(() => {
+            pressTimer = null;
+            didLongPress = true;
+            suppressClickUntil = Date.now() + 450;
+            confirmingTag = tag;
+            isAddingTag = false;
+            renderPreviewQuickTagRow();
+          }, 550);
+        });
+
+        chip.addEventListener('pointermove', e => {
+          if (pressTimer) {
+            const dx = e.clientX - startX;
+            const dy = e.clientY - startY;
+            if (Math.hypot(dx, dy) > 8) {
+              cancelPress();
+            }
+          }
+        });
+
+        chip.addEventListener('pointerup', cancelPress);
+        chip.addEventListener('pointercancel', cancelPress);
+
+        chip.addEventListener('contextmenu', e => {
+          e.preventDefault();
+          cancelPress();
+          didLongPress = true;
+          suppressClickUntil = Date.now() + 450;
+          const tag = (chip.dataset.quickTag || '').replace(/^[#＃]+/, '');
+          confirmingTag = tag;
+          isAddingTag = false;
+          renderPreviewQuickTagRow();
+        });
+
+        chip.addEventListener('click', e => {
+          if (didLongPress || Date.now() < suppressClickUntil) {
+            didLongPress = false;
+            e.preventDefault();
+            e.stopPropagation();
+            return;
+          }
+          const tag = chip.dataset.quickTag;
+          pendingQuickTag = pendingQuickTag === tag ? '' : tag;
+          row.querySelectorAll('button[data-quick-tag]').forEach(b => {
+            b.classList.toggle('active', b.dataset.quickTag === pendingQuickTag);
+          });
+          const fakeTag = document.querySelector('.fake-item-meta strong');
+          if (fakeTag) fakeTag.textContent = pendingQuickTag || '';
+        });
+      });
+
+      const delBtn = row.querySelector('.quick-tag-confirm-del');
+      if (delBtn) {
+        delBtn.addEventListener('click', e => {
+          e.preventDefault();
+          e.stopPropagation();
+          const tag = delBtn.dataset.delTag;
+          const nextStore = removeQuickTag(getPreviewStore(), tag);
+          savePreviewStore(nextStore);
+          if (pendingQuickTag === '#' + tag) {
+            pendingQuickTag = '';
+          }
+          confirmingTag = null;
+          renderPreviewQuickTagRow();
+        });
+      }
+
+      const cancelBtn = row.querySelector('.quick-tag-confirm-cancel');
+      if (cancelBtn) {
+        cancelBtn.addEventListener('click', e => {
+          e.preventDefault();
+          e.stopPropagation();
+          confirmingTag = null;
+          renderPreviewQuickTagRow();
+        });
+      }
+
+      const addBtn = row.querySelector('[data-quick-tag-add]');
+      if (addBtn) {
+        addBtn.addEventListener('click', e => {
+          e.preventDefault();
+          confirmingTag = null;
+          isAddingTag = true;
+          renderPreviewQuickTagRow();
+        });
+      }
+
+      const input = row.querySelector('.quick-tag-input');
+      const submitBtn = row.querySelector('.quick-tag-btn-add');
+
+      const commitAdd = () => {
+        const val = input ? input.value : '';
+        const norm = normalizeQuickTag(val);
+        if (norm) {
+          const nextStore = addQuickTag(getPreviewStore(), norm);
+          savePreviewStore(nextStore);
+          pendingQuickTag = '#' + norm;
+          isAddingTag = false;
+          renderPreviewQuickTagRow();
+        } else {
+          isAddingTag = false;
+          renderPreviewQuickTagRow();
+        }
+      };
+
+      if (input) {
+        input.focus();
+        input.addEventListener('keydown', e => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            commitAdd();
+          } else if (e.key === 'Escape') {
+            e.preventDefault();
+            isAddingTag = false;
+            renderPreviewQuickTagRow();
+          }
+        });
+
+        input.addEventListener('blur', () => {
+          setTimeout(() => {
+            if (isAddingTag && input && !normalizeQuickTag(input.value)) {
+              isAddingTag = false;
+              renderPreviewQuickTagRow();
+            }
+          }, 120);
+        });
+      }
+
+      if (submitBtn) {
+        submitBtn.addEventListener('pointerdown', e => e.preventDefault());
+        submitBtn.addEventListener('mousedown', e => e.preventDefault());
+        submitBtn.addEventListener('click', e => {
+          e.preventDefault();
+          commitAdd();
+        });
+      }
+    }
+
+    renderPreviewQuickTagRow();
+  </script>
+</body>
+</html>

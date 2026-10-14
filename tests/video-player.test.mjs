@@ -105,8 +105,8 @@ test('Moments exposes local import, m3u8 input and a real play action', () => {
   assert.match(snippets, /id="snippet-hls-url"/);
   assert.match(snippets, /id="add-snippet-hls"/);
   assert.match(snippets, /id="quick-pick-video"/);
-  assert.match(snippets, /id="quick-hls-url"/);
-  assert.match(snippets, /id="quick-add-hls"/);
+  // 2026-10-14 cvb：随手拍快捷选图页去掉 m3u8 入口（已有 m3u8 记录照常播放）
+  assert.doesNotMatch(snippets, /id="quick-hls-url"|id="quick-add-hls"|id="quick-toggle-hls"/);
   assert.match(snippets, /data-play-snippet-video/);
   assert.match(snippets, /HLS 在线视频/);
   assert.match(snippets, /播放时才会联网/);

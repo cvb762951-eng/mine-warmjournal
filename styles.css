@@ -9995,3 +9995,253 @@ body #modal-layer .modal.confirm-sheet .modal-actions .danger { padding: 0 16px 
 @media (prefers-reduced-motion: reduce){.photo-viewer-play-btn:active{transform:none}}
 /* 多段视频卡封面改成按钮（点开翻牌相册），去掉按钮自带的边框/内边距，外观与原 div 一致 */
 .snippets-view button.snippet-cover-frame{padding:0;border:0;margin:0;font:inherit;color:inherit;cursor:pointer;text-align:inherit;-webkit-tap-highlight-color:transparent}
+
+/* moment-spread start */
+.moment-spread {
+  position: relative;
+  width: 100%;
+  height: clamp(200px, 34vh, 280px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: visible;
+  --n: 1;
+  --card-w: min(120px, calc((100% - 30px) / var(--n) * 1.1));
+}
+
+.moment-spread.count-1 { --n: 1; }
+.moment-spread.count-2 { --n: 2; }
+.moment-spread.count-3 { --n: 3; }
+.moment-spread.count-4 { --n: 4; }
+
+.moment-spread-card {
+  position: absolute;
+  top: 50%;
+  margin-top: calc(var(--card-w) * -2 / 3); /* margin 百分比按宽度算，和 --card-w 同基准 */
+  width: var(--card-w);
+  aspect-ratio: 3 / 4;
+  transform: rotate(var(--rot, 0deg)) translateY(var(--lift, 0px));
+  border: 3px solid var(--card, #FBFCFE);
+  border-radius: 8px;
+  box-shadow: 0 6px 16px rgba(46, 52, 59, 0.12);
+  background: var(--card, #FBFCFE);
+  box-sizing: border-box;
+  z-index: calc(var(--i, 0) + 1);
+  transform-origin: center center;
+}
+
+.moment-spread.count-1 .moment-spread-card {
+  left: calc(50% - var(--card-w) / 2);
+}
+
+.moment-spread.count-2 .moment-spread-card {
+  left: calc(15px + var(--i, 0) * (100% - 30px - var(--card-w)));
+}
+
+.moment-spread.count-3 .moment-spread-card {
+  left: calc(15px + var(--i, 0) * (100% - 30px - var(--card-w)) / 2);
+}
+
+.moment-spread.count-4 .moment-spread-card {
+  left: calc(15px + var(--i, 0) * (100% - 30px - var(--card-w)) / 3);
+}
+
+.moment-spread-frame {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 5px;
+  overflow: hidden;
+  background: var(--frame, #E8EDF5);
+}
+
+.moment-spread-frame img.moment-spread-still,
+.moment-spread-frame .photo-blur-still {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.moment-spread-frame img.moment-spread-blur,
+.moment-spread-frame .photo-blur-pad {
+  position: absolute;
+  inset: -12%;
+  width: 124%;
+  height: 124%;
+  opacity: 0.5;
+  transform: scale(1.08);
+  pointer-events: none;
+}
+
+.moment-spread-more {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  z-index: 5;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 7px;
+  font-size: 11px;
+  font-weight: 700;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(46, 52, 59, 0.82);
+  color: #FBFCFE;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+  pointer-events: auto;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.moment-spread-more:active {
+  transform: scale(0.94);
+}
+
+#snippet-photo-grid:not(.is-managing) .snippet-photo-grid-inner {
+  display: none;
+}
+
+.moment-spread-manage {
+  display: flex;
+  justify-content: center;
+  padding: 2px 2px 8px;
+}
+
+.moment-spread-manage-close { display: none; }
+
+#snippet-photo-grid.is-managing .moment-spread-manage-open { display: none; }
+
+#snippet-photo-grid.is-managing .moment-spread-manage-close { display: inline; }
+
+.moment-spread-manage-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid var(--card-border, rgba(220, 212, 198, 0.65));
+  border-radius: 999px;
+  background: var(--sheet, #fdfcf9);
+  color: var(--ink-secondary, #4a453f);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.moment-spread-manage-btn:active {
+  transform: scale(0.97);
+}
+
+#snippet-photo-grid.is-managing .moment-spread-manage-btn {
+  background: var(--pale, #edf5f0);
+  color: var(--primary, #4d7056);
+}
+
+#quick-photo-preview {
+  position: relative;
+  min-height: clamp(220px, 34vh, 290px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: var(--warm-sheet, var(--sheet, #fdfcf9));
+  border: 1px solid rgba(220, 212, 198, 0.7);
+  border-radius: var(--radius-soft, 14px);
+  box-shadow: inset 0 1px 2px rgba(46, 52, 59, 0.04);
+  padding: 12px;
+  box-sizing: border-box;
+  transform: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+#quick-photo-preview:has(.quick-photo-empty-icon),
+#quick-photo-preview:not(:has(.moment-spread)):not(:has(img)):not(:has(.quick-video-preview-placeholder)) {
+  background: var(--warm-sheet, var(--sheet, #fdfcf9));
+  border: 1.5px dashed rgba(200, 190, 175, 0.8);
+  border-radius: var(--radius-soft, 14px);
+  box-shadow: none;
+}
+
+#quick-photo-preview .quick-photo-empty-icon {
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--sage-green-light, #edf5f0);
+  color: var(--sage-green-dark, #4d7056);
+  display: grid;
+  place-items: center;
+  font-size: 24px;
+  margin-bottom: 8px;
+}
+
+#quick-photo-preview > img {
+  position: relative;
+  inset: auto;
+  width: auto;
+  max-width: 86%;
+  height: auto;
+  max-height: 78%;
+  object-fit: contain;
+}
+
+#quick-photo-preview > strong {
+  margin: 0 0 4px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink, #181614);
+}
+
+#quick-photo-preview > small {
+  font-size: 11px;
+  color: var(--ink-muted, #878177);
+}
+
+.quick-photo-overlay {
+  position: relative;
+  bottom: auto;
+  left: auto;
+  right: auto;
+  margin-top: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(24, 22, 20, 0.06);
+  color: var(--ink-secondary, #4a453f);
+  font-size: 11px;
+}
+
+.quick-photo-overlay .material-symbols-outlined {
+  font-size: 15px;
+  color: inherit;
+}
+
+.quick-photo-overlay small,
+.quick-photo-overlay .quick-photo-count-text {
+  font-size: 11px;
+  color: inherit;
+}
+
+.quick-photo-overlay .quick-photo-view-all {
+  margin-left: 4px;
+  padding: 1px 6px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(24, 22, 20, 0.08);
+  color: var(--ink, #181614);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.snippet-photo-grid .moment-spread {
+  margin-bottom: 12px;
+}
+/* moment-spread end */

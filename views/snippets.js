@@ -16,6 +16,7 @@ import { applyVideoCrop, croppedFrame } from '../video-crop.js';
 import { aiSuggestStructure, applySuggestion } from '../ai.js';
 import { deckCutDecision, prefersReducedMotion } from '../motion.js';
 import { openMediaDetail } from './media.js';
+import { normalizeQuickTag, quickTagList, recordQuickTag, addQuickTag, removeQuickTag } from '../quick-tags.js';
 
 // ---- 本地状态 ----
 let snippetType = 'all';
@@ -399,7 +400,7 @@ export function snippetForm(entry = null, requestedType = 'text', openCamera = f
   pendingSnippetVideos = [...(item.videos || [])];
   pendingSnippetStructure = { tags: [...(item.tags || [])], summary: item.summary || '' };
   snippetSuggestion = null;
-  modal(`<form id="snippet-form"><input type="hidden" name="id" value="${entry ? item.id : ''}"><input type="hidden" name="type" value="${item.type}"><span class="eyebrow">QUICK CAPTURE</span><h2>${entry ? '编辑' : '新增'}${item.type === 'photo' ? '随手拍' : '随手记'}</h2><label>日期</label><input name="date" type="date" required value="${item.date}">${item.type === 'photo' ? `<div id="snippet-photo-grid" class="snippet-photo-grid">${snippetPhotoGrid()}</div><div class="snippet-photo-actions"><button type="button" id="capture-snippet-photo" ${pendingSnippetPhotos.length >= SNIPPET_PHOTO_LIMIT ? 'disabled' : ''}><span class="material-symbols-outlined">photo_camera</span>${pendingSnippetPhotos.length ? '继续拍摄' : '打开相机'}</button><button type="button" id="pick-snippet-photo" ${pendingSnippetPhotos.length >= SNIPPET_PHOTO_LIMIT ? 'disabled' : ''}><span class="material-symbols-outlined">photo_library</span>${pendingSnippetPhotos.length ? '继续选择' : '从相册批量选择'}</button></div><small class="field-help">一次最多选择 ${PHOTO_IMPORT_BATCH_LIMIT} 张，不限单张大小；每条随手拍最多 ${SNIPPET_PHOTO_LIMIT} 张。实况照片会留下可播放的动态。</small><div class="snippet-video-head"><div><strong>视频 / 实况</strong><small>本地视频离线保存，m3u8 仅保存地址</small></div></div><div id="snippet-video-grid" class="snippet-photo-grid">${snippetVideoGrid()}</div><div class="snippet-photo-actions snippet-video-actions"><button type="button" id="capture-snippet-video" ${pendingSnippetVideos.length >= SNIPPET_PHOTO_LIMIT ? 'disabled' : ''}><span class="material-symbols-outlined">videocam</span>${pendingSnippetVideos.length ? '继续拍视频' : '拍视频'}</button><button type="button" id="pick-snippet-video" ${pendingSnippetVideos.length >= SNIPPET_PHOTO_LIMIT ? 'disabled' : ''}><span class="material-symbols-outlined">video_library</span>导入本地视频</button></div><div class="snippet-hls-paper"><label for="snippet-hls-url"><span class="material-symbols-outlined" aria-hidden="true">stream</span>添加 m3u8 在线视频</label><div><input type="url" id="snippet-hls-url" maxlength="4096" placeholder="https://example.com/video/master.m3u8" autocomplete="off" inputmode="url"><button type="button" id="add-snippet-hls">添加地址</button></div><small>仅在你点击播放时联网；不支持 DRM，鉴权或跨域限制可能导致播放失败。</small></div><label>照片 / 视频说明（可选）</label><textarea name="text" maxlength="300" placeholder="这一段影像有什么值得记住的？">${esc(item.text)}</textarea>` : `<div class="snippet-write-head"><label>记录内容</label>${micButtonHtml()}</div><textarea name="text" maxlength="2000" required placeholder="记下一句话、一个想法或稍后想写进日记的内容……">${esc(item.text)}</textarea>`}${aiStructureCard(item)}<div class="modal-actions"><button type="button" data-close>取消</button><button class="save">保存素材</button></div></form>`, 'snippet-form-modal');
+  modal(`<form id="snippet-form"><input type="hidden" name="id" value="${entry ? item.id : ''}"><input type="hidden" name="type" value="${item.type}"><span class="eyebrow">QUICK CAPTURE</span><h2>${entry ? '编辑' : '新增'}${item.type === 'photo' ? '随手拍' : '随手记'}</h2><label>日期</label><input name="date" type="date" required value="${item.date}">${item.type === 'photo' ? `<div class="snippet-photo-stage"><div id="snippet-photo-grid" class="snippet-photo-grid">${snippetPhotoGrid()}</div></div><label class="snippet-caption-label" for="snippet-photo-caption">图说</label><textarea id="snippet-photo-caption" name="text" maxlength="300" placeholder="写一句图说">${esc(item.text)}</textarea><div class="snippet-capture-bar" role="toolbar" aria-label="照片与视频"><div class="snippet-photo-actions"><button type="button" id="capture-snippet-photo" ${pendingSnippetPhotos.length >= SNIPPET_PHOTO_LIMIT ? 'disabled' : ''}><span class="material-symbols-outlined">photo_camera</span>${pendingSnippetPhotos.length ? '再拍' : '拍照'}</button><button type="button" id="pick-snippet-photo" ${pendingSnippetPhotos.length >= SNIPPET_PHOTO_LIMIT ? 'disabled' : ''}><span class="material-symbols-outlined">photo_library</span>${pendingSnippetPhotos.length ? '再选' : '选图'}</button></div><div class="snippet-photo-actions snippet-video-actions"><button type="button" id="capture-snippet-video" ${pendingSnippetVideos.length >= SNIPPET_PHOTO_LIMIT ? 'disabled' : ''}><span class="material-symbols-outlined">videocam</span>${pendingSnippetVideos.length ? '再拍视频' : '拍视频'}</button><button type="button" id="pick-snippet-video" ${pendingSnippetVideos.length >= SNIPPET_PHOTO_LIMIT ? 'disabled' : ''}><span class="material-symbols-outlined">video_library</span>导入视频</button></div></div><small class="field-help">一次最多 ${PHOTO_IMPORT_BATCH_LIMIT} 张，每条最多 ${SNIPPET_PHOTO_LIMIT} 张。</small><div class="snippet-video-head"><div><strong>视频</strong><small>已导入的片段</small></div></div><div id="snippet-video-grid" class="snippet-photo-grid">${snippetVideoGrid()}</div><div class="snippet-hls-paper"><label for="snippet-hls-url"><span class="material-symbols-outlined" aria-hidden="true">stream</span>添加 m3u8 在线视频</label><div><input type="url" id="snippet-hls-url" maxlength="4096" placeholder="https://example.com/video/master.m3u8" autocomplete="off" inputmode="url"><button type="button" id="add-snippet-hls">添加地址</button></div><small>仅在你点击播放时联网；不支持 DRM，鉴权或跨域限制可能导致播放失败。</small></div>` : `<div class="snippet-write-head"><label>记录内容</label>${micButtonHtml()}</div><textarea name="text" maxlength="2000" required placeholder="记下一句话、一个想法或稍后想写进日记的内容……">${esc(item.text)}</textarea>`}${aiStructureCard(item)}<div class="modal-actions"><button type="button" data-close>取消</button><button class="save">保存素材</button></div></form>`, 'snippet-form-modal');
   $('#capture-snippet-photo')?.addEventListener('click', () => pickSnippetPhoto(true).catch(error => show(error.message)));
   $('#pick-snippet-photo')?.addEventListener('click', () => pickSnippetPhoto(false).catch(error => show(error.message)));
   $('#capture-snippet-video')?.addEventListener('click', () => pickSnippetVideo(true).catch(error => show(error.message)));
@@ -426,12 +427,35 @@ function aiStructureCard(item) {
   return `<div class="ai-structure-card"><div class="ai-structure-head"><span class="material-symbols-outlined">auto_awesome</span><div><strong>AI 整理</strong><small>标签 · 待办 · 一句话摘要</small></div></div><button type="button" id="ai-structure-run"><span class="material-symbols-outlined">auto_awesome</span>整理内容</button><div id="ai-structure-result"></div></div>`;
 }
 
+export function momentSpreadHtml(photos) {
+  if (!photos || !photos.length) return '';
+  const total = photos.length;
+  const n = Math.min(total, 4);
+  const first4 = photos.slice(0, n);
+  const sig = `${total}:${first4.map(p => typeof p === 'string' ? p : (p?.still || p?.src || '')).join(',')}`;
+  const cards = first4.map((photo, i) => {
+    const rot = n === 1 ? 0 : (i - (n - 1) / 2) * 4;
+    const lift = n === 1 ? 0 : (i % 2 ? 10 : -6);
+    const more = (total > 4 && i === n - 1) ? `<button type="button" class="moment-spread-more" data-moment-spread-all aria-label="查看全部 ${total} 张照片">+${total - 4}</button>` : '';
+    const frame = `<span class="moment-spread-frame photo-blur-frame is-edge">${photoFrameLayersHtml(imgSrc(photo), { alt: `待保存照片 ${i + 1}`, padClass: 'moment-spread-blur', stillClass: 'moment-spread-still' })}</span>`;
+    return `<span class="moment-spread-card" style="--i:${i};--rot:${rot}deg;--lift:${lift}px">${frame}${more}</span>`;
+  }).join('');
+  return `<div class="moment-spread count-${n}" data-spread-sig="${esc(sig)}">${cards}</div>`;
+}
+
 function snippetPhotoGrid() {
   if (!pendingSnippetPhotos.length) return '<div class="snippet-photo-empty"><span class="material-symbols-outlined">photo_camera</span><strong>拍下此刻</strong><small>也可以从相册选择，可连续添加</small></div>';
-  return `<div class="snippet-photo-grid-inner">${pendingSnippetPhotos.map((photo, index) => `<div class="snippet-photo-cell"><button type="button" class="snippet-photo-thumb photo-blur-frame is-edge" data-view-pending-snippet-photo="${index}" aria-label="查看第 ${index + 1} 张">${snippetPhotoImage(photo, `待保存照片 ${index + 1}`)}${photoHasLiveMark(photo, pendingSnippetLive)}</button><button type="button" class="snippet-photo-remove" data-remove-pending-snippet-photo="${index}" aria-label="删除第 ${index + 1} 张"><span class="material-symbols-outlined">close</span></button></div>`).join('')}</div>`;
+  const spread = momentSpreadHtml(pendingSnippetPhotos);
+  const manage = `<div class="moment-spread-manage"><button type="button" class="moment-spread-manage-btn" data-moment-spread-all><span class="moment-spread-manage-open">查看全部</span><span class="moment-spread-manage-close">收起</span></button></div>`;
+  const grid = `<div class="snippet-photo-grid-inner">${pendingSnippetPhotos.map((photo, index) => `<div class="snippet-photo-cell"><button type="button" class="snippet-photo-thumb photo-blur-frame is-edge" data-view-pending-snippet-photo="${index}" aria-label="查看第 ${index + 1} 张">${snippetPhotoImage(photo, `待保存照片 ${index + 1}`)}${photoHasLiveMark(photo, pendingSnippetLive)}</button><button type="button" class="snippet-photo-remove" data-remove-pending-snippet-photo="${index}" aria-label="删除第 ${index + 1} 张"><span class="material-symbols-outlined">close</span></button></div>`).join('')}</div>`;
+  return `${spread}${manage}${grid}`;
 }
 
 function bindSnippetPhotoGrid() {
+  $$('#snippet-photo-grid [data-moment-spread-all]').forEach(button => button.onclick = event => {
+    event.stopPropagation();
+    $('#snippet-photo-grid')?.classList.toggle('is-managing');
+  });
   $$('[data-remove-pending-snippet-photo]').forEach(button => button.onclick = () => {
     const index = Number(button.dataset.removePendingSnippetPhoto);
     const removed = pendingSnippetPhotos[index];
@@ -482,19 +506,21 @@ function isCameraCancellation(error) {
 function refreshSnippetPhotoGrid() {
   const grid = $('#snippet-photo-grid');
   if (grid) {
+    const wasManaging = grid.classList.contains('is-managing');
     grid.innerHTML = snippetPhotoGrid();
+    if (wasManaging) grid.classList.add('is-managing');
     bindSnippetPhotoGrid();
   }
   const full = pendingSnippetPhotos.length >= SNIPPET_PHOTO_LIMIT;
   const captureButton = $('#capture-snippet-photo');
   if (captureButton) {
     captureButton.disabled = full;
-    captureButton.innerHTML = `<span class="material-symbols-outlined">photo_camera</span>${pendingSnippetPhotos.length ? '继续拍摄' : '打开相机'}`;
+    captureButton.innerHTML = `<span class="material-symbols-outlined">photo_camera</span>${pendingSnippetPhotos.length ? '再拍' : '拍照'}`;
   }
   const pickButton = $('#pick-snippet-photo');
   if (pickButton) {
     pickButton.disabled = full;
-    pickButton.innerHTML = `<span class="material-symbols-outlined">photo_library</span>${pendingSnippetPhotos.length ? '继续选择' : '从相册选择'}`;
+    pickButton.innerHTML = `<span class="material-symbols-outlined">photo_library</span>${pendingSnippetPhotos.length ? '再选' : '选图'}`;
   }
 }
 
@@ -771,12 +797,12 @@ function refreshSnippetVideoGrid() {
   const captureButton = $('#capture-snippet-video');
   if (captureButton) {
     captureButton.disabled = full;
-    captureButton.innerHTML = `<span class="material-symbols-outlined">videocam</span>${pendingSnippetVideos.length ? '继续拍视频' : '拍视频'}`;
+    captureButton.innerHTML = `<span class="material-symbols-outlined">videocam</span>${pendingSnippetVideos.length ? '再拍视频' : '拍视频'}`;
   }
   const pickButton = $('#pick-snippet-video');
   if (pickButton) {
     pickButton.disabled = full;
-    pickButton.innerHTML = `<span class="material-symbols-outlined">video_library</span>从相册选视频/实况`;
+    pickButton.innerHTML = `<span class="material-symbols-outlined">video_library</span>导入视频`;
   }
 }
 
@@ -1668,41 +1694,239 @@ function quickPhotoModal() {
   pendingSnippetVideos = [];
   pendingQuickTag = '';
   pendingQuickCaption = '';
+  let isAddingTag = false;
+  let confirmingTag = null;
+  let suppressClickUntil = 0;
+
   modal(`<div class="quick-modal-card" id="quick-photo-modal">
     <img class="quick-paper-art" src="assets/quick-photo-paper-v1.png" alt="" aria-hidden="true">
     <div class="quick-modal-head"><div class="quick-modal-heading"><span class="quick-modal-title-mark material-symbols-outlined" aria-hidden="true">photo_camera</span><span><small class="quick-modal-kicker">VISUAL MOMENT</small><h2 class="quick-modal-title">随手拍 <em>留住此刻</em></h2></span></div><button type="button" data-close class="quick-modal-close" aria-label="关闭随手拍"><span class="material-symbols-outlined" aria-hidden="true">close</span></button></div>
     <div class="quick-photo-preview" id="quick-photo-preview" role="button" tabindex="0" aria-label="拍摄或选择照片">${quickPhotoPreview()}</div>
-    <div class="quick-photo-actions">
-      <button type="button" id="quick-capture-snap"><span class="material-symbols-outlined">photo_camera</span><span><strong>拍一张</strong><small>打开相机</small></span></button>
-      <button type="button" id="quick-pick-snap"><span class="material-symbols-outlined">photo_library</span><span><strong>选照片</strong><small>从本机相册</small></span></button>
+    <div class="quick-photo-meta">
+      <label class="quick-field-label" for="quick-snap-caption">图说</label>
+      <input class="quick-input-field caveat-caption" id="quick-snap-caption" maxlength="40" placeholder="写一句图说" value="${esc(pendingQuickCaption)}">
+      <div class="quick-tag-row" aria-label="选择标签"></div>
     </div>
-    <div class="quick-video-actions">
-      <button type="button" id="quick-pick-video"><span class="material-symbols-outlined">video_library</span><span><strong>导入视频</strong><small>保存到本机</small></span></button>
-      <button type="button" id="quick-toggle-hls"><span class="material-symbols-outlined">stream</span><span><strong>m3u8</strong><small>保存播放地址</small></span></button>
+    <div class="quick-capture-bar" role="toolbar" aria-label="随手拍操作">
+      <div class="quick-photo-actions">
+        <button type="button" id="quick-capture-snap" class="plain-moment-btn"><span class="material-symbols-outlined" aria-hidden="true">photo_camera</span><span>拍照</span></button>
+        <button type="button" id="quick-pick-snap" class="plain-moment-btn"><span class="material-symbols-outlined" aria-hidden="true">photo_library</span><span>选图</span></button>
+      </div>
+      <div class="quick-video-actions">
+        <button type="button" id="quick-pick-video" class="plain-moment-btn"><span class="material-symbols-outlined" aria-hidden="true">video_library</span><span>导入视频</span></button>
+      </div>
+      <button type="button" class="quick-publish-btn snap" id="quick-save-snap" aria-label="收进今日生活相册"><span class="material-symbols-outlined" aria-hidden="true">check</span><span>保存</span></button>
     </div>
-    <div class="quick-hls-panel" id="quick-hls-panel" hidden><input type="url" id="quick-hls-url" maxlength="4096" placeholder="https://example.com/video/master.m3u8" autocomplete="off" inputmode="url"><button type="button" id="quick-add-hls">添加</button><small>只在点击播放时联网，不下载视频分片。</small></div>
-    <label class="quick-field-label" for="quick-snap-caption">写在拍立得下方</label>
-    <input class="quick-input-field caveat-caption" id="quick-snap-caption" maxlength="40" placeholder="午后书桌的阳光、街角咖啡香……" value="${esc(pendingQuickCaption)}">
-    <div class="quick-tag-row" aria-label="选择标签">${['#日常生活', '#手冲咖啡', '#学习心流', '#夏日碎影'].map(tag => `<button type="button" class="quick-paper-tag ${pendingQuickTag === tag ? 'active' : ''}" data-quick-tag="${tag}">${tag}</button>`).join('')}</div>
     <div class="quick-modal-switch"><button type="button" id="quick-switch-memo">或写一条灵感速记 ›</button></div>
-    <button type="button" class="quick-publish-btn snap" id="quick-save-snap"><span>收进今日生活相册</span><span class="material-symbols-outlined" aria-hidden="true">arrow_forward</span></button>
-  </div>`, 'quick-modal');
-  $('#quick-photo-preview')?.addEventListener('click', () => pickSnippetPhoto(true).catch(error => show(error.message)).then(refreshQuickPhotoPreview));
+  </div>`, 'quick-modal quick-photo-sheet');
+
+  function renderQuickTagRow() {
+    const row = $('#quick-photo-modal .quick-tag-row');
+    if (!row) return;
+
+    state.settings = state.settings || {};
+    const tags = quickTagList(state.settings.quickTags);
+
+    let html = '';
+    for (const tag of tags) {
+      const fullTag = '#' + tag;
+      if (confirmingTag === tag) {
+        html += `<span class="quick-tag-confirm-bar">删除 #${esc(tag)} ？ <button type="button" class="quick-tag-confirm-del" data-del-tag="${esc(tag)}">删除</button> / <button type="button" class="quick-tag-confirm-cancel">取消</button></span>`;
+      } else {
+        html += `<button type="button" class="quick-paper-tag ${pendingQuickTag === fullTag ? 'active' : ''}" data-quick-tag="${esc(fullTag)}">${esc(fullTag)}</button>`;
+      }
+    }
+
+    if (isAddingTag) {
+      html += `<span class="quick-tag-input-wrap"><input class="quick-tag-input" maxlength="20" placeholder="新标签"><button type="button" class="quick-tag-btn-add">添加</button></span>`;
+    } else {
+      html += `<button type="button" class="quick-paper-tag quick-tag-add" data-quick-tag-add>＋ 自定义</button>`;
+    }
+
+    row.innerHTML = html;
+
+    row.querySelectorAll('button[data-quick-tag]').forEach(chip => {
+      let pressTimer = null;
+      let startX = 0;
+      let startY = 0;
+      let didLongPress = false;
+
+      const cancelPress = () => {
+        if (pressTimer) {
+          clearTimeout(pressTimer);
+          pressTimer = null;
+        }
+      };
+
+      chip.addEventListener('pointerdown', e => {
+        if (e.button !== 0 && e.pointerType === 'mouse') return;
+        cancelPress();
+        didLongPress = false;
+        startX = e.clientX;
+        startY = e.clientY;
+        const tag = chip.dataset.quickTag?.replace(/^[#＃]+/, '');
+        pressTimer = setTimeout(() => {
+          pressTimer = null;
+          didLongPress = true;
+          suppressClickUntil = Date.now() + 450;
+          confirmingTag = tag;
+          isAddingTag = false;
+          renderQuickTagRow();
+        }, 550);
+      });
+
+      chip.addEventListener('pointermove', e => {
+        if (pressTimer) {
+          const dx = e.clientX - startX;
+          const dy = e.clientY - startY;
+          if (Math.hypot(dx, dy) > 8) {
+            cancelPress();
+          }
+        }
+      });
+
+      chip.addEventListener('pointerup', cancelPress);
+      chip.addEventListener('pointercancel', cancelPress);
+
+      chip.addEventListener('contextmenu', e => {
+        e.preventDefault();
+        cancelPress();
+        didLongPress = true;
+        suppressClickUntil = Date.now() + 450;
+        const tag = chip.dataset.quickTag?.replace(/^[#＃]+/, '');
+        confirmingTag = tag;
+        isAddingTag = false;
+        renderQuickTagRow();
+      });
+
+      chip.addEventListener('click', e => {
+        if (didLongPress || Date.now() < suppressClickUntil) {
+          didLongPress = false;
+          e.preventDefault();
+          e.stopPropagation();
+          return;
+        }
+        const tag = chip.dataset.quickTag;
+        pendingQuickTag = pendingQuickTag === tag ? '' : tag;
+        row.querySelectorAll('button[data-quick-tag]').forEach(b => {
+          b.classList.toggle('active', b.dataset.quickTag === pendingQuickTag);
+        });
+      });
+    });
+
+    const delBtn = row.querySelector('.quick-tag-confirm-del');
+    if (delBtn) {
+      delBtn.addEventListener('click', async e => {
+        e.preventDefault();
+        e.stopPropagation();
+        const tag = delBtn.dataset.delTag;
+        state.settings = state.settings || {};
+        state.settings.quickTags = removeQuickTag(state.settings.quickTags, tag);
+        if (pendingQuickTag === '#' + tag) {
+          pendingQuickTag = '';
+        }
+        confirmingTag = null;
+        await save();
+        renderQuickTagRow();
+      });
+    }
+
+    const cancelBtn = row.querySelector('.quick-tag-confirm-cancel');
+    if (cancelBtn) {
+      cancelBtn.addEventListener('click', e => {
+        e.preventDefault();
+        e.stopPropagation();
+        confirmingTag = null;
+        renderQuickTagRow();
+      });
+    }
+
+    const addBtn = row.querySelector('[data-quick-tag-add]');
+    if (addBtn) {
+      addBtn.addEventListener('click', e => {
+        e.preventDefault();
+        confirmingTag = null;
+        isAddingTag = true;
+        renderQuickTagRow();
+      });
+    }
+
+    const input = row.querySelector('.quick-tag-input');
+    const submitBtn = row.querySelector('.quick-tag-btn-add');
+
+    const commitAdd = async () => {
+      const val = input ? input.value : '';
+      const norm = normalizeQuickTag(val);
+      if (norm) {
+        state.settings = state.settings || {};
+        state.settings.quickTags = addQuickTag(state.settings.quickTags, norm);
+        pendingQuickTag = '#' + norm;
+        isAddingTag = false;
+        await save();
+        renderQuickTagRow();
+      } else {
+        isAddingTag = false;
+        renderQuickTagRow();
+      }
+    };
+
+    if (input) {
+      input.focus();
+      input.addEventListener('keydown', e => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          commitAdd();
+        } else if (e.key === 'Escape') {
+          e.preventDefault();
+          isAddingTag = false;
+          renderQuickTagRow();
+        }
+      });
+
+      input.addEventListener('blur', () => {
+        setTimeout(() => {
+          if (isAddingTag && input && !normalizeQuickTag(input.value)) {
+            isAddingTag = false;
+            renderQuickTagRow();
+          }
+        }, 120);
+      });
+    }
+
+    if (submitBtn) {
+      submitBtn.addEventListener('pointerdown', e => e.preventDefault());
+      submitBtn.addEventListener('mousedown', e => e.preventDefault());
+      submitBtn.addEventListener('click', e => {
+        e.preventDefault();
+        commitAdd();
+      });
+    }
+  }
+
+  renderQuickTagRow();
+
+  $('#quick-photo-preview')?.addEventListener('click', event => {
+    const allBtn = event.target.closest('[data-moment-spread-all]');
+    if (allBtn) {
+      event.stopPropagation();
+      event.preventDefault();
+      if (pendingSnippetPhotos.length) {
+        photoViewer(photosWithLiveMotion(pendingSnippetPhotos, pendingSnippetLive), Math.min(3, pendingSnippetPhotos.length - 1));
+      }
+      return;
+    }
+    pickSnippetPhoto(true).catch(error => show(error.message)).then(refreshQuickPhotoPreview);
+  });
   $('#quick-photo-preview')?.addEventListener('keydown', event => {
     if (event.key !== 'Enter' && event.key !== ' ') return;
+    if (event.target.closest('[data-moment-spread-all]')) return;
     event.preventDefault();
     pickSnippetPhoto(true).catch(error => show(error.message)).then(refreshQuickPhotoPreview);
   });
   $('#quick-capture-snap')?.addEventListener('click', () => pickSnippetPhoto(true).catch(error => show(error.message)).then(refreshQuickPhotoPreview));
   $('#quick-pick-snap')?.addEventListener('click', () => pickSnippetPhoto(false).catch(error => show(error.message)).then(refreshQuickPhotoPreview));
   $('#quick-pick-video')?.addEventListener('click', () => pickSnippetVideo(false).then(refreshQuickPhotoPreview).catch(error => show(error.message)));
-  $('#quick-toggle-hls')?.addEventListener('click', () => { const panel = $('#quick-hls-panel'); if (panel) panel.hidden = !panel.hidden; });
-  $('#quick-add-hls')?.addEventListener('click', () => { if (addSnippetHlsAddress('#quick-hls-url')) refreshQuickPhotoPreview(); });
   $('#quick-snap-caption')?.addEventListener('input', event => { pendingQuickCaption = event.target.value; });
-  $$('.quick-paper-tag').forEach(chip => chip.onclick = () => {
-    pendingQuickTag = pendingQuickTag === chip.dataset.quickTag ? '' : chip.dataset.quickTag;
-    $$('.quick-paper-tag').forEach(b => b.classList.toggle('active', b.dataset.quickTag === pendingQuickTag));
-  });
   $('#quick-switch-memo')?.addEventListener('click', () => quickMemoModal());
   $('#quick-save-snap')?.addEventListener('click', () => saveQuickSnap().catch(error => show(error.message)));
 }
@@ -1711,10 +1935,20 @@ function quickPhotoPreview() {
   const photos = [...pendingSnippetPhotos];
   const videos = [...pendingSnippetVideos];
   if (!photos.length && !videos.length) return '<span class="quick-photo-empty-icon material-symbols-outlined">photo_camera</span><strong>把这一刻留在这里</strong><small>轻触拍摄 · 或从相册选择</small>';
-  const cover = photos[0] || videos[0]?.poster || '';
-  const visual = cover ? `<img src="${imgSrc(cover)}" alt="预览画面">` : '<span class="quick-video-preview-placeholder"><span class="material-symbols-outlined">live_tv</span><strong>m3u8 在线视频</strong></span>';
+  let visual = '';
+  if (photos.length) {
+    visual = momentSpreadHtml(photos);
+  } else {
+    const cover = videos[0]?.poster || '';
+    visual = cover ? `<img src="${imgSrc(cover)}" alt="预览画面">` : '<span class="quick-video-preview-placeholder"><span class="material-symbols-outlined">live_tv</span><strong>视频</strong></span>';
+  }
   const liveCount = pendingSnippetLive.filter(item => photos.includes(item.still)).length;
-  return `${visual}<span class="quick-photo-overlay"><span class="material-symbols-outlined">${videos.length || liveCount ? 'play_circle' : 'photo_camera'}</span><small>${photos.length} 张照片${liveCount ? ` · ${liveCount} 张实况` : ''} · ${videos.length} 段视频</small></span>`;
+  const viewAllBtn = photos.length > 0 ? '<button type="button" class="quick-photo-view-all plain-moment-btn" data-moment-spread-all>查看全部</button>' : '';
+  const bits = [];
+  if (photos.length) bits.push(`${photos.length} 张照片`);
+  if (liveCount) bits.push(`${liveCount} 张实况`);
+  if (videos.length) bits.push(`${videos.length} 段视频`);
+  return `${visual}<span class="quick-photo-overlay"><small>${bits.join(' · ')}</small>${viewAllBtn}</span>`;
 }
 
 function refreshQuickPhotoPreview() {
@@ -1725,6 +1959,10 @@ function refreshQuickPhotoPreview() {
 async function saveQuickSnap() {
   const text = pendingQuickCaption.trim();
   if (!pendingSnippetPhotos.length && !pendingSnippetVideos.length) return show('请先拍一张或选择一张照片');
+  if (pendingQuickTag) {
+    state.settings = state.settings || {};
+    state.settings.quickTags = recordQuickTag(state.settings.quickTags, pendingQuickTag);
+  }
   const next = makeSnippet({ type: 'photo', date: dateKey(), text, photos: pendingSnippetPhotos, livePhotos: pendingSnippetLive, videos: pendingSnippetVideos, tags: pendingQuickTag ? [pendingQuickTag.slice(1)] : [], createdAt: Date.now(), updatedAt: Date.now() });
   state.snippets.push(next);
   pendingSnippetPhotos = [];
@@ -1866,10 +2104,12 @@ function closeMomentAlbum() {
     layer.classList.remove('is-closing');
     layer.innerHTML = '';
     layer.hidden = true;
+    layer.style.opacity = '';
   };
   const sheet = layer.querySelector('.moment-album-sheet');
   const origin = momentAlbumOrigin;
   momentAlbumOrigin = null;
+  layer.style.opacity = '';
   layer.classList.remove('open');
   momentAlbumEntryId = '';
   // 收回：缩回到当初点的那张缩略图（还在页面上才做），只动 transform / opacity
@@ -2158,6 +2398,25 @@ function bindMomentAlbumDeck(layer) {
   });
 }
 
+function waitMomentAlbumFirstImage(layer, ms = 180) {
+  const still = layer?.querySelector?.('.moment-album-card[data-depth="0"] .photo-blur-still');
+  if (!still || (still.complete && still.naturalWidth)) return Promise.resolve(true);
+  return new Promise(resolve => {
+    let done = false;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      still.removeEventListener('load', finish);
+      still.removeEventListener('error', finish);
+      resolve(true);
+    };
+    const timer = setTimeout(finish, ms);
+    still.addEventListener('load', finish, { once: true });
+    still.addEventListener('error', finish, { once: true });
+  });
+}
+
 function openMomentAlbumBrowse(entry, focusPhotoIndex = 0, originEl = null) {
   if (!entry) return;
   const items = momentAlbumItems(entry);
@@ -2169,7 +2428,7 @@ function openMomentAlbumBrowse(entry, focusPhotoIndex = 0, originEl = null) {
   }
 
   const layer = ensureMomentAlbumLayer();
-  momentAlbumCloseToken += 1; // 上一次收回动画还没走完时重新打开：作废它的清场
+  const token = ++momentAlbumCloseToken; // 上一次收回动画还没走完时重新打开：作废它的清场
   layer.classList.remove('is-closing');
   layer.getAnimations?.().forEach(anim => anim.cancel());
   momentAlbumEntryId = entry.id;
@@ -2199,16 +2458,29 @@ function openMomentAlbumBrowse(entry, focusPhotoIndex = 0, originEl = null) {
   layer.onclick = event => { if (event.target === layer || event.target.closest?.('[data-moment-album-close]')) closeMomentAlbum(); };
   renderMomentAlbumStack(entry);
   bindMomentAlbumDeck(layer);
-  // 打开：从点的那张缩略图位置长出来（rich）；lite 轻微上浮；减弱动态直接出现
-  const sheet = layer.querySelector('.moment-album-sheet');
-  if (sheet?.animate && momentAlbumTier() !== 'none') {
-    try {
-      sheet.animate(momentAlbumOriginFrames(sheet, momentAlbumOrigin), { duration: momentAlbumTier() === 'lite' ? 180 : 320, easing: MOMENT_ALBUM_OUT });
-      layer.animate?.([{ opacity: 0 }, { opacity: 1 }], { duration: 200 });
-    } catch { /* 动画失败不影响打开 */ }
+
+  const startReveal = () => {
+    if (token !== momentAlbumCloseToken) return;
+    layer.style.opacity = '';
+    // 打开：从点的那张缩略图位置长出来（rich）；lite 轻微上浮；减弱动态直接出现
+    const sheet = layer.querySelector('.moment-album-sheet');
+    if (sheet?.animate && momentAlbumTier() !== 'none') {
+      try {
+        sheet.animate(momentAlbumOriginFrames(sheet, momentAlbumOrigin), { duration: momentAlbumTier() === 'lite' ? 180 : 320, easing: MOMENT_ALBUM_OUT });
+        layer.animate?.([{ opacity: 0 }, { opacity: 1 }], { duration: 200 });
+      } catch { /* 动画失败不影响打开 */ }
+    }
+    requestAnimationFrame(() => layer.querySelector('.moment-album-card[data-depth="0"]')?.focus?.({ preventScroll: true }));
+    callHelper('syncSystemBackConsumption');
+  };
+
+  const topStill = layer.querySelector('.moment-album-card[data-depth="0"] .photo-blur-still');
+  if (topStill && !topStill.complete) {
+    layer.style.opacity = '0';
+    waitMomentAlbumFirstImage(layer, 180).then(startReveal);
+  } else {
+    startReveal();
   }
-  requestAnimationFrame(() => layer.querySelector('.moment-album-card[data-depth="0"]')?.focus?.({ preventScroll: true }));
-  callHelper('syncSystemBackConsumption');
 }
 
 /** 多图/图+视频：先开相册；单张照片仍直接大图。 */
