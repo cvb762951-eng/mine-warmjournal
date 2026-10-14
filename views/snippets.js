@@ -7,7 +7,7 @@ import { makeSnippet, makeTodo, snippetEntries, dateKey, WEEK_DAYS, activeStreak
 import { photoViewer, micButtonHtml, bindVoiceInput } from './common.js';
 import { compressSnippetPhoto, captureVideoFrame, importPhotoBatch, isSupportedJournalPhoto } from '../photo-utils.js';
 import { livePhotoMarkHtml, photosWithLiveMotion } from '../motion-photo.js';
-import { thumbSource, thumbKeyFor, watchThumbImages, ensureThumb } from '../photo-thumbs.js';
+import { thumbSource, thumbKeyFor, progressiveSource, watchThumbImages, watchProgressiveImages, releaseProgressiveImages, ensureThumb } from '../photo-thumbs.js';
 import { mediaSource, saveMediaFile, saveNativeMediaSource } from '../media-store.js';
 import { attachVideoSource, formatVideoDuration, isHlsAddress, presentWatchSession, summarizeWatchSession } from '../video-player.js';
 import { openVideoSession, plainVideoCache } from '../video-session.js';
@@ -117,7 +117,7 @@ function snippetGridMediaHtml(item, index) {
 
   const ref = item;
   const alt = `照片 ${index + 1}`;
-  return `<span class="photo-blur-frame is-edge snippet-album-grid-frame">${snippetPhotoImage(ref, alt, { thumb: true, lazy: true })}</span>`;
+  return `<span class="photo-blur-frame is-edge snippet-album-grid-frame">${snippetPhotoImage(ref, alt, { thumb: true, lazy: true, progressive: true })}</span>`;
 }
 
 let snippetAlbumGridCloseToken = 0;
@@ -160,6 +160,7 @@ export function closeSnippetAlbumGrid() {
     if (layer.classList.contains('is-closing')) layer.classList.remove('is-closing');
     if (layer.classList.contains('open')) layer.classList.remove('open');
     layer.hidden = true;
+    releaseProgressiveImages(layer);
     callHelper('syncSystemBackConsumption');
   };
   const tier = momentAlbumTier();
@@ -254,6 +255,7 @@ export function openSnippetAlbumGrid() {
   }
 
   watchThumbImages(layer);
+  watchProgressiveImages(layer);
   callHelper('syncSystemBackConsumption');
 }
 
@@ -358,10 +360,10 @@ function snippetStreamCard(item, lazy = true) {
    两层用同一个地址，浏览器只下载一次 —— 不额外占存储，也不用重新处理图片。
    （与私密相册封面的做法一致，见 private-vault.js 的 vaultCoverImage。） */
 function snippetCoverImage(source, alt = '', lazy = true) {
-  // 列表封面：有缩略图用缩略图，没有回退原图（大图浏览 / 导出仍用原图）。
+  // 列表 / 相册网格里的视频封面也是大卡片：先 480（或占位），靠近视口再升到原图。
   const thumbRef = thumbKeyFor(source) ? source : '';
-  const url = thumbRef ? esc(thumbSource(source)) : imgSrc(source);
-  return photoFrameLayersHtml(url, { alt, padClass: 'snippet-cover-blur', stillClass: 'snippet-cover-main', lazy, thumbRef });
+  const url = thumbRef ? esc(progressiveSource(source)) : imgSrc(source);
+  return photoFrameLayersHtml(url, { alt, padClass: 'snippet-cover-blur', stillClass: 'snippet-cover-main', lazy, thumbRef, progressive: Boolean(thumbRef) });
 }
 
 /* 照片格用同一套做法（2026-10-09 用户要求「竖屏照片也按这个风格处理」）：
@@ -369,13 +371,15 @@ function snippetCoverImage(source, alt = '', lazy = true) {
    照片格的**高度和排布完全没动**（仍是原来的固定高度、contain 不裁），
    改的只是「没占满的那部分」——从深色底换成同画面的虚化。
    两层同地址，浏览器只下载一次，不额外占存储。
+   列表和相册网格传入 progressive 时，两层会一起从 480 换成原图，离开视口再一起换回。
    注意：上层用 position 但不给 z-index，靠 DOM 顺序压住虚化层，
    这样后面那个「+N」遮罩（同样是定位元素、且排在更后）才能正常盖在最上面。 */
 function snippetPhotoImage(source, alt = '', opts = {}) {
-  const { lazy = true, thumb = true } = typeof opts === 'boolean' ? { lazy: opts } : (opts || {});
+  const { lazy = true, thumb = true, progressive = false } = typeof opts === 'boolean' ? { lazy: opts } : (opts || {});
   const thumbRef = thumb && thumbKeyFor(source) ? source : '';
-  const url = thumbRef ? esc(thumbSource(source)) : imgSrc(source);
-  return photoFrameLayersHtml(url, { alt, padClass: 'snippet-photo-blur', stillClass: 'snippet-photo-main', lazy, thumbRef });
+  const useProgressive = Boolean(progressive && thumbRef);
+  const url = thumbRef ? esc(useProgressive ? progressiveSource(source) : thumbSource(source)) : imgSrc(source);
+  return photoFrameLayersHtml(url, { alt, padClass: 'snippet-photo-blur', stillClass: 'snippet-photo-main', lazy, thumbRef, progressive: useProgressive });
 }
 
 function snippetHasLive(entry) {
@@ -384,7 +388,7 @@ function snippetHasLive(entry) {
 
 function snippetPhotoMosaic(entry, photos, lazy = true) {
   const visible = photos.slice(0, 5);
-  return `<div class="snippet-photo-mosaic count-${Math.min(visible.length, 5)}" aria-label="${photos.length} 张照片">${visible.map((photo, index) => `<button type="button" class="photo-blur-frame is-edge snippet-photo-tile" data-view-snippet-photo="${entry.id}" data-photo-index="${index}" aria-label="查看第 ${index + 1} 张照片">${snippetPhotoImage(photo, entry.text || `随手拍 ${index + 1}`, { thumb: true, lazy })}${photoHasLiveMark(photo, entry.livePhotos)}${index === visible.length - 1 && photos.length > visible.length ? `<span class="snippet-photo-more">+${photos.length - visible.length}</span>` : ''}</button>`).join('')}</div>`;
+  return `<div class="snippet-photo-mosaic count-${Math.min(visible.length, 5)}" aria-label="${photos.length} 张照片">${visible.map((photo, index) => `<button type="button" class="photo-blur-frame is-edge snippet-photo-tile" data-view-snippet-photo="${entry.id}" data-photo-index="${index}" aria-label="查看第 ${index + 1} 张照片">${snippetPhotoImage(photo, entry.text || `随手拍 ${index + 1}`, { thumb: true, lazy, progressive: true })}${photoHasLiveMark(photo, entry.livePhotos)}${index === visible.length - 1 && photos.length > visible.length ? `<span class="snippet-photo-more">+${photos.length - visible.length}</span>` : ''}</button>`).join('')}</div>`;
 }
 
 function photoHasLiveMark(still, livePhotos) {
@@ -2600,8 +2604,12 @@ registerHelper('openSnippetVideos', openSnippetVideos);
 registerHelper('openSavedSnippetVideo', openSavedSnippetVideo);
 
 // 列表缩略图：进页面后只给看得到的卡片在空闲时补，不在渲染这一帧做任何解码。
+// 看得到的照片再升到原图；离开随手拍页面时，已经拆掉的节点把原图 src 卸掉。
 registerOnRender(() => {
-  if (state.route !== 'snippets') return;
+  if (state.route !== 'snippets') { releaseProgressiveImages(); return; }
   const scope = document.getElementById('screen-snippets');
-  if (scope) watchThumbImages(scope);
+  if (scope) {
+    watchThumbImages(scope);
+    watchProgressiveImages(scope);
+  }
 });
