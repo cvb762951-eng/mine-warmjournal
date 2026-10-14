@@ -583,7 +583,7 @@
 :root[data-theme="plain"] .countdown-card .countdown-number small,
 :root[data-theme="plain"] .countdown-card .countdown-card-bottom time,
 :root[data-theme="plain"] .countdown-card .countdown-card-bottom p {
-  color: var(--pl-muted, #6b7785) !important;
+  color: var(--ink-muted) !important;
   opacity: 1 !important;
 }
 /* 那块压暗用的蒙层在白卡上只会显脏 —— 没有照片就不需要它 */
@@ -595,7 +595,7 @@
   -webkit-backdrop-filter: none !important;
 }
 :root[data-theme="plain"] .countdown-card .countdown-pin { color: var(--pl-blue) !important; }
-:root[data-theme="plain"] .countdown-intro p { color: var(--pl-muted, #6b7785) !important; }
+:root[data-theme="plain"] .countdown-intro p { color: var(--ink-muted) !important; }
 :root[data-theme="plain"] .countdown-intro .eyebrow { color: var(--pl-blue) !important; }
 
 /* 有背景图的卡片：照片留着，蒙层换成冷调，文字继续用白色（照片上白字最清楚） */
@@ -1019,7 +1019,7 @@ button.danger) {
 :root[data-theme="plain"] :is(.vault-item-menu-sheet > small,
 .vault-item-menu-actions > button,
 .vault-item-menu-actions small) {
-  color: var(--pl-muted, #6b7785) !important;
+  color: var(--ink-muted) !important;
 }
 :root[data-theme="plain"] .vault-item-menu-actions > button.danger { color: var(--pl-danger) !important; }
 :root[data-theme="plain"] .vault-export-meta { background: var(--pl-blue-soft) !important; }
@@ -1037,7 +1037,7 @@ button.danger) {
 :root[data-theme="plain"] :is(.vault-item-menu-sheet > small,
 .vault-item-menu-actions > button,
 .vault-item-menu-actions small) {
-  color: var(--pl-muted, #6b7785) !important;
+  color: var(--ink-muted) !important;
 }
 :root[data-theme="plain"] .vault-item-menu-actions > button.danger { color: var(--pl-danger) !important; }
 :root[data-theme="plain"] .vault-export-meta { background: var(--pl-blue-soft) !important; }
@@ -1778,7 +1778,7 @@ button.danger) {
 }
 :root[data-theme="plain"] :is(#subpage-timetable, #subpage-journal-reader, #subpage-ledger-detail, #subpage-habit-detail, #subpage-focus-detail, #subpage-media-detail, .subpage-layer, .journal-reader-page) .subpage-nav-title > b { display: block; font: inherit !important; overflow: hidden; text-overflow: ellipsis; }
 :root[data-theme="plain"] :is(#subpage-timetable, #subpage-journal-reader, #subpage-ledger-detail, #subpage-habit-detail, #subpage-focus-detail, #subpage-media-detail, .subpage-layer, .journal-reader-page) .subpage-nav-title > small {
-  display: block; margin-top: 2px; font: 600 11px/1.2 var(--font-sans, system-ui) !important; color: var(--pl-muted, #6b7785) !important; transform: none !important;
+  display: block; margin-top: 2px; font: 600 11px/1.2 var(--font-sans, system-ui) !important; color: var(--ink-muted) !important; transform: none !important;
 }
 /* 返回：34px 白胶囊 + 1px 细线，保底 44px 触控区 */
 :root[data-theme="plain"] :is(#subpage-timetable, #subpage-journal-reader, #subpage-ledger-detail, #subpage-habit-detail, #subpage-focus-detail, #subpage-media-detail, .subpage-layer, .journal-reader-page) .subpage-back-btn {
@@ -1908,7 +1908,7 @@ button.danger) {
 :root[data-theme="plain"] :is(#screen-ledger, .ledger-view) .ledger-quick-type:has(#strip-btn-income.active)::before { transform: translateX(100%); }
 :root[data-theme="plain"] :is(#screen-ledger, .ledger-view) .ledger-quick-type > button {
   position: relative; z-index: 1; height: 32px !important; border-radius: 999px !important; background: transparent !important; box-shadow: none !important; border: 0 !important;
-  color: var(--pl-muted, #6b7785) !important; font-weight: 800 !important; transition: color 220ms var(--pl-ease-emph) !important;
+  color: var(--ink-muted) !important; font-weight: 800 !important; transition: color 220ms var(--pl-ease-emph) !important;
 }
 :root[data-theme="plain"] :is(#screen-ledger, .ledger-view) .ledger-quick-type > button.active { color: white !important; }
 :root[data-theme="plain"] #screen-ledger .ledger-quick-type > button:is(#strip-btn-expense, #strip-btn-income) { width: auto !important; min-width: 0 !important; padding: 0 !important; background: transparent !important; background-image: none !important; box-shadow: none !important; }
@@ -2197,7 +2197,7 @@ button.danger) {
   border: 1px solid var(--pl-line);
   border-radius: 999px;
   background: var(--plain-surface);
-  color: var(--pl-muted, #6b7785);
+  color: var(--ink-muted);
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }
@@ -2311,7 +2311,7 @@ button.danger) {
   background-color: var(--plain-surface);
   background-image: none;
   border: 1px solid var(--line);
-  color: var(--pl-muted, #6b7785);
+  color: var(--ink-muted);
   display: grid;
   place-items: center;
   transform: none;
@@ -2321,7 +2321,7 @@ button.danger) {
 
 :root[data-theme="plain"] #quick-photo-modal .quick-modal-close .material-symbols-outlined {
   font-size: 20px;
-  color: var(--pl-muted, #6b7785);
+  color: var(--ink-muted);
   background: none;
 }
 
@@ -2515,7 +2515,7 @@ button.danger) {
   border-radius: 999px;
   background: var(--plain-surface);
   background-image: none;
-  color: var(--pl-muted, #6b7785);
+  color: var(--ink-muted);
   font-family: inherit;
   font-size: 12px;
   font-weight: 600;
@@ -2842,7 +2842,7 @@ button.danger) {
 :root[data-theme="plain"] #quick-photo-modal .quick-modal-close {
   background-color: var(--plain-surface) !important;
   background-image: none !important;
-  color: var(--pl-muted, #6b7785) !important;
+  color: var(--ink-muted) !important;
   transform: none !important;
   box-shadow: none !important;
 }
@@ -2864,7 +2864,7 @@ button.danger) {
   border-style: solid !important;
   border-color: var(--line) !important;
   border-radius: 999px !important;
-  color: var(--pl-muted, #6b7785) !important;
+  color: var(--ink-muted) !important;
   padding: 4px 10px !important;
 }
 :root[data-theme="plain"] #quick-photo-modal .quick-tag-row > button.quick-paper-tag.active {
@@ -3005,7 +3005,7 @@ button.danger) {
   border: 1px dashed rgb(184, 196, 209) !important;
   background-color: transparent !important;
   background-image: none !important;
-  color: var(--pl-muted, #6b7785) !important;
+  color: var(--ink-muted) !important;
   box-shadow: none !important;
   cursor: pointer;
   -webkit-touch-callout: none;
@@ -3103,7 +3103,7 @@ button.danger) {
   background: none;
   border: none;
   padding: 0 2px;
-  color: var(--pl-muted, #6b7785);
+  color: var(--ink-muted);
   font-size: 12px;
   font-weight: 500;
   cursor: pointer;
