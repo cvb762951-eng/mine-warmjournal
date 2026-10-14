@@ -17,7 +17,7 @@ test('Moments multi-media opens album browse before fullscreen', () => {
   assert.match(snippets, /function openMomentMediaBrowse/);
   assert.match(snippets, /momentAlbumItems/);
   assert.match(snippets, /openMomentMediaBrowse\(entry,/);
-  assert.match(snippets, /items\.length > 1\) return openMomentAlbumBrowse/);
+  assert.match(snippets, /items\.length > 1\) \{[\s\S]{0,400}?openMomentAlbumBrowse\(entry, photoIndex, originEl\)/);
   assert.match(snippets, /moment-album-layer/);
   assert.doesNotMatch(snippets, /SECTIONS|SCHEMA_VERSION|state\.snippets\.push.*album/);
 });

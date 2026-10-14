@@ -120,8 +120,7 @@ test('表单选图用舞台和底栏，管理只走查看全部，m3u8 仍留在
   assert.match(form, /id="capture-snippet-photo"/);
   assert.match(form, /id="pick-snippet-photo"/);
   assert.match(form, /id="pick-snippet-video"/);
-  assert.match(form, /id="snippet-hls-url"/);
-  assert.match(form, /id="add-snippet-hls"/);
+  assert.doesNotMatch(form, /id="snippet-hls-url"|id="add-snippet-hls"/);
 
   const gridStart = snippets.indexOf('function snippetPhotoGrid(');
   const gridEnd = snippets.indexOf('function bindSnippetPhotoGrid(');
