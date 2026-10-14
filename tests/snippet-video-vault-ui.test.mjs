@@ -48,3 +48,20 @@ test('snippetStreamCard 与 momentAlbumCard 渲染函数体中不包含 <video �
 test('flipMomentAlbum 翻牌阻尼与阈值 / 56 依然保留', () => {
   assert.match(snippets, /\/\s*56/);
 });
+
+test('随手拍播放器隐藏删除和文件夹按钮，私密空间与本机相册仍显示', () => {
+  const block = (src, a, b) => { const i = src.indexOf(a); const j = src.indexOf(b, i + 1); assert.ok(i >= 0 && j > i, a); return src.slice(i, j); };
+  const snippetOpen = block(snippets, 'function openSnippetVideos(', 'function openSavedSnippetVideo(');
+  assert.match(snippetOpen, /showFolders:\s*false/);
+  assert.doesNotMatch(snippetOpen, /onDelete/);
+  const rail = block(snippets, 'function feedRailHtml(', 'function feedInfoHtml(');
+  assert.match(rail, /options\.showFolders !== false \? '<button id="vault-feed-folders"/);
+  assert.match(rail, /typeof options\.onDeleteCurrent === 'function' \? '<button id="vault-feed-delete"/);
+  assert.doesNotMatch(rail, /!important/);
+  const session = fs.readFileSync(new URL('../video-session.js', import.meta.url), 'utf8');
+  assert.match(session, /showFolders: options\.showFolders !== false/);
+  assert.match(session, /onDeleteCurrent: typeof options\.onDelete === 'function' \?/);
+  const vault = block(fs.readFileSync(new URL('../views/private-vault.js', import.meta.url), 'utf8'), 'async function openVaultVideo(', '\n}\n');
+  const gallery = block(fs.readFileSync(new URL('../views/local-gallery.js', import.meta.url), 'utf8'), 'function openGalleryVideo(', '\n}\n');
+  for (const src of [vault, gallery]) { assert.match(src, /onDelete:/); assert.doesNotMatch(src, /showFolders:\s*false/); }
+});

@@ -716,6 +716,7 @@ function openSnippetVideos(records, startIndex = 0, scopeLabel = '随手拍') {
     scopeLabel,
     episodeTitle: scopeLabel,
     immersiveFeed: true,
+    showFolders: false,
     loopNavigation: true,
     autoAdvance: false,
     onOpenLibrary: () => closeModal(),
@@ -1239,8 +1240,8 @@ function episodePickerHtml(items, activeIndex, scopeTitle = '') {
 let feedRailOptions = {};
 function feedRailHtml(totalVideos, options = feedRailOptions) {
   // 本机相册与私密空间共用同一套工具条（2026-10-09 用户要求「全部功能对标」）。
-  // 删除按钮走 options.onDeleteCurrent 回调，没有提供回调的调用方点它不会发生任何事。
-  return `<nav class="vault-feed-bottom-tools" aria-label="视频工具"><button id="vault-feed-sound" aria-label="静音" aria-pressed="true"><span class="material-symbols-outlined" id="vault-feed-sound-icon">volume_up</span></button><button id="vault-feed-rate" aria-label="切换播放速度"><span class="material-symbols-outlined">speed</span></button><button id="vault-feed-history" aria-label="观看记录"><span class="material-symbols-outlined">history</span></button><button id="vault-feed-library" aria-label="资料库"><span class="material-symbols-outlined">collections</span></button><button id="vault-feed-folders" aria-label="文件夹"><span class="material-symbols-outlined">folder</span></button>${totalVideos > 1 ? '<button id="vault-feed-episodes" aria-label="视频选集"><span class="material-symbols-outlined">video_library</span></button>' : ''}<button id="vault-feed-delete" class="vault-feed-delete-button" aria-label="删除当前视频"><span class="material-symbols-outlined">delete</span></button><button id="vault-feed-landscape" class="warm-fullscreen-btn" hidden aria-label="横屏"><span class="material-symbols-outlined">screen_rotation</span></button></nav>`;
+  // 删除按钮只在调用方提供 onDeleteCurrent（即传了 onDelete）时出现；文件夹按钮 showFolders:false 时隐藏（随手拍两者都不显示）。
+  return `<nav class="vault-feed-bottom-tools" aria-label="视频工具"><button id="vault-feed-sound" aria-label="静音" aria-pressed="true"><span class="material-symbols-outlined" id="vault-feed-sound-icon">volume_up</span></button><button id="vault-feed-rate" aria-label="切换播放速度"><span class="material-symbols-outlined">speed</span></button><button id="vault-feed-history" aria-label="观看记录"><span class="material-symbols-outlined">history</span></button><button id="vault-feed-library" aria-label="资料库"><span class="material-symbols-outlined">collections</span></button>${options.showFolders !== false ? '<button id="vault-feed-folders" aria-label="文件夹"><span class="material-symbols-outlined">folder</span></button>' : ''}${totalVideos > 1 ? '<button id="vault-feed-episodes" aria-label="视频选集"><span class="material-symbols-outlined">video_library</span></button>' : ''}${typeof options.onDeleteCurrent === 'function' ? '<button id="vault-feed-delete" class="vault-feed-delete-button" aria-label="删除当前视频"><span class="material-symbols-outlined">delete</span></button>' : ''}<button id="vault-feed-landscape" class="warm-fullscreen-btn" hidden aria-label="横屏"><span class="material-symbols-outlined">screen_rotation</span></button></nav>`;
 }
 
 function feedInfoHtml(title, description, sourceLabel, date, position, duration) {

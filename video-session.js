@@ -189,6 +189,7 @@ function quietCacheError(error) {
  * @param {Array} options.items 每条 { id, resolveSource(), poster, label, date, note, position, duration, trim, crop, watchHistory, sourceType }
  * @param {number} options.startIndex
  * @param {string} options.scopeLabel
+ * @param {boolean} [options.showFolders] 默认 true；false 时不显示文件夹按钮。不传 onDelete 则不显示删除按钮
  * @param {Array} [options.folders]
  * @param {Function} [options.onFolderNavigate]
  * @param {Function} [options.remember] (item, patch) => void，滑动时只改内存
@@ -266,6 +267,7 @@ export async function openVideoSession(options = {}) {
       resetFeedAudio: Boolean(resetFeedAudio),
       feedDirection,
       folders: options.folders || [],
+      showFolders: options.showFolders !== false,
       episodeTitle: scopeLabel,
       episodes: items.map(entry => ({
         name: entry.label || '视频',
@@ -326,9 +328,7 @@ export async function openVideoSession(options = {}) {
         const batch = staged.splice(0);
         for (const entry of batch) await options.persist(entry.item, entry.patch);
       },
-      onDeleteCurrent: async () => {
-        if (typeof options.onDelete === 'function') await options.onDelete(liveItem, index, items);
-      },
+      onDeleteCurrent: typeof options.onDelete === 'function' ? async () => { await options.onDelete(liveItem, index, items); } : undefined,
       onOpenLibrary: () => options.onOpenLibrary?.(),
       onFolderNavigate: (mode, id) => options.onFolderNavigate?.(mode, id),
       onNavigate: (next, direction) => {
