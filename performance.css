@@ -3568,8 +3568,8 @@ body.focus-pure .immersive-clock-screen{opacity:1;pointer-events:auto}
 .quick-memo-mic{position:absolute;right:10px;bottom:12px;width:30px;height:30px;border:0;border-radius:50%;background:var(--sage-green-light);color:var(--sage-green-dark);display:grid;place-items:center;cursor:pointer}
 .quick-memo-mic .material-symbols-outlined{font-size:19px}
 .quick-tag-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
-.quick-paper-tag{border:0!important;background:transparent!important}
-.quick-paper-tag.active{border-color:transparent!important;background:transparent!important}
+:root:not([data-theme="plain"]) .quick-paper-tag{border:0!important;background:transparent!important}
+:root:not([data-theme="plain"]) .quick-paper-tag.active{border-color:transparent!important;background:transparent!important}
 .quick-modal-switch{display:flex;justify-content:center;margin-bottom:13px}
 .quick-modal-switch button{border:0;background:transparent;color:var(--ink-muted);font-size:11px;font-weight:700;cursor:pointer;text-decoration:underline;text-underline-offset:3px}
 .quick-publish-btn{width:100%;border:0;border-radius:999px;color:#fff;font-weight:800;font-size:13px;padding:12px;cursor:pointer}
@@ -4001,7 +4001,7 @@ body:has(.ai-companion-screen) main{padding-top:0}
   padding: 3px 2px 3px 70px;
   background: transparent;
 }
-.quick-paper-tag {
+:root:not([data-theme="plain"]) .quick-paper-tag {
   min-height: 28px;
   padding: 4px 0;
   border: 0 !important;
@@ -4023,8 +4023,8 @@ body:has(.ai-companion-screen) main{padding-top:0}
   text-underline-offset: 4px;
 }
 #quick-memo-modal .quick-paper-tag.active { color: #244c3b !important; }
-#quick-photo-modal .quick-tag-row > button.quick-paper-tag,
-#quick-memo-modal .quick-tag-row > button.quick-paper-tag {
+:root:not([data-theme="plain"]) #quick-photo-modal .quick-tag-row > button.quick-paper-tag,
+:root:not([data-theme="plain"]) #quick-memo-modal .quick-tag-row > button.quick-paper-tag {
   border-width: 0 !important;
   border-style: none !important;
   background-color: transparent !important;

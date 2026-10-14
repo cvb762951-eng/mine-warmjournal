@@ -105,7 +105,7 @@
     }
     .phone-container #modal-layer {
       position: absolute; inset: 0; z-index: 20;
-      background: var(--plain-canvas, #EAF0F8);
+      background: transparent;
     }
     .phone-container::-webkit-scrollbar {
       display: none;
@@ -167,7 +167,7 @@
     .fake-target-wrap {
       position: relative;
       width: 100%;
-      height: 170px;
+      height: 96px;
       border-radius: 8px;
       overflow: hidden;
       background: #E8EDF5;
@@ -256,12 +256,22 @@
         <main class="snippets-view" aria-hidden="true">
           <header class="subpage-nav-bar"><button type="button" class="subpage-back" aria-label="返回"><span class="material-symbols-outlined">arrow_back</span><span>返回</span></button><strong>随手拍</strong></header>
           <section class="snippets-stream-sheet">
+            <div class="demo-divider" id="save">保存落点</div>
+            <article class="fake-item-card" id="fake-list-card">
+              <div class="fake-target-wrap" id="fake-target-slot">
+                <img class="fake-target-still photo-blur-still" id="fake-target-img" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='400'><defs><linearGradient id='g1' x1='0' y1='0' x2='1' y2='1'><stop offset='0%' stop-color='%23F6A28E'/><stop offset='100%' stop-color='%23F4C2A1'/></linearGradient></defs><rect width='100%' height='100%' fill='url(%23g1)'/><text x='50%' y='48%' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='32' font-weight='bold' fill='%23ffffff'>1:1 方形</text><text x='50%' y='60%' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='18' fill='%23ffffff'>待保存照片 1</text></svg>" alt="">
+              </div>
+              <div class="fake-item-meta">
+                <span>刚刚 · 随手拍</span>
+                <strong>#日常生活</strong>
+              </div>
+              <p class="fake-item-text">午后书桌上的光斑与手冲香气</p>
+            </article>
             <article class="snippet-item-card"><div class="snippet-visual-wrap"><div class="snippet-cover-frame photo-blur-frame is-edge" style="aspect-ratio:4/3;background:var(--pl-blue-soft)"></div></div><div class="snippet-item-meta"><span>今天 · 随手拍</span></div><p class="snippet-item-text">窗边的一杯手冲</p></article>
-            <article class="snippet-item-card"><div class="snippet-visual-wrap"><div class="snippet-cover-frame photo-blur-frame is-edge" style="aspect-ratio:3/4;background:var(--pl-tray)"></div></div><div class="snippet-item-meta"><span>昨天 · 随手拍</span></div><p class="snippet-item-text">夜色里的街灯</p></article>
           </section>
         </main>
       </div>
-      <div id="modal-layer" class="open">
+      <div id="modal-layer" class="modal-layer open">
       <div class="modal quick-modal" role="dialog" aria-modal="true" tabindex="-1">
       <!-- 快捷发布弹窗卡片（与 quickPhotoModal 输出结构完全一致） -->
       <div class="quick-modal-card" id="quick-photo-modal">
@@ -345,23 +355,6 @@
       </div>
       </div><!-- .modal -->
       </div><!-- #modal-layer -->
-
-
-      <div class="demo-divider" id="save">保存落点</div>
-
-      <!-- 假列表新卡（作为保存飞入目的地） -->
-      <div class="fake-snippet-list">
-        <article class="fake-item-card" id="fake-list-card">
-          <div class="fake-target-wrap" id="fake-target-slot">
-            <img class="fake-target-still photo-blur-still" id="fake-target-img" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='400'><defs><linearGradient id='g1' x1='0' y1='0' x2='1' y2='1'><stop offset='0%' stop-color='%23F6A28E'/><stop offset='100%' stop-color='%23F4C2A1'/></linearGradient></defs><rect width='100%' height='100%' fill='url(%23g1)'/><text x='50%' y='48%' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='32' font-weight='bold' fill='%23ffffff'>1:1 方形</text><text x='50%' y='60%' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='18' fill='%23ffffff'>待保存照片 1</text></svg>" alt="">
-          </div>
-          <div class="fake-item-meta">
-            <span>刚刚 · 随手拍</span>
-            <strong>#日常生活</strong>
-          </div>
-          <p class="fake-item-text">午后书桌上的光斑与手冲香气</p>
-        </article>
-      </div>
     </div>
   </div>
 
