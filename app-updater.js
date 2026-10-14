@@ -406,6 +406,26 @@ export function hasNewerVersion(manifest, currentVersionCode) {
   return remote > current;
 }
 
+/**
+ * 检查更新该给用户什么。
+ *
+ * - `apk`：清单 versionCode 高于装机包。网页就算已经热更到同一个号，
+ *   也要提示安装完整包。热更新换不了原生代码（例如桌面倒数日）。
+ * - `hot`：装机包并不落后，只是网页资源还没跟上，且清单声明了热更新。
+ *   纯网页检查保持原来的热更新，不改口去要求安装包。
+ * - `current`：装机包已经不低于清单，按已是最新处理。
+ */
+export function describeUpdateOffer(manifest, versions = {}) {
+  const installed = Number(versions.installedVersionCode) || 0;
+  const applied = Number(versions.appliedVersionCode) || 0;
+  const web = Math.max(installed, applied);
+  // 清单高于装机 versionCode 就要装完整包。网页已经热更到同一个号也不能报已是最新。
+  if (hasNewerVersion(manifest, installed)) return 'apk';
+  // 装机并不落后时，纯网页检查仍走热更新（只下变化文件），不改口要求安装包。
+  if (hasNewerVersion(manifest, web) && String(manifest?.resourceManifestUrl || '').trim()) return 'hot';
+  return 'current';
+}
+
 /** 校验值缺失、算不出来或与清单不一致都拒绝安装。不允许跳过。 */
 export function assertApkSha256(expected, actual) {
   const exp = String(expected || '').trim().toLowerCase();

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFile } from 'node:fs/promises';
-import { hasNewerVersion, APP_VERSION_NAME, APP_VERSION_CODE, DEFAULT_UPDATE_MANIFEST, isUpdateSupported } from '../app-updater.js';
+import { hasNewerVersion, describeUpdateOffer, APP_VERSION_NAME, APP_VERSION_CODE, DEFAULT_UPDATE_MANIFEST, isUpdateSupported } from '../app-updater.js';
 
 const root = new URL('../', import.meta.url);
 const read = file => readFile(new URL(file, root), 'utf8');
@@ -35,6 +35,60 @@ test('版本比较用 versionCode，不踩字符串比较的坑', () => {
   assert.equal(hasNewerVersion({ versionCode: 10 }, 9), true);
   assert.equal(hasNewerVersion({ versionCode: 110 }, 109), true);
   assert.equal(hasNewerVersion({}, 0), false);
+});
+
+test('网页已热更到清单版本、装机包还旧时，要提示安装完整包', () => {
+  // 装机 131、热更新 132、清单 132。网页已经是新的，但原生代码（桌面倒数日等）
+  // 还在旧安装包里。不能因为 effectiveVersion 取了 132 就报已是最新。
+  const manifest = {
+    versionCode: 132,
+    resourceManifestUrl: 'https://example.com/resources.json'
+  };
+  assert.equal(describeUpdateOffer(manifest, {
+    installedVersionCode: 131,
+    appliedVersionCode: 132
+  }), 'apk');
+  // 网页还没热更、装机同样落后时，也要安装包，而不是只做热更新。
+  assert.equal(describeUpdateOffer(manifest, {
+    installedVersionCode: 131,
+    appliedVersionCode: 131
+  }), 'apk');
+  assert.match(mine, /installPackage: true/);
+  assert.match(mine, /下载安装包/);
+  assert.match(mine, /需要安装完整包/);
+  assert.doesNotMatch(mine, /describeUpdateOffer\(manifest,[\s\S]{0,240}已是最新/);
+  const apkAt = mine.indexOf("}) === 'apk'");
+  const latestAt = mine.indexOf("status.textContent = '已是最新'");
+  assert.ok(apkAt > -1 && latestAt > apkAt, '安装包分支必须先于「已是最新」返回');
+});
+
+test('装机包已经是清单版本时，检查结果是已是最新', () => {
+  assert.equal(describeUpdateOffer({ versionCode: 132 }, {
+    installedVersionCode: 132
+  }), 'current');
+  assert.equal(describeUpdateOffer({
+    versionCode: 132,
+    resourceManifestUrl: 'https://example.com/resources.json'
+  }, {
+    installedVersionCode: 132,
+    appliedVersionCode: 132
+  }), 'current');
+  assert.match(mine, /status\.textContent = '已是最新'/);
+});
+
+test('纯网页检查仍走热更新：装机已不低于清单时不要求安装包', () => {
+  // 装机已经是 132。没热更新过（网页版本记为 0）也不该再要一次安装包，
+  // 网页要不要下文件仍由生效版本比较决定。
+  assert.equal(describeUpdateOffer({
+    versionCode: 132,
+    resourceManifestUrl: 'https://example.com/resources.json'
+  }, {
+    installedVersionCode: 132,
+    appliedVersionCode: 0
+  }), 'current');
+  assert.match(mine, /hasNewerVersion\(manifest, Number\(current\.versionCode\) \|\| 0\)/);
+  assert.match(mine, /下载变化部分/);
+  assert.match(mine, /if \(manifest\.resourceManifestUrl\)/);
 });
 
 test('前端版本常量与 build.gradle 严格同步', async () => {
@@ -186,10 +240,12 @@ test('热更新后不再重复提示有新版（资源版本要单独记录）',
   assert.match(updater, /export async function appliedResourceVersionCode/);
   assert.match(updater, /await writeAppliedVersion\(resourceManifest\.versionCode/,
     '应用成功后要记下资源版本');
-  // 2026-10-12 起：比较与显示统一走 effectiveVersion()，不再在界面里自己 Math.max
-  // （否则设置页那行按资源算、检查结果按装机算，会出现两个「当前版本」）。
+  // 2026-10-12 起：界面上的「当前版本」走 effectiveVersion()。
+  // 纯网页检查也用它，热更新完成后不再按装机旧号反复提示「下载变化部分」。
+  // 安装包另算：网页已经追上清单、装机仍落后时要提示安装完整包，而不是已是最新。
   assert.match(mine, /const current = await effectiveVersion\(\)/);
   assert.match(mine, /hasNewerVersion\(manifest, Number\(current\.versionCode\) \|\| 0\)/);
+  assert.match(updater, /export function describeUpdateOffer/);
 });
 
 test('「当前版本」只能有一个答案，更新体积要按本次实际下载量报', () => {

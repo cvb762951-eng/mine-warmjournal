@@ -11,7 +11,7 @@ import { Capacitor } from '@capacitor/core';
 import { describeReminderStatus } from './reminder-status.js';
 import { getReminderStatus, openExactAlarmSettings, openNotificationSettings } from '../notifications.js';
 import { DAILY_MAX_PER_DAY } from '../reminder-plan.js';
-import { APP_VERSION_NAME, fetchUpdateManifest, hasNewerVersion, effectiveVersion, pendingResourceUpdate, downloadUpdate, installUpdate, canInstall, openInstallSettings, clearDownload, isUpdateSupported, formatBytes, fetchResourceManifest, applyResourceUpdate } from '../app-updater.js';
+import { APP_VERSION_NAME, fetchUpdateManifest, hasNewerVersion, effectiveVersion, describeUpdateOffer, currentVersion, appliedResourceVersionCode, pendingResourceUpdate, downloadUpdate, installUpdate, canInstall, openInstallSettings, clearDownload, isUpdateSupported, formatBytes, fetchResourceManifest, applyResourceUpdate } from '../app-updater.js';
 
 // ---- 本地状态 ----
 let pendingAvatar = '';
@@ -774,9 +774,22 @@ async function checkForUpdate() {
   if (status) status.textContent = '检查中…';
   try {
     const manifest = await fetchUpdateManifest(state.settings?.updateManifestUrl);
-    // 比较与显示都用「实际生效的版本」：它与设置页那行、页脚同一个来源。
-    // （热更新只替换网页资源，装机包的 versionCode 不会变，所以不能只看装机版本。）
+    const installed = await currentVersion();
+    const appliedVersionCode = await appliedResourceVersionCode();
+    // 界面上的「当前版本」仍是实际生效的网页版本（装机与热更新里较新的那个），
+    // 和设置页那行、页脚同一个来源。
     const current = await effectiveVersion();
+    // 装机包落后就要安装完整包。网页已经热更到清单版本时，effectiveVersion
+    // 会等于清单，只拿它比较会报「已是最新」，原生改动就永远送不到。
+    if (describeUpdateOffer(manifest, {
+      installedVersionCode: Number(installed.versionCode) || 0,
+      appliedVersionCode
+    }) === 'apk') {
+      if (status) status.textContent = '有新版本';
+      updateDialog(manifest, installed, null, { installPackage: true });
+      return;
+    }
+    // 纯网页检查：装机并不落后时，仍用生效中的网页版本决定要不要热更新。
     if (!hasNewerVersion(manifest, Number(current.versionCode) || 0)) {
       if (status) status.textContent = '已是最新';
       show(`已是最新版本（${current.versionName || APP_VERSION_NAME}）`);
@@ -798,10 +811,11 @@ function updatePublishedLabel(value) {
   return Number.isFinite(parsed) ? formatShanghaiDateTime(parsed) : '';
 }
 
-function updateDialog(manifest, current, pending) {
+function updateDialog(manifest, current, pending, options = {}) {
   const published = updatePublishedLabel(manifest.publishedAt);
   const notes = String(manifest.notes || '').split('\n').map(line => line.trim()).filter(Boolean);
-  const hot = Boolean(manifest.resourceManifestUrl);
+  const installPackage = Boolean(options.installPackage);
+  const hot = !installPackage && Boolean(manifest.resourceManifestUrl);
   // 体积只报「本次真正要下的量」：
   //   热更新 → 变化文件之和（通常几 MB），由 pendingUpdateSize 现算；
   //   整包   → 安装包体积。
@@ -812,11 +826,14 @@ function updateDialog(manifest, current, pending) {
     : formatBytes(manifest.sizeBytes);
   const size = hot ? (pending ? sizeText : '') : sizeText;
   const fullSize = formatBytes(manifest.sizeBytes);
-  modal(`<div class="update-dialog"><span class="eyebrow">NEW VERSION</span><h2>发现新版本 ${esc(manifest.versionName)}</h2><p class="update-from">${esc(current.versionName || APP_VERSION_NAME)} → <strong>${esc(manifest.versionName)}</strong>${size ? ` · ${esc(size)}` : ''}${published ? ` · ${esc(published)}` : ''}</p>${hot ? `<p class="update-hint"><span class="material-symbols-outlined">bolt</span>本次${pending ? `只下载变化的 ${pending.count} 个文件（${formatBytes(pending.bytes)}）` : '只下载变化的文件'}；万一装不上，会退回完整安装包${fullSize ? `（${fullSize}）` : ''}。</p>` : ''}${notes.length ? `<div class="update-notes">${notes.map(line => `<p>${esc(line)}</p>`).join('')}</div>` : ''}<div class="update-progress" id="update-progress" hidden><span class="update-progress-track"><i id="update-progress-bar"></i></span><small id="update-progress-text">准备中…</small></div><div class="modal-actions"><button type="button" data-close>以后再说</button><button type="button" class="save" id="update-download">${hot ? '下载变化部分' : '下载并更新'}</button></div></div>`, 'update-modal');
-  $('#update-download')?.addEventListener('click', () => runUpdate(manifest));
+  const packageHint = installPackage
+    ? `<p class="update-hint"><span class="material-symbols-outlined">system_update</span>需要安装完整包。热更新只换网页，原生改动要装这个包才会到。</p>`
+    : '';
+  modal(`<div class="update-dialog"><span class="eyebrow">NEW VERSION</span><h2>发现新版本 ${esc(manifest.versionName)}</h2><p class="update-from">${esc(current.versionName || APP_VERSION_NAME)} → <strong>${esc(manifest.versionName)}</strong>${size ? ` · ${esc(size)}` : ''}${published ? ` · ${esc(published)}` : ''}</p>${packageHint}${hot ? `<p class="update-hint"><span class="material-symbols-outlined">bolt</span>本次${pending ? `只下载变化的 ${pending.count} 个文件（${formatBytes(pending.bytes)}）` : '只下载变化的文件'}；万一装不上，会退回完整安装包${fullSize ? `（${fullSize}）` : ''}。</p>` : ''}${notes.length ? `<div class="update-notes">${notes.map(line => `<p>${esc(line)}</p>`).join('')}</div>` : ''}<div class="update-progress" id="update-progress" hidden><span class="update-progress-track"><i id="update-progress-bar"></i></span><small id="update-progress-text">准备中…</small></div><div class="modal-actions"><button type="button" data-close>以后再说</button><button type="button" class="save" id="update-download">${hot ? '下载变化部分' : (installPackage ? '下载安装包' : '下载并更新')}</button></div></div>`, 'update-modal');
+  $('#update-download')?.addEventListener('click', () => runUpdate(manifest, options));
 }
 
-async function runUpdate(manifest) {
+async function runUpdate(manifest, options = {}) {
   const button = $('#update-download');
   const progress = $('#update-progress');
   const bar = $('#update-progress-bar');
@@ -826,30 +843,33 @@ async function runUpdate(manifest) {
 
   // 先试资源热更新：只下载变化的文件，通常几 MB，比整个安装包小得多。
   // 失败（清单读不到、校验不过、没有权限）就静默回退到完整安装包，不让用户卡在这。
+  // 已经决定要装完整包时跳过热更新，否则网页已是最新会直接停住，装机包仍是旧的。
   if (manifest.resourceManifestUrl) {
-    try {
-      if (text) text.textContent = '正在比对差异…';
-      const resources = await fetchResourceManifest(manifest);
-      const result = await applyResourceUpdate(resources, (done, total, failed) => {
-        const percent = total ? Math.round((done / total) * 100) : 0;
-        if (bar) bar.style.width = `${percent}%`;
-        if (text) text.textContent = `已更新 ${done}/${total} 个文件${failed ? `（${failed} 个失败）` : ''}`;
-      });
-      if (!result.failed) {
-        closeModal();
-        if (result.upToDate) {
-          show('资源已经是最新的');
+    if (!options.installPackage) {
+      try {
+        if (text) text.textContent = '正在比对差异…';
+        const resources = await fetchResourceManifest(manifest);
+        const result = await applyResourceUpdate(resources, (done, total, failed) => {
+          const percent = total ? Math.round((done / total) * 100) : 0;
+          if (bar) bar.style.width = `${percent}%`;
+          if (text) text.textContent = `已更新 ${done}/${total} 个文件${failed ? `（${failed} 个失败）` : ''}`;
+        });
+        if (!result.failed) {
+          closeModal();
+          if (result.upToDate) {
+            show('资源已经是最新的');
+            return;
+          }
+          // 立刻重载页面，让新资源生效 —— 不必让用户手动杀进程重启。
+          // 拦截器会从热更新目录取新文件；万一取不到，它会自动回退装机自带资源，不会白屏。
+          show(`已更新 ${result.downloaded} 个文件，正在刷新…`);
+          setTimeout(() => window.location.reload(), 800);
           return;
         }
-        // 立刻重载页面，让新资源生效 —— 不必让用户手动杀进程重启。
-        // 拦截器会从热更新目录取新文件；万一取不到，它会自动回退装机自带资源，不会白屏。
-        show(`已更新 ${result.downloaded} 个文件，正在刷新…`);
-        setTimeout(() => window.location.reload(), 800);
-        return;
+      } catch (error) {
+        // 落到下面的完整安装包流程
+        if (text) text.textContent = '改为下载完整安装包…';
       }
-    } catch (error) {
-      // 落到下面的完整安装包流程
-      if (text) text.textContent = '改为下载完整安装包…';
     }
   }
 
