@@ -7,7 +7,11 @@ import { callHelper, closeModal, registerOnRender, show, state } from './core.js
  * 整个播放弹层关闭、或私密空间上锁前，再统一保存一次。
  *
  * 源缓存按条存放，同一条并发 resolve 只解密一次。
- * 私密和普通各用各的缓存：私密缓存只留当前条和下一条，锁定时清空。
+ * 私密和普通各用各的缓存。私密缓存只留上一条、当前条和下一条；
+ * 开了循环切换时，第一条的上一条是最后一条，最后一条的下一条是第一条。
+ * 名单之外的条目先 URL.revokeObjectURL，再从缓存丢掉；正在播的那条不 revoke。
+ * 快速连滑时，已经不在名单里的解密结果，解完就 revoke，不留在缓存里。
+ * 普通视频只轻量解析下一条地址，不做相邻重量预载。
  * release() / drop() 会把涉及到的 blob: 地址都 URL.revokeObjectURL。
  */
 
@@ -31,7 +35,10 @@ export function createVideoSourceCache() {
       if (!id) return Promise.reject(new Error('视频没有标识'));
       if (ready.has(id)) return Promise.resolve(ready.get(id));
       const existing = pending.get(id);
-      if (existing) return existing.promise;
+      if (existing) {
+        existing.discarded = false;
+        return existing.promise;
+      }
       const gen = generation;
       let started;
       try { started = Promise.resolve(item.resolveSource()); }
@@ -39,7 +46,7 @@ export function createVideoSourceCache() {
       const task = started
         .then(source => {
           const current = pending.get(id);
-          if (gen !== generation || current?.task !== task) {
+          if (gen !== generation || current?.task !== task || current?.discarded) {
             revokeBlobUrl(source);
             const error = new Error('视频缓存已释放');
             error.code = 'video-cache-released';
@@ -51,19 +58,26 @@ export function createVideoSourceCache() {
         .finally(() => {
           if (pending.get(id)?.task === task) pending.delete(id);
         });
-      pending.set(id, { task, promise: task });
+      pending.set(id, { task, promise: task, discarded: false });
       return task;
     },
     drop(id) {
       const key = String(id || '');
       revokeBlobUrl(ready.get(key));
       ready.delete(key);
-      pending.delete(key);
+      const inflight = pending.get(key);
+      if (inflight) inflight.discarded = true;
     },
-    /** 只留下这些 id。其余已解密或还在解密的条目都会 revoke 并丢掉。 */
-    retain(ids) {
+    /**
+     * 只留下这些 id。其余已解密的先 revoke 再丢掉。
+     * 还在解密、而且已经不在名单里的，解完再 revoke。
+     * playingId 是正在播的那条，即使不在名单里也不能 revoke。
+     */
+    retain(ids, playingId = '') {
       const keep = new Set((Array.isArray(ids) ? ids : []).map(id => String(id || '')).filter(Boolean));
+      const playing = String(playingId || '');
       for (const id of new Set([...ready.keys(), ...pending.keys()])) {
+        if (playing && id === playing) continue;
         if (!keep.has(id)) this.drop(id);
       }
     },
@@ -85,7 +99,35 @@ export function videoSourceCache(sourceCache) {
   return plainVideoCache;
 }
 
-/** 只预载下一条，不预载上一条。 */
+function adjacentIndexes(count, index, loop) {
+  if (!Number.isInteger(index) || index < 0 || index >= count || count < 2) return [];
+  const found = [];
+  const push = offset => {
+    const at = loop ? (index + offset + count) % count : index + offset;
+    if (at < 0 || at >= count || at === index || found.includes(at)) return;
+    found.push(at);
+  };
+  push(-1);
+  push(1);
+  return found;
+}
+
+function privateRetentionIds(items, index, loop) {
+  const list = Array.isArray(items) ? items : [];
+  const ids = adjacentIndexes(list.length, index, loop).map(at => String(list[at]?.id || ''));
+  ids.push(String(list[index]?.id || ''));
+  return ids.filter(Boolean);
+}
+
+/** 私密视频预载上一条和下一条。loop 为真时首尾回绕；同一条并发解密仍只做一次。 */
+export function preloadAdjacentVideos(cache, items, index, { loop = false } = {}) {
+  const list = Array.isArray(items) ? items : [];
+  const targets = adjacentIndexes(list.length, index, loop).map(at => list[at]).filter(Boolean);
+  if (!targets.length) return null;
+  return Promise.all(targets.map(item => Promise.resolve(cache.resolve(item)).catch(() => null)));
+}
+
+/** 普通视频只轻量预解析下一条地址，不预载上一条，也不做私密解密那种重量预载。 */
 export function preloadNextVideo(cache, items, index) {
   const next = items?.[index + 1];
   if (!next) return null;
@@ -93,6 +135,13 @@ export function preloadNextVideo(cache, items, index) {
 }
 
 let playback = null;
+let privatePlaybackId = '';
+
+const releasePrivateVideoCache = privateVideoCache.release.bind(privateVideoCache);
+privateVideoCache.release = () => {
+  privatePlaybackId = '';
+  releasePrivateVideoCache();
+};
 
 function rememberPlayback(cache) {
   playback = { route: state.route, private: cache === privateVideoCache };
@@ -152,10 +201,21 @@ export async function openVideoSession(options = {}) {
   const items = Array.isArray(options.items) ? options.items : [];
   const cache = videoSourceCache(options.sourceCache);
   const scopeLabel = options.scopeLabel || options.episodeTitle || '';
+  const loopNavigation = Boolean(options.loopNavigation);
+  const privateCache = cache === privateVideoCache;
   if (!items.length) return null;
   let playing = false;
   let needsFlush = false;
+  let navTicket = 0;
   const staged = [];
+
+  const holdPrivateWindow = (index, currentId = '') => {
+    if (!privateCache) return;
+    const keep = privateRetentionIds(items, index, loopNavigation);
+    const id = String(currentId || '');
+    if (id && !keep.includes(id)) keep.push(id);
+    if (keep.length) cache.retain(keep, privatePlaybackId);
+  };
 
   const present = async (index, { feedDirection = '', resetFeedAudio = false } = {}) => {
     if (index < 0 || index >= items.length) return null;
@@ -165,12 +225,16 @@ export async function openVideoSession(options = {}) {
       closeModal();
       return null;
     }
+    const ticket = ++navTicket;
+    // 先按目标位置收窗口。正在播的还没换源，不能在这里被 revoke。
+    holdPrivateWindow(index, liveItem?.id);
     let source;
     try { source = await cache.resolve(liveItem); }
     catch (error) {
       if (quietCacheError(error)) return null;
       throw error;
     }
+    if (ticket !== navTicket) return null;
     if (!source) throw new Error('视频文件不存在或尚未恢复');
     if (typeof options.accept === 'function' && !options.accept()) {
       closeModal();
@@ -198,7 +262,7 @@ export async function openVideoSession(options = {}) {
       count: items.length,
       immersiveFeed: Boolean(options.immersiveFeed),
       galleryMode: Boolean(options.galleryMode),
-      loopNavigation: Boolean(options.loopNavigation),
+      loopNavigation,
       resetFeedAudio: Boolean(resetFeedAudio),
       feedDirection,
       folders: options.folders || [],
@@ -268,14 +332,16 @@ export async function openVideoSession(options = {}) {
       onOpenLibrary: () => options.onOpenLibrary?.(),
       onFolderNavigate: (mode, id) => options.onFolderNavigate?.(mode, id),
       onNavigate: (next, direction) => {
-        present(next, { feedDirection: direction }).catch(error => show(error?.message || '视频无法播放'));
+        return present(next, { feedDirection: direction }).catch(error => show(error?.message || '视频无法播放'));
       }
     });
     options.onPresented?.();
-    preloadNextVideo(cache, items, index);
-    if (cache === privateVideoCache) {
-      const keep = [items[index]?.id, items[index + 1]?.id].filter(Boolean);
-      if (keep.length) cache.retain(keep);
+    if (privateCache) {
+      privatePlaybackId = String(liveItem?.id || '');
+      holdPrivateWindow(index, liveItem?.id);
+      preloadAdjacentVideos(cache, items, index, { loop: loopNavigation });
+    } else {
+      preloadNextVideo(cache, items, index);
     }
     return true;
   };
@@ -284,6 +350,9 @@ export async function openVideoSession(options = {}) {
   const opened = await present(start, { feedDirection: options.feedDirection || '', resetFeedAudio: options.resetFeedAudio });
   if (!opened || !playing) return null;
   return {
-    release() { cache.release(); }
+    release() {
+      if (privateCache) privatePlaybackId = '';
+      cache.release();
+    }
   };
 }
