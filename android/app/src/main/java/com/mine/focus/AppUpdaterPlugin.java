@@ -1,6 +1,7 @@
 package com.mine.focus;
 
 import android.content.Intent;
+import android.content.pm.PackageInfo;
 import android.net.Uri;
 import android.os.Build;
 import android.provider.Settings;
@@ -50,6 +51,9 @@ public class AppUpdaterPlugin extends Plugin {
     private static final long PROGRESS_INTERVAL_MS = 400;
 
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
+
+    /** 旧版把每个版本都写进同一个文件名，系统安装器会一直看到上次的 1.1.30。 */
+    private static final String LEGACY_UPDATE_APK = "warmjournal-update.apk";
 
     /**
      * 读取一个 https 文本资源（版本清单用）。
@@ -283,12 +287,13 @@ public class AppUpdaterPlugin extends Plugin {
     @PluginMethod
     public void download(PluginCall call) {
         String url = call.getString("url", "");
-        String fileName = call.getString("fileName", "warmjournal-update.apk");
+        String fileName = call.getString("fileName", "");
         if (url == null || !url.startsWith("https://")) {
             call.reject("更新地址必须是 https");
             return;
         }
-        if (fileName == null || fileName.isEmpty() || fileName.contains("/") || fileName.contains("..")) {
+        if (fileName == null || fileName.isEmpty() || fileName.contains("/") || fileName.contains("..")
+                || LEGACY_UPDATE_APK.equals(fileName) || !isUpdateApkName(fileName)) {
             call.reject("更新包文件名不合法");
             return;
         }
@@ -299,15 +304,22 @@ public class AppUpdaterPlugin extends Plugin {
             HttpURLConnection connection = null;
             InputStream input = null;
             FileOutputStream output = null;
+            File target = null;
+            boolean failed = false;
             try {
-                File target = new File(getContext().getCacheDir(), targetName);
+                // 先清掉其他版本的安装包（含旧的固定文件名），避免安装器再打开 1.1.30。
+                purgeOtherUpdateApks(targetName);
+                target = new File(getContext().getCacheDir(), targetName);
                 if (target.exists() && !target.delete()) throw new IllegalStateException("无法清理上一次的更新包");
 
                 connection = (HttpURLConnection) new URL(targetUrl).openConnection();
                 connection.setInstanceFollowRedirects(true);
+                connection.setUseCaches(false);
                 connection.setConnectTimeout(CONNECT_TIMEOUT_MS);
                 connection.setReadTimeout(READ_TIMEOUT_MS);
                 connection.setRequestProperty("Accept", "application/octet-stream");
+                connection.setRequestProperty("Cache-Control", "no-cache");
+                connection.setRequestProperty("Pragma", "no-cache");
 
                 int status = connection.getResponseCode();
                 if (status != HttpURLConnection.HTTP_OK) {
@@ -348,12 +360,14 @@ public class AppUpdaterPlugin extends Plugin {
                 result.put("size", target.length());
                 call.resolve(result);
             } catch (Exception error) {
+                failed = true;
                 String message = error.getMessage();
                 call.reject(message == null || message.isEmpty() ? "下载更新包失败" : message);
             } finally {
                 try { if (output != null) output.close(); } catch (Exception ignored) { }
                 try { if (input != null) input.close(); } catch (Exception ignored) { }
                 if (connection != null) connection.disconnect();
+                if (failed && target != null && target.exists()) target.delete();
             }
         });
     }
@@ -412,12 +426,62 @@ public class AppUpdaterPlugin extends Plugin {
         });
     }
 
+    /**
+     * 核对缓存里的安装包：体积、sha256，以及包内的 versionCode / versionName。
+     * 对不上就由调用方删掉重下，不能把上一版的文件交给系统安装器。
+     */
+    @PluginMethod
+    public void inspectCachedApk(PluginCall call) {
+        String fileName = call.getString("fileName", "");
+        if (!isUpdateApkName(fileName)) {
+            call.reject("更新包文件名不合法");
+            return;
+        }
+        final String targetName = fileName;
+        executor.execute(() -> {
+            try {
+                File target = new File(getContext().getCacheDir(), targetName);
+                JSObject result = new JSObject();
+                if (!target.isFile()) {
+                    result.put("exists", false);
+                    call.resolve(result);
+                    return;
+                }
+                PackageInfo info = getContext().getPackageManager().getPackageArchiveInfo(target.getAbsolutePath(), 0);
+                result.put("exists", true);
+                result.put("path", target.getAbsolutePath());
+                result.put("size", target.length());
+                result.put("sha256", sha256Of(target));
+                result.put("versionCode", versionCodeOf(info));
+                result.put("versionName", info == null || info.versionName == null ? "" : info.versionName);
+                call.resolve(result);
+            } catch (Exception error) {
+                String message = error.getMessage();
+                call.reject(message == null || message.isEmpty() ? "无法核对已下载的安装包" : message);
+            }
+        });
+    }
+
+    /** 删掉缓存里其他版本的更新包。keep 是这次要留下的文件名，空字符串表示全清。 */
+    @PluginMethod
+    public void purgeUpdateApks(PluginCall call) {
+        String keep = call.getString("keep", "");
+        try {
+            int removed = purgeOtherUpdateApks(keep);
+            JSObject result = new JSObject();
+            result.put("removed", removed);
+            call.resolve(result);
+        } catch (Exception error) {
+            call.reject("清理旧安装包失败");
+        }
+    }
+
     /** 删除已下载的更新包（用户取消更新或安装完成后调用）。 */
     @PluginMethod
     public void clearDownload(PluginCall call) {
         String fileName = call.getString("fileName", "");
         try {
-            if (fileName != null && !fileName.isEmpty() && !fileName.contains("/") && !fileName.contains("..")) {
+            if (isUpdateApkName(fileName)) {
                 File target = new File(getContext().getCacheDir(), fileName);
                 if (target.exists()) target.delete();
             }
@@ -425,6 +489,40 @@ public class AppUpdaterPlugin extends Plugin {
         } catch (Exception error) {
             call.reject("清理更新包失败");
         }
+    }
+
+    private static boolean isUpdateApkName(String name) {
+        if (name == null || name.isEmpty() || name.indexOf('/') >= 0 || name.indexOf('\\') >= 0 || name.contains("..")) {
+            return false;
+        }
+        if (LEGACY_UPDATE_APK.equals(name)) return true;
+        return name.matches("warmjournal-update-\\d+\\.apk");
+    }
+
+    /** 只删缓存目录里的更新包，不动别的文件。keep 与本次文件名相同则留下。 */
+    private int purgeOtherUpdateApks(String keep) throws Exception {
+        File cache = getContext().getCacheDir();
+        String cachePath = cache.getCanonicalPath();
+        File[] files = cache.listFiles();
+        int removed = 0;
+        if (files == null) return 0;
+        for (File file : files) {
+            if (file == null || !file.isFile()) continue;
+            String name = file.getName();
+            if (keep != null && !keep.isEmpty() && keep.equals(name)) continue;
+            if (!isUpdateApkName(name)) continue;
+            String path = file.getCanonicalPath();
+            if (!path.startsWith(cachePath + File.separator)) continue;
+            if (file.delete()) removed += 1;
+        }
+        return removed;
+    }
+
+    @SuppressWarnings("deprecation")
+    private static long versionCodeOf(PackageInfo info) {
+        if (info == null) return 0;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) return info.getLongVersionCode();
+        return info.versionCode;
     }
 
     /** 计算文件的 sha256（十六进制小写）。下载校验与对外查询共用同一实现。 */
