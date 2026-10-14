@@ -83,8 +83,8 @@ function isNearWhite(color) {
 export function morphFrom(trigger, panel, { duration = DURATION.morph } = {}) {
   if (!canAnimate() || !trigger || !panel) return null;
   // 私密视频的准备层和播放器都是深色全屏。垫一块取自弹窗背景的"面"会从点击处长出来，
-  // 清简主题里那块面是纯白，经典/暖阳则是浅纸色 —— 观感都是"点的位置先冒白块"。
-  if (panel.classList?.contains('vault-feed-modal') || panel.classList?.contains('vault-video-preparing')) return null;
+  // 清简主题里那块面是纯白，经典/暖阳则是浅纸色 —— 观感都是"点的位置先冒白块"。统一播放器同样禁用该变形。
+  if (panel.classList?.contains('snippet-video-modal') || panel.classList?.contains('vault-feed-modal') || panel.classList?.contains('vault-video-preparing')) return null;
   return safely(() => {
     const from = trigger.getBoundingClientRect();
     const to = panel.getBoundingClientRect();
