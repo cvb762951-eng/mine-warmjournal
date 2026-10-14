@@ -16,6 +16,7 @@ import { applyVideoCrop, croppedFrame } from '../video-crop.js';
 import { aiSuggestStructure, applySuggestion } from '../ai.js';
 import { deckCutDecision, prefersReducedMotion } from '../motion.js';
 import { openMediaDetail } from './media.js';
+import { normalizeQuickTag, quickTagList, recordQuickTag, addQuickTag, removeQuickTag } from '../quick-tags.js';
 
 // ---- 本地状态 ----
 let snippetType = 'all';
@@ -1693,6 +1694,10 @@ function quickPhotoModal() {
   pendingSnippetVideos = [];
   pendingQuickTag = '';
   pendingQuickCaption = '';
+  let isAddingTag = false;
+  let confirmingTag = null;
+  let suppressClickUntil = 0;
+
   modal(`<div class="quick-modal-card" id="quick-photo-modal">
     <img class="quick-paper-art" src="assets/quick-photo-paper-v1.png" alt="" aria-hidden="true">
     <div class="quick-modal-head"><div class="quick-modal-heading"><span class="quick-modal-title-mark material-symbols-outlined" aria-hidden="true">photo_camera</span><span><small class="quick-modal-kicker">VISUAL MOMENT</small><h2 class="quick-modal-title">随手拍 <em>留住此刻</em></h2></span></div><button type="button" data-close class="quick-modal-close" aria-label="关闭随手拍"><span class="material-symbols-outlined" aria-hidden="true">close</span></button></div>
@@ -1700,7 +1705,7 @@ function quickPhotoModal() {
     <div class="quick-photo-meta">
       <label class="quick-field-label" for="quick-snap-caption">图说</label>
       <input class="quick-input-field caveat-caption" id="quick-snap-caption" maxlength="40" placeholder="写一句图说" value="${esc(pendingQuickCaption)}">
-      <div class="quick-tag-row" aria-label="选择标签">${['#日常生活', '#手冲咖啡', '#学习心流', '#夏日碎影'].map(tag => `<button type="button" class="quick-paper-tag ${pendingQuickTag === tag ? 'active' : ''}" data-quick-tag="${tag}">${tag}</button>`).join('')}</div>
+      <div class="quick-tag-row" aria-label="选择标签"></div>
     </div>
     <div class="quick-capture-bar" role="toolbar" aria-label="随手拍操作">
       <div class="quick-photo-actions">
@@ -1714,6 +1719,192 @@ function quickPhotoModal() {
     </div>
     <div class="quick-modal-switch"><button type="button" id="quick-switch-memo">或写一条灵感速记 ›</button></div>
   </div>`, 'quick-modal quick-photo-sheet');
+
+  function renderQuickTagRow() {
+    const row = $('#quick-photo-modal .quick-tag-row');
+    if (!row) return;
+
+    state.settings = state.settings || {};
+    const tags = quickTagList(state.settings.quickTags);
+
+    let html = '';
+    for (const tag of tags) {
+      const fullTag = '#' + tag;
+      if (confirmingTag === tag) {
+        html += `<span class="quick-tag-confirm-bar">删除 #${esc(tag)} ？ <button type="button" class="quick-tag-confirm-del" data-del-tag="${esc(tag)}">删除</button> / <button type="button" class="quick-tag-confirm-cancel">取消</button></span>`;
+      } else {
+        html += `<button type="button" class="quick-paper-tag ${pendingQuickTag === fullTag ? 'active' : ''}" data-quick-tag="${esc(fullTag)}">${esc(fullTag)}</button>`;
+      }
+    }
+
+    if (isAddingTag) {
+      html += `<span class="quick-tag-input-wrap"><input class="quick-tag-input" maxlength="20" placeholder="新标签"><button type="button" class="quick-tag-btn-add">添加</button></span>`;
+    } else {
+      html += `<button type="button" class="quick-paper-tag quick-tag-add" data-quick-tag-add>＋ 自定义</button>`;
+    }
+
+    row.innerHTML = html;
+
+    row.querySelectorAll('button[data-quick-tag]').forEach(chip => {
+      let pressTimer = null;
+      let startX = 0;
+      let startY = 0;
+      let didLongPress = false;
+
+      const cancelPress = () => {
+        if (pressTimer) {
+          clearTimeout(pressTimer);
+          pressTimer = null;
+        }
+      };
+
+      chip.addEventListener('pointerdown', e => {
+        if (e.button !== 0 && e.pointerType === 'mouse') return;
+        cancelPress();
+        didLongPress = false;
+        startX = e.clientX;
+        startY = e.clientY;
+        const tag = chip.dataset.quickTag?.replace(/^[#＃]+/, '');
+        pressTimer = setTimeout(() => {
+          pressTimer = null;
+          didLongPress = true;
+          suppressClickUntil = Date.now() + 450;
+          confirmingTag = tag;
+          isAddingTag = false;
+          renderQuickTagRow();
+        }, 550);
+      });
+
+      chip.addEventListener('pointermove', e => {
+        if (pressTimer) {
+          const dx = e.clientX - startX;
+          const dy = e.clientY - startY;
+          if (Math.hypot(dx, dy) > 8) {
+            cancelPress();
+          }
+        }
+      });
+
+      chip.addEventListener('pointerup', cancelPress);
+      chip.addEventListener('pointercancel', cancelPress);
+
+      chip.addEventListener('contextmenu', e => {
+        e.preventDefault();
+        cancelPress();
+        didLongPress = true;
+        suppressClickUntil = Date.now() + 450;
+        const tag = chip.dataset.quickTag?.replace(/^[#＃]+/, '');
+        confirmingTag = tag;
+        isAddingTag = false;
+        renderQuickTagRow();
+      });
+
+      chip.addEventListener('click', e => {
+        if (didLongPress || Date.now() < suppressClickUntil) {
+          didLongPress = false;
+          e.preventDefault();
+          e.stopPropagation();
+          return;
+        }
+        const tag = chip.dataset.quickTag;
+        pendingQuickTag = pendingQuickTag === tag ? '' : tag;
+        row.querySelectorAll('button[data-quick-tag]').forEach(b => {
+          b.classList.toggle('active', b.dataset.quickTag === pendingQuickTag);
+        });
+      });
+    });
+
+    const delBtn = row.querySelector('.quick-tag-confirm-del');
+    if (delBtn) {
+      delBtn.addEventListener('click', async e => {
+        e.preventDefault();
+        e.stopPropagation();
+        const tag = delBtn.dataset.delTag;
+        state.settings = state.settings || {};
+        state.settings.quickTags = removeQuickTag(state.settings.quickTags, tag);
+        if (pendingQuickTag === '#' + tag) {
+          pendingQuickTag = '';
+        }
+        confirmingTag = null;
+        await save();
+        renderQuickTagRow();
+      });
+    }
+
+    const cancelBtn = row.querySelector('.quick-tag-confirm-cancel');
+    if (cancelBtn) {
+      cancelBtn.addEventListener('click', e => {
+        e.preventDefault();
+        e.stopPropagation();
+        confirmingTag = null;
+        renderQuickTagRow();
+      });
+    }
+
+    const addBtn = row.querySelector('[data-quick-tag-add]');
+    if (addBtn) {
+      addBtn.addEventListener('click', e => {
+        e.preventDefault();
+        confirmingTag = null;
+        isAddingTag = true;
+        renderQuickTagRow();
+      });
+    }
+
+    const input = row.querySelector('.quick-tag-input');
+    const submitBtn = row.querySelector('.quick-tag-btn-add');
+
+    const commitAdd = async () => {
+      const val = input ? input.value : '';
+      const norm = normalizeQuickTag(val);
+      if (norm) {
+        state.settings = state.settings || {};
+        state.settings.quickTags = addQuickTag(state.settings.quickTags, norm);
+        pendingQuickTag = '#' + norm;
+        isAddingTag = false;
+        await save();
+        renderQuickTagRow();
+      } else {
+        isAddingTag = false;
+        renderQuickTagRow();
+      }
+    };
+
+    if (input) {
+      input.focus();
+      input.addEventListener('keydown', e => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          commitAdd();
+        } else if (e.key === 'Escape') {
+          e.preventDefault();
+          isAddingTag = false;
+          renderQuickTagRow();
+        }
+      });
+
+      input.addEventListener('blur', () => {
+        setTimeout(() => {
+          if (isAddingTag && input && !normalizeQuickTag(input.value)) {
+            isAddingTag = false;
+            renderQuickTagRow();
+          }
+        }, 120);
+      });
+    }
+
+    if (submitBtn) {
+      submitBtn.addEventListener('pointerdown', e => e.preventDefault());
+      submitBtn.addEventListener('mousedown', e => e.preventDefault());
+      submitBtn.addEventListener('click', e => {
+        e.preventDefault();
+        commitAdd();
+      });
+    }
+  }
+
+  renderQuickTagRow();
+
   $('#quick-photo-preview')?.addEventListener('click', event => {
     const allBtn = event.target.closest('[data-moment-spread-all]');
     if (allBtn) {
@@ -1736,10 +1927,6 @@ function quickPhotoModal() {
   $('#quick-pick-snap')?.addEventListener('click', () => pickSnippetPhoto(false).catch(error => show(error.message)).then(refreshQuickPhotoPreview));
   $('#quick-pick-video')?.addEventListener('click', () => pickSnippetVideo(false).then(refreshQuickPhotoPreview).catch(error => show(error.message)));
   $('#quick-snap-caption')?.addEventListener('input', event => { pendingQuickCaption = event.target.value; });
-  $$('.quick-paper-tag').forEach(chip => chip.onclick = () => {
-    pendingQuickTag = pendingQuickTag === chip.dataset.quickTag ? '' : chip.dataset.quickTag;
-    $$('.quick-paper-tag').forEach(b => b.classList.toggle('active', b.dataset.quickTag === pendingQuickTag));
-  });
   $('#quick-switch-memo')?.addEventListener('click', () => quickMemoModal());
   $('#quick-save-snap')?.addEventListener('click', () => saveQuickSnap().catch(error => show(error.message)));
 }
@@ -1772,6 +1959,10 @@ function refreshQuickPhotoPreview() {
 async function saveQuickSnap() {
   const text = pendingQuickCaption.trim();
   if (!pendingSnippetPhotos.length && !pendingSnippetVideos.length) return show('请先拍一张或选择一张照片');
+  if (pendingQuickTag) {
+    state.settings = state.settings || {};
+    state.settings.quickTags = recordQuickTag(state.settings.quickTags, pendingQuickTag);
+  }
   const next = makeSnippet({ type: 'photo', date: dateKey(), text, photos: pendingSnippetPhotos, livePhotos: pendingSnippetLive, videos: pendingSnippetVideos, tags: pendingQuickTag ? [pendingQuickTag.slice(1)] : [], createdAt: Date.now(), updatedAt: Date.now() });
   state.snippets.push(next);
   pendingSnippetPhotos = [];
