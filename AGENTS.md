@@ -10,6 +10,7 @@
 
 ## 2. 工作流程
 
+0. 前提：cvb 电脑上的本地 agent 需要先 `gh auth login`，账号对本仓库有 push 权限（推分支、开 PR、合并都靠它）。
 1. 开工前 `git checkout main && git pull`，从最新 main **新建分支**（`feat/…`、`fix/…`、`perf/…`、`docs/…`）。**永远不要直接改 main。**
 2. 同一件事在同一个对话里做完，别中途换对话丢上下文。
 3. 小步提交，提交信息用中文写清楚改了什么。
@@ -45,6 +46,7 @@
 - [ ] `npm test`：基线只有 **3 个已知失败**（ai-density、ai-dock-overlap、browser media IndexedDB）。**多出任何一个失败就停下**，先修或回报 cvb。
 - [ ] `npm run build` 通过。
 - [ ] 在浏览器里用清简主题打开改动的页面看一眼（`previews/` 里可以做加载真实样式的预览页）。
+- [ ] 没人审的改动，出包前先在真机装上点一遍改到的页面，有问题就别发版。
 
 ## 6. 合并
 
@@ -52,18 +54,20 @@
 2. 自审清单全部通过、测试只剩基线 3 个失败后，转正式 PR，**squash 合并**到 main（`gh pr merge <号> --squash --match-head-commit <head sha>`）。
 3. 注意：`main` 有 push 就会触发出包工作流（见下节），但只有 versionCode 升高的提交才会真正发 Release。
 
-## 7. 出包（由打包bot 补充）
+## 7. 出包（只在功能 PR 都合完后做）
+1. 先 git pull 最新 main，确认没有别的 PR 正要合（gh pr list）。发版提交之后再合别的 PR，会把发版那次构建取消掉。
+2. 版本号同步改 5 处，patch +1、versionCode +1，绝不能降：
+   - package.json 的 version
+   - app-updater.js 的 APP_VERSION_NAME / APP_VERSION_CODE
+   - android/app/build.gradle 的 versionName / versionCode
+   - index.html 里所有 ?v=
+   - release-notes.js 末尾加一条 { name, date, time(北京时间), title, summary, bullets, screenshots: [] }
+   规则：1.1.y 的 versionCode = 101 + y。
+3. 跑 node scripts/check-versions.mjs 必须显示「版本一致」，npm test 只允许原有 3 个失败。
+4. 开分支提交「Release x.y.z (code)」→ 开 PR → squash 合进 main。不用手动触发：合进 main 后，android-release 工作流发现版本变了，会自动签名出 APK 并建 Release。
+5. 等 Actions 跑完（约 3 分钟），确认 Release vX.Y.Z 里有 warmjournal-X.Y.Z-CODE.apk 和 version.json，把下载链接发给 cvb：
+   https://github.com/cvb762951-eng/mine-warmjournal/releases/download/vX.Y.Z/warmjournal-X.Y.Z-CODE.apk
+6. 如果 Release 没建出来（构建被取消、测试门禁拦了），从 Actions 那次运行的产物里手动建 Release，tag 为 vX.Y.Z，上传 apk 和 version.json。
+签名密钥在仓库 Secrets 里，绝不要改签名配置、也不要生成新 keystore，不然装不上会丢数据。
 
-以下是从仓库里能确认的信息，细节待打包bot 补充：
-
-- **版本号位置**（发版时要一起改，保持一致）：
-  - `android/app/build.gradle`：`versionCode` / `versionName`
-  - `package.json`：`"version"`
-  - `index.html`：资源后缀 `?v=x.y.z`
-  - `app-updater.js` 中的当前版本号（如有）
-  - `release-notes.js`：`RELEASE_NOTES` 新加一条，key = versionCode（`tests/release-activity.test.mjs` 会检查当前版本有说明条目）
-- **规则**：每次发版 patch + 1、versionCode + 1（1.1.y → versionCode = 101 + y，例如 1.1.34 → 135）。
-- **工作流**：`.github/workflows/android-release.yml`（name: `Android release APK`）。触发：push 到 `main`、`pull_request`、手动 `workflow_dispatch`。只有 push 到 main、versionCode 高于最新 Release、签名证书校验通过时才创建 GitHub Release，附上 `warmjournal-<versionName>-<versionCode>.apk` 和 `version.json`；PR 只上传 artifact。签名来自仓库 Secrets（KEYSTORE_BASE64 / KEYSTORE_PASSWORD / KEY_ALIAS / KEY_PASSWORD）。
-- 发版说明里列出本次合并的 PR。
-- 出包后把**完整的 Release APK 下载链接**明文发给 cvb。
-- 改版本号、改工作流**只在出包这一步做**，单独一个 PR，最后合；平时功能 PR 不碰版本号。
+补充（工作流触发条件，对照 `.github/workflows/android-release.yml` 核对）：工作流名 `Android release APK`，push 到 main、pull_request、手动 workflow_dispatch 都会跑；只有 push 到 main 且 versionCode 高于最新 Release、签名证书校验通过时才建 Release，PR 上只打包并上传 artifact，不发 Release。
