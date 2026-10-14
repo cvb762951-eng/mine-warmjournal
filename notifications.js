@@ -282,6 +282,16 @@ export async function updateCountdownWidget(payload) {
   }
 }
 
+export async function consumeWidgetRoute() {
+  if (!Capacitor.isNativePlatform() || Capacitor.getPlatform() !== 'android') return null;
+  try {
+    return await TimerAlarm.consumeWidgetRoute();
+  } catch (error) {
+    console.warn('读取小组件跳转失败', error);
+    return null;
+  }
+}
+
 async function cancelStale(matches, keepIds) {
   const pending = await listPendingIds();
   const delivered = await listDeliveredIds();

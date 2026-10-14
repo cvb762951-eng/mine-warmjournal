@@ -1,4 +1,35 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="launch_background">#F2E8D8</color>
+
+    <!--
+      桌面倒数日颜色。代码只按主题 key 取这些名字，具体色值留给后续视觉调整。
+      classic = 暖色纸（当前默认，先沿用原来的绿灰）
+      plain   = 清简
+      dark    = 深色
+      sunny   = 暖阳
+    -->
+    <color name="countdown_widget_classic_page">#5A6B5D</color>
+    <color name="countdown_widget_classic_title">#FFFFFF</color>
+    <color name="countdown_widget_classic_muted">#D9E0D6</color>
+    <color name="countdown_widget_classic_accent">#FFFFFF</color>
+    <color name="countdown_widget_classic_on_accent">#5A6B5D</color>
+
+    <color name="countdown_widget_sunny_page">#F4E2C4</color>
+    <color name="countdown_widget_sunny_title">#3C2A1E</color>
+    <color name="countdown_widget_sunny_muted">#8A6A4A</color>
+    <color name="countdown_widget_sunny_accent">#B06A2C</color>
+    <color name="countdown_widget_sunny_on_accent">#FFFFFF</color>
+
+    <color name="countdown_widget_plain_page">#F5F6F7</color>
+    <color name="countdown_widget_plain_title">#1C1C1C</color>
+    <color name="countdown_widget_plain_muted">#6B7280</color>
+    <color name="countdown_widget_plain_accent">#2F7D5F</color>
+    <color name="countdown_widget_plain_on_accent">#FFFFFF</color>
+
+    <color name="countdown_widget_dark_page">#1C1B19</color>
+    <color name="countdown_widget_dark_title">#F5F1E8</color>
+    <color name="countdown_widget_dark_muted">#C8C2B4</color>
+    <color name="countdown_widget_dark_accent">#E0B080</color>
+    <color name="countdown_widget_dark_on_accent">#1C1B19</color>
 </resources>

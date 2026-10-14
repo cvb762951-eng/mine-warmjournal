@@ -380,7 +380,7 @@ export function makeRelease(input = {}) {
 
 export function makeCountdown(input = {}) {
   const createdAt = Number(input.createdAt) || Date.now();
-  return {
+  const countdown = {
     id: String(input.id || crypto.randomUUID()),
     title: String(input.title || '').trim().slice(0, 40),
     date: /^\d{4}-\d{2}-\d{2}$/.test(input.date || '') ? input.date : '',
@@ -390,6 +390,18 @@ export function makeCountdown(input = {}) {
     createdAt,
     updatedAt: Number(input.updatedAt) || createdAt
   };
+  // 每年重复 / 农历只在原来就有时保留，旧数据不会多出这些键。
+  // 表单还没有入口；桌面组件算天数时会读它们。
+  if (input.repeat === 'yearly') countdown.repeat = 'yearly';
+  if (input.lunar === true) {
+    countdown.lunar = true;
+    const lunarMonth = Number(input.lunarMonth);
+    const lunarDay = Number(input.lunarDay);
+    if (Number.isInteger(lunarMonth) && lunarMonth >= 1 && lunarMonth <= 12) countdown.lunarMonth = lunarMonth;
+    if (Number.isInteger(lunarDay) && lunarDay >= 1 && lunarDay <= 30) countdown.lunarDay = lunarDay;
+    if (input.lunarLeap === true) countdown.lunarLeap = true;
+  }
+  return countdown;
 }
 
 export function makeDocumentFolder(input = {}) {
@@ -423,10 +435,10 @@ export function makeDailySummary(text = '') {
   };
 }
 
-export function daysUntil(dateStr) {
+export function daysUntil(dateStr, now = new Date()) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr || '')) return 0;
   const target = new Date(`${dateStr}T00:00:00`);
-  const today = new Date();
+  const today = new Date(now instanceof Date ? now.getTime() : now);
   today.setHours(0, 0, 0, 0);
   return Math.round((target.getTime() - today.getTime()) / 86400000);
 }

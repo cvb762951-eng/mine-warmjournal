@@ -4,7 +4,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="@drawable/countdown_widget_bg"
+    android:background="@drawable/countdown_widget_bg_classic"
     android:padding="16dp"
     android:gravity="center_vertical">
 
@@ -13,7 +13,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="倒数日"
-        android:textColor="#D9E0D6"
+        android:textColor="@color/countdown_widget_classic_muted"
         android:textSize="11sp"
         android:letterSpacing="0.08" />
 
@@ -22,7 +22,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="还没有倒数日"
-        android:textColor="#FFFFFF"
+        android:textColor="@color/countdown_widget_classic_title"
         android:textSize="16sp"
         android:textStyle="bold"
         android:maxLines="1"
@@ -41,7 +41,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="—"
-            android:textColor="#FFFFFF"
+            android:textColor="@color/countdown_widget_classic_accent"
             android:textSize="34sp"
             android:textStyle="bold" />
 
@@ -50,7 +50,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="天后"
-            android:textColor="#E6EBE2"
+            android:textColor="@color/countdown_widget_classic_muted"
             android:textSize="13sp"
             android:layout_marginStart="4dp" />
     </LinearLayout>
