@@ -9993,3 +9993,5 @@ body #modal-layer .modal.confirm-sheet .modal-actions .danger { padding: 0 16px 
 .warm-video-fullscreen-tools button.warm-fullscreen-btn:active,.vault-feed-bottom-tools button.warm-fullscreen-btn:active{background:rgba(255,243,220,.15)}
 .warm-video-fullscreen-tools button.warm-fullscreen-btn .material-symbols-outlined{font-size:20px}
 @media (prefers-reduced-motion: reduce){.photo-viewer-play-btn:active{transform:none}}
+/* 多段视频卡封面改成按钮（点开翻牌相册），去掉按钮自带的边框/内边距，外观与原 div 一致 */
+.snippets-view button.snippet-cover-frame{padding:0;border:0;margin:0;font:inherit;color:inherit;cursor:pointer;text-align:inherit;-webkit-tap-highlight-color:transparent}
