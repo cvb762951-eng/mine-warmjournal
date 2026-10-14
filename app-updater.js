@@ -277,9 +277,49 @@ export const DEFAULT_UPDATE_MANIFESTS = [
 ];
 export const DEFAULT_UPDATE_MANIFEST = DEFAULT_UPDATE_MANIFESTS[0];
 
-const DOWNLOAD_FILE_NAME = 'warmjournal-update.apk';
+// 旧版所有版本共用这一个文件名。系统安装器按路径记住了上一包，
+// 下次即使下到了新内容，也会报「已安装相同版本 1.1.30」。
+const LEGACY_UPDATE_APK_NAME = 'warmjournal-update.apk';
 const MANIFEST_TIMEOUT_MS = 15000;
 const SHA256_RE = /^[0-9a-f]{64}$/;
+
+/** 缓存文件名带上 versionCode，不同版本不会写进同一个路径。 */
+export function updateApkFileName(versionCode) {
+  const code = Number(versionCode);
+  if (!Number.isInteger(code) || code <= 0) return '';
+  return `warmjournal-update-${code}.apk`;
+}
+
+/**
+ * 缓存里的安装包能不能用。
+ *
+ * - `reuse`：跳过下载之前。versionCode、versionName、体积、sha256 必须都对得上清单。
+ *   读不出包内版本就不要复用（那可能是上次留下的 1.1.30）。
+ * - `download`：刚下完。sha256 必须一致；读得到版本号时，版本也必须一致。
+ *   个别系统解析不了归档时版本号是 0，这时只认 sha256 和体积，不因此拒绝安装。
+ */
+export function apkCacheMatches(manifest, file, mode = 'reuse') {
+  const expectedSha = String(manifest?.sha256 || '').trim().toLowerCase();
+  const actualSha = String(file?.sha256 || '').trim().toLowerCase();
+  if (!SHA256_RE.test(expectedSha) || expectedSha !== actualSha) return false;
+
+  const expectedSize = Number(manifest?.sizeBytes) || 0;
+  const actualSize = Number(file?.size) || 0;
+  if (!(actualSize > 0)) return false;
+  if (expectedSize > 0 && actualSize !== expectedSize) return false;
+
+  const expectedCode = Number(manifest?.versionCode) || 0;
+  const actualCode = Number(file?.versionCode) || 0;
+  if (!(expectedCode > 0)) return false;
+  if (mode === 'reuse' && !(actualCode > 0)) return false;
+  if (actualCode > 0 && actualCode !== expectedCode) return false;
+
+  const expectedName = String(manifest?.versionName || '').trim();
+  const actualName = String(file?.versionName || '').trim();
+  if (mode === 'reuse' && expectedName && !actualName) return false;
+  if (expectedName && actualName && actualName !== expectedName) return false;
+  return true;
+}
 
 export const updateManifestUrl = settings => String(settings?.updateManifestUrl || '').trim() || DEFAULT_UPDATE_MANIFEST;
 
@@ -435,13 +475,75 @@ export function assertApkSha256(expected, actual) {
   }
 }
 
+async function purgeStaleUpdateApks(keep) {
+  try {
+    await AppUpdater.purgeUpdateApks({ keep: String(keep || '') });
+  } catch { /* 旧插件没有清理方法时，至少文件名已经按版本分开 */ }
+}
+
+async function inspectCachedApk(fileName) {
+  try {
+    const result = await AppUpdater.inspectCachedApk({ fileName });
+    return result && typeof result === 'object' ? result : { exists: false };
+  } catch {
+    return { exists: false };
+  }
+}
+
+async function deleteCachedApk(fileName) {
+  try { await AppUpdater.clearDownload({ fileName }); } catch { /* 删不掉时下载会先删再写 */ }
+}
+
+/** 下载一次并核对。对不上返回 mismatch，网络错误照常抛出。 */
+async function downloadAndCheckApk(manifest, fileName) {
+  const apkUrl = String(manifest?.apkUrl || '').trim();
+  const result = await AppUpdater.download({ url: apkUrl, fileName });
+  const path = String(result?.path || '');
+  const size = Number(result?.size) || 0;
+  if (!path) throw new Error('下载完成但没有拿到安装包位置');
+  const inspected = await inspectCachedApk(fileName);
+  const cached = {
+    exists: true,
+    path,
+    size: Number(inspected?.size) || size,
+    sha256: String(inspected?.sha256 || ''),
+    versionCode: Number(inspected?.versionCode) || 0,
+    versionName: String(inspected?.versionName || '')
+  };
+  if (!cached.sha256) {
+    try { cached.sha256 = await sha256OfFile(path); } catch { cached.sha256 = ''; }
+  }
+  try {
+    assertApkSha256(manifest?.sha256, cached.sha256);
+  } catch (error) {
+    await deleteCachedApk(fileName);
+    return { mismatch: error };
+  }
+  if (!apkCacheMatches(manifest, cached, 'download')) {
+    await deleteCachedApk(fileName);
+    return { mismatch: new Error('安装包是旧版本，已丢弃，请重新下载') };
+  }
+  return { path, size: cached.size };
+}
+
 /** 下载更新包，onProgress 会收到 0~1 的比例（总量未知时为 null）。 */
 export async function downloadUpdate(manifest, onProgress) {
   const sha256 = String(manifest?.sha256 || '').trim().toLowerCase();
   const apkUrl = String(manifest?.apkUrl || '').trim();
   if (!SHA256_RE.test(sha256)) throw new Error('版本信息缺少安装包校验值');
   if (!apkUrl.startsWith('https://')) throw new Error('更新地址必须是 https');
+  const fileName = updateApkFileName(manifest?.versionCode);
+  if (!fileName) throw new Error('版本信息不完整或地址不是 https');
   if (!isUpdateSupported()) throw new Error('仅 Android 版支持应用内更新');
+
+  // 固定文件名的旧包（1.1.30）和其他 versionCode 的缓存都清掉，只可能留下这一版。
+  await purgeStaleUpdateApks(fileName);
+  const cached = await inspectCachedApk(fileName);
+  if (cached?.exists && apkCacheMatches(manifest, cached, 'reuse')) {
+    return { path: String(cached.path || ''), size: Number(cached.size) || 0 };
+  }
+  if (cached?.exists) await deleteCachedApk(fileName);
+
   let listener = null;
   if (typeof onProgress === 'function') {
     listener = await AppUpdater.addListener('downloadProgress', payload => {
@@ -451,23 +553,17 @@ export async function downloadUpdate(manifest, onProgress) {
     });
   }
   try {
-    const result = await AppUpdater.download({ url: apkUrl, fileName: DOWNLOAD_FILE_NAME });
-    const path = String(result?.path || '');
-    const size = Number(result?.size) || 0;
-    if (!path) throw new Error('下载完成但没有拿到安装包位置');
-    let actual = '';
-    try {
-      actual = await sha256OfFile(path);
-    } catch {
-      actual = '';
+    let saved = await downloadAndCheckApk(manifest, fileName);
+    if (saved?.mismatch) {
+      // 清单对不上（常见于复用了上一版的字节）就删掉再下一遍。
+      saved = await downloadAndCheckApk(manifest, fileName);
     }
-    try {
-      assertApkSha256(sha256, actual);
-    } catch (error) {
-      await clearDownload();
-      throw error;
+    if (saved?.mismatch) {
+      await deleteCachedApk(fileName);
+      throw saved.mismatch;
     }
-    return { path, size };
+    if (!saved?.path) throw new Error('下载完成但没有拿到安装包位置');
+    return { path: saved.path, size: Number(saved.size) || 0 };
   } finally {
     listener?.remove?.();
   }
@@ -497,8 +593,12 @@ export async function installUpdate(path) {
   await AppUpdater.install({ path });
 }
 
-export async function clearDownload() {
-  try { await AppUpdater.clearDownload({ fileName: DOWNLOAD_FILE_NAME }); } catch { /* 清理失败无需打扰用户 */ }
+export async function clearDownload(fileName = '') {
+  const name = String(fileName || '').trim();
+  try {
+    await AppUpdater.clearDownload({ fileName: name || LEGACY_UPDATE_APK_NAME });
+    await AppUpdater.purgeUpdateApks({ keep: '' });
+  } catch { /* 清理失败无需打扰用户 */ }
 }
 
 export function formatBytes(bytes) {

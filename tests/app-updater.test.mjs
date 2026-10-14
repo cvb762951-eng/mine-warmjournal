@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFile } from 'node:fs/promises';
-import { hasNewerVersion, describeUpdateOffer, APP_VERSION_NAME, APP_VERSION_CODE, DEFAULT_UPDATE_MANIFEST, isUpdateSupported } from '../app-updater.js';
+import { hasNewerVersion, describeUpdateOffer, updateApkFileName, apkCacheMatches, APP_VERSION_NAME, APP_VERSION_CODE, DEFAULT_UPDATE_MANIFEST, isUpdateSupported } from '../app-updater.js';
 
 const root = new URL('../', import.meta.url);
 const read = file => readFile(new URL(file, root), 'utf8');
@@ -89,6 +89,71 @@ test('纯网页检查仍走热更新：装机已不低于清单时不要求安�
   assert.match(mine, /hasNewerVersion\(manifest, Number\(current\.versionCode\) \|\| 0\)/);
   assert.match(mine, /下载变化部分/);
   assert.match(mine, /if \(manifest\.resourceManifestUrl\)/);
+});
+
+test('缓存的安装包必须对得上清单，旧的 1.1.30 不能复用', () => {
+  // 真机：安装器报「已安装相同版本 1.1.30」。更新包一直写进同一个文件名，
+  // 系统按路径记住了上一包。文件名要带 versionCode，对不上就删掉重下。
+  const sha132 = 'ab'.repeat(32);
+  const sha130 = 'cd'.repeat(32);
+  const manifest = {
+    versionCode: 132,
+    versionName: '1.1.31',
+    sizeBytes: 80000000,
+    sha256: sha132
+  };
+  assert.equal(updateApkFileName(132), 'warmjournal-update-132.apk');
+  assert.equal(updateApkFileName(131), 'warmjournal-update-131.apk');
+  assert.notEqual(updateApkFileName(132), 'warmjournal-update.apk');
+  assert.equal(updateApkFileName(0), '');
+
+  assert.equal(apkCacheMatches(manifest, {
+    sha256: sha132,
+    size: 80000000,
+    versionCode: 132,
+    versionName: '1.1.31'
+  }, 'reuse'), true);
+
+  assert.equal(apkCacheMatches(manifest, {
+    sha256: sha130,
+    size: 79000000,
+    versionCode: 131,
+    versionName: '1.1.30'
+  }, 'reuse'), false, '1.1.30 的包不能当成 132 复用');
+
+  assert.equal(apkCacheMatches(manifest, {
+    sha256: sha132,
+    size: 80000000,
+    versionCode: 131,
+    versionName: '1.1.30'
+  }, 'download'), false, '包内版本仍是 1.1.30 时即使哈希碰巧相同也不能安装');
+
+  assert.equal(apkCacheMatches(manifest, {
+    sha256: 'ef'.repeat(32),
+    size: 80000000,
+    versionCode: 132,
+    versionName: '1.1.31'
+  }, 'reuse'), false);
+  assert.equal(apkCacheMatches(manifest, {
+    sha256: sha132,
+    size: 12,
+    versionCode: 132,
+    versionName: '1.1.31'
+  }, 'reuse'), false);
+  assert.equal(apkCacheMatches(manifest, {
+    sha256: sha132,
+    size: 80000000,
+    versionCode: 0,
+    versionName: ''
+  }, 'reuse'), false, '读不出包内版本就不要复用');
+
+  assert.match(updater, /updateApkFileName\(manifest\?\.versionCode\)/);
+  assert.match(updater, /purgeUpdateApks/);
+  assert.match(updater, /apkCacheMatches\(manifest, cached, 'reuse'\)/);
+  assert.match(plugin, /setUseCaches\(false\)/);
+  assert.match(plugin, /getPackageArchiveInfo/);
+  assert.match(plugin, /purgeOtherUpdateApks/);
+  assert.match(plugin, /warmjournal-update\.apk/, '要能认出并清掉旧的固定文件名');
 });
 
 test('前端版本常量与 build.gradle 严格同步', async () => {
