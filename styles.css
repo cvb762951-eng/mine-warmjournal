@@ -10106,9 +10106,15 @@ body #modal-layer .modal.confirm-sheet .modal-actions .danger { padding: 0 16px 
 
 .moment-spread-manage {
   display: flex;
-  justify-content: flex-end;
-  padding: 4px 2px 10px;
+  justify-content: center;
+  padding: 2px 2px 8px;
 }
+
+.moment-spread-manage-close { display: none; }
+
+#snippet-photo-grid.is-managing .moment-spread-manage-open { display: none; }
+
+#snippet-photo-grid.is-managing .moment-spread-manage-close { display: inline; }
 
 .moment-spread-manage-btn {
   display: inline-flex;
@@ -10171,6 +10177,16 @@ body #modal-layer .modal.confirm-sheet .modal-actions .danger { padding: 0 16px 
   place-items: center;
   font-size: 24px;
   margin-bottom: 8px;
+}
+
+#quick-photo-preview > img {
+  position: relative;
+  inset: auto;
+  width: auto;
+  max-width: 86%;
+  height: auto;
+  max-height: 78%;
+  object-fit: contain;
 }
 
 #quick-photo-preview > strong {

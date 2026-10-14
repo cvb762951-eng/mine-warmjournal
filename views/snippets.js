@@ -399,7 +399,7 @@ export function snippetForm(entry = null, requestedType = 'text', openCamera = f
   pendingSnippetVideos = [...(item.videos || [])];
   pendingSnippetStructure = { tags: [...(item.tags || [])], summary: item.summary || '' };
   snippetSuggestion = null;
-  modal(`<form id="snippet-form"><input type="hidden" name="id" value="${entry ? item.id : ''}"><input type="hidden" name="type" value="${item.type}"><span class="eyebrow">QUICK CAPTURE</span><h2>${entry ? '编辑' : '新增'}${item.type === 'photo' ? '随手拍' : '随手记'}</h2><label>日期</label><input name="date" type="date" required value="${item.date}">${item.type === 'photo' ? `<div id="snippet-photo-grid" class="snippet-photo-grid">${snippetPhotoGrid()}</div><div class="snippet-photo-actions"><button type="button" id="capture-snippet-photo" ${pendingSnippetPhotos.length >= SNIPPET_PHOTO_LIMIT ? 'disabled' : ''}><span class="material-symbols-outlined">photo_camera</span>${pendingSnippetPhotos.length ? '继续拍摄' : '打开相机'}</button><button type="button" id="pick-snippet-photo" ${pendingSnippetPhotos.length >= SNIPPET_PHOTO_LIMIT ? 'disabled' : ''}><span class="material-symbols-outlined">photo_library</span>${pendingSnippetPhotos.length ? '继续选择' : '从相册批量选择'}</button></div><small class="field-help">一次最多选择 ${PHOTO_IMPORT_BATCH_LIMIT} 张，不限单张大小；每条随手拍最多 ${SNIPPET_PHOTO_LIMIT} 张。实况照片会留下可播放的动态。</small><div class="snippet-video-head"><div><strong>视频 / 实况</strong><small>本地视频离线保存，m3u8 仅保存地址</small></div></div><div id="snippet-video-grid" class="snippet-photo-grid">${snippetVideoGrid()}</div><div class="snippet-photo-actions snippet-video-actions"><button type="button" id="capture-snippet-video" ${pendingSnippetVideos.length >= SNIPPET_PHOTO_LIMIT ? 'disabled' : ''}><span class="material-symbols-outlined">videocam</span>${pendingSnippetVideos.length ? '继续拍视频' : '拍视频'}</button><button type="button" id="pick-snippet-video" ${pendingSnippetVideos.length >= SNIPPET_PHOTO_LIMIT ? 'disabled' : ''}><span class="material-symbols-outlined">video_library</span>导入本地视频</button></div><div class="snippet-hls-paper"><label for="snippet-hls-url"><span class="material-symbols-outlined" aria-hidden="true">stream</span>添加 m3u8 在线视频</label><div><input type="url" id="snippet-hls-url" maxlength="4096" placeholder="https://example.com/video/master.m3u8" autocomplete="off" inputmode="url"><button type="button" id="add-snippet-hls">添加地址</button></div><small>仅在你点击播放时联网；不支持 DRM，鉴权或跨域限制可能导致播放失败。</small></div><label>照片 / 视频说明（可选）</label><textarea name="text" maxlength="300" placeholder="这一段影像有什么值得记住的？">${esc(item.text)}</textarea>` : `<div class="snippet-write-head"><label>记录内容</label>${micButtonHtml()}</div><textarea name="text" maxlength="2000" required placeholder="记下一句话、一个想法或稍后想写进日记的内容……">${esc(item.text)}</textarea>`}${aiStructureCard(item)}<div class="modal-actions"><button type="button" data-close>取消</button><button class="save">保存素材</button></div></form>`, 'snippet-form-modal');
+  modal(`<form id="snippet-form"><input type="hidden" name="id" value="${entry ? item.id : ''}"><input type="hidden" name="type" value="${item.type}"><span class="eyebrow">QUICK CAPTURE</span><h2>${entry ? '编辑' : '新增'}${item.type === 'photo' ? '随手拍' : '随手记'}</h2><label>日期</label><input name="date" type="date" required value="${item.date}">${item.type === 'photo' ? `<div class="snippet-photo-stage"><div id="snippet-photo-grid" class="snippet-photo-grid">${snippetPhotoGrid()}</div></div><label class="snippet-caption-label" for="snippet-photo-caption">图说</label><textarea id="snippet-photo-caption" name="text" maxlength="300" placeholder="写一句图说">${esc(item.text)}</textarea><div class="snippet-capture-bar" role="toolbar" aria-label="照片与视频"><div class="snippet-photo-actions"><button type="button" id="capture-snippet-photo" ${pendingSnippetPhotos.length >= SNIPPET_PHOTO_LIMIT ? 'disabled' : ''}><span class="material-symbols-outlined">photo_camera</span>${pendingSnippetPhotos.length ? '再拍' : '拍照'}</button><button type="button" id="pick-snippet-photo" ${pendingSnippetPhotos.length >= SNIPPET_PHOTO_LIMIT ? 'disabled' : ''}><span class="material-symbols-outlined">photo_library</span>${pendingSnippetPhotos.length ? '再选' : '选图'}</button></div><div class="snippet-photo-actions snippet-video-actions"><button type="button" id="capture-snippet-video" ${pendingSnippetVideos.length >= SNIPPET_PHOTO_LIMIT ? 'disabled' : ''}><span class="material-symbols-outlined">videocam</span>${pendingSnippetVideos.length ? '再拍视频' : '拍视频'}</button><button type="button" id="pick-snippet-video" ${pendingSnippetVideos.length >= SNIPPET_PHOTO_LIMIT ? 'disabled' : ''}><span class="material-symbols-outlined">video_library</span>导入视频</button></div></div><small class="field-help">一次最多 ${PHOTO_IMPORT_BATCH_LIMIT} 张，每条最多 ${SNIPPET_PHOTO_LIMIT} 张。</small><div class="snippet-video-head"><div><strong>视频</strong><small>已导入的片段</small></div></div><div id="snippet-video-grid" class="snippet-photo-grid">${snippetVideoGrid()}</div><div class="snippet-hls-paper"><label for="snippet-hls-url"><span class="material-symbols-outlined" aria-hidden="true">stream</span>添加 m3u8 在线视频</label><div><input type="url" id="snippet-hls-url" maxlength="4096" placeholder="https://example.com/video/master.m3u8" autocomplete="off" inputmode="url"><button type="button" id="add-snippet-hls">添加地址</button></div><small>仅在你点击播放时联网；不支持 DRM，鉴权或跨域限制可能导致播放失败。</small></div>` : `<div class="snippet-write-head"><label>记录内容</label>${micButtonHtml()}</div><textarea name="text" maxlength="2000" required placeholder="记下一句话、一个想法或稍后想写进日记的内容……">${esc(item.text)}</textarea>`}${aiStructureCard(item)}<div class="modal-actions"><button type="button" data-close>取消</button><button class="save">保存素材</button></div></form>`, 'snippet-form-modal');
   $('#capture-snippet-photo')?.addEventListener('click', () => pickSnippetPhoto(true).catch(error => show(error.message)));
   $('#pick-snippet-photo')?.addEventListener('click', () => pickSnippetPhoto(false).catch(error => show(error.message)));
   $('#capture-snippet-video')?.addEventListener('click', () => pickSnippetVideo(true).catch(error => show(error.message)));
@@ -445,7 +445,7 @@ export function momentSpreadHtml(photos) {
 function snippetPhotoGrid() {
   if (!pendingSnippetPhotos.length) return '<div class="snippet-photo-empty"><span class="material-symbols-outlined">photo_camera</span><strong>拍下此刻</strong><small>也可以从相册选择，可连续添加</small></div>';
   const spread = momentSpreadHtml(pendingSnippetPhotos);
-  const manage = `<div class="moment-spread-manage"><button type="button" class="moment-spread-manage-btn" data-moment-spread-all>全部 ${pendingSnippetPhotos.length} 张 · 管理</button></div>`;
+  const manage = `<div class="moment-spread-manage"><button type="button" class="moment-spread-manage-btn" data-moment-spread-all><span class="moment-spread-manage-open">查看全部</span><span class="moment-spread-manage-close">收起</span></button></div>`;
   const grid = `<div class="snippet-photo-grid-inner">${pendingSnippetPhotos.map((photo, index) => `<div class="snippet-photo-cell"><button type="button" class="snippet-photo-thumb photo-blur-frame is-edge" data-view-pending-snippet-photo="${index}" aria-label="查看第 ${index + 1} 张">${snippetPhotoImage(photo, `待保存照片 ${index + 1}`)}${photoHasLiveMark(photo, pendingSnippetLive)}</button><button type="button" class="snippet-photo-remove" data-remove-pending-snippet-photo="${index}" aria-label="删除第 ${index + 1} 张"><span class="material-symbols-outlined">close</span></button></div>`).join('')}</div>`;
   return `${spread}${manage}${grid}`;
 }
@@ -514,12 +514,12 @@ function refreshSnippetPhotoGrid() {
   const captureButton = $('#capture-snippet-photo');
   if (captureButton) {
     captureButton.disabled = full;
-    captureButton.innerHTML = `<span class="material-symbols-outlined">photo_camera</span>${pendingSnippetPhotos.length ? '继续拍摄' : '打开相机'}`;
+    captureButton.innerHTML = `<span class="material-symbols-outlined">photo_camera</span>${pendingSnippetPhotos.length ? '再拍' : '拍照'}`;
   }
   const pickButton = $('#pick-snippet-photo');
   if (pickButton) {
     pickButton.disabled = full;
-    pickButton.innerHTML = `<span class="material-symbols-outlined">photo_library</span>${pendingSnippetPhotos.length ? '继续选择' : '从相册选择'}`;
+    pickButton.innerHTML = `<span class="material-symbols-outlined">photo_library</span>${pendingSnippetPhotos.length ? '再选' : '选图'}`;
   }
 }
 
@@ -796,12 +796,12 @@ function refreshSnippetVideoGrid() {
   const captureButton = $('#capture-snippet-video');
   if (captureButton) {
     captureButton.disabled = full;
-    captureButton.innerHTML = `<span class="material-symbols-outlined">videocam</span>${pendingSnippetVideos.length ? '继续拍视频' : '拍视频'}`;
+    captureButton.innerHTML = `<span class="material-symbols-outlined">videocam</span>${pendingSnippetVideos.length ? '再拍视频' : '拍视频'}`;
   }
   const pickButton = $('#pick-snippet-video');
   if (pickButton) {
     pickButton.disabled = full;
-    pickButton.innerHTML = `<span class="material-symbols-outlined">video_library</span>从相册选视频/实况`;
+    pickButton.innerHTML = `<span class="material-symbols-outlined">video_library</span>导入视频`;
   }
 }
 
@@ -1697,18 +1697,22 @@ function quickPhotoModal() {
     <img class="quick-paper-art" src="assets/quick-photo-paper-v1.png" alt="" aria-hidden="true">
     <div class="quick-modal-head"><div class="quick-modal-heading"><span class="quick-modal-title-mark material-symbols-outlined" aria-hidden="true">photo_camera</span><span><small class="quick-modal-kicker">VISUAL MOMENT</small><h2 class="quick-modal-title">随手拍 <em>留住此刻</em></h2></span></div><button type="button" data-close class="quick-modal-close" aria-label="关闭随手拍"><span class="material-symbols-outlined" aria-hidden="true">close</span></button></div>
     <div class="quick-photo-preview" id="quick-photo-preview" role="button" tabindex="0" aria-label="拍摄或选择照片">${quickPhotoPreview()}</div>
-    <label class="quick-field-label" for="quick-snap-caption">写在拍立得下方</label>
-    <input class="quick-input-field caveat-caption" id="quick-snap-caption" maxlength="40" placeholder="午后书桌的阳光、街角咖啡香……" value="${esc(pendingQuickCaption)}">
-    <div class="quick-tag-row" aria-label="选择标签">${['#日常生活', '#手冲咖啡', '#学习心流', '#夏日碎影'].map(tag => `<button type="button" class="quick-paper-tag ${pendingQuickTag === tag ? 'active' : ''}" data-quick-tag="${tag}">${tag}</button>`).join('')}</div>
-    <div class="quick-photo-actions">
-      <button type="button" id="quick-capture-snap"><span class="material-symbols-outlined">photo_camera</span><span><strong>拍一张</strong><small>打开相机</small></span></button>
-      <button type="button" id="quick-pick-snap"><span class="material-symbols-outlined">photo_library</span><span><strong>选照片</strong><small>从本机相册</small></span></button>
+    <div class="quick-photo-meta">
+      <label class="quick-field-label" for="quick-snap-caption">图说</label>
+      <input class="quick-input-field caveat-caption" id="quick-snap-caption" maxlength="40" placeholder="写一句图说" value="${esc(pendingQuickCaption)}">
+      <div class="quick-tag-row" aria-label="选择标签">${['#日常生活', '#手冲咖啡', '#学习心流', '#夏日碎影'].map(tag => `<button type="button" class="quick-paper-tag ${pendingQuickTag === tag ? 'active' : ''}" data-quick-tag="${tag}">${tag}</button>`).join('')}</div>
     </div>
-    <div class="quick-video-actions">
-      <button type="button" id="quick-pick-video"><span class="material-symbols-outlined">video_library</span><span><strong>导入视频</strong><small>保存到本机</small></span></button>
+    <div class="quick-capture-bar" role="toolbar" aria-label="随手拍操作">
+      <div class="quick-photo-actions">
+        <button type="button" id="quick-capture-snap"><span class="material-symbols-outlined">photo_camera</span><span><strong>拍照</strong><small>打开相机</small></span></button>
+        <button type="button" id="quick-pick-snap"><span class="material-symbols-outlined">photo_library</span><span><strong>选图</strong><small>从本机相册</small></span></button>
+      </div>
+      <div class="quick-video-actions">
+        <button type="button" id="quick-pick-video"><span class="material-symbols-outlined">video_library</span><span><strong>导入视频</strong><small>保存到本机</small></span></button>
+      </div>
+      <button type="button" class="quick-publish-btn snap" id="quick-save-snap" aria-label="收进今日生活相册"><span>保存</span></button>
     </div>
     <div class="quick-modal-switch"><button type="button" id="quick-switch-memo">或写一条灵感速记 ›</button></div>
-    <button type="button" class="quick-publish-btn snap" id="quick-save-snap"><span>收进今日生活相册</span><span class="material-symbols-outlined" aria-hidden="true">arrow_forward</span></button>
   </div>`, 'quick-modal');
   $('#quick-photo-preview')?.addEventListener('click', event => {
     const allBtn = event.target.closest('[data-moment-spread-all]');
@@ -1749,11 +1753,15 @@ function quickPhotoPreview() {
     visual = momentSpreadHtml(photos);
   } else {
     const cover = videos[0]?.poster || '';
-    visual = cover ? `<img src="${imgSrc(cover)}" alt="预览画面">` : '<span class="quick-video-preview-placeholder"><span class="material-symbols-outlined">live_tv</span><strong>m3u8 在线视频</strong></span>';
+    visual = cover ? `<img src="${imgSrc(cover)}" alt="预览画面">` : '<span class="quick-video-preview-placeholder"><span class="material-symbols-outlined">live_tv</span><strong>视频</strong></span>';
   }
   const liveCount = pendingSnippetLive.filter(item => photos.includes(item.still)).length;
   const viewAllBtn = photos.length > 0 ? '<button type="button" class="quick-photo-view-all" data-moment-spread-all>查看全部</button>' : '';
-  return `${visual}<span class="quick-photo-overlay"><span class="material-symbols-outlined">${videos.length || liveCount ? 'play_circle' : 'photo_camera'}</span><small>${photos.length} 张照片${liveCount ? ` · ${liveCount} 张实况` : ''} · ${videos.length} 段视频</small>${viewAllBtn}</span>`;
+  const bits = [];
+  if (photos.length) bits.push(`${photos.length} 张照片`);
+  if (liveCount) bits.push(`${liveCount} 张实况`);
+  if (videos.length) bits.push(`${videos.length} 段视频`);
+  return `${visual}<span class="quick-photo-overlay"><small>${bits.join(' · ')}</small>${viewAllBtn}</span>`;
 }
 
 function refreshQuickPhotoPreview() {

@@ -3946,7 +3946,7 @@ body:has(.ai-companion-screen) main{padding-top:0}
   transform: rotate(.25deg);
 }
 .quick-photo-preview::after { content: none; }
-.quick-photo-empty-icon { width: 42px !important; height: 42px !important; border: 0; border-radius: 0 !important; background: transparent url('assets/quick-control-ivory-v1.png') center/cover no-repeat !important; color: #a7472e !important; }
+:root:not([data-theme="plain"]) .quick-photo-empty-icon { width: 42px !important; height: 42px !important; border: 0; border-radius: 0 !important; background: transparent url('assets/quick-control-ivory-v1.png') center/cover no-repeat !important; color: #a7472e !important; }
 .quick-photo-preview > strong { margin-top: 1px; color: #35473d; font-family: 'LXGW WenKai Screen','Noto Serif SC',serif; font-size: 11.5px; font-weight: 700; }
 .quick-photo-preview > small { color: #807362; font-size: 8.5px; }
 .quick-photo-overlay { bottom: 0; background: rgba(25,25,20,.42); }
@@ -3966,7 +3966,7 @@ body:has(.ai-companion-screen) main{padding-top:0}
 .quick-photo-actions button > span:last-child { display: flex; flex-direction: column; align-items: flex-start; line-height: 1.1; }
 .quick-photo-actions button strong { font-size: 10px; }
 .quick-photo-actions button small { margin-top: 2px; color: #8c7d6a; font-size: 7.5px; font-weight: 500; }
-.quick-field-label { display: block !important; margin: 0 0 4px !important; color: #61574b !important; font-family: 'LXGW WenKai Screen','Noto Serif SC',serif; font-size: 9px !important; font-weight: 700; letter-spacing: .05em; }
+:root:not([data-theme="plain"]) .quick-field-label { display: block !important; margin: 0 0 4px !important; color: #61574b !important; font-family: 'LXGW WenKai Screen','Noto Serif SC',serif; font-size: 9px !important; font-weight: 700; letter-spacing: .05em; }
 .modal.quick-modal .quick-input-field {
   min-height: 42px;
   margin-bottom: 11px;
@@ -4007,7 +4007,7 @@ body:has(.ai-companion-screen) main{padding-top:0}
   border: 0 !important;
   border-radius: 0 !important;
   background: transparent !important;
-  color: #5f5548 !important;
+  color: #5f5548;
   font-family: 'LXGW WenKai Screen','Noto Serif SC',serif;
   font-size: 10px;
   font-weight: 650;
@@ -4015,7 +4015,7 @@ body:has(.ai-companion-screen) main{padding-top:0}
   white-space: nowrap;
   box-shadow: none;
 }
-.quick-paper-tag.active {
+:root:not([data-theme="plain"]) .quick-paper-tag.active {
   background: transparent !important;
   color: #8f3f2d !important;
   text-decoration: underline;

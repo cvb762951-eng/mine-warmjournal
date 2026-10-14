@@ -97,6 +97,67 @@ test('snippetPhotoGrid 输出 moment-spread-manage 与 data-moment-spread-all，
   assert.match(stylesBlock, /:not\(\.is-managing\)\s*\.snippet-photo-grid-inner\s*\{\s*display\s*:\s*none;?\s*\}/, 'styles.css 包含未管理时隐藏网格的规则');
 });
 
+test('快捷弹窗层级是标题、大舞台、图说、底栏，并保留选图保存与导入视频', () => {
+  const start = snippets.indexOf('function quickPhotoModal(');
+  const end = snippets.indexOf('function quickPhotoPreview(');
+  assert.ok(start >= 0 && end > start);
+  const block = snippets.slice(start, end);
+  for (const id of ['quick-photo-preview', 'quick-snap-caption', 'quick-capture-snap', 'quick-pick-snap', 'quick-pick-video', 'quick-save-snap', 'quick-switch-memo']) {
+    assert.match(block, new RegExp(`id="${id}"`), `快捷弹窗保留 #${id}`);
+  }
+  assert.match(block, /quick-capture-bar/, '拍照/选图/导入视频/保存收成一行工具条');
+  assert.match(block, /class="quick-publish-btn snap"/);
+  assert.doesNotMatch(block, /quick-hls|m3u8|quick-toggle-hls/);
+});
+
+test('表单选图用舞台和底栏，管理只走查看全部，m3u8 仍留在表单', () => {
+  const formStart = snippets.indexOf('function snippetForm(');
+  const formEnd = snippets.indexOf('function aiStructureCard(');
+  assert.ok(formStart >= 0 && formEnd > formStart);
+  const form = snippets.slice(formStart, formEnd);
+  assert.match(form, /snippet-photo-stage/);
+  assert.match(form, /snippet-capture-bar/);
+  assert.match(form, /id="capture-snippet-photo"/);
+  assert.match(form, /id="pick-snippet-photo"/);
+  assert.match(form, /id="pick-snippet-video"/);
+  assert.match(form, /id="snippet-hls-url"/);
+  assert.match(form, /id="add-snippet-hls"/);
+
+  const gridStart = snippets.indexOf('function snippetPhotoGrid(');
+  const gridEnd = snippets.indexOf('function bindSnippetPhotoGrid(');
+  const grid = snippets.slice(gridStart, gridEnd);
+  assert.match(grid, /moment-spread-manage/);
+  assert.match(grid, /data-moment-spread-all/);
+  assert.match(grid, /查看全部/);
+});
+
+test('预览页加载真实样式，清简主题，锚点 #page #spread #save', () => {
+  const preview = readFileSync(new URL('../previews/moment-photo-spread.html', import.meta.url), 'utf8');
+  assert.match(preview, /data-theme="plain"/);
+  assert.match(preview, /href="\.\.\/styles\.css"/);
+  assert.match(preview, /href="\.\.\/themes\.css"/);
+  assert.match(preview, /href="\.\.\/themes-plain\.css"/);
+  assert.match(preview, /href="\.\.\/themes-plain-light\.css"/);
+  assert.match(preview, /id="page"/);
+  assert.match(preview, /id="spread"/);
+  assert.match(preview, /id="save"/);
+  assert.match(preview, /href="#page"/);
+  assert.match(preview, /href="#spread"/);
+  assert.match(preview, /href="#save"/);
+  assert.doesNotMatch(preview, /quick-hls|m3u8/);
+});
+
+test('清简舞台与页面同一底色，照片 contain，布局样式无 !important', () => {
+  const plainBlock = extractSpreadCssBlock(plainThemes, 'themes-plain.css');
+  assert.match(plainBlock, /#quick-photo-preview[\s\S]*?background:\s*var\(--plain-canvas\)/);
+  assert.match(plainBlock, /quick-capture-bar/);
+  assert.match(plainBlock, /snippet-photo-stage/);
+  assert.match(plainBlock, /object-fit:\s*contain/);
+  assert.doesNotMatch(plainBlock, /!important/);
+  assert.doesNotMatch(plainBlock, /object-fit\s*:\s*cover/);
+  assert.match(snippets, /waitMomentAlbumFirstImage\(layer,\s*180\)/);
+});
+
 test('themes-plain.css moment-spread 块无 hardcoded hex、无 !important，并使用 var(...) 覆盖 #quick-photo-preview 背景', () => {
   const plainBlock = extractSpreadCssBlock(plainThemes, 'themes-plain.css');
   assert.doesNotMatch(plainBlock, /#[0-9a-f]{3,8}/i, 'themes-plain.css moment-spread 块内不得包含 hardcoded hex');

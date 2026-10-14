@@ -18,7 +18,7 @@
     body {
       margin: 0;
       padding: 24px 16px 48px;
-      background: var(--preview-bg);
+      background: var(--plain-canvas, #EAF0F8);
       color: var(--ink, #2E343B);
       font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Noto Sans SC", sans-serif;
       display: flex;
@@ -87,8 +87,9 @@
     .phone-container {
       width: 390px;
       height: 844px;
+      flex: none;
       border-radius: 46px;
-      background: transparent;
+      background: var(--plain-canvas, #EAF0F8);
       border: 10px solid #1E232A;
       box-shadow: 0 24px 50px rgba(46, 52, 59, 0.22);
       overflow-y: auto;
@@ -104,6 +105,7 @@
     }
     .phone-container #modal-layer {
       position: absolute; inset: 0; z-index: 20;
+      background: var(--plain-canvas, #EAF0F8);
     }
     .phone-container::-webkit-scrollbar {
       display: none;
@@ -239,7 +241,7 @@
     </div>
   </div>
 
-  <div class="phone-container" id="phone-container">
+  <div class="phone-container" id="page">
     <div class="phone-notch">
       <span>09:41</span>
       <span style="display:flex;gap:4px">
@@ -280,7 +282,7 @@
 
         <!-- 随手拍多图展示台 -->
         <div class="quick-photo-preview" id="quick-photo-preview" role="button" tabindex="0" aria-label="拍摄或选择照片">
-          <div class="moment-spread count-4" id="stage-spread" data-spread-sig="6:placeholder-mix">
+          <div class="moment-spread count-4" id="spread" data-spread-sig="6:placeholder-mix">
             <!-- 卡片 1 (1:1 方形) -->
             <span class="moment-spread-card" style="--i:0;--rot:-6deg;--lift:-6px">
               <span class="moment-spread-frame photo-blur-frame is-edge">
@@ -313,44 +315,41 @@
           </div>
 
           <span class="quick-photo-overlay">
-            <span class="material-symbols-outlined">photo_camera</span>
-            <small>6 张照片 · 0 段视频</small><button type="button" class="quick-photo-view-all" data-moment-spread-all>查看全部</button>
+            <small>6 张照片</small><button type="button" class="quick-photo-view-all" data-moment-spread-all>查看全部</button>
           </span>
         </div>
 
-        <label class="quick-field-label" for="quick-snap-caption">写在拍立得下方</label>
-        <input class="quick-input-field caveat-caption" id="quick-snap-caption" maxlength="40" placeholder="午后书桌的阳光、街角咖啡香……" value="午后书桌上的光斑与手冲香气">
-
-        <div class="quick-tag-row" aria-label="选择标签">
-          <button type="button" class="quick-paper-tag active" data-quick-tag="#日常生活">#日常生活</button>
-          <button type="button" class="quick-paper-tag" data-quick-tag="#手冲咖啡">#手冲咖啡</button>
-          <button type="button" class="quick-paper-tag" data-quick-tag="#学习心流">#学习心流</button>
-          <button type="button" class="quick-paper-tag" data-quick-tag="#夏日碎影">#夏日碎影</button>
+        <div class="quick-photo-meta">
+          <label class="quick-field-label" for="quick-snap-caption">图说</label>
+          <input class="quick-input-field caveat-caption" id="quick-snap-caption" maxlength="40" placeholder="写一句图说" value="午后书桌上的光斑与手冲香气">
+          <div class="quick-tag-row" aria-label="选择标签">
+            <button type="button" class="quick-paper-tag active" data-quick-tag="#日常生活">#日常生活</button>
+            <button type="button" class="quick-paper-tag" data-quick-tag="#手冲咖啡">#手冲咖啡</button>
+            <button type="button" class="quick-paper-tag" data-quick-tag="#学习心流">#学习心流</button>
+            <button type="button" class="quick-paper-tag" data-quick-tag="#夏日碎影">#夏日碎影</button>
+          </div>
         </div>
 
-        <div class="quick-photo-actions">
-          <button type="button" id="quick-capture-snap"><span class="material-symbols-outlined">photo_camera</span><span><strong>拍一张</strong><small>打开相机</small></span></button>
-          <button type="button" id="quick-pick-snap"><span class="material-symbols-outlined">photo_library</span><span><strong>选照片</strong><small>从本机相册</small></span></button>
-        </div>
-
-        <div class="quick-video-actions">
-          <button type="button" id="quick-pick-video"><span class="material-symbols-outlined">video_library</span><span><strong>导入视频</strong><small>保存到本机</small></span></button>
+        <div class="quick-capture-bar" role="toolbar" aria-label="随手拍操作">
+          <div class="quick-photo-actions">
+            <button type="button" id="quick-capture-snap"><span class="material-symbols-outlined">photo_camera</span><span><strong>拍照</strong><small>打开相机</small></span></button>
+            <button type="button" id="quick-pick-snap"><span class="material-symbols-outlined">photo_library</span><span><strong>选图</strong><small>从本机相册</small></span></button>
+          </div>
+          <div class="quick-video-actions">
+            <button type="button" id="quick-pick-video"><span class="material-symbols-outlined">video_library</span><span><strong>导入视频</strong><small>保存到本机</small></span></button>
+          </div>
+          <button type="button" class="quick-publish-btn snap" id="quick-save-snap" aria-label="收进今日生活相册"><span>保存</span></button>
         </div>
 
         <div class="quick-modal-switch">
           <button type="button" id="quick-switch-memo">或写一条灵感速记 ›</button>
         </div>
-
-        <button type="button" class="quick-publish-btn snap" id="quick-save-snap">
-          <span>收进今日生活相册</span>
-          <span class="material-symbols-outlined" aria-hidden="true">arrow_forward</span>
-        </button>
       </div>
       </div><!-- .modal -->
       </div><!-- #modal-layer -->
 
 
-      <div class="demo-divider">保存落点（下方列表新卡）</div>
+      <div class="demo-divider" id="save">保存落点</div>
 
       <!-- 假列表新卡（作为保存飞入目的地） -->
       <div class="fake-snippet-list">
@@ -379,7 +378,7 @@
       };
     });
 
-    const stageSpread = document.getElementById('stage-spread');
+    const stageSpread = document.getElementById('spread');
     const fakeTargetImg = document.getElementById('fake-target-img');
     const fakeTargetSlot = document.getElementById('fake-target-slot');
     const quickModal = document.getElementById('quick-photo-modal');
