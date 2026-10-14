@@ -17,7 +17,7 @@ globalThis.document = {
 globalThis.addEventListener = (type, fn) => { if (type === 'pagehide') pagehideListeners.push(fn); };
 
 const { registerHelper } = await import('../core.js');
-const { createVideoSourceCache, openVideoSession, plainVideoCache, preloadNextVideo, privateVideoCache } = await import('../video-session.js');
+const { createVideoSourceCache, openVideoSession, plainVideoCache, preloadAdjacentVideos, preloadNextVideo, privateVideoCache } = await import('../video-session.js');
 
 const sessionSource = await readFile(new URL('../video-session.js', import.meta.url), 'utf8');
 const snippets = await readFile(new URL('../views/snippets.js', import.meta.url), 'utf8');
@@ -172,7 +172,10 @@ test('playback progress is persisted on close, and private sources stay on the p
   assert.match(snippets, /sourceCache: plainVideoCache/);
   assert.match(snippets, /openPendingSnippetVideo\(/);
   assert.match(vault, /sourceCache: privateVideoCache/);
-  assert.match(sessionSource, /cache === privateVideoCache\) \{[\s\S]*?cache\.retain\(keep\)/);
+  assert.match(sessionSource, /const privateCache = cache === privateVideoCache/);
+  assert.match(sessionSource, /cache\.retain\(keep, privatePlaybackId\)/);
+  assert.match(sessionSource, /preloadAdjacentVideos\(cache, items, index, \{ loop: loopNavigation \}\)/);
+  assert.match(sessionSource, /preloadNextVideo\(cache, items, index\)/);
   assert.doesNotMatch(sessionSource, /vault-photo-image|photo-viewer-image/);
   assert.match(common, /id="photo-viewer-image"/);
   assert.match(vault, /id="vault-photo-image"/);
@@ -236,7 +239,7 @@ test('hiding the page pauses a plain video and leaves the modal open', async () 
   privateVideoCache.release();
 });
 
-test('the private cache keeps only the current video and the next one', async () => {
+test('the private cache keeps the previous, current and next videos', async () => {
   const tracker = trackRevokes();
   try {
     const cache = createVideoSourceCache();
@@ -267,6 +270,165 @@ test('the private cache keeps only the current video and the next one', async ()
     assert.equal(privateVideoCache.has('old'), false);
     assert.ok(tracker.revoked.includes('blob:http://unit/old'));
     assert.ok(!tracker.revoked.includes('blob:http://unit/kept'));
+
+    await privateVideoCache.resolve({ id: 'prev', resolveSource: async () => 'blob:http://unit/mid-prev' });
+    await privateVideoCache.resolve({ id: 'far', resolveSource: async () => 'blob:http://unit/mid-far' });
+    await openVideoSession({
+      items: ['prev', 'kept', 'next', 'far'].map(id => ({ id, resolveSource: async () => privateVideoCache.get(id) || `blob:http://unit/mid-${id}` })),
+      startIndex: 1,
+      sourceCache: privateVideoCache
+    });
+    assert.equal(privateVideoCache.has('prev'), true);
+    assert.equal(privateVideoCache.has('kept'), true);
+    assert.equal(privateVideoCache.has('next'), true);
+    assert.equal(privateVideoCache.has('far'), false);
+    assert.ok(tracker.revoked.includes('blob:http://unit/mid-far'));
+    assert.ok(!tracker.revoked.includes('blob:http://unit/mid-prev'));
+  } finally {
+    privateVideoCache.release();
+    tracker.restore();
+  }
+});
+
+test('private preload wraps the first and last clips when loop navigation is on', async () => {
+  const tracker = trackRevokes();
+  const calls = [];
+  const items = [0, 1, 2, 3].map(id => ({
+    id: String(id),
+    resolveSource: () => { calls.push(id); return `blob:http://unit/loop-${id}`; }
+  }));
+  try {
+    registerHelper('playSnippetVideo', () => {});
+    await openVideoSession({ items, startIndex: 0, loopNavigation: true, sourceCache: privateVideoCache });
+    assert.deepEqual(calls, [0, 3, 1]);
+    assert.equal(privateVideoCache.has('0'), true);
+    assert.equal(privateVideoCache.has('3'), true);
+    assert.equal(privateVideoCache.has('1'), true);
+    assert.equal(privateVideoCache.has('2'), false);
+
+    calls.length = 0;
+    await openVideoSession({ items, startIndex: 3, loopNavigation: true, sourceCache: privateVideoCache });
+    assert.deepEqual(calls, [2]);
+    assert.equal(privateVideoCache.has('3'), true);
+    assert.equal(privateVideoCache.has('2'), true);
+    assert.equal(privateVideoCache.has('0'), true);
+    assert.equal(privateVideoCache.has('1'), false);
+    assert.ok(tracker.revoked.includes('blob:http://unit/loop-1'));
+    assert.ok(!tracker.revoked.includes('blob:http://unit/loop-3'));
+  } finally {
+    privateVideoCache.release();
+    tracker.restore();
+  }
+});
+
+test('plain playback only preloads the next address, even when looping', async () => {
+  const calls = [];
+  const cache = createVideoSourceCache();
+  const items = [0, 1, 2].map(id => ({
+    id: String(id),
+    resolveSource: async () => { calls.push(id); return `mine-media://plain-${id}`; }
+  }));
+  await openVideoSession({ items, startIndex: 0, loopNavigation: true, sourceCache: cache });
+  assert.deepEqual(calls, [0, 1]);
+  assert.equal(cache.has('2'), false);
+  assert.equal(preloadNextVideo(cache, items, 2), null);
+  await preloadAdjacentVideos(cache, items, 0, { loop: true });
+  assert.deepEqual(calls, [0, 1, 2]);
+  assert.equal(cache.has('2'), true);
+});
+
+test('retain revokes blobs outside the window before dropping them, and never the playing one', async () => {
+  const cache = createVideoSourceCache();
+  const revoked = [];
+  const original = URL.revokeObjectURL;
+  URL.revokeObjectURL = url => { revoked.push({ url: String(url), held: cache.has('old') }); };
+  try {
+    await cache.resolve({ id: 'play', resolveSource: async () => 'blob:http://unit/play' });
+    await cache.resolve({ id: 'old', resolveSource: async () => 'blob:http://unit/old' });
+    await cache.resolve({ id: 'keep', resolveSource: async () => 'blob:http://unit/keep' });
+    cache.retain(['keep'], 'play');
+    assert.equal(cache.has('play'), true);
+    assert.equal(cache.has('keep'), true);
+    assert.equal(cache.has('old'), false);
+    assert.deepEqual(revoked.map(entry => entry.url), ['blob:http://unit/old']);
+    assert.equal(revoked[0].held, true);
+    cache.drop('play');
+    assert.equal(cache.has('play'), false);
+    assert.ok(revoked.map(entry => entry.url).includes('blob:http://unit/play'));
+  } finally {
+    cache.release();
+    URL.revokeObjectURL = original;
+  }
+});
+
+test('an in-flight decrypt is shared if that clip is asked for again', async () => {
+  const tracker = trackRevokes();
+  try {
+    const cache = createVideoSourceCache();
+    let calls = 0;
+    let go;
+    const gate = new Promise(resolve => { go = resolve; });
+    const item = { id: 'clip', resolveSource: () => { calls += 1; return gate.then(() => 'blob:http://unit/clip'); } };
+    const first = cache.resolve(item);
+    cache.retain(['elsewhere']);
+    const second = cache.resolve(item);
+    assert.equal(calls, 1);
+    go();
+    assert.equal(await second, 'blob:http://unit/clip');
+    assert.equal(await first, 'blob:http://unit/clip');
+    assert.equal(calls, 1);
+    assert.equal(cache.has('clip'), true);
+    assert.deepEqual(tracker.revoked, []);
+  } finally {
+    tracker.restore();
+  }
+});
+
+test('a fast swipe revokes a private decrypt that finishes outside the window', async () => {
+  const tracker = trackRevokes();
+  const plays = [];
+  registerHelper('playSnippetVideo', (_video, _entry, _index, options) => { plays.push(options); });
+  let releaseFar;
+  let releaseTarget;
+  const farGate = new Promise(resolve => { releaseFar = resolve; });
+  const targetGate = new Promise(resolve => { releaseTarget = resolve; });
+  let farCalls = 0;
+  const items = ['a', 'b', 'c', 'd', 'e'].map(id => ({
+    id,
+    resolveSource: () => {
+      if (id === 'b') {
+        farCalls += 1;
+        return farGate.then(() => 'blob:http://unit/b');
+      }
+      if (id === 'e') return targetGate.then(() => 'blob:http://unit/e');
+      return `blob:http://unit/${id}`;
+    }
+  }));
+  try {
+    await openVideoSession({ items, startIndex: 0, sourceCache: privateVideoCache });
+    assert.equal(farCalls, 1);
+    assert.equal(privateVideoCache.inflight('b'), true);
+    const nav = plays.at(-1).onNavigate(4, 'up');
+    assert.equal(privateVideoCache.has('a'), true);
+    assert.equal(privateVideoCache.has('b'), false);
+    assert.ok(!tracker.revoked.includes('blob:http://unit/a'));
+    releaseFar();
+    await farGate.then(() => {}).then(() => {});
+    assert.equal(farCalls, 1);
+    assert.equal(privateVideoCache.inflight('b'), false);
+    assert.equal(privateVideoCache.has('b'), false);
+    assert.ok(tracker.revoked.includes('blob:http://unit/b'));
+    assert.equal(privateVideoCache.has('a'), true);
+    assert.ok(!tracker.revoked.includes('blob:http://unit/a'));
+    releaseTarget();
+    await nav;
+    assert.equal(privateVideoCache.has('a'), false);
+    assert.equal(privateVideoCache.has('e'), true);
+    assert.equal(privateVideoCache.has('d'), true);
+    assert.equal(privateVideoCache.has('b'), false);
+    assert.ok(tracker.revoked.includes('blob:http://unit/a'));
+    assert.ok(!tracker.revoked.includes('blob:http://unit/e'));
+    assert.ok(!tracker.revoked.includes('blob:http://unit/d'));
   } finally {
     privateVideoCache.release();
     tracker.restore();

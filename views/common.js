@@ -1,6 +1,7 @@
 import { $, $$, pad, esc, imgSrc, state, cursor, formatMinutes, category, modal, closeModal, confirmDelete, save, render, show, callHelper } from '../core.js';
 import { clampStillTransform, measureLongStill } from '../photo-utils.js';
 import { photoFrameLayersHtml, revealViewerImageWhenDecoded } from '../photo-frame.js';
+import { thumbSource, thumbKeyFor, watchThumbImages } from '../photo-thumbs.js';
 import { MOODS, WEATHERS, WEEK_DAYS, dateKey, habitProgressForDate, habitGoalMet, formatShanghaiDateTime } from '../model.js';
 import { mediaFocusSummary } from '../analytics.js';
 import { rebuildActivityLog } from '../activity-log.js';
@@ -226,7 +227,12 @@ export function photoViewer(photos, active = 0, meta = null, options = {}) {
     : '';
   const previous = options.loop && photos.length > 1 ? (active - 1 + photos.length) % photos.length : active - 1;
   const next = options.loop && photos.length > 1 ? (active + 1) % photos.length : active + 1;
-  const strip = options.filmstrip && photos.length > 1 ? `<nav class="photo-viewer-filmstrip" aria-label="照片缩略图">${photos.map((item, index) => { const source = item && typeof item === 'object' ? item.poster : item; return `<button type="button" data-photo-strip="${index}" class="${index === active ? 'active' : ''}" aria-label="查看第 ${index + 1} 张"><img src="${imgSrc(source)}" alt="" loading="lazy"></button>`; }).join('')}</nav>` : '';
+  const strip = options.filmstrip && photos.length > 1 ? `<nav class="photo-viewer-filmstrip" aria-label="照片缩略图">${photos.map((item, index) => {
+    const source = item && typeof item === 'object' ? item.poster : item;
+    const thumbRef = thumbKeyFor(source) ? source : '';
+    const src = thumbRef ? esc(thumbSource(source)) : imgSrc(source);
+    return `<button type="button" data-photo-strip="${index}" class="${index === active ? 'active' : ''}" aria-label="查看第 ${index + 1} 张"><img src="${src}" alt="" loading="lazy" decoding="async"${thumbRef ? ` data-thumb-ref="${esc(thumbRef)}"` : ''}></button>`;
+  }).join('')}</nav>` : '';
   modal(`<div class="photo-viewer ${strip ? 'has-filmstrip' : ''}"><div class="photo-viewer-stage" id="photo-viewer-stage">${mediaHtml}</div><div class="photo-viewer-chrome"><header><span><b>${active + 1}</b> / ${photos.length}${isLive ? '<em class="live-photo-mark photo-viewer-live-badge" role="button" tabindex="0" aria-label="播放实况视频">实况</em>' : ''}</span><button type="button" data-close aria-label="关闭大图"><span class="material-symbols-outlined">close</span></button></header>${strip}${metaLayer}<footer><button type="button" data-photo-prev="${previous}" ${!options.loop && active <= 0 ? 'disabled' : ''} aria-label="上一张"><span class="material-symbols-outlined">arrow_back</span></button><small>${isLive ? '实况静音循环 · 点「实况」用播放器看 · ' : ''}双击放大 · 双指缩放 · ${meta ? '左右滑动切换' : '拖动查看'}</small><button type="button" data-photo-next="${next}" ${!options.loop && active >= photos.length - 1 ? 'disabled' : ''} aria-label="下一张"><span class="material-symbols-outlined">arrow_forward</span></button></footer></div></div>`, 'photo-modal');
   revealViewerImageWhenDecoded($('#photo-viewer-image'));
   if (isLive) {
@@ -252,6 +258,7 @@ export function photoViewer(photos, active = 0, meta = null, options = {}) {
   $('[data-photo-next]:not(:disabled)')?.addEventListener('click', event => openPhotoAt(photos, meta, Number(event.currentTarget.dataset.photoNext), options));
   $$('[data-photo-strip]').forEach(button => button.onclick = () => openPhotoAt(photos, meta, Number(button.dataset.photoStrip), options));
   requestAnimationFrame(() => $('.photo-viewer-filmstrip .active')?.scrollIntoView({ inline: 'center', block: 'nearest' }));
+  if (strip) watchThumbImages($('.photo-viewer-filmstrip'));
 }
 
 function openPhotoAt(photos, meta, index, options = {}) {

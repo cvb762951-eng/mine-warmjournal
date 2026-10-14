@@ -76,7 +76,9 @@ jobs:
         with:
           packages: platforms;android-36 build-tools;35.0.0 build-tools;36.0.0 platform-tools
 
-      - name: 核对三处版本号
+      # package.json、app-updater.js、build.gradle，加上 index.html 的 ?v=
+      # 和 release-notes.js 里当前 versionCode 的条目。漏改会在打包前失败。
+      - name: 核对版本号
         id: version
         run: node scripts/check-versions.mjs
 
@@ -248,6 +250,8 @@ jobs:
           path: ${{ steps.dist.outputs.manifest }}
           if-no-files-found: error
 
+      # index.html ?v= 和 release-notes 漏改会在上面的「核对版本号」直接失败。
+      # 这里仍挡住 Release，只处理比上一提交更多的测试失败。
       - name: 测试退步则失败
         if: steps.tests.outcome == 'failure'
         run: |

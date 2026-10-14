@@ -81,6 +81,181 @@ function openSnippetAlbum(startIndex = 0) {
   });
 }
 
+// ---- 全屏相册缩略图网格层（#snippet-album-grid）----
+export const snippetGridAspect = new Map();
+
+function onSnippetGridImgLoad(event) {
+  const img = event.target;
+  if (!img || img.tagName !== 'IMG' || !img.classList.contains('photo-blur-still')) return;
+  const nw = img.naturalWidth;
+  const nh = img.naturalHeight;
+  if (nw > 1 && nh > 1) {
+    const cell = img.closest('.snippet-album-grid-cell');
+    if (!cell) return;
+    const ref = cell.dataset.ref || img.dataset.thumbRef || '';
+    if (ref) {
+      snippetGridAspect.set(ref, { width: nw, height: nh });
+    }
+    const nextRatio = `${nw} / ${nh}`;
+    if (cell.style.aspectRatio !== nextRatio) {
+      cell.style.aspectRatio = nextRatio;
+    }
+  }
+}
+
+function snippetGridMediaHtml(item, index) {
+  const isVideo = item && typeof item === 'object' && item.video;
+  if (isVideo) {
+    const poster = item.poster;
+    const alt = `视频 ${index + 1} 封面`;
+    const visual = poster
+      ? `<span class="photo-blur-frame is-edge snippet-album-grid-frame">${snippetCoverImage(poster, alt, true)}</span>`
+      : `<span class="snippet-grid-video-placeholder"><span class="material-symbols-outlined">movie</span></span>`;
+    return `${visual}<span class="snippet-grid-play-badge" aria-hidden="true"><span class="material-symbols-outlined">play_arrow</span></span>${videoDurationStamp(item)}`;
+  }
+
+  const ref = item;
+  const alt = `照片 ${index + 1}`;
+  return `<span class="photo-blur-frame is-edge snippet-album-grid-frame">${snippetPhotoImage(ref, alt, { thumb: true, lazy: true })}</span>`;
+}
+
+let snippetAlbumGridCloseToken = 0;
+
+function ensureSnippetAlbumGridLayer() {
+  let layer = $('#snippet-album-grid');
+  if (layer) {
+    if (!layer._hasAspectLoadListener) {
+      layer.addEventListener('load', onSnippetGridImgLoad, true);
+      layer._hasAspectLoadListener = true;
+    }
+    return layer;
+  }
+  layer = document.createElement('div');
+  layer.id = 'snippet-album-grid';
+  layer.className = 'snippet-album-grid';
+  layer.hidden = true;
+  layer.setAttribute('role', 'dialog');
+  layer.setAttribute('aria-modal', 'true');
+  layer.addEventListener('load', onSnippetGridImgLoad, true);
+  layer._hasAspectLoadListener = true;
+  const host = $('.phone-shell') || document.body;
+  host.appendChild(layer);
+  return layer;
+}
+
+export function isSnippetAlbumGridOpen() {
+  const layer = $('#snippet-album-grid');
+  return Boolean(layer && layer.classList.contains('open') && !layer.classList.contains('is-closing'));
+}
+
+export function closeSnippetAlbumGrid() {
+  const layer = $('#snippet-album-grid');
+  if (!layer) return false;
+  const wasOpen = layer.classList.contains('open');
+  if (!wasOpen) return false;
+  const token = ++snippetAlbumGridCloseToken;
+  const finish = () => {
+    if (token !== snippetAlbumGridCloseToken) return;
+    if (layer.classList.contains('is-closing')) layer.classList.remove('is-closing');
+    if (layer.classList.contains('open')) layer.classList.remove('open');
+    layer.hidden = true;
+    callHelper('syncSystemBackConsumption');
+  };
+  const tier = momentAlbumTier();
+  if (tier === 'rich' && layer.animate) {
+    if (!layer.classList.contains('is-closing')) layer.classList.add('is-closing');
+    try {
+      const anim = layer.animate([
+        { opacity: 1, transform: 'none' },
+        { opacity: 0, transform: 'translate3d(0, 16px, 0)' }
+      ], { duration: 180, easing: 'cubic-bezier(.2, .8, .2, 1)', fill: 'forwards' });
+      anim.onfinish = finish;
+      setTimeout(finish, 300);
+    } catch {
+      finish();
+    }
+  } else {
+    finish();
+  }
+  callHelper('syncSystemBackConsumption');
+  return wasOpen;
+}
+
+export function openSnippetAlbumGrid() {
+  const stream = snippetPhotoStream();
+  if (!stream.length) return;
+  const layer = ensureSnippetAlbumGridLayer();
+  snippetAlbumGridCloseToken += 1;
+  if (layer.classList.contains('is-closing')) layer.classList.remove('is-closing');
+  layer.getAnimations?.().forEach(anim => anim.cancel());
+
+  const host = layer.parentElement || document.body;
+  const layerWidth = layer.clientWidth || host.clientWidth || window.innerWidth;
+  const colCount = layerWidth >= 600 ? 3 : 2;
+  const colHeights = new Array(colCount).fill(0);
+  const columns = Array.from({ length: colCount }, () => []);
+
+  stream.forEach((entry, index) => {
+    const isVideo = entry.item && typeof entry.item === 'object' && entry.item.video;
+    const ref = isVideo ? (entry.item.poster || '') : (typeof entry.item === 'string' ? entry.item : '');
+    const aspect = ref ? snippetGridAspect.get(ref) : null;
+    const aspectStyle = aspect ? `aspect-ratio: ${aspect.width} / ${aspect.height}` : 'aspect-ratio: 3 / 4';
+    const itemHeight = (aspect && aspect.width > 0 && aspect.height > 0)
+      ? (aspect.height / aspect.width)
+      : 1;
+
+    let shortest = 0;
+    for (let c = 1; c < colCount; c++) {
+      if (colHeights[c] < colHeights[shortest]) shortest = c;
+    }
+
+    const cellHtml = `<button type="button" class="snippet-album-grid-cell" data-grid-index="${index}" data-ref="${esc(ref)}" style="${aspectStyle}" aria-label="第 ${index + 1} 项">${snippetGridMediaHtml(entry.item, index)}</button>`;
+
+    columns[shortest].push(cellHtml);
+    colHeights[shortest] += itemHeight;
+  });
+
+  const columnsHtml = columns.map(col => `<div class="snippet-album-grid-column">${col.join('')}</div>`).join('');
+
+  layer.innerHTML = `<header class="snippet-album-grid-header">
+    <button type="button" class="snippet-album-grid-back" id="snippet-album-grid-back" aria-label="返回">
+      <span class="material-symbols-outlined">arrow_back</span>
+    </button>
+    <div class="snippet-album-grid-title-wrap">
+      <h2 class="snippet-album-grid-title">相册</h2>
+      <span class="snippet-album-grid-count">${stream.length} 张</span>
+    </div>
+    <div class="snippet-album-grid-actions"></div>
+  </header>
+  <div class="snippet-album-grid-body">
+    ${columnsHtml}
+  </div>`;
+
+  layer.querySelector('#snippet-album-grid-back')?.addEventListener('click', () => closeSnippetAlbumGrid());
+  layer.querySelectorAll('[data-grid-index]').forEach(cell => {
+    cell.onclick = () => {
+      const index = Number(cell.dataset.gridIndex);
+      openSnippetAlbum(index);
+    };
+  });
+
+  layer.hidden = false;
+  if (!layer.classList.contains('open')) layer.classList.add('open');
+
+  const tier = momentAlbumTier();
+  if (tier === 'rich' && layer.animate) {
+    try {
+      layer.animate([
+        { opacity: 0, transform: 'translate3d(0, 20px, 0)' },
+        { opacity: 1, transform: 'none' }
+      ], { duration: 220, easing: 'cubic-bezier(.2, .8, .2, 1)' });
+    } catch {}
+  }
+
+  watchThumbImages(layer);
+  callHelper('syncSystemBackConsumption');
+}
+
 export function snippetsView() {
   const streak = activeStreak(state, dateKey());
   const photoCount = state.snippets.filter(entry => entry.type === 'photo').length;
@@ -2067,7 +2242,7 @@ function photoLightbox(entry, active = 0) {
 
 function bindSnippets() {
   $('#new-snippet')?.addEventListener('click', () => quickPhotoModal());
-  $('#snippet-album')?.addEventListener('click', () => openSnippetAlbum());
+  $('#snippet-album')?.addEventListener('click', () => openSnippetAlbumGrid());
   $$('[data-snippet-type]').forEach(button => button.onclick = () => { snippetType = button.dataset.snippetType; render(); });
   $$('[data-edit-snippet]').forEach(button => button.onclick = () => snippetForm(state.snippets.find(entry => entry.id === button.dataset.editSnippet)));
   $$('[data-delete-snippet]').forEach(button => button.onclick = () => confirmDelete('删除这条随手记素材？已经加入日记的内容不会受影响。', async () => { state.snippets = state.snippets.filter(entry => entry.id !== button.dataset.deleteSnippet); await save(); render(); callHelper('scheduleAiRefresh'); }));
@@ -2116,6 +2291,7 @@ const pad2 = value => String(value).padStart(2, '0');
 
 registerOnRender(() => {
   if (state.route !== 'snippets' && isMomentAlbumOpen()) closeMomentAlbum();
+  if (state.route !== 'snippets' && isSnippetAlbumGridOpen()) closeSnippetAlbumGrid();
 });
 
 registerHelper('snippetForm', snippetForm);
@@ -2125,6 +2301,9 @@ registerHelper('openPhotoLightbox', photoLightbox);
 registerHelper('openMomentAlbumBrowse', openMomentAlbumBrowse);
 registerHelper('isMomentAlbumOpen', isMomentAlbumOpen);
 registerHelper('closeMomentAlbum', closeMomentAlbum);
+registerHelper('openSnippetAlbumGrid', openSnippetAlbumGrid);
+registerHelper('isSnippetAlbumGridOpen', isSnippetAlbumGridOpen);
+registerHelper('closeSnippetAlbumGrid', closeSnippetAlbumGrid);
 registerHelper('closeVideoPlayer', stopActiveVideoPlayer);
 registerHelper('playSnippetVideo', playSnippetVideo);
 registerHelper('openSnippetVideos', openSnippetVideos);
