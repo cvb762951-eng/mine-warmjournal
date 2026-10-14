@@ -35,12 +35,12 @@ test('M1：最多 6 张依次飞入，其余淡入；参数照抄方案', () => 
   assert.match(moments, /--pl-spring-magnet/);
 });
 
-test('M2：新建飞、编辑不飞；不做收成一叠；100 张上限仍在 snippets', () => {
+test('M2：新建飞、编辑不飞；收成一叠；100 张上限仍在 snippets', () => {
   assert.equal(saveShouldFly({ editing: false, hasFreshCard: true }), true);
   assert.equal(saveShouldFly({ editing: true, hasFreshCard: true }), false);
   assert.equal(saveShouldFly({ editing: false, hasFreshCard: false }), false);
   assert.equal(MOMENTS_MOTION.saveMs, 480);
-  assert.match(moments, /不做「收成一叠」|不做收成一叠/);
+  assert.match(moments, /收成一叠/);
   assert.doesNotMatch(moments, /deck-stack|fanIn\(|maxFly:\s*4/);
   assert.match(snippets, /SNIPPET_PHOTO_LIMIT = 100/);
   assert.match(moments, /snippet-form/);

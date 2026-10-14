@@ -9995,3 +9995,113 @@ body #modal-layer .modal.confirm-sheet .modal-actions .danger { padding: 0 16px 
 @media (prefers-reduced-motion: reduce){.photo-viewer-play-btn:active{transform:none}}
 /* 多段视频卡封面改成按钮（点开翻牌相册），去掉按钮自带的边框/内边距，外观与原 div 一致 */
 .snippets-view button.snippet-cover-frame{padding:0;border:0;margin:0;font:inherit;color:inherit;cursor:pointer;text-align:inherit;-webkit-tap-highlight-color:transparent}
+
+/* moment-spread start */
+.moment-spread {
+  position: relative;
+  width: 100%;
+  height: clamp(200px, 34vh, 280px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: visible;
+  --n: 1;
+  --card-w: min(120px, calc((100% - 30px) / var(--n) * 1.1));
+}
+
+.moment-spread.count-1 { --n: 1; }
+.moment-spread.count-2 { --n: 2; }
+.moment-spread.count-3 { --n: 3; }
+.moment-spread.count-4 { --n: 4; }
+
+.moment-spread-card {
+  position: absolute;
+  top: 50%;
+  margin-top: calc(var(--card-w) * -2 / 3); /* margin 百分比按宽度算，和 --card-w 同基准 */
+  width: var(--card-w);
+  aspect-ratio: 3 / 4;
+  transform: rotate(var(--rot, 0deg)) translateY(var(--lift, 0px));
+  border: 3px solid var(--card, #FBFCFE);
+  border-radius: 8px;
+  box-shadow: 0 6px 16px rgba(46, 52, 59, 0.12);
+  background: var(--card, #FBFCFE);
+  box-sizing: border-box;
+  z-index: calc(var(--i, 0) + 1);
+  transform-origin: center center;
+}
+
+.moment-spread.count-1 .moment-spread-card {
+  left: calc(50% - var(--card-w) / 2);
+}
+
+.moment-spread.count-2 .moment-spread-card {
+  left: calc(15px + var(--i, 0) * (100% - 30px - var(--card-w)));
+}
+
+.moment-spread.count-3 .moment-spread-card {
+  left: calc(15px + var(--i, 0) * (100% - 30px - var(--card-w)) / 2);
+}
+
+.moment-spread.count-4 .moment-spread-card {
+  left: calc(15px + var(--i, 0) * (100% - 30px - var(--card-w)) / 3);
+}
+
+.moment-spread-frame {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 5px;
+  overflow: hidden;
+  background: var(--frame, #E8EDF5);
+}
+
+.moment-spread-frame img.moment-spread-still,
+.moment-spread-frame .photo-blur-still {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.moment-spread-frame img.moment-spread-blur,
+.moment-spread-frame .photo-blur-pad {
+  position: absolute;
+  inset: -12%;
+  width: 124%;
+  height: 124%;
+  opacity: 0.5;
+  transform: scale(1.08);
+  pointer-events: none;
+}
+
+.moment-spread-more {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  z-index: 5;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 7px;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 999px;
+  background: rgba(46, 52, 59, 0.82);
+  color: #FBFCFE;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+  pointer-events: none;
+}
+
+#quick-photo-preview {
+  min-height: clamp(220px, 36vh, 300px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.snippet-photo-grid .moment-spread {
+  margin-bottom: 12px;
+}
+/* moment-spread end */
