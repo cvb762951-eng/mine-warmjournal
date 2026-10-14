@@ -2865,4 +2865,107 @@ button.danger) {
   background-color: var(--pl-blue-soft) !important;
   border-color: var(--pl-blue-line) !important;
   color: var(--pl-blue) !important;
+  text-decoration: none !important;
+}
+
+/* 直接打到暖色源选择器。
+   styles.css 的 .modal.quick-modal #quick-snap-caption 用 background 简写 + !important 铺 ivory；
+   performance.css 的 .quick-photo-actions button / .quick-photo-preview 铺 kraft 与 dropzone；
+   styles.css 的 .quick-video-actions button 铺 kraft。
+   只写 .quick-input-field 的 background-image 盖不住简写，也清不掉 border-image 撕边。 */
+:root[data-theme="plain"] .modal.quick-modal:has(#quick-photo-modal),
+:root[data-theme="plain"] #quick-photo-modal {
+  background: var(--plain-canvas) !important;
+  background-image: none !important;
+  border-image: none !important;
+  border-image-source: none !important;
+  color: var(--ink);
+  font-family: "Inter", "Noto Sans SC", sans-serif;
+}
+:root[data-theme="plain"] #quick-photo-modal :is(
+  #quick-snap-caption,
+  #quick-photo-preview,
+  .quick-paper-tag,
+  .quick-photo-actions button,
+  .quick-video-actions button,
+  #quick-save-snap,
+  .quick-modal-close,
+  .quick-photo-view-all,
+  .plain-moment-btn
+) {
+  border-image: none !important;
+  border-image-source: none !important;
+  -webkit-mask-image: none !important;
+  mask-image: none !important;
+}
+:root[data-theme="plain"] .modal.quick-modal #quick-snap-caption {
+  background: var(--plain-surface) !important;
+  background-image: none !important;
+  border: 1px solid var(--line) !important;
+  border-image: none !important;
+  border-image-source: none !important;
+  border-radius: 12px !important;
+  box-shadow: none !important;
+  outline: none !important;
+  color: var(--ink) !important;
+  font-family: "Inter", "Noto Sans SC", sans-serif !important;
+  font-weight: 500 !important;
+  -webkit-mask-image: none !important;
+  mask-image: none !important;
+}
+:root[data-theme="plain"] .modal.quick-modal #quick-snap-caption:focus {
+  background: var(--plain-surface) !important;
+  background-image: none !important;
+  border: 1px solid var(--pl-blue) !important;
+  border-image: none !important;
+  border-image-source: none !important;
+  border-radius: 12px !important;
+  box-shadow: 0 0 0 3px var(--pl-blue-soft) !important;
+  outline: none !important;
+  color: var(--ink) !important;
+  font-family: "Inter", "Noto Sans SC", sans-serif !important;
+  font-weight: 500 !important;
+}
+:root[data-theme="plain"] #quick-photo-modal #quick-photo-preview {
+  background: var(--plain-canvas) !important;
+  background-image: none !important;
+  border-image: none !important;
+  border-image-source: none !important;
+  box-shadow: none !important;
+  transform: none !important;
+  color: var(--ink-muted) !important;
+}
+:root[data-theme="plain"] #quick-photo-modal .quick-paper-tag,
+:root[data-theme="plain"] #quick-photo-modal .quick-paper-tag.active {
+  background-image: none !important;
+  border-image: none !important;
+  border-image-source: none !important;
+  border-radius: 999px !important;
+  box-shadow: none !important;
+  text-decoration: none !important;
+  text-underline-offset: 0 !important;
+  font-family: "Inter", "Noto Sans SC", sans-serif !important;
+}
+:root[data-theme="plain"] #quick-photo-modal .quick-paper-tag.active {
+  background-color: var(--pl-blue-soft) !important;
+  border-color: var(--pl-blue-line) !important;
+  color: var(--pl-blue) !important;
+}
+:root[data-theme="plain"] #quick-photo-modal :is(.quick-photo-actions, .quick-video-actions) button {
+  background: var(--plain-surface) !important;
+  background-image: none !important;
+  border: 1px solid var(--line) !important;
+  border-image: none !important;
+  border-image-source: none !important;
+  border-radius: 12px !important;
+  box-shadow: none !important;
+  color: var(--ink) !important;
+  font-family: "Inter", "Noto Sans SC", sans-serif !important;
+  transform: none !important;
+}
+:root[data-theme="plain"] #quick-photo-modal :is(.quick-photo-actions, .quick-video-actions) button .material-symbols-outlined {
+  background: none !important;
+  background-image: none !important;
+  color: var(--pl-blue) !important;
+  border-radius: 0 !important;
 }
