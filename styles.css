@@ -10033,6 +10033,55 @@ body #modal-layer .modal.confirm-sheet .modal-actions .danger { padding: 0 16px 
   transform-origin: center center;
 }
 
+button.moment-spread-hit {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: block;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.moment-spread-card .moment-spread-play {
+  z-index: 3;
+  pointer-events: none;
+}
+
+.moment-spread-card .video-duration-stamp {
+  z-index: 3;
+  pointer-events: none;
+}
+
+.moment-spread-empty {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--ink-muted);
+  font-size: 28px;
+}
+
+.moment-spread-card.is-arriving,
+.moment-spread.is-importing .moment-spread-card.is-arriving,
+.moment-spread.is-transitioning .moment-spread-card.is-arriving {
+  transition: none;
+}
+
+.snippets-view .snippet-visual-wrap.is-moment-fan {
+  overflow: visible;
+  background: transparent;
+}
+
 .moment-spread.count-1 .moment-spread-card {
   left: calc(50% - var(--card-w) / 2);
 }
@@ -10297,22 +10346,13 @@ body #modal-layer .modal.confirm-sheet .modal-actions .danger { padding: 0 16px 
   border-width: 2.5px;
 }
 
-/* 随手拍导入叠牌与转场 */
-.moment-spread.is-importing {
-  --n: 1;
-  --card-w: min(140px, 42%);
-}
-
+/* 随手拍导入：槽位和结束后是同一套扇形。旧卡离开时才朝观众放大淡出。 */
 .moment-spread.is-importing .moment-spread-card,
 .moment-spread.is-transitioning .moment-spread-card {
   transition: transform var(--spread-dur, 320ms) var(--spread-ease, cubic-bezier(.34, 1.56, .64, 1)),
               left var(--spread-dur, 320ms) var(--spread-ease, cubic-bezier(.34, 1.56, .64, 1)),
               opacity var(--spread-dur, 320ms) var(--spread-ease, cubic-bezier(.34, 1.56, .64, 1));
   will-change: transform, opacity;
-}
-
-.moment-spread.is-importing .moment-spread-card {
-  left: calc(50% - var(--card-w) / 2);
 }
 
 .moment-spread.is-importing .moment-spread-card[data-depth="0"] {

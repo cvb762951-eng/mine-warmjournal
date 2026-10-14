@@ -309,8 +309,10 @@ function commitFullUpgrade(img, full) {
   if (typeof document !== 'undefined') requestThumb(img.dataset?.thumbRef || '');
 }
 
-/** 显示宽度 × dpr 不超过 480 时，480 缩略图已经够清楚，不升原图（拼图小格等）。量不到宽度时照常升。 */
+/** 显示宽度 × dpr 不超过 480 时，480 缩略图已经够清楚，不升原图（拼图小格等）。量不到宽度时照常升。
+    视频扇面封面带 data-full-cover：卡片虽窄，仍升原图（最多 4 张，离开视口再卸）。 */
 export function needsFullResolution(img) {
+  if (img?.dataset?.fullCover === '1' || img?.getAttribute?.('data-full-cover') === '1') return true;
   const rect = img?.getBoundingClientRect?.();
   const width = (rect && rect.width) || img?.clientWidth || 0;
   if (!width) return true;

@@ -36,6 +36,7 @@ import {
   THUMB_PLACEHOLDER,
   progressiveSource,
   watchThumbImages,
+  needsFullResolution,
   ensureThumb,
   _deliverThumbForTest,
   _seedThumbForTest,
@@ -240,32 +241,48 @@ test('动效锁定：playSpreadFlyIn 跳过导入态容器，避免整组重飞'
   }
 });
 
-test('叠牌渲染：momentImportStackHtml 与 pushCardToImportStack 锁定朝观众变大淡出与递增 z-index', async () => {
-  const { momentImportStackHtml, pushCardToImportStack } = await import('../views/snippets.js');
-  const html = momentImportStackHtml(['photoA.jpg', 'photoB.jpg']);
-  assert.match(html, /class="moment-spread is-importing"/);
+test('叠牌渲染：导入过程就是最终扇面，挤出的旧卡朝观众放大淡出', async () => {
+  const { momentImportStackHtml, momentSpreadHtml, pushCardToImportStack } = await import('../views/snippets.js');
+  const photos = ['photoA.jpg', 'photoB.jpg'];
+  const html = momentImportStackHtml(photos);
+  assert.match(html, /class="moment-spread count-2 is-importing"/);
   assert.match(html, /data-spread-importing="1"/);
-  assert.match(html, /data-depth="0"/);
-  assert.match(html, /data-depth="1"/);
-  assert.match(html, /style="z-index:\s*10"/);
-  assert.match(html, /style="z-index:\s*11"/);
+  assert.match(html, /--rot:-2deg/);
+  assert.match(html, /--rot:2deg/);
+  assert.match(html, /z-index:1/);
+  assert.match(html, /z-index:2/);
+  assert.doesNotMatch(html, /data-depth=/);
 
-  // 校验 styles.css 中朝观众变大淡出阶梯（scale > 1，out/exiting 达 1.28 且 opacity 0）
+  const batch = ['a.jpg', 'b.jpg', 'c.jpg', 'd.jpg', 'e.jpg'];
+  const mid = momentImportStackHtml(batch);
+  const done = momentSpreadHtml(batch);
+  for (const key of ['p:b.jpg', 'p:c.jpg', 'p:d.jpg', 'p:e.jpg']) {
+    assert.match(mid, new RegExp(`data-fan-key="${key}"`));
+    assert.match(done, new RegExp(`data-fan-key="${key}"`));
+  }
+  assert.doesNotMatch(mid, /data-fan-key="p:a\.jpg"/);
+  assert.doesNotMatch(done, /data-fan-key="p:a\.jpg"/);
+  assert.match(done, /class="moment-spread count-4"/);
+  assert.doesNotMatch(done, /is-importing/);
+
   const styles = await read('styles.css');
   assert.match(styles, /\.moment-spread\.is-importing \.moment-spread-card\[data-depth="out"\],\s*\.moment-spread\.is-importing \.moment-spread-card\.is-exiting\s*\{[^}]*scale\(1\.[^}]*opacity:\s*0/);
   assert.match(styles, /\.moment-spread\.is-importing \.moment-spread-card\[data-depth="1"\]\s*\{[^}]*scale\(1\./);
   assert.doesNotMatch(styles, /\.moment-spread\.is-importing \.moment-spread-card\[data-depth="1"\]\s*\{[^}]*scale\(0\./);
 
-  // 测试 pushCardToImportStack 增量添加新卡与旧卡深度推移
   const cards = [];
   const spreadEl = {
     style: { setProperty() {} },
     querySelectorAll: () => cards.filter(c => !c.classList.contains('is-exiting')),
-    appendChild(el) { cards.push(el); }
+    appendChild(el) {
+      const idx = cards.indexOf(el);
+      if (idx >= 0) cards.splice(idx, 1);
+      cards.push(el);
+    }
   };
 
   function makeCard(depth) {
-    const classList = new Set();
+    const classList = new Set(['moment-spread-card']);
     return {
       dataset: { depth: String(depth) },
       style: { zIndex: String(10 + depth) },
@@ -281,22 +298,83 @@ test('叠牌渲染：momentImportStackHtml 与 pushCardToImportStack 锁定朝�
     };
   }
 
-  // 初始 1 张卡片
   cards.push(makeCard(0));
   pushCardToImportStack(spreadEl, 'photoNew.jpg');
-
   assert.equal(cards.length, 2);
-  assert.equal(cards[0].dataset.depth, '1', '旧卡深度从 0 递增到 1');
-  assert.equal(cards[0].style.zIndex, '11', '旧卡 z-index 递增为 11（飘在新卡前面）');
-  assert.equal(cards[1].dataset.depth, '0', '新卡深度设为 0 (最顶层新卡)');
-  assert.equal(cards[1].style.zIndex, '10', '新卡 z-index 为 10');
+  assert.equal(cards[0].style.zIndex, '1', '左侧旧卡落在扇面第 1 槽');
+  assert.equal(cards[1].style.zIndex, '2', '新卡落在扇面最前一槽');
+  assert.equal(cards[0].dataset.depth, undefined);
+  assert.equal(cards[1].dataset.depth, undefined);
 
-  // 测试 depth >= 4 卡片设为 out / exiting，z-index 升至最高 14
-  const oldCard = cards[0];
-  oldCard.dataset.depth = '3';
+  cards.length = 0;
+  const seeded = [];
+  for (let i = 0; i < 4; i += 1) {
+    const card = makeCard(i);
+    cards.push(card);
+    seeded.push(card);
+  }
+  const oldest = seeded[0];
   pushCardToImportStack(spreadEl, 'photoNext.jpg');
-  assert.equal(oldCard.dataset.depth, 'out');
-  assert.equal(oldCard.style.zIndex, '14', 'exiting 卡设为最高 z-index 14');
-  assert.ok(oldCard.classList.contains('is-exiting'));
+  assert.equal(oldest.dataset.depth, 'out');
+  assert.equal(oldest.style.zIndex, '14', '挤出的旧卡 z-index 升到 14');
+  assert.ok(oldest.classList.contains('is-exiting'));
+  assert.equal(cards.includes(oldest), false);
+  assert.equal(cards.length, 4);
+  assert.equal(cards[cards.length - 1].style.zIndex, '4');
+});
+
+test('视频卡用封面原图和播放按钮，视频文件不进 img', async () => {
+  const { momentSpreadHtml, momentCoverFace } = await import('../views/snippets.js');
+  adoptNativeMediaFile('fan-cover.jpg', 'https://media.example/fan-cover.jpg');
+  const ref = 'mine-media://fan-cover.jpg';
+  const full = mediaSource(ref);
+  assert.ok(full);
+  const html = momentSpreadHtml(['shot.jpg'], {
+    videos: [{ poster: ref, video: 'mine-media://fan-clip.mp4', duration: 65 }],
+    progressive: true,
+    interactive: { mode: 'saved', entryId: 'e1' },
+  });
+  assert.match(html, /data-play-snippet-video="e1"/);
+  assert.match(html, /data-video-index="0"/);
+  assert.match(html, /data-view-snippet-photo="e1"/);
+  assert.match(html, /moment-spread-play/);
+  assert.match(html, /play_arrow/);
+  assert.match(html, />1:05</);
+  assert.match(html, /snippet-cover-frame is-video-cover photo-blur-frame is-edge/);
+  const stills = html.match(/<img class="photo-blur-still[^>]*>/g) || [];
+  assert.ok(stills.some(tag => tag.includes(`src="${full}"`) && tag.includes('data-full-cover="1"')));
+  const pads = html.match(/<img class="photo-blur-pad[^>]*>/g) || [];
+  assert.ok(pads.length);
+  pads.forEach(tag => {
+    assert.doesNotMatch(tag, /data-full-cover/);
+    assert.doesNotMatch(tag, /data-progressive/);
+  });
+  assert.doesNotMatch(html, /src="[^"]*fan-clip\.mp4/);
+  assert.doesNotMatch(html, /<video/i);
+
+  const pending = momentSpreadHtml([], {
+    videos: [{ video: 'clip.mp4', poster: 'cover.jpg', duration: 3 }],
+    interactive: { mode: 'pending' },
+  });
+  assert.match(pending, /data-play-pending-snippet-video="0"/);
+  assert.match(pending, /src="cover\.jpg"/);
+  assert.doesNotMatch(pending, /src="[^"]*clip\.mp4/);
+  assert.doesNotMatch(pending, /<video/i);
+
+  const bare = momentSpreadHtml([], { videos: [{ video: 'only.mp4' }], interactive: { mode: 'pending' } });
+  assert.match(bare, /moment-spread-empty/);
+  assert.match(bare, /data-play-pending-snippet-video="0"/);
+  assert.doesNotMatch(bare, /<img/i);
+  assert.doesNotMatch(bare, /<video/i);
+  assert.doesNotMatch(bare, /src=/);
+
+  assert.equal(momentCoverFace('clip.mp4', 'clip.mp4'), '');
+  assert.equal(momentCoverFace('data:video/mp4;base64,aaaa'), '');
+  assert.equal(momentCoverFace('cover.jpg', 'clip.mp4'), 'cover.jpg');
+  assert.equal(momentCoverFace(''), '');
+  assert.equal(momentCoverFace('movie.webm?x=1'), '');
+
+  assert.equal(needsFullResolution({ dataset: {}, getBoundingClientRect: () => ({ width: 80 }), clientWidth: 80 }), false);
+  assert.equal(needsFullResolution({ dataset: { fullCover: '1' }, getBoundingClientRect: () => ({ width: 80 }) }), true);
 });
 
