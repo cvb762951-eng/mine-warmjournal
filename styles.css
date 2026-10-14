@@ -10276,6 +10276,12 @@ body #modal-layer .modal.confirm-sheet .modal-actions .danger { padding: 0 16px 
   border-width: 2.5px;
 }
 
+#quick-photo-preview .quick-photo-overlay .snippet-import-spinner {
+  width: 14px;
+  height: 14px;
+  border-width: 2px;
+}
+
 .snippet-photo-placeholder-thumb {
   display: flex;
   align-items: center;
@@ -10291,29 +10297,68 @@ body #modal-layer .modal.confirm-sheet .modal-actions .danger { padding: 0 16px 
   border-width: 2.5px;
 }
 
-@keyframes snippetCellEnter {
-  0% {
-    opacity: 0;
-    transform: translateY(6px) scale(0.86);
-  }
-  100% {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
+/* 随手拍导入叠牌与转场 */
+.moment-spread.is-importing {
+  --n: 1;
+  --card-w: min(140px, 42%);
 }
 
-.snippet-photo-cell--enter {
-  animation: snippetCellEnter 260ms cubic-bezier(.2, .8, .2, 1) both;
+.moment-spread.is-importing .moment-spread-card,
+.moment-spread.is-transitioning .moment-spread-card {
+  transition: transform var(--spread-dur, 320ms) var(--spread-ease, cubic-bezier(.34, 1.56, .64, 1)),
+              left var(--spread-dur, 320ms) var(--spread-ease, cubic-bezier(.34, 1.56, .64, 1)),
+              opacity var(--spread-dur, 320ms) var(--spread-ease, cubic-bezier(.34, 1.56, .64, 1));
+  will-change: transform, opacity;
+}
+
+.moment-spread.is-importing .moment-spread-card {
+  left: calc(50% - var(--card-w) / 2);
+}
+
+.moment-spread.is-importing .moment-spread-card[data-depth="0"] {
+  z-index: 10;
+  transform: translate3d(0, 0, 0) scale(1);
+  opacity: 1;
+}
+
+.moment-spread.is-importing .moment-spread-card[data-depth="1"] {
+  z-index: 9;
+  transform: translate3d(0, -14px, 0) scale(0.95);
+  opacity: 0.88;
+}
+
+.moment-spread.is-importing .moment-spread-card[data-depth="2"] {
+  z-index: 8;
+  transform: translate3d(0, -28px, 0) scale(0.90);
+  opacity: 0.68;
+}
+
+.moment-spread.is-importing .moment-spread-card[data-depth="3"] {
+  z-index: 7;
+  transform: translate3d(0, -42px, 0) scale(0.85);
+  opacity: 0.48;
+}
+
+.moment-spread.is-importing .moment-spread-card[data-depth="out"],
+.moment-spread.is-importing .moment-spread-card.is-exiting {
+  z-index: 6;
+  transform: translate3d(0, -56px, 0) scale(0.80);
+  opacity: 0;
+  pointer-events: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .snippet-photo-cell--enter {
-    animation: none;
-    opacity: 1;
-    transform: none;
+  .moment-spread.is-importing .moment-spread-card,
+  .moment-spread.is-transitioning .moment-spread-card {
+    transition: none !important;
   }
   .snippet-import-spinner {
     animation-duration: 2s;
   }
+}
+
+:root[data-pl-motion="none"] .moment-spread.is-importing .moment-spread-card,
+:root[data-pl-motion="none"] .moment-spread.is-transitioning .moment-spread-card {
+  transition: none !important;
 }
 
