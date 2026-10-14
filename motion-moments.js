@@ -34,6 +34,10 @@ export const MOMENTS_MOTION = {
   holdSlop: 8,
   liftMs: 180,
   releaseMs: 420,
+  spreadMs: 320,
+  spreadLiteMs: 180,
+  spreadEase: 'cubic-bezier(.34,1.56,.64,1)',
+  spreadLiteEase: 'ease-out',
 };
 
 const EMPH = MOMENTS_MOTION.saveEase;
@@ -118,13 +122,14 @@ export function cardKey(card) {
   return node?.dataset?.viewSnippetPhoto || node?.dataset?.playSnippetVideo || '';
 }
 
-/* ── 运行时 ─────────────────────────────────────────────────────── */
 const hasDom = typeof document !== 'undefined';
 const root = hasDom ? document.documentElement : null;
-const on = () => root?.dataset.theme === 'plain';
-const tier = () => root?.dataset.plMotion || 'rich';
-const rich = () => on() && tier() === 'rich';
-const moving = () => on() && tier() !== 'none' && !prefersReducedMotion();
+const on = () => root?.dataset?.theme === 'plain';
+const tier = () => root?.dataset?.plMotion || 'rich';
+export const moving = () => on() && tier() !== 'none' && !prefersReducedMotion();
+export const rich = () => on() && tier() === 'rich';
+export const isMomentsMoving = () => moving();
+export const isMomentsRich = () => rich();
 const safe = run => { try { return run(); } catch { return null; } };
 
 function springMagnet() {
@@ -220,14 +225,15 @@ export function playSpreadFlyIn(scope = document) {
   if (!moving()) return;
   const spreads = scope.querySelectorAll?.('.moment-spread') || [];
   spreads.forEach(spread => {
+    if (spread.dataset?.spreadImporting === '1' || spread.hasAttribute?.('data-spread-importing') || spread.classList?.contains('is-importing')) return;
     const sig = spread.dataset.spreadSig || '';
     if (!sig || spread.dataset.lastSpreadSig === sig) return;
     spread.dataset.lastSpreadSig = sig;
     const cards = [...spread.querySelectorAll('.moment-spread-card')];
     if (!cards.length) return;
     const isRich = rich();
-    const duration = isRich ? 320 : 180;
-    const easing = isRich ? 'cubic-bezier(.34,1.56,.64,1)' : 'ease-out';
+    const duration = isRich ? MOMENTS_MOTION.spreadMs : MOMENTS_MOTION.spreadLiteMs;
+    const easing = isRich ? MOMENTS_MOTION.spreadEase : MOMENTS_MOTION.spreadLiteEase;
     cards.forEach((card, i) => {
       const comp = getComputedStyle(card);
       const rot = comp.getPropertyValue('--rot').trim() || '0deg';

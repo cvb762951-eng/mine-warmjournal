@@ -1,0 +1,601 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="plain">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>随手拍 · 批量导入叠牌逐张进入演示</title>
+  <link rel="stylesheet" href="../fonts.css">
+  <link rel="stylesheet" href="../performance.css">
+  <link rel="stylesheet" href="../styles.css">
+  <link rel="stylesheet" href="../themes.css">
+  <link rel="stylesheet" href="../themes-plain.css">
+  <link rel="stylesheet" href="../themes-plain-light.css">
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      min-height: 100%;
+      background: #EAF0F8;
+      font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Noto Sans SC", sans-serif;
+      color: #2E343B;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body {
+      padding: 20px 16px 48px;
+      box-sizing: border-box;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .preview-header {
+      width: min(100%, 420px);
+      margin: 0 0 14px;
+      text-align: center;
+    }
+
+    .preview-header h1 {
+      margin: 0 0 6px;
+      font-size: 19px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      color: #2E343B;
+    }
+
+    .preview-header p {
+      margin: 0 0 10px;
+      font-size: 12px;
+      line-height: 1.6;
+      color: #6B7480;
+    }
+
+    .preview-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+      width: min(100%, 420px);
+    }
+
+    .btn-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      height: 34px;
+      padding: 0 16px;
+      border-radius: 999px;
+      border: 1px solid rgba(85, 96, 108, 0.16);
+      background: #FBFCFE;
+      color: #2E343B;
+      font-size: 12.5px;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 1px 3px rgba(46, 52, 59, 0.05);
+      transition: all 0.15s ease;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .btn-pill:hover {
+      background: #F2F6FC;
+    }
+
+    .btn-pill:active {
+      transform: scale(0.97);
+    }
+
+    .btn-pill.primary {
+      background: #4F76BD;
+      color: #FFFFFF;
+      border-color: #4F76BD;
+      box-shadow: 0 2px 8px rgba(79, 118, 189, 0.28);
+    }
+
+    .status-badge {
+      font-size: 11px;
+      color: #55606C;
+      font-family: ui-monospace, monospace;
+      padding: 5px 10px;
+      background: rgba(85, 96, 108, 0.08);
+      border-radius: 6px;
+      display: inline-block;
+    }
+
+    /* 手机外壳容器 (width: min(390px, 100%) 完整适配 390px 视口) */
+    .phone-mockup {
+      position: relative;
+      width: min(390px, 100%);
+      height: 760px;
+      height: min(780px, 90vh);
+      flex-shrink: 0;
+      border-radius: 36px;
+      background: #F4F7FC;
+      border: 8px solid #1E232A;
+      box-shadow: 0 24px 60px rgba(46, 52, 59, 0.18), 0 4px 16px rgba(46, 52, 59, 0.08);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      box-sizing: border-box;
+    }
+
+    /* 手机顶部灵动岛与状态栏装饰 */
+    .mock-status-bar {
+      height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 20px;
+      font-size: 12px;
+      font-weight: 600;
+      color: #2E343B;
+      z-index: 10;
+      flex-shrink: 0;
+      background: #F4F7FC;
+    }
+
+    .mock-island {
+      width: 100px;
+      height: 24px;
+      background: #1E232A;
+      border-radius: 20px;
+      margin: 0 auto;
+    }
+
+    /* 快捷弹窗内容区域 */
+    .mock-sheet-scroll {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px 16px 24px;
+      box-sizing: border-box;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .mock-sheet-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 4px 0 2px;
+    }
+
+    .mock-sheet-head-left .eyebrow {
+      display: block;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      color: #6B7480;
+    }
+
+    .mock-sheet-head-left h2 {
+      margin: 2px 0 0;
+      font-size: 17px;
+      font-weight: 700;
+      color: #2E343B;
+    }
+
+    .mock-caption-box {
+      width: 100%;
+      min-height: 52px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid rgba(85, 96, 108, 0.16);
+      background: #FBFCFE;
+      color: #2E343B;
+      font-size: 13px;
+      box-sizing: border-box;
+      resize: none;
+      font-family: inherit;
+    }
+
+    .mock-capture-bar {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 4px;
+    }
+
+    .mock-action-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      height: 42px;
+      border-radius: 12px;
+      border: 1px solid rgba(85, 96, 108, 0.16);
+      background: #FBFCFE;
+      color: #2E343B;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .mock-action-btn:disabled {
+      opacity: 0.75;
+      cursor: not-allowed;
+      background: rgba(85, 96, 108, 0.06);
+      color: #6B7480;
+    }
+
+    .mock-foot-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: auto;
+      padding-top: 8px;
+    }
+
+    .mock-foot-actions button {
+      flex: 1;
+      height: 42px;
+      border-radius: 12px;
+      border: 0;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .mock-foot-cancel {
+      background: rgba(85, 96, 108, 0.08);
+      color: #55606C;
+    }
+
+    .mock-foot-save {
+      background: #4F76BD;
+      color: #FFFFFF;
+      box-shadow: 0 2px 8px rgba(79, 118, 189, 0.3);
+    }
+
+    .demo-card-content {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: #FFFFFF;
+      user-select: none;
+      position: relative;
+    }
+
+    .demo-card-num {
+      font-size: 26px;
+      font-weight: 800;
+      text-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+      line-height: 1;
+    }
+
+    .demo-card-label {
+      font-size: 11px;
+      font-weight: 600;
+      opacity: 0.9;
+      margin-top: 4px;
+      text-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+    }
+
+    .feature-points {
+      width: min(100%, 420px);
+      margin-top: 20px;
+      padding: 14px 18px;
+      background: #FBFCFE;
+      border-radius: 16px;
+      border: 1px solid rgba(85, 96, 108, 0.12);
+      box-shadow: 0 1px 3px rgba(46, 52, 59, 0.04);
+      box-sizing: border-box;
+    }
+
+    .feature-points h2 {
+      font-size: 13px;
+      margin: 0 0 8px;
+      font-weight: 600;
+      color: #2E343B;
+    }
+
+    .feature-points ul {
+      margin: 0;
+      padding-left: 18px;
+      font-size: 12px;
+      color: #55606C;
+      line-height: 1.7;
+    }
+
+    @media (max-width: 480px) {
+      body {
+        padding: 0;
+      }
+      .phone-mockup {
+        width: 100%;
+        max-width: 100%;
+        margin: 0;
+        height: 100vh;
+        height: 100dvh;
+        border: none;
+        border-radius: 0;
+        box-shadow: none;
+      }
+      .preview-header, .preview-toolbar, .feature-points {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="preview-header">
+    <h1>随手拍 · 批量导入叠牌逐张进入演示</h1>
+    <p>模拟导入 6 张照片：最新张作为顶牌正对用户弹入，旧牌朝观众变大淡出，全部完成后平滑转为扇形叠牌终态。</p>
+  </header>
+
+  <div class="preview-toolbar">
+    <button type="button" class="btn-pill primary" id="replay-btn">
+      <span class="material-symbols-outlined" style="font-size:16px;">replay</span>
+      <span>重播动效</span>
+    </button>
+    <span class="status-badge" id="demo-status-text">准备中 0/6</span>
+  </div>
+
+  <!-- 手机外框容器 -->
+  <div class="phone-mockup">
+    <!-- 状态栏 -->
+    <div class="mock-status-bar">
+      <span>9:41</span>
+      <div class="mock-island"></div>
+      <span>5G</span>
+    </div>
+
+    <!-- 随手拍快捷弹窗内容区域 -->
+    <div class="mock-sheet-scroll">
+      <div class="mock-sheet-head">
+        <div class="mock-sheet-head-left">
+          <span class="eyebrow">QUICK CAPTURE</span>
+          <h2>随手拍</h2>
+        </div>
+      </div>
+
+      <!-- 批量导入进度条 -->
+      <div class="snippet-import-progress" id="demo-import-progress">
+        <div class="snippet-import-progress-text">
+          <span class="material-symbols-outlined">downloading</span>
+          <span id="demo-progress-label">正在添加照片 0/6 张</span>
+          <small id="demo-progress-sub">处理中，可以松手等它跑完</small>
+        </div>
+        <div class="media-progress-bar-wrap">
+          <div class="media-progress-bar-fill" id="demo-progress-fill" style="width: 0%;"></div>
+        </div>
+      </div>
+
+      <!-- 快捷弹窗大预览：叠牌区域 -->
+      <div class="quick-photo-preview" id="quick-photo-preview">
+        <div class="moment-spread is-importing" id="demo-spread" data-spread-importing="1">
+          <!-- 动态进场卡片 -->
+        </div>
+        <span class="quick-photo-overlay" id="demo-overlay">
+          <span class="snippet-import-spinner" aria-hidden="true"></span>
+          <small id="demo-overlay-text">正在添加 0/6 张</small>
+        </span>
+      </div>
+
+      <textarea class="mock-caption-box" placeholder="记录这一刻的灵感与想法…" readonly></textarea>
+
+      <!-- 工具栏按钮 -->
+      <div class="mock-capture-bar">
+        <button type="button" class="mock-action-btn" id="demo-capture-btn" disabled>
+          <span class="snippet-import-spinner" aria-hidden="true"></span>
+          <span id="demo-btn-text">正在添加 0/6…</span>
+        </button>
+        <button type="button" class="mock-action-btn" id="demo-pick-btn" disabled>
+          <span class="snippet-import-spinner" aria-hidden="true"></span>
+          <span>处理中</span>
+        </button>
+      </div>
+
+      <div class="mock-foot-actions">
+        <button type="button" class="mock-foot-cancel">取消</button>
+        <button type="button" class="mock-foot-save">发布随手拍</button>
+      </div>
+    </div>
+  </div>
+
+  <section class="feature-points">
+    <h2>动效与交互特性</h2>
+    <ul>
+      <li><strong>顶牌飞入：</strong>新照片压缩完成后立即成为最前面、正对用户的顶牌，采用 MOMENTS_MOTION.spreadMs (320ms) 与 spreadEase 曲线进入。</li>
+      <li><strong>旧牌朝观众变大淡出：</strong>旧牌沿 depth 0→1→2→3 阶梯平滑朝观众放大并淡出（scale 1→1.06→1.12→1.18），z-index 递增飘在前面，第 4 张以外更旧的卡片放大至 1.28 透明度归零后安全移除。</li>
+      <li><strong>平滑转为扇形终态：</strong>整批 6 张完成后，卡片通过 CSS transition 平滑展开到扇形位置（附 +2 查看全部角标），预设 lastSpreadSig 避免整组重飞。</li>
+      <li><strong>纯 CSS 旋转环：</strong>小号 .snippet-import-spinner (14px) 优雅嵌入底栏 overlay，不打断叠牌展示。</li>
+      <li><strong>尊重动效减弱偏好：</strong>已配置 prefers-reduced-motion 与 data-pl-motion="none" 降级。</li>
+    </ul>
+  </section>
+
+  <script>
+    (function () {
+      const TOTAL = 6;
+      const STEP_MS = 600;
+
+      // 6 种清简和谐的纯 CSS 渐变色块，无外部网络依赖
+      const GRADIENTS = [
+        'linear-gradient(135deg, #4A6FA5, #7D9AC4)',
+        'linear-gradient(135deg, #5B8266, #8BA393)',
+        'linear-gradient(135deg, #D48C58, #E2AF8E)',
+        'linear-gradient(135deg, #6C5B7B, #9E88AC)',
+        'linear-gradient(135deg, #355C7D, #5E81A2)',
+        'linear-gradient(135deg, #2A9D8F, #60B7AC)'
+      ];
+
+      // 复用 MOMENTS_MOTION 常量
+      const SPREAD_MS = 320;
+      const SPREAD_EASE = 'cubic-bezier(.34,1.56,.64,1)';
+
+      const spread = document.getElementById('demo-spread');
+      const progressFill = document.getElementById('demo-progress-fill');
+      const progressLabel = document.getElementById('demo-progress-label');
+      const progressSub = document.getElementById('demo-progress-sub');
+      const captureBtn = document.getElementById('demo-capture-btn');
+      const pickBtn = document.getElementById('demo-pick-btn');
+      const btnText = document.getElementById('demo-btn-text');
+      const statusText = document.getElementById('demo-status-text');
+      const overlayText = document.getElementById('demo-overlay-text');
+      const overlay = document.getElementById('demo-overlay');
+      const replayBtn = document.getElementById('replay-btn');
+
+      let currentStep = 0;
+      let timer = null;
+
+      function updateProgress(done) {
+        const percent = Math.round((done / TOTAL) * 100);
+        progressFill.style.width = percent + '%';
+        progressLabel.textContent = done < TOTAL ? ('正在添加照片 ' + done + '/' + TOTAL + ' 张') : ('已加入 ' + TOTAL + ' 张照片');
+        progressSub.textContent = done < TOTAL ? '正在压缩保存，松手等它跑完就好' : '已全部添加完成';
+        statusText.textContent = done < TOTAL ? ('处理中 ' + done + '/' + TOTAL) : '完成 (已加入 6 张)';
+
+        if (done < TOTAL) {
+          (document.getElementById('demo-btn-text')||{}).textContent = '正在添加 ' + done + '/' + TOTAL + '…';
+          (document.getElementById('demo-overlay-text')||{}).textContent = '正在添加 ' + done + '/' + TOTAL + ' 张';
+          captureBtn.disabled = true;
+          pickBtn.disabled = true;
+        } else {
+          captureBtn.innerHTML = '<span class="material-symbols-outlined">photo_camera</span>再拍';
+          pickBtn.innerHTML = '<span class="material-symbols-outlined">photo_library</span>再选';
+          captureBtn.disabled = false;
+          pickBtn.disabled = false;
+        }
+      }
+
+      function pushCard(index) {
+        // 旧牌平滑递进深度
+        const existingCards = [...spread.querySelectorAll('.moment-spread-card:not(.is-exiting)')];
+        existingCards.forEach(function (card) {
+          const cur = Number(card.dataset.depth || 0);
+          const next = cur + 1;
+          if (next >= 4) {
+            card.dataset.depth = 'out';
+            card.classList.add('is-exiting');
+            card.style.zIndex = '14';
+            setTimeout(function () { card.remove(); }, SPREAD_MS);
+          } else {
+            card.dataset.depth = String(next);
+            card.style.zIndex = String(10 + next);
+          }
+        });
+
+        // 新顶牌正对用户进入
+        const newCard = document.createElement('span');
+        newCard.className = 'moment-spread-card';
+        newCard.dataset.depth = '0';
+        newCard.style.zIndex = '10';
+        newCard.innerHTML = '<span class="moment-spread-frame photo-blur-frame is-edge">' +
+          '<div class="demo-card-content" style="background:' + GRADIENTS[index] + '">' +
+            '<span class="demo-card-num">' + (index + 1) + '</span>' +
+            '<span class="demo-card-label">Photo ' + (index + 1) + '</span>' +
+          '</div>' +
+        '</span>';
+        spread.appendChild(newCard);
+
+        if (typeof newCard.animate === 'function') {
+          newCard.animate([
+            { transform: 'translate3d(0, 40px, 0) scale(.9)', opacity: 0 },
+            { transform: 'translate3d(0, 0, 0) scale(1)', opacity: 1 }
+          ], {
+            duration: SPREAD_MS,
+            easing: SPREAD_EASE,
+            fill: 'backwards'
+          });
+        }
+      }
+
+      function transitionToFan() {
+        // 终态：前 4 张扇形展开，带 +2 查看全部角标
+        const n = 4;
+        const sig = '6:photo1,photo2,photo3,photo4';
+        spread.dataset.spreadSig = sig;
+        spread.dataset.lastSpreadSig = sig;
+        delete spread.dataset.spreadImporting;
+        spread.removeAttribute('data-spread-importing');
+
+        spread.style.setProperty('--spread-dur', SPREAD_MS + 'ms');
+        spread.style.setProperty('--spread-ease', SPREAD_EASE);
+        spread.classList.remove('is-importing');
+        spread.className = 'moment-spread count-' + n + ' is-transitioning';
+
+        const existingCards = [...spread.querySelectorAll('.moment-spread-card:not(.is-exiting)')];
+        while (existingCards.length < n) {
+          const c = document.createElement('span');
+          c.className = 'moment-spread-card';
+          spread.appendChild(c);
+          existingCards.push(c);
+        }
+        while (existingCards.length > n) {
+          const extra = existingCards.pop();
+          extra.remove();
+        }
+
+        existingCards.forEach(function (card, i) {
+          const rot = (i - (n - 1) / 2) * 4;
+          const lift = i % 2 ? 10 : -6;
+          card.removeAttribute('data-depth');
+          delete card.dataset.depth;
+          card.classList.remove('is-exiting');
+          card.style.setProperty('--i', String(i));
+          card.style.setProperty('--rot', rot + 'deg');
+          card.style.setProperty('--lift', lift + 'px');
+          card.style.zIndex = String(i + 1);
+
+          const more = (TOTAL > 4 && i === n - 1)
+            ? '<button type="button" class="moment-spread-more" aria-label="查看全部 6 张照片">+' + (TOTAL - 4) + '</button>'
+            : '';
+          card.innerHTML = '<span class="moment-spread-frame photo-blur-frame is-edge">' +
+            '<div class="demo-card-content" style="background:' + GRADIENTS[i] + '">' +
+              '<span class="demo-card-num">' + (i + 1) + '</span>' +
+              '<span class="demo-card-label">Photo ' + (i + 1) + '</span>' +
+            '</div>' +
+          '</span>' + more;
+        });
+
+        setTimeout(function () {
+          spread.classList.remove('is-transitioning');
+        }, SPREAD_MS);
+
+        overlay.innerHTML = '<small>6 张照片</small><button type="button" class="quick-photo-view-all plain-moment-btn">查看全部</button>';
+      }
+
+      function addNextPhoto() {
+        if (currentStep >= TOTAL) {
+          transitionToFan();
+          updateProgress(TOTAL);
+          timer = setTimeout(startDemo, 3600);
+          return;
+        }
+
+        pushCard(currentStep);
+        currentStep++;
+        updateProgress(currentStep);
+
+        timer = setTimeout(addNextPhoto, STEP_MS);
+      }
+
+      function startDemo() {
+        if (timer) clearTimeout(timer);
+        currentStep = 0;
+        spread.innerHTML = '';
+        spread.className = 'moment-spread is-importing';
+        spread.dataset.spreadImporting = '1';
+        spread.style.removeProperty('--spread-dur');
+        spread.style.removeProperty('--spread-ease');
+
+        overlay.innerHTML = '<span class="snippet-import-spinner" aria-hidden="true"></span><small id="demo-overlay-text">正在添加 0/6 张</small>';
+        captureBtn.innerHTML = '<span class="snippet-import-spinner" aria-hidden="true"></span><span id="demo-btn-text">正在添加 0/6…</span>';
+        pickBtn.innerHTML = '<span class="snippet-import-spinner" aria-hidden="true"></span><span>处理中</span>';
+
+        updateProgress(0);
+        timer = setTimeout(addNextPhoto, STEP_MS);
+      }
+
+      replayBtn.addEventListener('click', startDemo);
+
+      startDemo();
+    })();
+  </script>
+</body>
+</html>

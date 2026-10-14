@@ -15,6 +15,7 @@ import { showVideoFramePicker } from '../video-frame-picker.js';
 import { applyVideoCrop, croppedFrame } from '../video-crop.js';
 import { aiSuggestStructure, applySuggestion } from '../ai.js';
 import { deckCutDecision, prefersReducedMotion } from '../motion.js';
+import { MOMENTS_MOTION, isMomentsMoving, isMomentsRich } from '../motion-moments.js';
 import { openMediaDetail } from './media.js';
 import { normalizeQuickTag, quickTagList, recordQuickTag, addQuickTag, removeQuickTag } from '../quick-tags.js';
 
@@ -336,7 +337,7 @@ function snippetStreamCard(item, lazy = true) {
           ? `<button type="button" class="snippet-cover-frame is-video-cover photo-blur-frame is-edge" data-snippet-video-album="${entry.id}" aria-label="浏览 ${videos.length} 段视频">${snippetCoverImage(cover, entry.text || '随手拍', lazy)}</button>`
           : `<div class="snippet-cover-frame is-video-cover photo-blur-frame is-edge">${snippetCoverImage(cover, entry.text || '随手拍', lazy)}</div>`}${videoDurationStamp(videos[0])}`
         : videos.length ? `<div class="snippet-video-stream-placeholder"><span class="material-symbols-outlined">live_tv</span><small>在线视频</small></div>${videoDurationStamp(videos[0])}` : '';
-    const segments = videos.length > 1 ? `<div class="snippet-video-segments" aria-label="这条记录中的视频">${videos.map((item, index) => `<button type="button" class="photo-blur-frame is-edge" data-play-snippet-video="${entry.id}" data-video-index="${index}">${item.poster ? photoFrameLayersHtml(imgSrc(item.poster), { alt: `第 ${index + 1} 段视频封面`, padClass: 'snippet-cover-blur', stillClass: 'snippet-cover-main', lazy }) : '<span class="material-symbols-outlined">stream</span>'}<small>${index + 1}</small>${videoDurationStamp(item)}</button>`).join('')}</div>` : '';
+    const segments = videos.length > 1 ? `<div class="snippet-video-segments" aria-label="这条记录中的视频">${videos.map((item, index) => `<button type="button" class="photo-blur-frame is-edge" data-play-snippet-video="${entry.id}" data-video-index="${index}">${item.poster ? snippetSegmentPoster(item.poster, `第 ${index + 1} 段视频封面`, lazy) : '<span class="material-symbols-outlined">stream</span>'}<small>${index + 1}</small>${videoDurationStamp(item)}</button>`).join('')}</div>` : '';
     const localVideoIndex = videos.findIndex(item => item.sourceType !== 'hls' && !isHlsAddress(item.video));
     return `<article class="snippet-item-card"><div class="snippet-visual-wrap">${visual}${badge}</div>${segments}<div class="snippet-item-meta"><span>${time ? `${pad2(time.getHours())}:${pad2(time.getMinutes())} · 随手拍` : '随手拍'}</span>${tag ? `<span style="color:var(--sage-green);font-weight:700">#${esc(tag)}</span>` : ''}</div>${entry.text ? `<p class="snippet-item-text">${esc(entry.text)}</p>` : ''}<div class="snippet-item-actions"><button data-edit-snippet="${entry.id}">编辑</button><button class="danger" data-delete-snippet="${entry.id}">删除</button>${videos.length ? `<button class="view" data-play-snippet-video="${entry.id}" data-video-index="0"><span class="material-symbols-outlined">play_circle</span>播放视频</button>` : ''}${localVideoIndex >= 0 ? `<button class="view" data-refresh-video-poster="${entry.id}" data-video-index="${localVideoIndex}"><span class="material-symbols-outlined">image</span>选择封面</button>` : ''}${photos.length ? `<button class="view" data-view-snippet-photo="${entry.id}" data-photo-index="0">查看照片</button>` : ''}</div></article>`;
   }
@@ -365,6 +366,15 @@ function snippetCoverImage(source, alt = '', lazy = true) {
   const url = thumbRef ? esc(progressiveSource(source)) : imgSrc(source);
   return photoFrameLayersHtml(url, { alt, padClass: 'snippet-cover-blur', stillClass: 'snippet-cover-main', lazy, thumbRef, progressive: Boolean(thumbRef) });
 }
+
+/* 视频分段封面是小卡片：480 缩略图已足够，不升级到原图（绝不带 data-progressive）。
+   未生成缩略图时先用 progressiveSource 占位，避免 mine-media:// 未 warm 时变成 src="" 导致裂图。 */
+export function snippetSegmentPoster(poster, alt = '', lazy = true) {
+  const thumbRef = thumbKeyFor(poster) ? poster : '';
+  const url = thumbRef ? esc(progressiveSource(poster)) : imgSrc(poster);
+  return photoFrameLayersHtml(url, { alt, padClass: 'snippet-cover-blur', stillClass: 'snippet-cover-main', lazy, thumbRef, progressive: false });
+}
+
 
 /* 照片格用同一套做法（2026-10-09 用户要求「竖屏照片也按这个风格处理」）：
    底层同一张图放大虚化铺满，上层完整居中显示。
@@ -430,7 +440,16 @@ function aiStructureCard(item) {
   return `<div class="ai-structure-card"><div class="ai-structure-head"><span class="material-symbols-outlined">auto_awesome</span><div><strong>AI 整理</strong><small>标签 · 待办 · 一句话摘要</small></div></div><button type="button" id="ai-structure-run"><span class="material-symbols-outlined">auto_awesome</span>整理内容</button><div id="ai-structure-result"></div></div>`;
 }
 
-export function momentSpreadHtml(photos) {
+export function momentImportStackHtml(photos = []) {
+  const cards = (photos || []).slice(0, 4).map((photo, depth) => {
+    const frame = `<span class="moment-spread-frame photo-blur-frame is-edge">${photoFrameLayersHtml(imgSrc(photo), { alt: '待保存照片', padClass: 'moment-spread-blur', stillClass: 'moment-spread-still' })}</span>`;
+    return `<span class="moment-spread-card" data-depth="${depth}" style="z-index:${10 + depth}">${frame}</span>`;
+  }).join('');
+  return `<div class="moment-spread is-importing" data-spread-importing="1" data-spread-sig="importing" data-last-spread-sig="importing">${cards}</div>`;
+}
+
+export function momentSpreadHtml(photos, { importing = false } = {}) {
+  if (importing) return momentImportStackHtml(photos);
   if (!photos || !photos.length) return '';
   const total = photos.length;
   const n = Math.min(total, 4);
@@ -446,11 +465,83 @@ export function momentSpreadHtml(photos) {
   return `<div class="moment-spread count-${n}" data-spread-sig="${esc(sig)}">${cards}</div>`;
 }
 
+export function pushCardToImportStack(spread, photo) {
+  if (!spread) return;
+  const canMove = typeof isMomentsMoving === 'function' ? isMomentsMoving() : false;
+  const isRich = typeof isMomentsRich === 'function' ? isMomentsRich() : true;
+  const duration = isRich ? MOMENTS_MOTION.spreadMs : MOMENTS_MOTION.spreadLiteMs;
+  const easing = isRich ? MOMENTS_MOTION.spreadEase : MOMENTS_MOTION.spreadLiteEase;
+
+  if (canMove) {
+    spread.style.setProperty('--spread-dur', `${duration}ms`);
+    spread.style.setProperty('--spread-ease', easing);
+  } else {
+    spread.style.setProperty('--spread-dur', '0ms');
+  }
+
+  const existingCards = [...spread.querySelectorAll('.moment-spread-card:not(.is-exiting)')];
+  existingCards.forEach(card => {
+    const curDepth = Number(card.dataset.depth ?? 0);
+    const nextDepth = curDepth + 1;
+    if (nextDepth >= 4) {
+      card.dataset.depth = 'out';
+      card.classList.add('is-exiting');
+      card.style.zIndex = '14';
+      if (canMove) {
+        setTimeout(() => card.remove(), duration);
+      } else {
+        card.remove();
+      }
+    } else {
+      card.dataset.depth = String(nextDepth);
+      card.style.zIndex = String(10 + nextDepth);
+    }
+  });
+
+  const newCard = document.createElement('span');
+  newCard.className = 'moment-spread-card';
+  newCard.dataset.depth = '0';
+  newCard.style.zIndex = '10';
+  const frame = `<span class="moment-spread-frame photo-blur-frame is-edge">${photoFrameLayersHtml(imgSrc(photo), { alt: '待保存照片', padClass: 'moment-spread-blur', stillClass: 'moment-spread-still' })}</span>`;
+  newCard.innerHTML = frame;
+  spread.appendChild(newCard);
+
+  if (canMove && typeof newCard.animate === 'function') {
+    newCard.animate([
+      { transform: 'translate3d(0, 40px, 0) scale(.9)', opacity: 0 },
+      { transform: 'translate3d(0, 0, 0) scale(1)', opacity: 1 }
+    ], {
+      duration,
+      easing,
+      fill: 'backwards'
+    });
+  }
+}
+
+let pendingSnippetImportSlots = null;
+
 function snippetPhotoGrid() {
-  if (!pendingSnippetPhotos.length) return '<div class="snippet-photo-empty"><span class="material-symbols-outlined">photo_camera</span><strong>拍下此刻</strong><small>也可以从相册选择，可连续添加</small></div>';
-  const spread = momentSpreadHtml(pendingSnippetPhotos);
+  if (!pendingSnippetPhotos.length && !pendingSnippetImportSlots) return '<div class="snippet-photo-empty"><span class="material-symbols-outlined">photo_camera</span><strong>拍下此刻</strong><small>也可以从相册选择，可连续添加</small></div>';
+  const spread = snippetPhotoImporting
+    ? momentImportStackHtml(pendingSnippetPhotos.slice(-4).reverse())
+    : momentSpreadHtml(pendingSnippetPhotos);
   const manage = `<div class="moment-spread-manage"><button type="button" class="moment-spread-manage-btn" data-moment-spread-all><span class="moment-spread-manage-open">查看全部</span><span class="moment-spread-manage-close">收起</span></button></div>`;
-  const grid = `<div class="snippet-photo-grid-inner">${pendingSnippetPhotos.map((photo, index) => `<div class="snippet-photo-cell"><button type="button" class="snippet-photo-thumb photo-blur-frame is-edge" data-view-pending-snippet-photo="${index}" aria-label="查看第 ${index + 1} 张">${snippetPhotoImage(photo, `待保存照片 ${index + 1}`)}${photoHasLiveMark(photo, pendingSnippetLive)}</button><button type="button" class="snippet-photo-remove" data-remove-pending-snippet-photo="${index}" aria-label="删除第 ${index + 1} 张"><span class="material-symbols-outlined">close</span></button></div>`).join('')}</div>`;
+  let cellsHtml = '';
+  if (pendingSnippetImportSlots) {
+    const { basePhotos, slots } = pendingSnippetImportSlots;
+    const baseCells = basePhotos.map((photo, index) => `<div class="snippet-photo-cell"><button type="button" class="snippet-photo-thumb photo-blur-frame is-edge" data-view-pending-snippet-photo="${index}" aria-label="查看第 ${index + 1} 张">${snippetPhotoImage(photo, `待保存照片 ${index + 1}`)}${photoHasLiveMark(photo, pendingSnippetLive)}</button><button type="button" class="snippet-photo-remove" data-remove-pending-snippet-photo="${index}" aria-label="删除第 ${index + 1} 张"><span class="material-symbols-outlined">close</span></button></div>`);
+    const slotCells = slots.map((photo, k) => {
+      if (photo) {
+        const photoIndex = basePhotos.length + slots.slice(0, k).filter(Boolean).length;
+        return `<div class="snippet-photo-cell" data-slot-index="${k}"><button type="button" class="snippet-photo-thumb photo-blur-frame is-edge" data-view-pending-snippet-photo="${photoIndex}" aria-label="查看第 ${photoIndex + 1} 张">${snippetPhotoImage(photo, `待保存照片 ${photoIndex + 1}`)}${photoHasLiveMark(photo, pendingSnippetLive)}</button><button type="button" class="snippet-photo-remove" data-remove-pending-snippet-photo="${photoIndex}" aria-label="删除第 ${photoIndex + 1} 张"><span class="material-symbols-outlined">close</span></button></div>`;
+      }
+      return `<div class="snippet-photo-cell snippet-photo-cell--placeholder" data-slot-index="${k}" aria-label="正在处理照片"><div class="snippet-photo-thumb photo-blur-frame is-edge snippet-photo-placeholder-thumb"><span class="snippet-import-spinner" aria-hidden="true"></span></div></div>`;
+    });
+    cellsHtml = baseCells.concat(slotCells).join('');
+  } else {
+    cellsHtml = pendingSnippetPhotos.map((photo, index) => `<div class="snippet-photo-cell"><button type="button" class="snippet-photo-thumb photo-blur-frame is-edge" data-view-pending-snippet-photo="${index}" aria-label="查看第 ${index + 1} 张">${snippetPhotoImage(photo, `待保存照片 ${index + 1}`)}${photoHasLiveMark(photo, pendingSnippetLive)}</button><button type="button" class="snippet-photo-remove" data-remove-pending-snippet-photo="${index}" aria-label="删除第 ${index + 1} 张"><span class="material-symbols-outlined">close</span></button></div>`).join('');
+  }
+  const grid = `<div class="snippet-photo-grid-inner">${cellsHtml}</div>`;
   return `${spread}${manage}${grid}`;
 }
 
@@ -460,6 +551,7 @@ function bindSnippetPhotoGrid() {
     $('#snippet-photo-grid')?.classList.toggle('is-managing');
   });
   $$('[data-remove-pending-snippet-photo]').forEach(button => button.onclick = () => {
+    if (snippetPhotoImporting) return show('照片还在添加中，稍等一下');
     const index = Number(button.dataset.removePendingSnippetPhoto);
     const removed = pendingSnippetPhotos[index];
     pendingSnippetPhotos.splice(index, 1);
@@ -510,20 +602,26 @@ function refreshSnippetPhotoGrid() {
   const grid = $('#snippet-photo-grid');
   if (grid) {
     const wasManaging = grid.classList.contains('is-managing');
+    // 导入结束时叠牌正在过渡到扇形终态：保留这个节点，避免整块重建后整组再飞入一次
+    const settling = grid.querySelector('.moment-spread.is-transitioning');
     grid.innerHTML = snippetPhotoGrid();
-    if (wasManaging) grid.classList.add('is-managing');
+    const fresh = grid.querySelector('.moment-spread');
+    if (settling && fresh && !snippetPhotoImporting) fresh.replaceWith(settling);
+    if (wasManaging || snippetPhotoImporting) grid.classList.add('is-managing');
     bindSnippetPhotoGrid();
   }
   const full = pendingSnippetPhotos.length >= SNIPPET_PHOTO_LIMIT;
-  const captureButton = $('#capture-snippet-photo');
-  if (captureButton) {
-    captureButton.disabled = full;
-    captureButton.innerHTML = `<span class="material-symbols-outlined">photo_camera</span>${pendingSnippetPhotos.length ? '再拍' : '拍照'}`;
-  }
-  const pickButton = $('#pick-snippet-photo');
-  if (pickButton) {
-    pickButton.disabled = full;
-    pickButton.innerHTML = `<span class="material-symbols-outlined">photo_library</span>${pendingSnippetPhotos.length ? '再选' : '选图'}`;
+  if (!snippetPhotoImporting) {
+    const captureButton = $('#capture-snippet-photo');
+    if (captureButton) {
+      captureButton.disabled = full;
+      captureButton.innerHTML = `<span class="material-symbols-outlined">photo_camera</span>${pendingSnippetPhotos.length ? '再拍' : '拍照'}`;
+    }
+    const pickButton = $('#pick-snippet-photo');
+    if (pickButton) {
+      pickButton.disabled = full;
+      pickButton.innerHTML = `<span class="material-symbols-outlined">photo_library</span>${pendingSnippetPhotos.length ? '再选' : '选图'}`;
+    }
   }
 }
 
@@ -540,7 +638,6 @@ function pickSnippetPhotoWithInput(useCamera = false) {
         if (pendingSnippetPhotos.length + files.length > SNIPPET_PHOTO_LIMIT) throw new Error(`每条随手拍最多 ${SNIPPET_PHOTO_LIMIT} 张照片`);
         if (files.some(file => !isSupportedJournalPhoto(file))) throw new Error('仅支持 JPG、PNG 或 WebP 图片');
         const { compressed, failed, liveAdded } = await importSnippetPhotos(files);
-        pendingSnippetPhotos.push(...compressed);
         refreshSnippetPhotoGrid();
         show(compressed.length ? `已加入 ${compressed.length} 张照片${liveAdded ? `，${liveAdded} 张实况仍可播放` : ''}${failed ? `，${failed} 张无法读取已跳过` : ''}` : `这批照片都未能读取，请换一批试试`);
         resolve();
@@ -595,7 +692,7 @@ function markSnippetImportButtons(done, total) {
     if (!snippetImportButtonIdleHtml.has(selector)) snippetImportButtonIdleHtml.set(selector, button.innerHTML);
     button.disabled = true;
     // 进度直接写进按钮：用户刚点过这里，视线就在这。
-    button.innerHTML = `<span class="material-symbols-outlined">hourglass_top</span>正在添加 ${done}/${total}…`;
+    button.innerHTML = `<span class="snippet-import-spinner" aria-hidden="true"></span>正在添加 ${done}/${total}…`;
   });
 }
 
@@ -609,6 +706,15 @@ function restoreSnippetImportButtons() {
   snippetImportButtonIdleHtml.clear();
 }
 
+function updateSnippetGridSlot(slotIndex, result, baseCount, slots) {
+  const cell = $(`#snippet-photo-grid [data-slot-index="${slotIndex}"]`);
+  if (!cell) return;
+  const photoIndex = baseCount + slots.slice(0, slotIndex).filter(Boolean).length;
+  cell.className = 'snippet-photo-cell';
+  cell.innerHTML = `<button type="button" class="snippet-photo-thumb photo-blur-frame is-edge" data-view-pending-snippet-photo="${photoIndex}" aria-label="查看第 ${photoIndex + 1} 张">${snippetPhotoImage(result, `待保存照片 ${photoIndex + 1}`)}${photoHasLiveMark(result, pendingSnippetLive)}</button><button type="button" class="snippet-photo-remove" data-remove-pending-snippet-photo="${photoIndex}" aria-label="删除第 ${photoIndex + 1} 张"><span class="material-symbols-outlined">close</span></button>`;
+  bindSnippetPhotoGrid();
+}
+
 function showSnippetImportProgress(done, total) {
   const node = snippetImportProgressNode();
   node.hidden = false;
@@ -616,24 +722,138 @@ function showSnippetImportProgress(done, total) {
   node.innerHTML = `<div class="snippet-import-progress-text"><span class="material-symbols-outlined">downloading</span>正在添加照片 ${done}/${total} 张<small>处理中，可以松手等它跑完</small></div><div class="media-progress-bar-wrap"><div class="media-progress-bar-fill" style="width:${percent}%"></div></div>`;
   node.scrollIntoView?.({ block: 'nearest', behavior: 'smooth' });
   markSnippetImportButtons(done, total);
-  // 快捷弹窗里最显眼的就是那块大预览，直接把进度铺上去。
+
+  // 快捷弹窗里保留叠牌，在叠牌下方/overlay 位置显示「正在添加 n/N 张」，并配小的 .snippet-import-spinner
   const preview = $('#quick-photo-preview');
   if (preview) {
     preview.dataset.importBusy = '1';
-    preview.innerHTML = `<span class="quick-photo-empty-icon material-symbols-outlined">hourglass_top</span><strong>正在添加 ${done}/${total} 张</strong><small>正在压缩保存，松手等它跑完就好</small>`;
+    let spread = preview.querySelector('.moment-spread');
+    if (!spread) {
+      const visual = momentImportStackHtml(pendingSnippetPhotos.slice(-4).reverse());
+      preview.innerHTML = `${visual}<span class="quick-photo-overlay"></span>`;
+      spread = preview.querySelector('.moment-spread');
+    }
+    if (spread && !spread.classList.contains('is-importing')) {
+      // 已有扇形叠牌转入导入态：去掉 count-N（清简主题 count-N 的 left 规则优先级更高），最后一张作为顶牌
+      spread.className = 'moment-spread is-importing';
+      const cards = [...spread.querySelectorAll('.moment-spread-card')].reverse();
+      cards.forEach((card, depth) => {
+        card.querySelector('.moment-spread-more')?.remove();
+        if (depth >= 4) { card.remove(); return; }
+        card.dataset.depth = String(depth);
+        card.style.zIndex = String(10 + depth);
+      });
+    }
+    if (spread) {
+      spread.classList.add('is-importing');
+      spread.dataset.spreadImporting = '1';
+      spread.dataset.lastSpreadSig = spread.dataset.spreadSig || 'importing';
+    }
+    let overlay = preview.querySelector('.quick-photo-overlay');
+    if (!overlay) {
+      overlay = document.createElement('span');
+      overlay.className = 'quick-photo-overlay';
+      preview.appendChild(overlay);
+    }
+    overlay.innerHTML = `<span class="snippet-import-spinner" aria-hidden="true"></span><small>正在添加 ${done}/${total} 张</small>`;
   }
 }
 
-function hideSnippetImportProgress() {
+function finishSnippetPhotoImport() {
   const node = $('#snippet-photo-import-progress');
   if (node) node.hidden = true;
   restoreSnippetImportButtons();
+
+  const total = pendingSnippetPhotos.length;
+  const n = Math.min(total, 4);
+  const first4 = pendingSnippetPhotos.slice(0, n);
+  const sig = `${total}:${first4.map(p => typeof p === 'string' ? p : (p?.still || p?.src || '')).join(',')}`;
+
+  const canMove = typeof isMomentsMoving === 'function' ? isMomentsMoving() : false;
+  const isRich = typeof isMomentsRich === 'function' ? isMomentsRich() : true;
+  const duration = isRich ? MOMENTS_MOTION.spreadMs : MOMENTS_MOTION.spreadLiteMs;
+  const easing = isRich ? MOMENTS_MOTION.spreadEase : MOMENTS_MOTION.spreadLiteEase;
+
+  const spreads = document.querySelectorAll('.moment-spread');
+  spreads.forEach(spread => {
+    if (!total) {
+      spread.remove();
+      return;
+    }
+    spread.dataset.spreadSig = sig;
+    spread.dataset.lastSpreadSig = sig;
+    delete spread.dataset.spreadImporting;
+    spread.removeAttribute?.('data-spread-importing');
+
+    if (canMove) {
+      spread.style.setProperty('--spread-dur', `${duration}ms`);
+      spread.style.setProperty('--spread-ease', easing);
+      spread.classList.remove('is-importing');
+      spread.className = `moment-spread count-${n} is-transitioning`;
+
+      const existingCards = [...spread.querySelectorAll('.moment-spread-card:not(.is-exiting)')];
+      while (existingCards.length < n) {
+        const c = document.createElement('span');
+        c.className = 'moment-spread-card';
+        spread.appendChild(c);
+        existingCards.push(c);
+      }
+      while (existingCards.length > n) {
+        const extra = existingCards.pop();
+        extra.remove();
+      }
+      existingCards.forEach((card, i) => {
+        const photo = first4[i];
+        const rot = n === 1 ? 0 : (i - (n - 1) / 2) * 4;
+        const lift = n === 1 ? 0 : (i % 2 ? 10 : -6);
+        card.removeAttribute?.('data-depth');
+        delete card.dataset.depth;
+        card.classList.remove('is-exiting');
+        card.style.setProperty('--i', String(i));
+        card.style.setProperty('--rot', `${rot}deg`);
+        card.style.setProperty('--lift', `${lift}px`);
+        card.style.zIndex = String(i + 1);
+        const more = (total > 4 && i === n - 1) ? `<button type="button" class="moment-spread-more" data-moment-spread-all aria-label="查看全部 ${total} 张照片">+${total - 4}</button>` : '';
+        const frame = `<span class="moment-spread-frame photo-blur-frame is-edge">${photoFrameLayersHtml(imgSrc(photo), { alt: `待保存照片 ${i + 1}`, padClass: 'moment-spread-blur', stillClass: 'moment-spread-still' })}</span>`;
+        card.innerHTML = `${frame}${more}`;
+      });
+
+      setTimeout(() => {
+        spread.classList.remove('is-transitioning');
+      }, duration);
+    } else {
+      spread.outerHTML = momentSpreadHtml(pendingSnippetPhotos);
+      const newSpread = document.querySelector(`[data-spread-sig="${sig}"]`);
+      if (newSpread) {
+        newSpread.dataset.lastSpreadSig = sig;
+      }
+    }
+  });
+
   const preview = $('#quick-photo-preview');
-  if (preview?.dataset.importBusy) {
+  if (preview?.dataset?.importBusy) {
     delete preview.dataset.importBusy;
-    refreshQuickPhotoPreview();
   }
+  if (preview) {
+    let overlay = preview.querySelector('.quick-photo-overlay');
+    if (!total && !pendingSnippetVideos.length) {
+      preview.innerHTML = quickPhotoPreview();
+    } else if (overlay) {
+      const liveCount = pendingSnippetLive.filter(item => pendingSnippetPhotos.includes(item.still)).length;
+      const viewAllBtn = total > 0 ? '<button type="button" class="quick-photo-view-all plain-moment-btn" data-moment-spread-all>查看全部</button>' : '';
+      const bits = [];
+      if (total) bits.push(`${total} 张照片`);
+      if (liveCount) bits.push(`${liveCount} 张实况`);
+      if (pendingSnippetVideos.length) bits.push(`${pendingSnippetVideos.length} 段视频`);
+      overlay.innerHTML = `<small>${bits.join(' · ')}</small>${viewAllBtn}`;
+    }
+  }
+
   refreshSnippetPhotoGrid();
+}
+
+function hideSnippetImportProgress() {
+  finishSnippetPhotoImport();
 }
 
 async function importSnippetPhotos(files) {
@@ -641,19 +861,32 @@ async function importSnippetPhotos(files) {
   snippetPhotoImporting = true;
   showSnippetImportProgress(0, files.length);
   let failed = 0;
+  const basePhotos = [...pendingSnippetPhotos];
+  const slots = new Array(files.length).fill(null);
+  pendingSnippetImportSlots = { basePhotos, slots };
+  refreshSnippetPhotoGrid();
   try {
-    // 单张失败不再废掉整批：失败的张数单独统计，跑完一起汇报。
     let liveAdded = 0;
+    let completedCount = 0;
     const compressed = await importPhotoBatch(files, compressSnippetPhoto, {
       concurrency: 2,
       onProgress: (done, total) => showSnippetImportProgress(done, total),
       onItemError: () => { failed += 1; },
-      onLivePhoto: (still, video) => { pendingSnippetLive.push({ still, video }); liveAdded += 1; }
+      onLivePhoto: (still, video) => { pendingSnippetLive.push({ still, video }); liveAdded += 1; },
+      onItem: (result, index) => {
+        slots[index] = result;
+        pendingSnippetPhotos = [...basePhotos, ...slots.filter(Boolean)];
+        const spreads = document.querySelectorAll('.moment-spread.is-importing, #quick-photo-preview .moment-spread');
+        spreads.forEach(spread => pushCardToImportStack(spread, result));
+        updateSnippetGridSlot(index, result, basePhotos.length, slots);
+      }
     });
+    pendingSnippetPhotos = [...basePhotos, ...slots.filter(Boolean)];
     return { compressed, failed, liveAdded };
   } finally {
     snippetPhotoImporting = false;
-    hideSnippetImportProgress();
+    pendingSnippetImportSlots = null;
+    finishSnippetPhotoImport();
   }
 }
 

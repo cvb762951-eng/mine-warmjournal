@@ -135,12 +135,31 @@ export async function makeThumbBlob(blob, { max = THUMB_MAX, quality = 0.8 } = {
   }
 }
 
+async function swapFallbackInDom(ref) {
+  if (typeof document === 'undefined' || !ref) return;
+  try {
+    const source = mediaSource(ref) || await resolveMediaReference(ref).catch(() => '');
+    if (!source) return;
+    document.querySelectorAll('img[data-thumb-ref]').forEach(img => {
+      const imgRef = img.dataset?.thumbRef || img.getAttribute?.('data-thumb-ref');
+      if (imgRef !== ref) return;
+      const current = img.getAttribute?.('src') || '';
+      if (!current || current === THUMB_PLACEHOLDER) {
+        img.src = source;
+      }
+    });
+  } catch { /* ignore */ }
+}
+
 /** 确保某张原图有缩略图；失败返回 ''（调用方继续用原图）。从不修改原图。 */
 export async function ensureThumb(ref) {
   const value = String(ref || '');
   if (thumbUrls.has(value)) return thumbUrls.get(value);
   const key = thumbKeyFor(value);
-  if (!key || failed.has(value) || !isMediaRef(value)) return '';
+  if (!key || failed.has(value) || !isMediaRef(value)) {
+    if (value) await swapFallbackInDom(value);
+    return '';
+  }
   try {
     const url = await loadStored(key);
     thumbUrls.set(value, url);
@@ -151,12 +170,17 @@ export async function ensureThumb(ref) {
     if (!source) throw new Error('no source');
     const original = await (await fetch(source)).blob();          // 只读原图
     const thumb = await makeThumbBlob(original);
-    if (!thumb || thumb.size >= original.size) { failed.add(value); return ''; }   // 原图本来就小：直接用原图
+    if (!thumb || thumb.size >= original.size) {
+      failed.add(value);
+      await swapFallbackInDom(value);
+      return '';
+    }   // 原图本来就小：直接用原图
     const url = await store(key, thumb);
     thumbUrls.set(value, url);
     return url;
   } catch {
     failed.add(value);
+    await swapFallbackInDom(value);
     return '';
   }
 }
@@ -185,6 +209,7 @@ function swapInDom(ref, url) {
 
 /** 测试用：缩略图生成完成后的那次 DOM 替换。 */
 export function _deliverThumbForTest(ref, url) { swapInDom(ref, url); }
+export function _fallbackThumbForTest(ref) { return swapFallbackInDom(ref); }
 
 function pump() {
   if (running || !queue.length) return;
@@ -217,13 +242,19 @@ export function watchThumbImages(scope = typeof document !== 'undefined' ? docum
     io = new IntersectionObserver(entries => entries.forEach(entry => {
       if (!entry.isIntersecting) return;
       io.unobserve(entry.target);
-      requestThumb(entry.target.dataset.thumbRef);
+      requestThumb(entry.target.dataset?.thumbRef || entry.target.getAttribute?.('data-thumb-ref'));
     }), { rootMargin: '200px 0px' });
   }
   scope.querySelectorAll('img[data-thumb-ref]').forEach(img => {
-    const ref = img.dataset.thumbRef;
-    if (img.dataset.fullActive === '1') return;
-    if (thumbUrls.has(ref)) { if (img.getAttribute('src') !== thumbUrls.get(ref)) img.src = thumbUrls.get(ref); return; }
+    const current = img.getAttribute?.('src') || '';
+    if (!current) img.src = THUMB_PLACEHOLDER;
+    const ref = img.dataset?.thumbRef || img.getAttribute?.('data-thumb-ref');
+    if (img.dataset?.fullActive === '1') return;
+    if (thumbUrls.has(ref)) { if ((img.getAttribute?.('src') || '') !== thumbUrls.get(ref)) img.src = thumbUrls.get(ref); return; }
+    if (failed.has(ref)) {
+      swapFallbackInDom(ref);
+      return;
+    }
     if (io) io.observe(img);
   });
 }

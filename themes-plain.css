@@ -4704,3 +4704,13 @@ button.danger) {
   font-weight: 500 !important;
 }
 
+:root[data-theme="plain"] .snippet-import-spinner {
+  border-color: var(--pl-blue-line);
+  border-top-color: var(--pl-blue);
+}
+
+:root[data-theme="plain"] .snippet-photo-placeholder-thumb {
+  background: var(--pl-blue-tint) !important;
+}
+
+
