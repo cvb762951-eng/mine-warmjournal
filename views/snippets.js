@@ -9,7 +9,7 @@ import { compressSnippetPhoto, captureVideoFrame, importPhotoBatch, isSupportedJ
 import { livePhotoMarkHtml, photosWithLiveMotion } from '../motion-photo.js';
 import { thumbSource, thumbKeyFor, watchThumbImages, ensureThumb } from '../photo-thumbs.js';
 import { mediaSource, saveMediaFile, saveNativeMediaSource } from '../media-store.js';
-import { attachVideoSource, formatVideoDuration, isHlsAddress, normalizeHlsAddress, presentWatchSession, summarizeWatchSession } from '../video-player.js';
+import { attachVideoSource, formatVideoDuration, isHlsAddress, presentWatchSession, summarizeWatchSession } from '../video-player.js';
 import { openVideoSession, plainVideoCache } from '../video-session.js';
 import { showVideoFramePicker } from '../video-frame-picker.js';
 import { applyVideoCrop, croppedFrame } from '../video-crop.js';
@@ -400,12 +400,11 @@ export function snippetForm(entry = null, requestedType = 'text', openCamera = f
   pendingSnippetVideos = [...(item.videos || [])];
   pendingSnippetStructure = { tags: [...(item.tags || [])], summary: item.summary || '' };
   snippetSuggestion = null;
-  modal(`<form id="snippet-form"><input type="hidden" name="id" value="${entry ? item.id : ''}"><input type="hidden" name="type" value="${item.type}"><span class="eyebrow">QUICK CAPTURE</span><h2>${entry ? '编辑' : '新增'}${item.type === 'photo' ? '随手拍' : '随手记'}</h2><label>日期</label><input name="date" type="date" required value="${item.date}">${item.type === 'photo' ? `<div class="snippet-photo-stage"><div id="snippet-photo-grid" class="snippet-photo-grid">${snippetPhotoGrid()}</div></div><label class="snippet-caption-label" for="snippet-photo-caption">图说</label><textarea id="snippet-photo-caption" name="text" maxlength="300" placeholder="写一句图说">${esc(item.text)}</textarea><div class="snippet-capture-bar" role="toolbar" aria-label="照片与视频"><div class="snippet-photo-actions"><button type="button" id="capture-snippet-photo" ${pendingSnippetPhotos.length >= SNIPPET_PHOTO_LIMIT ? 'disabled' : ''}><span class="material-symbols-outlined">photo_camera</span>${pendingSnippetPhotos.length ? '再拍' : '拍照'}</button><button type="button" id="pick-snippet-photo" ${pendingSnippetPhotos.length >= SNIPPET_PHOTO_LIMIT ? 'disabled' : ''}><span class="material-symbols-outlined">photo_library</span>${pendingSnippetPhotos.length ? '再选' : '选图'}</button></div><div class="snippet-photo-actions snippet-video-actions"><button type="button" id="capture-snippet-video" ${pendingSnippetVideos.length >= SNIPPET_PHOTO_LIMIT ? 'disabled' : ''}><span class="material-symbols-outlined">videocam</span>${pendingSnippetVideos.length ? '再拍视频' : '拍视频'}</button><button type="button" id="pick-snippet-video" ${pendingSnippetVideos.length >= SNIPPET_PHOTO_LIMIT ? 'disabled' : ''}><span class="material-symbols-outlined">video_library</span>导入视频</button></div></div><small class="field-help">一次最多 ${PHOTO_IMPORT_BATCH_LIMIT} 张，每条最多 ${SNIPPET_PHOTO_LIMIT} 张。</small><div class="snippet-video-head"><div><strong>视频</strong><small>已导入的片段</small></div></div><div id="snippet-video-grid" class="snippet-photo-grid">${snippetVideoGrid()}</div><div class="snippet-hls-paper"><label for="snippet-hls-url"><span class="material-symbols-outlined" aria-hidden="true">stream</span>添加 m3u8 在线视频</label><div><input type="url" id="snippet-hls-url" maxlength="4096" placeholder="https://example.com/video/master.m3u8" autocomplete="off" inputmode="url"><button type="button" id="add-snippet-hls">添加地址</button></div><small>仅在你点击播放时联网；不支持 DRM，鉴权或跨域限制可能导致播放失败。</small></div>` : `<div class="snippet-write-head"><label>记录内容</label>${micButtonHtml()}</div><textarea name="text" maxlength="2000" required placeholder="记下一句话、一个想法或稍后想写进日记的内容……">${esc(item.text)}</textarea>`}${aiStructureCard(item)}<div class="modal-actions"><button type="button" data-close>取消</button><button class="save">保存素材</button></div></form>`, 'snippet-form-modal');
+  modal(`<form id="snippet-form"><input type="hidden" name="id" value="${entry ? item.id : ''}"><input type="hidden" name="type" value="${item.type}"><span class="eyebrow">QUICK CAPTURE</span><h2>${entry ? '编辑' : '新增'}${item.type === 'photo' ? '随手拍' : '随手记'}</h2><label>日期</label><input name="date" type="date" required value="${item.date}">${item.type === 'photo' ? `<div class="snippet-photo-stage"><div id="snippet-photo-grid" class="snippet-photo-grid">${snippetPhotoGrid()}</div></div><label class="snippet-caption-label" for="snippet-photo-caption">图说</label><textarea id="snippet-photo-caption" name="text" maxlength="300" placeholder="写一句图说">${esc(item.text)}</textarea><div class="snippet-capture-bar" role="toolbar" aria-label="照片与视频"><div class="snippet-photo-actions"><button type="button" id="capture-snippet-photo" ${pendingSnippetPhotos.length >= SNIPPET_PHOTO_LIMIT ? 'disabled' : ''}><span class="material-symbols-outlined">photo_camera</span>${pendingSnippetPhotos.length ? '再拍' : '拍照'}</button><button type="button" id="pick-snippet-photo" ${pendingSnippetPhotos.length >= SNIPPET_PHOTO_LIMIT ? 'disabled' : ''}><span class="material-symbols-outlined">photo_library</span>${pendingSnippetPhotos.length ? '再选' : '选图'}</button></div><div class="snippet-photo-actions snippet-video-actions"><button type="button" id="capture-snippet-video" ${pendingSnippetVideos.length >= SNIPPET_PHOTO_LIMIT ? 'disabled' : ''}><span class="material-symbols-outlined">videocam</span>${pendingSnippetVideos.length ? '再拍视频' : '拍视频'}</button><button type="button" id="pick-snippet-video" ${pendingSnippetVideos.length >= SNIPPET_PHOTO_LIMIT ? 'disabled' : ''}><span class="material-symbols-outlined">video_library</span>导入视频</button></div></div><small class="field-help">一次最多 ${PHOTO_IMPORT_BATCH_LIMIT} 张，每条最多 ${SNIPPET_PHOTO_LIMIT} 张。</small><div class="snippet-video-head"><div><strong>视频</strong><small>已导入的片段</small></div></div><div id="snippet-video-grid" class="snippet-photo-grid">${snippetVideoGrid()}</div>` : `<div class="snippet-write-head"><label>记录内容</label>${micButtonHtml()}</div><textarea name="text" maxlength="2000" required placeholder="记下一句话、一个想法或稍后想写进日记的内容……">${esc(item.text)}</textarea>`}${aiStructureCard(item)}<div class="modal-actions"><button type="button" data-close>取消</button><button class="save">保存素材</button></div></form>`, 'snippet-form-modal');
   $('#capture-snippet-photo')?.addEventListener('click', () => pickSnippetPhoto(true).catch(error => show(error.message)));
   $('#pick-snippet-photo')?.addEventListener('click', () => pickSnippetPhoto(false).catch(error => show(error.message)));
   $('#capture-snippet-video')?.addEventListener('click', () => pickSnippetVideo(true).catch(error => show(error.message)));
   $('#pick-snippet-video')?.addEventListener('click', () => pickSnippetVideo(false).catch(error => show(error.message)));
-  $('#add-snippet-hls')?.addEventListener('click', addSnippetHlsAddress);
   bindSnippetPhotoGrid();
   bindSnippetVideoGrid();
   bindSnippetStructureActions(item);
@@ -804,20 +803,6 @@ function refreshSnippetVideoGrid() {
     pickButton.disabled = full;
     pickButton.innerHTML = `<span class="material-symbols-outlined">video_library</span>导入视频`;
   }
-}
-
-function addSnippetHlsAddress(inputSelector = '#snippet-hls-url') {
-  if (pendingSnippetVideos.length >= SNIPPET_PHOTO_LIMIT) { show(`最多 ${SNIPPET_PHOTO_LIMIT} 个视频`); return false; }
-  const input = $(inputSelector);
-  const address = normalizeHlsAddress(input?.value, { allowDynamicPath: true });
-  if (!address) { show('请输入有效的 http/https 播放地址'); return false; }
-  if (pendingSnippetVideos.some(item => item.video === address)) { show('这个 m3u8 地址已经添加'); return false; }
-  const host = new URL(address).hostname;
-  pendingSnippetVideos.push({ poster: '', video: address, sourceType: 'hls', label: host || 'HLS 在线视频' });
-  if (input) input.value = '';
-  refreshSnippetVideoGrid();
-  show('已保存 m3u8 地址，播放时才会联网');
-  return true;
 }
 
 function stopActiveVideoPlayer({ persist = true, handoff = false } = {}) {
