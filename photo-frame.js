@@ -12,11 +12,13 @@ export const PHOTO_STILL_CLASS = 'photo-blur-still';
 const attr = value => String(value ?? '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
 
 /** 返回两层 <img> 的 HTML。url 需已是可直接放进 src 的地址（调用方负责转义）。 */
-export function photoFrameLayersHtml(url, { alt = '', padClass = '', stillClass = '', lazy = false, thumbRef = '' } = {}) {
+export function photoFrameLayersHtml(url, { alt = '', padClass = '', stillClass = '', lazy = false, thumbRef = '', progressive = false } = {}) {
   // thumbRef：列表缩略图的原图引用（photo-thumbs.js 生成后按它换 src）；不传时输出与旧版完全一致。
-  const loading = (lazy ? ' loading="lazy"' : '') + (thumbRef ? ` data-thumb-ref="${attr(thumbRef)}"` : '');
-  return `<img class="${PHOTO_PAD_CLASS}${padClass ? ` ${padClass}` : ''}" src="${url}" alt="" aria-hidden="true" draggable="false" decoding="async"${loading}>`
-    + `<img class="${PHOTO_STILL_CLASS}${stillClass ? ` ${stillClass}` : ''}" src="${url}" alt="${attr(alt)}" draggable="false" decoding="async"${loading}>`;
+  // progressive 只标在清晰层上：铺底层跟着同一张引用一起换，但只观察一张，避免一对图注册两次。
+  const thumbAttr = (lazy ? ' loading="lazy"' : '') + (thumbRef ? ` data-thumb-ref="${attr(thumbRef)}"` : '');
+  const stillAttr = thumbAttr + (progressive && thumbRef ? ' data-progressive="1"' : '');
+  return `<img class="${PHOTO_PAD_CLASS}${padClass ? ` ${padClass}` : ''}" src="${url}" alt="" aria-hidden="true" draggable="false" decoding="async"${thumbAttr}>`
+    + `<img class="${PHOTO_STILL_CLASS}${stillClass ? ` ${stillClass}` : ''}" src="${url}" alt="${attr(alt)}" draggable="false" decoding="async"${stillAttr}>`;
 }
 
 /** DOM 版本（牌组用），返回 [pad, still]。 */

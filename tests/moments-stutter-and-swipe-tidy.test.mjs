@@ -62,7 +62,7 @@ test('photo-frame imgs have decoding="async"', () => {
   assert.match(snippetsSrc, /cardIndex\+\+\s*>=\s*4/, 'first 4 cards should be eager, remaining cards lazy');
   assert.match(snippetsSrc, /snippetStreamCard\(item,\s*lazy\s*=\s*true\)/);
   assert.match(snippetsSrc, /function snippetPhotoImage\(source,\s*alt\s*=\s*'',\s*opts\s*=\s*\{\}\)/);
-  assert.match(snippetsSrc, /snippetPhotoImage\(photo, entry\.text \|\| `随手拍 \$\{index \+ 1\}`, \{ thumb: true, lazy \}\)/);
+  assert.match(snippetsSrc, /snippetPhotoImage\(photo, entry\.text \|\| `随手拍 \$\{index \+ 1\}`, \{ thumb: true, lazy, progressive: true \}\)/);
   assert.match(snippetsSrc, /snippetCoverImage\(source,\s*alt\s*=\s*'',\s*lazy\s*=\s*true\)/);
 });
 
