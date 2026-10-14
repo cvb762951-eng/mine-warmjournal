@@ -326,20 +326,26 @@ function snippetStreamCard(item, lazy = true) {
     const entry = item.entry;
     const photos = entry.photos?.length ? entry.photos : (entry.photo ? [entry.photo] : []);
     const videos = entry.videos || [];
-    const cover = photos[0] || videos[0]?.poster || '';
     const time = entry.createdAt ? new Date(entry.createdAt) : null;
     const tag = (entry.tags || [])[0];
     const liveStills = (entry.livePhotos || []).length;
     const badge = videos.length ? `<span class="snippet-photo-badge"><span class="material-symbols-outlined">movie</span>${videos.length > 1 ? videos.length + ' 段' : '视频'}</span>` : liveStills ? `<span class="snippet-photo-badge"><span class="material-symbols-outlined">motion_photos_on</span>${liveStills > 1 ? liveStills + ' 张实况' : '实况'}</span>` : photos.length > 1 ? `<span class="snippet-photo-badge"><span class="material-symbols-outlined">photo_camera</span>${photos.length} 张</span>` : '<span class="snippet-photo-badge"><span class="material-symbols-outlined">photo_camera</span>拍立得</span>';
-    const visual = photos.length
-      ? snippetPhotoMosaic(entry, photos, lazy)
-      : cover ? `${videos.length > 1
-          ? `<button type="button" class="snippet-cover-frame is-video-cover photo-blur-frame is-edge" data-snippet-video-album="${entry.id}" aria-label="浏览 ${videos.length} 段视频">${snippetCoverImage(cover, entry.text || '随手拍', lazy)}</button>`
-          : `<div class="snippet-cover-frame is-video-cover photo-blur-frame is-edge">${snippetCoverImage(cover, entry.text || '随手拍', lazy)}</div>`}${videoDurationStamp(videos[0])}`
-        : videos.length ? `<div class="snippet-video-stream-placeholder"><span class="material-symbols-outlined">live_tv</span><small>在线视频</small></div>${videoDurationStamp(videos[0])}` : '';
+    const videoAlbumAttr = videos.length ? `data-snippet-video-album="${entry.id}"` : '';
+    /* 有视频时和照片走同一套扇面；纯照片列表仍用原来的影集网格。 */
+    const fan = videos.length
+      ? momentSpreadHtml(photos, {
+          videos,
+          lazy,
+          progressive: true,
+          albumAttr: videoAlbumAttr,
+          interactive: { mode: 'saved', entryId: entry.id, livePhotos: entry.livePhotos },
+        })
+      : '';
+    const visual = fan
+      || (photos.length ? snippetPhotoMosaic(entry, photos, lazy) : (videos.length ? `<div class="snippet-video-stream-placeholder"><span class="material-symbols-outlined">live_tv</span><small>在线视频</small></div>${videoDurationStamp(videos[0])}` : ''));
     const segments = videos.length > 1 ? `<div class="snippet-video-segments" aria-label="这条记录中的视频">${videos.map((item, index) => `<button type="button" class="photo-blur-frame is-edge" data-play-snippet-video="${entry.id}" data-video-index="${index}">${item.poster ? snippetSegmentPoster(item.poster, `第 ${index + 1} 段视频封面`, lazy) : '<span class="material-symbols-outlined">stream</span>'}<small>${index + 1}</small>${videoDurationStamp(item)}</button>`).join('')}</div>` : '';
     const localVideoIndex = videos.findIndex(item => item.sourceType !== 'hls' && !isHlsAddress(item.video));
-    return `<article class="snippet-item-card"><div class="snippet-visual-wrap">${visual}${badge}</div>${segments}<div class="snippet-item-meta"><span>${time ? `${pad2(time.getHours())}:${pad2(time.getMinutes())} · 随手拍` : '随手拍'}</span>${tag ? `<span style="color:var(--sage-green);font-weight:700">#${esc(tag)}</span>` : ''}</div>${entry.text ? `<p class="snippet-item-text">${esc(entry.text)}</p>` : ''}<div class="snippet-item-actions"><button data-edit-snippet="${entry.id}">编辑</button><button class="danger" data-delete-snippet="${entry.id}">删除</button>${videos.length ? `<button class="view" data-play-snippet-video="${entry.id}" data-video-index="0"><span class="material-symbols-outlined">play_circle</span>播放视频</button>` : ''}${localVideoIndex >= 0 ? `<button class="view" data-refresh-video-poster="${entry.id}" data-video-index="${localVideoIndex}"><span class="material-symbols-outlined">image</span>选择封面</button>` : ''}${photos.length ? `<button class="view" data-view-snippet-photo="${entry.id}" data-photo-index="0">查看照片</button>` : ''}</div></article>`;
+    return `<article class="snippet-item-card"><div class="snippet-visual-wrap${fan ? ' is-moment-fan' : ''}">${visual}${badge}</div>${segments}<div class="snippet-item-meta"><span>${time ? `${pad2(time.getHours())}:${pad2(time.getMinutes())} · 随手拍` : '随手拍'}</span>${tag ? `<span style="color:var(--sage-green);font-weight:700">#${esc(tag)}</span>` : ''}</div>${entry.text ? `<p class="snippet-item-text">${esc(entry.text)}</p>` : ''}<div class="snippet-item-actions"><button data-edit-snippet="${entry.id}">编辑</button><button class="danger" data-delete-snippet="${entry.id}">删除</button>${videos.length ? `<button class="view" data-play-snippet-video="${entry.id}" data-video-index="0"><span class="material-symbols-outlined">play_circle</span>播放视频</button>` : ''}${localVideoIndex >= 0 ? `<button class="view" data-refresh-video-poster="${entry.id}" data-video-index="${localVideoIndex}"><span class="material-symbols-outlined">image</span>选择封面</button>` : ''}${photos.length ? `<button class="view" data-view-snippet-photo="${entry.id}" data-photo-index="0">查看照片</button>` : ''}</div></article>`;
   }
   if (item.kind === 'note') {
     const entry = item.entry;
@@ -440,91 +446,348 @@ function aiStructureCard(item) {
   return `<div class="ai-structure-card"><div class="ai-structure-head"><span class="material-symbols-outlined">auto_awesome</span><div><strong>AI 整理</strong><small>标签 · 待办 · 一句话摘要</small></div></div><button type="button" id="ai-structure-run"><span class="material-symbols-outlined">auto_awesome</span>整理内容</button><div id="ai-structure-result"></div></div>`;
 }
 
-export function momentImportStackHtml(photos = []) {
-  const cards = (photos || []).slice(0, 4).map((photo, depth) => {
-    const frame = `<span class="moment-spread-frame photo-blur-frame is-edge">${photoFrameLayersHtml(imgSrc(photo), { alt: '待保存照片', padClass: 'moment-spread-blur', stillClass: 'moment-spread-still' })}</span>`;
-    return `<span class="moment-spread-card" data-depth="${depth}" style="z-index:${10 + depth}">${frame}</span>`;
+export function momentSpreadHtml(photos, options = {}) {
+  const { importing = false, videos = [], interactive = null, lazy = false, progressive = false, albumAttr = '' } = options || {};
+  const { visible, total, n } = momentFanWindow(photos, videos);
+  if (!n && !importing) return '';
+  const sig = n ? momentSpreadSignature(photos, videos) : 'importing';
+  const count = Math.max(n, 1);
+  const cards = visible.map((item, i) => {
+    const more = (total > 4 && i === n - 1)
+      ? `<button type="button" class="moment-spread-more" data-moment-spread-all${albumAttr ? ` ${albumAttr}` : ''} aria-label="查看全部 ${total} 项">+${total - 4}</button>`
+      : '';
+    return momentSpreadCardHtml(item, i, count, {
+      more,
+      interactive,
+      lazy,
+      progressive,
+      livePhotos: interactive?.livePhotos,
+    });
   }).join('');
-  return `<div class="moment-spread is-importing" data-spread-importing="1" data-spread-sig="importing" data-last-spread-sig="importing">${cards}</div>`;
+  const importingClass = importing ? ' is-importing' : '';
+  const importingAttr = importing ? ' data-spread-importing="1"' : '';
+  return `<div class="moment-spread count-${count}${importingClass}" data-spread-sig="${esc(sig)}" data-fan-live="1" data-fan-count="${count}"${importingAttr}>${cards}</div>`;
 }
 
-export function momentSpreadHtml(photos, { importing = false } = {}) {
-  if (importing) return momentImportStackHtml(photos);
-  if (!photos || !photos.length) return '';
-  const total = photos.length;
+/* 封面只能是图片。视频文件地址、data:video 都不能进 <img>。 */
+export function momentCoverFace(face, videoFile = '') {
+  const value = typeof face === 'string' ? face.trim() : '';
+  if (!value) return '';
+  if (videoFile && value === videoFile) return '';
+  if (/^data:video\//i.test(value)) return '';
+  if (/\.(mp4|mov|m4v|webm|mkv|m3u8|avi)(?:[?#].*)?$/i.test(value)) return '';
+  return value;
+}
+
+export function momentMediaItems(photos = [], videos = []) {
+  const items = [];
+  (photos || []).forEach((photo, index) => {
+    if (!photo) return;
+    items.push({ kind: 'photo', index, key: `p:${photo}`, face: photo, photo });
+  });
+  (videos || []).forEach((video, index) => {
+    const file = video?.video || '';
+    items.push({
+      kind: 'video',
+      index,
+      key: `v:${file || video?.poster || index}`,
+      face: momentCoverFace(video?.poster || '', file),
+      video,
+      file,
+    });
+  });
+  return items;
+}
+
+/* 扇面最多 4 张，窗口是最新的 4 张：导入过程与结束后用同一套槽位。 */
+export function momentFanWindow(photos = [], videos = []) {
+  const items = momentMediaItems(photos, videos);
+  const total = items.length;
   const n = Math.min(total, 4);
-  const first4 = photos.slice(0, n);
-  const sig = `${total}:${first4.map(p => typeof p === 'string' ? p : (p?.still || p?.src || '')).join(',')}`;
-  const cards = first4.map((photo, i) => {
-    const rot = n === 1 ? 0 : (i - (n - 1) / 2) * 4;
-    const lift = n === 1 ? 0 : (i % 2 ? 10 : -6);
-    const more = (total > 4 && i === n - 1) ? `<button type="button" class="moment-spread-more" data-moment-spread-all aria-label="查看全部 ${total} 张照片">+${total - 4}</button>` : '';
-    const frame = `<span class="moment-spread-frame photo-blur-frame is-edge">${photoFrameLayersHtml(imgSrc(photo), { alt: `待保存照片 ${i + 1}`, padClass: 'moment-spread-blur', stillClass: 'moment-spread-still' })}</span>`;
-    return `<span class="moment-spread-card" style="--i:${i};--rot:${rot}deg;--lift:${lift}px">${frame}${more}</span>`;
-  }).join('');
-  return `<div class="moment-spread count-${n}" data-spread-sig="${esc(sig)}">${cards}</div>`;
+  return { items, total, n, visible: n ? items.slice(total - n) : [] };
 }
 
-export function pushCardToImportStack(spread, photo) {
-  if (!spread) return;
+export function momentSpreadSignature(photos = [], videos = []) {
+  const { total, visible } = momentFanWindow(photos, videos);
+  return `${total}:${visible.map(item => `${item.kind}:${item.face || item.key}`).join(',')}`;
+}
+
+/* 与保存后的扇形同一公式：中间更靠前，两侧轻微分开、略微倾斜。 */
+export function momentFanPose(index, count) {
+  const n = Math.max(1, Math.min(4, Number(count) || 1));
+  const i = Math.max(0, Number(index) || 0);
+  const rot = n === 1 ? 0 : (i - (n - 1) / 2) * 4;
+  const lift = n === 1 ? 0 : (i % 2 ? 10 : -6);
+  return { n, i, rot, lift };
+}
+
+/* 每张飞入的起点略有差别，避免整叠像复制粘贴。 */
+export function momentFlyVariance(index) {
+  const i = Math.abs(Number(index) || 0);
+  return {
+    x: ((i * 17) % 11) - 5,
+    y: (i * 13) % 14,
+    rot: ((i * 19) % 9) - 4,
+  };
+}
+
+function readFanMotion() {
   const canMove = typeof isMomentsMoving === 'function' ? isMomentsMoving() : false;
   const isRich = typeof isMomentsRich === 'function' ? isMomentsRich() : true;
-  const duration = isRich ? MOMENTS_MOTION.spreadMs : MOMENTS_MOTION.spreadLiteMs;
-  const easing = isRich ? MOMENTS_MOTION.spreadEase : MOMENTS_MOTION.spreadLiteEase;
+  return {
+    canMove,
+    duration: isRich ? MOMENTS_MOTION.spreadMs : MOMENTS_MOTION.spreadLiteMs,
+    easing: isRich ? MOMENTS_MOTION.spreadEase : MOMENTS_MOTION.spreadLiteEase,
+  };
+}
 
-  if (canMove) {
-    spread.style.setProperty('--spread-dur', `${duration}ms`);
-    spread.style.setProperty('--spread-ease', easing);
+function setFanVar(node, name, value) {
+  const style = node?.style;
+  if (!style) return;
+  if (typeof style.setProperty === 'function') style.setProperty(name, value);
+  style[name] = value;
+}
+
+function applyFanPose(card, index, count) {
+  if (!card) return;
+  const { i, rot, lift } = momentFanPose(index, count);
+  setFanVar(card, '--i', String(i));
+  setFanVar(card, '--rot', `${rot}deg`);
+  setFanVar(card, '--lift', `${lift}px`);
+  if (card.style) card.style.zIndex = String(i + 1);
+  if (card.dataset) {
+    card.dataset.fanIndex = String(i);
+    if (card.dataset.depth && card.dataset.depth !== 'out') delete card.dataset.depth;
+  }
+}
+
+function setSpreadCount(spread, n, importing) {
+  const count = Math.max(1, Math.min(4, n || 1));
+  spread.classList?.remove?.('count-1', 'count-2', 'count-3', 'count-4');
+  spread.classList?.add?.('moment-spread', `count-${count}`);
+  spread.classList?.toggle?.('is-importing', Boolean(importing));
+  if (spread.dataset) {
+    spread.dataset.fanCount = String(count);
+    spread.dataset.fanLive = '1';
+    if (importing) spread.dataset.spreadImporting = '1';
+    else delete spread.dataset.spreadImporting;
+  }
+  if (!importing) spread.removeAttribute?.('data-spread-importing');
+}
+
+/* 列表里的视频封面：清晰层用原图（扇面最多 4 张），虚化铺底停在 480。没有缩略图键的地址两层都用原图。 */
+function momentVideoCoverHtml(face, alt, { lazy = false, progressive = false } = {}) {
+  const thumbRef = progressive && thumbKeyFor(face) ? face : '';
+  if (!thumbRef) return photoFrameLayersHtml(imgSrc(face), { alt, padClass: 'moment-spread-blur', stillClass: 'moment-spread-still', lazy });
+  const full = mediaSource(face);
+  const padUrl = esc(progressiveSource(face));
+  const stillUrl = full ? esc(full) : padUrl;
+  const lazyAttr = lazy ? ' loading="lazy"' : '';
+  const refAttr = ` data-thumb-ref="${esc(thumbRef)}"`;
+  const stillAttr = `${refAttr} data-progressive="1" data-full-cover="1"${full ? ` data-full-active="1" data-full-src="${esc(full)}"` : ''}`;
+  return `<img class="photo-blur-pad moment-spread-blur" src="${padUrl}" alt="" aria-hidden="true" draggable="false" decoding="async"${lazyAttr}${refAttr}>`
+    + `<img class="photo-blur-still moment-spread-still" src="${stillUrl}" alt="${esc(alt)}" draggable="false" decoding="async"${lazyAttr}${stillAttr}>`;
+}
+
+function momentSpreadFaceHtml(item, alt, { lazy = false, progressive = false } = {}) {
+  const face = item?.kind === 'video' ? momentCoverFace(item.face, item.file) : (item?.face || '');
+  const frameClass = item?.kind === 'video'
+    ? 'moment-spread-frame snippet-cover-frame is-video-cover photo-blur-frame is-edge'
+    : 'moment-spread-frame photo-blur-frame is-edge';
+  let inner = '';
+  if (!face) {
+    const icon = item?.kind === 'video' ? 'movie' : 'image';
+    inner = `<span class="moment-spread-empty material-symbols-outlined" aria-hidden="true">${icon}</span>`;
+  } else if (item?.kind === 'video') {
+    inner = momentVideoCoverHtml(face, alt, { lazy, progressive });
+  } else if (progressive) {
+    const thumbRef = thumbKeyFor(face) ? face : '';
+    const url = thumbRef ? esc(progressiveSource(face)) : imgSrc(face);
+    inner = photoFrameLayersHtml(url, { alt, padClass: 'moment-spread-blur', stillClass: 'moment-spread-still', lazy, thumbRef, progressive: Boolean(thumbRef) });
+  } else {
+    inner = photoFrameLayersHtml(imgSrc(face), { alt, padClass: 'moment-spread-blur', stillClass: 'moment-spread-still', lazy });
+  }
+  const play = item?.kind === 'video'
+    ? `<span class="moment-spread-play moment-album-play" aria-hidden="true"><span class="material-symbols-outlined" aria-hidden="true">play_arrow</span></span>${videoDurationStamp(item.video)}`
+    : '';
+  return `<span class="${frameClass}">${inner}</span>${play}`;
+}
+
+function momentSpreadCardHtml(item, index, count, { more = '', interactive = null, lazy = false, progressive = false, livePhotos = null, alt = '' } = {}) {
+  const pose = momentFanPose(index, count);
+  const style = `--i:${pose.i};--rot:${pose.rot}deg;--lift:${pose.lift}px;z-index:${pose.i + 1}`;
+  const faceAlt = alt || (item.kind === 'video' ? `视频 ${item.index + 1}` : `待保存照片 ${item.index + 1}`);
+  const face = momentSpreadFaceHtml(item, faceAlt, { lazy, progressive });
+  const live = item.kind === 'photo' && livePhotos ? photoHasLiveMark(item.photo, livePhotos) : '';
+  const saved = interactive?.mode === 'saved' && interactive.entryId;
+  const pending = interactive?.mode === 'pending';
+  let hitAttr = '';
+  let label = item.kind === 'video' ? `播放第 ${item.index + 1} 个视频` : `查看第 ${item.index + 1} 张照片`;
+  if (item.kind === 'video' && saved) hitAttr = ` data-play-snippet-video="${esc(interactive.entryId)}" data-video-index="${item.index}"`;
+  else if (item.kind === 'photo' && saved) hitAttr = ` data-view-snippet-photo="${esc(interactive.entryId)}" data-photo-index="${item.index}"`;
+  else if (item.kind === 'video' && pending) hitAttr = ` data-play-pending-snippet-video="${item.index}"`;
+  else label = '';
+  const body = `${face}${live}`;
+  const inner = hitAttr
+    ? `<button type="button" class="moment-spread-hit" ${hitAttr.trim()} aria-label="${esc(label)}">${body}</button>${more}`
+    : `${body}${more}`;
+  return `<span class="moment-spread-card${item.kind === 'video' ? ' is-video' : ''}" data-fan-key="${esc(item.key)}" data-face="${esc(item.face || '')}" style="${style}">${inner}</span>`;
+}
+
+export function momentImportStackHtml(photos = [], videos = []) {
+  return momentSpreadHtml(photos, { videos, importing: true });
+}
+
+function retireFanCard(card, motion) {
+  if (!card) return;
+  if (card.dataset) card.dataset.depth = 'out';
+  card.classList?.add?.('is-exiting');
+  if (card.style) card.style.zIndex = '14';
+  const ms = motion?.canMove ? motion.duration : 0;
+  if (ms && typeof card.animate === 'function') {
+    card.classList?.add?.('is-arriving');
+    const anim = card.animate([
+      { transform: 'translate3d(0, 0, 0) scale(1)', opacity: 1 },
+      { transform: 'translate3d(0, 8px, 0) scale(1.06)', opacity: 0.72, offset: 0.35 },
+      { transform: 'translate3d(0, 16px, 0) scale(1.12)', opacity: 0.48, offset: 0.6 },
+      { transform: 'translate3d(0, 24px, 0) scale(1.18)', opacity: 0.28, offset: 0.8 },
+      { transform: 'translate3d(0, 32px, 0) scale(1.28)', opacity: 0 },
+    ], { duration: ms, easing: motion.easing, fill: 'forwards' });
+    const drop = () => card.remove?.();
+    if (anim?.finished?.then) anim.finished.then(drop, drop);
+    else setTimeout(drop, ms);
+    return;
+  }
+  card.remove?.();
+}
+
+function flyMomentCard(card, index, count, motion) {
+  if (!card) return;
+  if (!motion?.canMove || typeof card.animate !== 'function') {
+    card.classList?.remove?.('is-arriving');
+    return;
+  }
+  const pose = momentFanPose(index, count);
+  const variance = momentFlyVariance(index);
+  card.classList?.add?.('is-arriving');
+  const anim = card.animate([
+    { transform: `translate3d(${variance.x}px, ${48 + variance.y}px, 0) rotate(${pose.rot + variance.rot}deg) scale(.86)`, opacity: 0 },
+    { transform: `rotate(${pose.rot}deg) translateY(${pose.lift}px) scale(1)`, opacity: 1 },
+  ], { duration: motion.duration, easing: motion.easing, fill: 'backwards' });
+  const done = () => card.classList?.remove?.('is-arriving');
+  if (anim?.finished?.then) anim.finished.then(done, done);
+  else setTimeout(done, motion.duration);
+}
+
+function markFanMotion(spread, motion) {
+  if (!spread?.style?.setProperty) return;
+  if (motion?.canMove) {
+    spread.style.setProperty('--spread-dur', `${motion.duration}ms`);
+    spread.style.setProperty('--spread-ease', motion.easing);
   } else {
     spread.style.setProperty('--spread-dur', '0ms');
   }
+}
 
-  const existingCards = [...spread.querySelectorAll('.moment-spread-card:not(.is-exiting)')];
-  existingCards.forEach(card => {
-    const curDepth = Number(card.dataset.depth ?? 0);
-    const nextDepth = curDepth + 1;
-    if (nextDepth >= 4) {
-      card.dataset.depth = 'out';
-      card.classList.add('is-exiting');
-      card.style.zIndex = '14';
-      if (canMove) {
-        setTimeout(() => card.remove(), duration);
-      } else {
-        card.remove();
-      }
-    } else {
-      card.dataset.depth = String(nextDepth);
-      card.style.zIndex = String(10 + nextDepth);
-    }
+/* 增量推入：新卡飞进当前扇面的最前一槽；已经有 4 张时，最旧的那张朝观众放大并淡出。 */
+export function pushCardToImportStack(spread, photo) {
+  if (!spread || photo == null || photo === '') return;
+  const motion = readFanMotion();
+  markFanMotion(spread, motion);
+  const existing = [...(spread.querySelectorAll?.('.moment-spread-card:not(.is-exiting)') || [])];
+  if (existing.length >= 4) retireFanCard(existing.shift(), motion);
+  const card = document.createElement('span');
+  card.className = 'moment-spread-card';
+  card.classList?.add?.('moment-spread-card');
+  if (card.dataset) card.dataset.fanKey = `p:${photo}`;
+  card.innerHTML = momentSpreadFaceHtml({ kind: 'photo', face: photo, index: existing.length }, '待保存照片');
+  spread.appendChild(card);
+  const staying = [...existing, card].filter(node => node && !node.classList?.contains?.('is-exiting'));
+  const n = Math.max(1, Math.min(4, staying.length));
+  setSpreadCount(spread, n, true);
+  staying.forEach((node, i) => applyFanPose(node, i, n));
+  flyMomentCard(card, n - 1, n, motion);
+}
+
+function fanCardNodes(spread) {
+  return [...(spread?.querySelectorAll?.('.moment-spread-card') || [])];
+}
+
+function upsertFanMore(spread, total, n, albumAttr = '') {
+  fanCardNodes(spread).forEach(card => {
+    if (typeof card.querySelectorAll === 'function') card.querySelectorAll('.moment-spread-more').forEach(node => node.remove());
+    else card.querySelector?.('.moment-spread-more')?.remove?.();
   });
+  if (total <= 4 || !n) return;
+  const staying = fanCardNodes(spread).filter(card => !card.classList?.contains?.('is-exiting'));
+  const last = staying[staying.length - 1];
+  if (!last || typeof last.insertAdjacentHTML !== 'function') return;
+  const album = albumAttr ? ` ${albumAttr}` : '';
+  last.insertAdjacentHTML('beforeend', `<button type="button" class="moment-spread-more" data-moment-spread-all${album} aria-label="查看全部 ${total} 项">+${total - 4}</button>`);
+}
 
-  const newCard = document.createElement('span');
-  newCard.className = 'moment-spread-card';
-  newCard.dataset.depth = '0';
-  newCard.style.zIndex = '10';
-  const frame = `<span class="moment-spread-frame photo-blur-frame is-edge">${photoFrameLayersHtml(imgSrc(photo), { alt: '待保存照片', padClass: 'moment-spread-blur', stillClass: 'moment-spread-still' })}</span>`;
-  newCard.innerHTML = frame;
-  spread.appendChild(newCard);
-
-  if (canMove && typeof newCard.animate === 'function') {
-    newCard.animate([
-      { transform: 'translate3d(0, 40px, 0) scale(.9)', opacity: 0 },
-      { transform: 'translate3d(0, 0, 0) scale(1)', opacity: 1 }
-    ], {
-      duration,
-      easing,
-      fill: 'backwards'
-    });
+/* 把扇面同步成「当前这批媒体的最终槽位」。新到的那张从下方弹入，被挤出窗口的旧卡淡出。 */
+export function syncMomentSpreadElement(spread, photos, videos, { arrivedKey = '', importing = false, animate = true, albumAttr = '', interactive = null } = {}) {
+  if (!spread) return;
+  const motion = readFanMotion();
+  const { visible, total, n } = momentFanWindow(photos, videos);
+  if (!n) {
+    spread.remove?.();
+    return;
   }
+  markFanMotion(spread, importing ? motion : { canMove: false, duration: motion.duration, easing: motion.easing });
+  setSpreadCount(spread, n, importing);
+  const sig = momentSpreadSignature(photos, videos);
+  if (spread.dataset) spread.dataset.spreadSig = sig;
+  const nextKeys = new Set(visible.map(item => item.key));
+  fanCardNodes(spread).forEach(card => {
+    if (card.classList?.contains?.('is-exiting')) return;
+    if (!nextKeys.has(card.dataset?.fanKey)) retireFanCard(card, animate ? motion : { canMove: false, duration: 0, easing: motion.easing });
+  });
+  const byKey = new Map(fanCardNodes(spread).filter(card => !card.classList?.contains?.('is-exiting')).map(card => [card.dataset?.fanKey, card]));
+  visible.forEach((item, i) => {
+    let card = byKey.get(item.key);
+    const isNew = !card;
+    if (!card) {
+      const holder = document.createElement('div');
+      holder.innerHTML = momentSpreadCardHtml(item, i, n, { albumAttr, interactive });
+      card = holder.firstElementChild;
+      if (!card) return;
+      const shouldFly = animate && (!arrivedKey || arrivedKey === item.key);
+      if (shouldFly) card.classList?.add?.('is-arriving');
+      spread.appendChild(card);
+    } else if ((card.dataset?.face || '') !== (item.face || '')) {
+      const holder = document.createElement('div');
+      holder.innerHTML = momentSpreadCardHtml(item, i, n, { albumAttr, interactive });
+      const fresh = holder.firstElementChild;
+      if (fresh) card.innerHTML = fresh.innerHTML;
+    }
+    applyFanPose(card, i, n);
+    if (card.dataset) card.dataset.face = item.face || '';
+    if (isNew && animate && (!arrivedKey || arrivedKey === item.key)) flyMomentCard(card, i, n, motion);
+    else card.classList?.remove?.('is-arriving');
+    if (typeof spread.appendChild === 'function') spread.appendChild(card);
+  });
+  upsertFanMore(spread, total, n, albumAttr);
+}
+
+function syncOpenMomentFans(arrivedKey = '', { importing = false, animate = true } = {}) {
+  if (typeof document === 'undefined') return;
+  document.querySelectorAll('.moment-spread').forEach(spread => {
+    syncMomentSpreadElement(spread, pendingSnippetPhotos, pendingSnippetVideos, {
+      arrivedKey,
+      importing: importing || Boolean(spread.classList?.contains?.('is-importing')),
+      animate,
+      interactive: { mode: 'pending' },
+    });
+  });
 }
 
 let pendingSnippetImportSlots = null;
 
 function snippetPhotoGrid() {
-  if (!pendingSnippetPhotos.length && !pendingSnippetImportSlots) return '<div class="snippet-photo-empty"><span class="material-symbols-outlined">photo_camera</span><strong>拍下此刻</strong><small>也可以从相册选择，可连续添加</small></div>';
-  const spread = snippetPhotoImporting
-    ? momentImportStackHtml(pendingSnippetPhotos.slice(-4).reverse())
-    : momentSpreadHtml(pendingSnippetPhotos);
+  if (!pendingSnippetPhotos.length && !pendingSnippetVideos.length && !pendingSnippetImportSlots && !snippetPhotoImporting) return '<div class="snippet-photo-empty"><span class="material-symbols-outlined">photo_camera</span><strong>拍下此刻</strong><small>也可以从相册选择，可连续添加</small></div>';
+  const spread = momentSpreadHtml(pendingSnippetPhotos, { videos: pendingSnippetVideos, importing: snippetPhotoImporting, interactive: { mode: 'pending' } });
   const manage = `<div class="moment-spread-manage"><button type="button" class="moment-spread-manage-btn" data-moment-spread-all><span class="moment-spread-manage-open">查看全部</span><span class="moment-spread-manage-close">收起</span></button></div>`;
   let cellsHtml = '';
   if (pendingSnippetImportSlots) {
@@ -546,6 +809,17 @@ function snippetPhotoGrid() {
 }
 
 function bindSnippetPhotoGrid() {
+  const grid = $('#snippet-photo-grid');
+  if (grid && grid.dataset.fanBound !== '1') {
+    grid.dataset.fanBound = '1';
+    grid.addEventListener('click', event => {
+      const video = event.target.closest('[data-play-pending-snippet-video]');
+      if (!video || !grid.contains(video)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      openPendingSnippetVideo(Number(video.dataset.playPendingSnippetVideo));
+    });
+  }
   $$('#snippet-photo-grid [data-moment-spread-all]').forEach(button => button.onclick = event => {
     event.stopPropagation();
     $('#snippet-photo-grid')?.classList.toggle('is-managing');
@@ -602,11 +876,19 @@ function refreshSnippetPhotoGrid() {
   const grid = $('#snippet-photo-grid');
   if (grid) {
     const wasManaging = grid.classList.contains('is-managing');
-    // 导入结束时叠牌正在过渡到扇形终态：保留这个节点，避免整块重建后整组再飞入一次
-    const settling = grid.querySelector('.moment-spread.is-transitioning');
+    const live = grid.querySelector('.moment-spread');
+    const liveSig = live?.dataset.spreadSig || '';
     grid.innerHTML = snippetPhotoGrid();
     const fresh = grid.querySelector('.moment-spread');
-    if (settling && fresh && !snippetPhotoImporting) fresh.replaceWith(settling);
+    if (live && fresh && liveSig && fresh.dataset.spreadSig === liveSig && !snippetPhotoImporting) {
+      fresh.replaceWith(live);
+      live.dataset.lastSpreadSig = liveSig;
+      live.classList.remove('is-importing', 'is-transitioning');
+      delete live.dataset.spreadImporting;
+      live.removeAttribute?.('data-spread-importing');
+    } else if (fresh && live && !snippetPhotoImporting) {
+      fresh.dataset.lastSpreadSig = fresh.dataset.spreadSig || '';
+    }
     if (wasManaging || snippetPhotoImporting) grid.classList.add('is-managing');
     bindSnippetPhotoGrid();
   }
@@ -729,25 +1011,16 @@ function showSnippetImportProgress(done, total) {
     preview.dataset.importBusy = '1';
     let spread = preview.querySelector('.moment-spread');
     if (!spread) {
-      const visual = momentImportStackHtml(pendingSnippetPhotos.slice(-4).reverse());
+      const visual = momentSpreadHtml(pendingSnippetPhotos, { videos: pendingSnippetVideos, importing: true, interactive: { mode: 'pending' } });
       preview.innerHTML = `${visual}<span class="quick-photo-overlay"></span>`;
       spread = preview.querySelector('.moment-spread');
-    }
-    if (spread && !spread.classList.contains('is-importing')) {
-      // 已有扇形叠牌转入导入态：去掉 count-N（清简主题 count-N 的 left 规则优先级更高），最后一张作为顶牌
-      spread.className = 'moment-spread is-importing';
-      const cards = [...spread.querySelectorAll('.moment-spread-card')].reverse();
-      cards.forEach((card, depth) => {
-        card.querySelector('.moment-spread-more')?.remove();
-        if (depth >= 4) { card.remove(); return; }
-        card.dataset.depth = String(depth);
-        card.style.zIndex = String(10 + depth);
-      });
     }
     if (spread) {
       spread.classList.add('is-importing');
       spread.dataset.spreadImporting = '1';
-      spread.dataset.lastSpreadSig = spread.dataset.spreadSig || 'importing';
+      spread.dataset.fanLive = '1';
+      const motion = readFanMotion();
+      markFanMotion(spread, motion);
     }
     let overlay = preview.querySelector('.quick-photo-overlay');
     if (!overlay) {
@@ -765,69 +1038,19 @@ function finishSnippetPhotoImport() {
   restoreSnippetImportButtons();
 
   const total = pendingSnippetPhotos.length;
-  const n = Math.min(total, 4);
-  const first4 = pendingSnippetPhotos.slice(0, n);
-  const sig = `${total}:${first4.map(p => typeof p === 'string' ? p : (p?.still || p?.src || '')).join(',')}`;
-
-  const canMove = typeof isMomentsMoving === 'function' ? isMomentsMoving() : false;
-  const isRich = typeof isMomentsRich === 'function' ? isMomentsRich() : true;
-  const duration = isRich ? MOMENTS_MOTION.spreadMs : MOMENTS_MOTION.spreadLiteMs;
-  const easing = isRich ? MOMENTS_MOTION.spreadEase : MOMENTS_MOTION.spreadLiteEase;
-
-  const spreads = document.querySelectorAll('.moment-spread');
-  spreads.forEach(spread => {
-    if (!total) {
+  const sig = momentSpreadSignature(pendingSnippetPhotos, pendingSnippetVideos);
+  document.querySelectorAll('.moment-spread').forEach(spread => {
+    if (!total && !pendingSnippetVideos.length) {
       spread.remove();
       return;
     }
+    syncMomentSpreadElement(spread, pendingSnippetPhotos, pendingSnippetVideos, { importing: false, animate: false, interactive: { mode: 'pending' } });
+    if (!spread.isConnected) return;
     spread.dataset.spreadSig = sig;
     spread.dataset.lastSpreadSig = sig;
+    spread.classList.remove('is-importing', 'is-transitioning');
     delete spread.dataset.spreadImporting;
     spread.removeAttribute?.('data-spread-importing');
-
-    if (canMove) {
-      spread.style.setProperty('--spread-dur', `${duration}ms`);
-      spread.style.setProperty('--spread-ease', easing);
-      spread.classList.remove('is-importing');
-      spread.className = `moment-spread count-${n} is-transitioning`;
-
-      const existingCards = [...spread.querySelectorAll('.moment-spread-card:not(.is-exiting)')];
-      while (existingCards.length < n) {
-        const c = document.createElement('span');
-        c.className = 'moment-spread-card';
-        spread.appendChild(c);
-        existingCards.push(c);
-      }
-      while (existingCards.length > n) {
-        const extra = existingCards.pop();
-        extra.remove();
-      }
-      existingCards.forEach((card, i) => {
-        const photo = first4[i];
-        const rot = n === 1 ? 0 : (i - (n - 1) / 2) * 4;
-        const lift = n === 1 ? 0 : (i % 2 ? 10 : -6);
-        card.removeAttribute?.('data-depth');
-        delete card.dataset.depth;
-        card.classList.remove('is-exiting');
-        card.style.setProperty('--i', String(i));
-        card.style.setProperty('--rot', `${rot}deg`);
-        card.style.setProperty('--lift', `${lift}px`);
-        card.style.zIndex = String(i + 1);
-        const more = (total > 4 && i === n - 1) ? `<button type="button" class="moment-spread-more" data-moment-spread-all aria-label="查看全部 ${total} 张照片">+${total - 4}</button>` : '';
-        const frame = `<span class="moment-spread-frame photo-blur-frame is-edge">${photoFrameLayersHtml(imgSrc(photo), { alt: `待保存照片 ${i + 1}`, padClass: 'moment-spread-blur', stillClass: 'moment-spread-still' })}</span>`;
-        card.innerHTML = `${frame}${more}`;
-      });
-
-      setTimeout(() => {
-        spread.classList.remove('is-transitioning');
-      }, duration);
-    } else {
-      spread.outerHTML = momentSpreadHtml(pendingSnippetPhotos);
-      const newSpread = document.querySelector(`[data-spread-sig="${sig}"]`);
-      if (newSpread) {
-        newSpread.dataset.lastSpreadSig = sig;
-      }
-    }
   });
 
   const preview = $('#quick-photo-preview');
@@ -876,8 +1099,7 @@ async function importSnippetPhotos(files) {
       onItem: (result, index) => {
         slots[index] = result;
         pendingSnippetPhotos = [...basePhotos, ...slots.filter(Boolean)];
-        const spreads = document.querySelectorAll('.moment-spread.is-importing, #quick-photo-preview .moment-spread');
-        spreads.forEach(spread => pushCardToImportStack(spread, result));
+        syncOpenMomentFans(`p:${result}`, { importing: true, animate: true });
         updateSnippetGridSlot(index, result, basePhotos.length, slots);
       }
     });
@@ -1017,18 +1239,21 @@ function bindSnippetVideoGrid() {
   $$('[data-remove-pending-snippet-video]').forEach(button => button.onclick = () => {
     pendingSnippetVideos.splice(Number(button.dataset.removePendingSnippetVideo), 1);
     refreshSnippetVideoGrid();
+    refreshQuickPhotoPreview();
   });
   $$('[data-play-pending-snippet-video]').forEach(button => button.onclick = () => openPendingSnippetVideo(Number(button.dataset.playPendingSnippetVideo)));
   $$('[data-change-video-poster]').forEach(button => button.onclick = () => pickVideoPoster(Number(button.dataset.changeVideoPoster)).catch(error => show(error.message)));
   $$('[data-recapture-video-poster]').forEach(button => button.onclick = () => recapturePendingVideoPoster(Number(button.dataset.recaptureVideoPoster)).catch(error => show(error.message)));
 }
 
-function refreshSnippetVideoGrid() {
+function refreshSnippetVideoGrid(options = {}) {
   const grid = $('#snippet-video-grid');
   if (grid) {
     grid.innerHTML = snippetVideoGrid();
     bindSnippetVideoGrid();
   }
+  const arrivedKey = options && typeof options === 'object' ? (options.arrivedKey || '') : '';
+  syncOpenMomentFans(arrivedKey, { animate: Boolean(arrivedKey), importing: snippetPhotoImporting });
   const full = pendingSnippetVideos.length >= SNIPPET_PHOTO_LIMIT;
   const captureButton = $('#capture-snippet-video');
   if (captureButton) {
@@ -1746,7 +1971,9 @@ async function addSnippetVideo(input) {
     ? await saveNativeMediaSource(input.nativeSource, { name: input.name, size: input.size })
     : await saveMediaFile(input);
   pendingSnippetVideos.push({ poster, video, ...metadata });
-  refreshSnippetVideoGrid();
+  const arrivedKey = `v:${video}`;
+  refreshSnippetVideoGrid({ arrivedKey });
+  refreshQuickPhotoPreview({ animateKey: arrivedKey });
   show('视频已保存到本机');
 }
 
@@ -2128,12 +2355,19 @@ function quickPhotoModal() {
   renderQuickTagRow();
 
   $('#quick-photo-preview')?.addEventListener('click', event => {
+    const video = event.target.closest('[data-play-pending-snippet-video]');
+    if (video) {
+      event.preventDefault();
+      event.stopPropagation();
+      openPendingSnippetVideo(Number(video.dataset.playPendingSnippetVideo));
+      return;
+    }
     const allBtn = event.target.closest('[data-moment-spread-all]');
     if (allBtn) {
       event.stopPropagation();
       event.preventDefault();
       if (pendingSnippetPhotos.length) {
-        photoViewer(photosWithLiveMotion(pendingSnippetPhotos, pendingSnippetLive), Math.min(3, pendingSnippetPhotos.length - 1));
+        photoViewer(photosWithLiveMotion(pendingSnippetPhotos, pendingSnippetLive), Math.max(0, pendingSnippetPhotos.length - 4));
       }
       return;
     }
@@ -2141,7 +2375,7 @@ function quickPhotoModal() {
   });
   $('#quick-photo-preview')?.addEventListener('keydown', event => {
     if (event.key !== 'Enter' && event.key !== ' ') return;
-    if (event.target.closest('[data-moment-spread-all]')) return;
+    if (event.target.closest('[data-moment-spread-all], [data-play-pending-snippet-video]')) return;
     event.preventDefault();
     pickSnippetPhoto(true).catch(error => show(error.message)).then(refreshQuickPhotoPreview);
   });
@@ -2157,13 +2391,7 @@ function quickPhotoPreview() {
   const photos = [...pendingSnippetPhotos];
   const videos = [...pendingSnippetVideos];
   if (!photos.length && !videos.length) return '<span class="quick-photo-empty-icon material-symbols-outlined">photo_camera</span><strong>把这一刻留在这里</strong><small>轻触拍摄 · 或从相册选择</small>';
-  let visual = '';
-  if (photos.length) {
-    visual = momentSpreadHtml(photos);
-  } else {
-    const cover = videos[0]?.poster || '';
-    visual = cover ? `<img src="${imgSrc(cover)}" alt="预览画面">` : '<span class="quick-video-preview-placeholder"><span class="material-symbols-outlined">live_tv</span><strong>视频</strong></span>';
-  }
+  const visual = momentSpreadHtml(photos, { videos, interactive: { mode: 'pending' } });
   const liveCount = pendingSnippetLive.filter(item => photos.includes(item.still)).length;
   const viewAllBtn = photos.length > 0 ? '<button type="button" class="quick-photo-view-all plain-moment-btn" data-moment-spread-all>查看全部</button>' : '';
   const bits = [];
@@ -2173,9 +2401,37 @@ function quickPhotoPreview() {
   return `${visual}<span class="quick-photo-overlay"><small>${bits.join(' · ')}</small>${viewAllBtn}</span>`;
 }
 
-function refreshQuickPhotoPreview() {
+function refreshQuickPhotoPreview(options) {
   const preview = $('#quick-photo-preview');
-  if (preview) preview.innerHTML = quickPhotoPreview();
+  if (!preview) return;
+  const animateKey = options && typeof options === 'object' && !options.target ? (options.animateKey || '') : '';
+  const spread = preview.querySelector('.moment-spread');
+  if (spread && (pendingSnippetPhotos.length || pendingSnippetVideos.length)) {
+    syncMomentSpreadElement(spread, pendingSnippetPhotos, pendingSnippetVideos, {
+      arrivedKey: animateKey,
+      importing: snippetPhotoImporting,
+      animate: Boolean(animateKey),
+      interactive: { mode: 'pending' },
+    });
+    const overlay = preview.querySelector('.quick-photo-overlay');
+    if (overlay && !preview.dataset.importBusy) {
+      const liveCount = pendingSnippetLive.filter(item => pendingSnippetPhotos.includes(item.still)).length;
+      const viewAllBtn = pendingSnippetPhotos.length > 0 ? '<button type="button" class="quick-photo-view-all plain-moment-btn" data-moment-spread-all>查看全部</button>' : '';
+      const bits = [];
+      if (pendingSnippetPhotos.length) bits.push(`${pendingSnippetPhotos.length} 张照片`);
+      if (liveCount) bits.push(`${liveCount} 张实况`);
+      if (pendingSnippetVideos.length) bits.push(`${pendingSnippetVideos.length} 段视频`);
+      overlay.innerHTML = `<small>${bits.join(' · ')}</small>${viewAllBtn}`;
+    }
+    return;
+  }
+  preview.innerHTML = quickPhotoPreview();
+  if (!animateKey) return;
+  const created = preview.querySelector('.moment-spread');
+  const card = [...(created?.querySelectorAll('.moment-spread-card') || [])].find(node => node.dataset.fanKey === animateKey);
+  if (!card || !created) return;
+  const index = Number(created.dataset.fanCount ? (card.style.getPropertyValue('--i') || 0) : 0);
+  flyMomentCard(card, index, Number(created.dataset.fanCount || 1), readFanMotion());
 }
 
 async function saveQuickSnap() {
