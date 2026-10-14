@@ -325,7 +325,7 @@
 
   <header class="preview-header">
     <h1>随手拍 · 批量导入叠牌逐张进入演示</h1>
-    <p>模拟导入 6 张照片：最新张作为顶牌正对用户弹入，旧牌前移淡出，全部完成后平滑转为扇形叠牌终态。</p>
+    <p>模拟导入 6 张照片：最新张作为顶牌正对用户弹入，旧牌朝观众变大淡出，全部完成后平滑转为扇形叠牌终态。</p>
   </header>
 
   <div class="preview-toolbar">
@@ -402,7 +402,7 @@
     <h2>动效与交互特性</h2>
     <ul>
       <li><strong>顶牌飞入：</strong>新照片压缩完成后立即成为最前面、正对用户的顶牌，采用 MOMENTS_MOTION.spreadMs (320ms) 与 spreadEase 曲线进入。</li>
-      <li><strong>旧牌前移淡出：</strong>旧牌沿 depth 0→1→2→3 阶梯平滑后移与淡出，第 4 张以外更旧的卡片淡出后安全移除。</li>
+      <li><strong>旧牌朝观众变大淡出：</strong>旧牌沿 depth 0→1→2→3 阶梯平滑朝观众放大并淡出（scale 1→1.06→1.12→1.18），z-index 递增飘在前面，第 4 张以外更旧的卡片放大至 1.28 透明度归零后安全移除。</li>
       <li><strong>平滑转为扇形终态：</strong>整批 6 张完成后，卡片通过 CSS transition 平滑展开到扇形位置（附 +2 查看全部角标），预设 lastSpreadSig 避免整组重飞。</li>
       <li><strong>纯 CSS 旋转环：</strong>小号 .snippet-import-spinner (14px) 优雅嵌入底栏 overlay，不打断叠牌展示。</li>
       <li><strong>尊重动效减弱偏好：</strong>已配置 prefers-reduced-motion 与 data-pl-motion="none" 降级。</li>
@@ -472,10 +472,11 @@
           if (next >= 4) {
             card.dataset.depth = 'out';
             card.classList.add('is-exiting');
+            card.style.zIndex = '14';
             setTimeout(function () { card.remove(); }, SPREAD_MS);
           } else {
             card.dataset.depth = String(next);
-            card.style.zIndex = String(10 - next);
+            card.style.zIndex = String(10 + next);
           }
         });
 

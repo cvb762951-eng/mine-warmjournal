@@ -443,7 +443,7 @@ function aiStructureCard(item) {
 export function momentImportStackHtml(photos = []) {
   const cards = (photos || []).slice(0, 4).map((photo, depth) => {
     const frame = `<span class="moment-spread-frame photo-blur-frame is-edge">${photoFrameLayersHtml(imgSrc(photo), { alt: '待保存照片', padClass: 'moment-spread-blur', stillClass: 'moment-spread-still' })}</span>`;
-    return `<span class="moment-spread-card" data-depth="${depth}" style="z-index:${10 - depth}">${frame}</span>`;
+    return `<span class="moment-spread-card" data-depth="${depth}" style="z-index:${10 + depth}">${frame}</span>`;
   }).join('');
   return `<div class="moment-spread is-importing" data-spread-importing="1" data-spread-sig="importing" data-last-spread-sig="importing">${cards}</div>`;
 }
@@ -486,6 +486,7 @@ export function pushCardToImportStack(spread, photo) {
     if (nextDepth >= 4) {
       card.dataset.depth = 'out';
       card.classList.add('is-exiting');
+      card.style.zIndex = '14';
       if (canMove) {
         setTimeout(() => card.remove(), duration);
       } else {
@@ -493,7 +494,7 @@ export function pushCardToImportStack(spread, photo) {
       }
     } else {
       card.dataset.depth = String(nextDepth);
-      card.style.zIndex = String(10 - nextDepth);
+      card.style.zIndex = String(10 + nextDepth);
     }
   });
 
@@ -740,7 +741,7 @@ function showSnippetImportProgress(done, total) {
         card.querySelector('.moment-spread-more')?.remove();
         if (depth >= 4) { card.remove(); return; }
         card.dataset.depth = String(depth);
-        card.style.zIndex = String(10 - depth);
+        card.style.zIndex = String(10 + depth);
       });
     }
     if (spread) {

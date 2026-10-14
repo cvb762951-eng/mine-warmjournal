@@ -240,13 +240,21 @@ test('动效锁定：playSpreadFlyIn 跳过导入态容器，避免整组重飞'
   }
 });
 
-test('叠牌渲染：momentImportStackHtml 与 pushCardToImportStack 正确管理堆叠深度', async () => {
+test('叠牌渲染：momentImportStackHtml 与 pushCardToImportStack 锁定朝观众变大淡出与递增 z-index', async () => {
   const { momentImportStackHtml, pushCardToImportStack } = await import('../views/snippets.js');
   const html = momentImportStackHtml(['photoA.jpg', 'photoB.jpg']);
   assert.match(html, /class="moment-spread is-importing"/);
   assert.match(html, /data-spread-importing="1"/);
   assert.match(html, /data-depth="0"/);
   assert.match(html, /data-depth="1"/);
+  assert.match(html, /style="z-index:\s*10"/);
+  assert.match(html, /style="z-index:\s*11"/);
+
+  // 校验 styles.css 中朝观众变大淡出阶梯（scale > 1，out/exiting 达 1.28 且 opacity 0）
+  const styles = await read('styles.css');
+  assert.match(styles, /\.moment-spread\.is-importing \.moment-spread-card\[data-depth="out"\],\s*\.moment-spread\.is-importing \.moment-spread-card\.is-exiting\s*\{[^}]*scale\(1\.[^}]*opacity:\s*0/);
+  assert.match(styles, /\.moment-spread\.is-importing \.moment-spread-card\[data-depth="1"\]\s*\{[^}]*scale\(1\./);
+  assert.doesNotMatch(styles, /\.moment-spread\.is-importing \.moment-spread-card\[data-depth="1"\]\s*\{[^}]*scale\(0\./);
 
   // 测试 pushCardToImportStack 增量添加新卡与旧卡深度推移
   const cards = [];
@@ -260,7 +268,7 @@ test('叠牌渲染：momentImportStackHtml 与 pushCardToImportStack 正确管�
     const classList = new Set();
     return {
       dataset: { depth: String(depth) },
-      style: { zIndex: String(10 - depth) },
+      style: { zIndex: String(10 + depth) },
       classList: {
         add: cls => classList.add(cls),
         remove: cls => classList.delete(cls),
@@ -279,6 +287,16 @@ test('叠牌渲染：momentImportStackHtml 与 pushCardToImportStack 正确管�
 
   assert.equal(cards.length, 2);
   assert.equal(cards[0].dataset.depth, '1', '旧卡深度从 0 递增到 1');
-  assert.equal(cards[1].dataset.depth, '0', '新卡深度设为 0 (最顶层)');
+  assert.equal(cards[0].style.zIndex, '11', '旧卡 z-index 递增为 11（飘在新卡前面）');
+  assert.equal(cards[1].dataset.depth, '0', '新卡深度设为 0 (最顶层新卡)');
+  assert.equal(cards[1].style.zIndex, '10', '新卡 z-index 为 10');
+
+  // 测试 depth >= 4 卡片设为 out / exiting，z-index 升至最高 14
+  const oldCard = cards[0];
+  oldCard.dataset.depth = '3';
+  pushCardToImportStack(spreadEl, 'photoNext.jpg');
+  assert.equal(oldCard.dataset.depth, 'out');
+  assert.equal(oldCard.style.zIndex, '14', 'exiting 卡设为最高 z-index 14');
+  assert.ok(oldCard.classList.contains('is-exiting'));
 });
 

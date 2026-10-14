@@ -10322,27 +10322,27 @@ body #modal-layer .modal.confirm-sheet .modal-actions .danger { padding: 0 16px 
 }
 
 .moment-spread.is-importing .moment-spread-card[data-depth="1"] {
-  z-index: 9;
-  transform: translate3d(0, -14px, 0) scale(0.95);
-  opacity: 0.88;
+  z-index: 11;
+  transform: translate3d(0, 8px, 0) scale(1.06);
+  opacity: 0.72;
 }
 
 .moment-spread.is-importing .moment-spread-card[data-depth="2"] {
-  z-index: 8;
-  transform: translate3d(0, -28px, 0) scale(0.90);
-  opacity: 0.68;
+  z-index: 12;
+  transform: translate3d(0, 16px, 0) scale(1.12);
+  opacity: 0.48;
 }
 
 .moment-spread.is-importing .moment-spread-card[data-depth="3"] {
-  z-index: 7;
-  transform: translate3d(0, -42px, 0) scale(0.85);
-  opacity: 0.48;
+  z-index: 13;
+  transform: translate3d(0, 24px, 0) scale(1.18);
+  opacity: 0.28;
 }
 
 .moment-spread.is-importing .moment-spread-card[data-depth="out"],
 .moment-spread.is-importing .moment-spread-card.is-exiting {
-  z-index: 6;
-  transform: translate3d(0, -56px, 0) scale(0.80);
+  z-index: 14;
+  transform: translate3d(0, 32px, 0) scale(1.28);
   opacity: 0;
   pointer-events: none;
 }
