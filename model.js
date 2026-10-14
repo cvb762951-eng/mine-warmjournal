@@ -253,10 +253,10 @@ export function makeDefaultState(now = new Date()) {
     documentFolders: [],
     documents: [],
     // 本机相册（系统相册）的观看历史（2026-10-09 新增）。
-    // 本机视频的「播放进度」不保存 —— 它们是系统文件，App 不去改它们；
-    // 这里只记录「看过哪些、看了多久」，供视频流的观看记录面板使用。
+    // 播放进度单独放在 localGalleryProgress，只在关掉播放器时写一次。
     // ⚠️ 新增顶层字段必须同步加进 storage.js 的 SECTIONS，否则真机不会落库。
     localGalleryWatchHistory: [],
+    localGalleryProgress: {},
     // 私密空间只保存加密后的元数据密文和随机媒体引用。
     privateVault: { version: 1, salt: '', verifierIv: '', verifier: '', payloadIv: '', payload: '', assetRefs: [], updatedAt: 0 },
     passwordVault: normalizePasswordVault(),
@@ -578,6 +578,19 @@ export function calculateFlowScore(session = {}) {
   return Math.round((completion * 0.8 + (1 - interruptionPenalty) * 0.2) * 100);
 }
 
+function normalizeSnippetWatchHistory(value) {
+  if (!Array.isArray(value)) return [];
+  return value.map(session => ({
+    id: String(session?.id || ''),
+    startedAt: Math.max(0, Number(session?.startedAt) || 0),
+    endedAt: Math.max(0, Number(session?.endedAt) || 0),
+    watchedSeconds: Math.max(0, Math.floor(Number(session?.watchedSeconds) || 0)),
+    startPosition: Math.max(0, Math.floor(Number(session?.startPosition) || 0)),
+    endPosition: Math.max(0, Math.floor(Number(session?.endPosition) || 0)),
+    completion: Math.min(1, Math.max(0, Number(session?.completion) || 0))
+  })).filter(session => session.id && session.startedAt && session.watchedSeconds >= 3).slice(-100);
+}
+
 export function makeSnippet(input = {}) {
   const type = input.type === 'photo' ? 'photo' : 'text';
   const createdAt = Number(input.createdAt) || Date.now();
@@ -605,6 +618,7 @@ export function makeSnippet(input = {}) {
           const contentAspect = Math.max(0, Number(item?.contentAspect) || 0);
           const displayOrientation = item?.displayOrientation === 'portrait' ? 'portrait' : item?.displayOrientation === 'landscape' ? 'landscape' : '';
           const displayAnalysisVersion = Math.max(0, Math.floor(Number(item?.displayAnalysisVersion) || 0));
+          const watchHistory = normalizeSnippetWatchHistory(item?.watchHistory);
           return {
             poster: isLocalImage(item?.poster) ? String(item.poster) : '',
             video,
@@ -616,7 +630,8 @@ export function makeSnippet(input = {}) {
             ...(contentLeft + contentRight < .82 && contentAspect ? { contentLeft, contentRight, contentAspect } : {}),
             ...(displayOrientation ? { displayOrientation } : {}),
             ...(displayAnalysisVersion ? { displayAnalysisVersion } : {}),
-             ...(coverTime ? { coverTime } : {})
+             ...(coverTime ? { coverTime } : {}),
+            ...(watchHistory.length ? { watchHistory } : {})
           };
         })
         .filter(item => item.video)
@@ -686,6 +701,20 @@ export function tastePlaceGroups(entries = []) {
     avoid: group.entries.filter(entry => entry.verdict === 'avoid').length,
     cover: group.entries.find(entry => entry.photos?.length)?.photos?.[0] || ''
   })).sort((a, b) => b.latestAt - a.latestAt || a.name.localeCompare(b.name, 'zh-CN'));
+}
+
+function normalizeLocalGalleryProgress(value) {
+  const output = {};
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return output;
+  for (const [id, entry] of Object.entries(value).slice(-200)) {
+    const key = String(id || '').slice(0, 200);
+    if (!key) continue;
+    const position = Math.max(0, Math.floor(Number(entry?.position) || 0));
+    const duration = Math.max(0, Math.floor(Number(entry?.duration) || 0));
+    if (!position && !duration) continue;
+    output[key] = { ...(position ? { position } : {}), ...(duration ? { duration } : {}) };
+  }
+  return output;
 }
 
 export function migrateState(rawState, defaults = makeDefaultState()) {
@@ -899,6 +928,7 @@ export function migrateState(rawState, defaults = makeDefaultState()) {
       .filter(entry => entry.id && entry.startedAt)
       .slice(-200)
     : [];
+  state.localGalleryProgress = normalizeLocalGalleryProgress(raw.localGalleryProgress);
   state.privateVault = normalizePrivateVault(raw.privateVault);
   state.passwordVault = normalizePasswordVault(raw.passwordVault);
   state.aiMemory = Array.isArray(raw.aiMemory)

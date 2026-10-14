@@ -53,7 +53,7 @@ test('Album layer is navigation-only and restores under modal viewer', () => {
   // 轻触牌面 → 既有大图 / 播放器（2026-10-12 起集中在 openMomentAlbumCurrent 里）
   assert.match(snippets, /function openMomentAlbumCurrent\(\)/);
   assert.match(snippets, /photoLightbox\(entry, item\.index\)/);
-  assert.match(snippets, /playSnippetVideo\(item\.video, entry, item\.index\)/);
+  assert.match(snippets, /openSavedSnippetVideo\(entry, item\.index\)/);
 });
 
 test('Content photo surfaces migrated to shared photo-frame helper', () => {

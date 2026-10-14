@@ -10,6 +10,7 @@ import { livePhotoMarkHtml, photosWithLiveMotion } from '../motion-photo.js';
 import { thumbSource, thumbKeyFor, watchThumbImages } from '../photo-thumbs.js';
 import { mediaSource, saveMediaFile, saveNativeMediaSource } from '../media-store.js';
 import { attachVideoSource, formatVideoDuration, isHlsAddress, normalizeHlsAddress, presentWatchSession, summarizeWatchSession } from '../video-player.js';
+import { openVideoSession, plainVideoCache } from '../video-session.js';
 import { showVideoFramePicker } from '../video-frame-picker.js';
 import { applyVideoCrop, croppedFrame } from '../video-crop.js';
 import { aiSuggestStructure, applySuggestion } from '../ai.js';
@@ -453,12 +454,109 @@ function videoDurationStamp(video) {
   return `<span class="video-duration-stamp" aria-label="视频时长 ${label}">${label}</span>`;
 }
 
+function snippetScopeLabel() {
+  if (snippetType === 'photo') return '随手拍';
+  if (snippetType === 'live') return '实况影像';
+  if (snippetType === 'text') return '灵感速记';
+  return '随手拍';
+}
+
+function snippetSessionItem(video, entry, index, pending = false) {
+  return {
+    id: pending ? `pending:${index}` : `${entry?.id || 'snippet'}:${index}`,
+    entryId: entry?.id || '',
+    videoIndex: index,
+    pending,
+    resolveSource: () => video?.video || '',
+    poster: video?.poster || '',
+    label: video?.label || entry?.text || (video?.sourceType === 'hls' ? 'HLS 在线视频' : '本地离线视频'),
+    date: entry?.date || '',
+    note: '',
+    position: Number(video?.position) || 0,
+    duration: Number(video?.duration) || 0,
+    trim: video?.trim || null,
+    crop: video?.crop || null,
+    watchHistory: Array.isArray(video?.watchHistory) ? video.watchHistory : [],
+    sourceType: video?.sourceType || '',
+    width: Number(video?.width) || 0,
+    height: Number(video?.height) || 0
+  };
+}
+
+function scopedSnippetVideoRecords() {
+  const photoFilter = snippetType === 'photo';
+  const textFilter = snippetType === 'text';
+  const mediaFilter = snippetType === 'media';
+  const liveFilter = snippetType === 'live';
+  if (mediaFilter || textFilter) return [];
+  return snippetEntries(state, { type: photoFilter || liveFilter ? 'photo' : 'all', search: snippetSearch })
+    .filter(entry => !liveFilter || snippetHasLive(entry))
+    .flatMap(entry => (entry.videos || []).map((video, index) => ({ video, entry, index })).filter(item => item.video?.video))
+    .sort((a, b) => String(b.entry?.date || '').localeCompare(String(a.entry?.date || '')) || (b.entry?.createdAt || 0) - (a.entry?.createdAt || 0) || a.index - b.index);
+}
+
+function persistSnippetVideo(item, patch) {
+  const video = item?.pending
+    ? pendingSnippetVideos[item.videoIndex]
+    : state.snippets.find(entry => entry.id === item?.entryId)?.videos?.[item.videoIndex];
+  if (!video) return;
+  // 只写进度和观看记录。播放地址（尤其是私密空间解密出来的 blob）不能进随手拍。
+  const position = Math.max(0, Math.floor(Number(patch?.position) || 0));
+  const duration = Math.max(0, Math.floor(Number(patch?.duration) || 0));
+  if (position) video.position = position;
+  else delete video.position;
+  if (duration) video.duration = duration;
+  if (patch?.width && patch?.height) { video.width = Math.floor(patch.width); video.height = Math.floor(patch.height); }
+  const history = Array.isArray(patch?.watchHistory) ? patch.watchHistory.slice(-100) : [];
+  if (history.length) video.watchHistory = history;
+  else delete video.watchHistory;
+  if (item.pending) return;
+  return save();
+}
+
+function openSnippetVideos(records, startIndex = 0, scopeLabel = '随手拍') {
+  const list = (records || []).filter(item => item?.video?.video);
+  if (!list.length) return Promise.resolve(null);
+  return openVideoSession({
+    items: list.map(item => snippetSessionItem(item.video, item.entry, item.index, Boolean(item.pending))),
+    startIndex,
+    scopeLabel,
+    sourceCache: plainVideoCache,
+    persist: persistSnippetVideo,
+    currentItem: sessionItem => {
+      if (sessionItem.pending) {
+        const video = pendingSnippetVideos[sessionItem.videoIndex];
+        return video ? snippetSessionItem(video, null, sessionItem.videoIndex, true) : sessionItem;
+      }
+      const entry = state.snippets.find(record => record.id === sessionItem.entryId);
+      const video = entry?.videos?.[sessionItem.videoIndex];
+      return video ? snippetSessionItem(video, entry, sessionItem.videoIndex, false) : sessionItem;
+    }
+  });
+}
+
+function openSavedSnippetVideo(entry, index = 0) {
+  if (!entry) return;
+  let records = scopedSnippetVideoRecords();
+  let start = records.findIndex(item => item.entry?.id === entry.id && item.index === index);
+  if (start < 0) {
+    records = (entry.videos || []).map((video, videoIndex) => ({ video, entry, index: videoIndex })).filter(item => item.video?.video);
+    start = Math.max(0, records.findIndex(item => item.index === index));
+  }
+  return openSnippetVideos(records, start, snippetScopeLabel());
+}
+
+function openPendingSnippetVideo(index = 0) {
+  const records = pendingSnippetVideos.map((video, videoIndex) => ({ video, entry: null, index: videoIndex, pending: true }));
+  return openSnippetVideos(records, index, '未保存的视频');
+}
+
 function bindSnippetVideoGrid() {
   $$('[data-remove-pending-snippet-video]').forEach(button => button.onclick = () => {
     pendingSnippetVideos.splice(Number(button.dataset.removePendingSnippetVideo), 1);
     refreshSnippetVideoGrid();
   });
-  $$('[data-play-pending-snippet-video]').forEach(button => button.onclick = () => playSnippetVideo(pendingSnippetVideos[Number(button.dataset.playPendingSnippetVideo)]));
+  $$('[data-play-pending-snippet-video]').forEach(button => button.onclick = () => openPendingSnippetVideo(Number(button.dataset.playPendingSnippetVideo)));
   $$('[data-change-video-poster]').forEach(button => button.onclick = () => pickVideoPoster(Number(button.dataset.changeVideoPoster)).catch(error => show(error.message)));
   $$('[data-recapture-video-poster]').forEach(button => button.onclick = () => recapturePendingVideoPoster(Number(button.dataset.recaptureVideoPoster)).catch(error => show(error.message)));
 }
@@ -1651,7 +1749,7 @@ function openMomentAlbumCurrent() {
   const item = momentAlbumItems(entry)[momentAlbumIndex];
   if (!item) return;
   if (item.kind === 'video') {
-    if (item.video) playSnippetVideo(item.video, entry, item.index);
+    if (item.video) openSavedSnippetVideo(entry, item.index);
     return;
   }
   // 走既有 photoLightbox（含实况照片的无闪路径）；牌堆留在下面，关掉大图还在原处
@@ -1865,7 +1963,7 @@ function openMomentAlbumBrowse(entry, focusPhotoIndex = 0, originEl = null) {
   if (!items.length) return;
   if (items.length === 1) {
     const only = items[0];
-    if (only.kind === 'video') return playSnippetVideo(only.video, entry, only.index);
+    if (only.kind === 'video') return openSavedSnippetVideo(entry, only.index);
     return photoLightbox(entry, only.index);
   }
 
@@ -1917,7 +2015,7 @@ function openMomentMediaBrowse(entry, photoIndex = 0, originEl = null) {
   if (!entry) return;
   const items = momentAlbumItems(entry);
   if (items.length > 1) return openMomentAlbumBrowse(entry, photoIndex, originEl);
-  if (items[0]?.kind === 'video') return playSnippetVideo(items[0].video, entry, items[0].index);
+  if (items[0]?.kind === 'video') return openSavedSnippetVideo(entry, items[0].index);
   return photoLightbox(entry, photoIndex);
 }
 
@@ -1926,7 +2024,7 @@ function photoLightbox(entry, active = 0) {
   if (!entry) return;
   const photos = entry.photos?.length ? entry.photos : (entry.photo ? [entry.photo] : []);
   const video = (entry.videos || [])[0];
-  if (!photos.length && video) return playSnippetVideo(video, entry, 0);
+  if (!photos.length && video) return openSavedSnippetVideo(entry, 0);
   const index = Math.max(0, Math.min(active, Math.max(photos.length - 1, 0)));
   const cover = photos[index] || video?.poster || '';
   if (!cover) return;
@@ -1963,7 +2061,7 @@ function bindSnippets() {
   $$('[data-play-snippet-video]').forEach(button => button.onclick = () => {
     const entry = state.snippets.find(item => item.id === button.dataset.playSnippetVideo);
     const index = Number(button.dataset.videoIndex) || 0;
-    if (entry?.videos?.[index]) playSnippetVideo(entry.videos[index], entry, index);
+    if (entry?.videos?.[index]) openSavedSnippetVideo(entry, index);
   });
   $$('[data-refresh-video-poster]').forEach(button => button.onclick = () => refreshStoredVideoPoster(button.dataset.refreshVideoPoster, Number(button.dataset.videoIndex) || 0).catch(error => show(error.message)));
   $$('[data-open-media-detail]').forEach(button => button.onclick = () => { const entry = state.media.find(item => item.id === button.dataset.openMediaDetail); if (entry) openMediaDetail(entry); });
@@ -2011,6 +2109,8 @@ registerHelper('isMomentAlbumOpen', isMomentAlbumOpen);
 registerHelper('closeMomentAlbum', closeMomentAlbum);
 registerHelper('closeVideoPlayer', stopActiveVideoPlayer);
 registerHelper('playSnippetVideo', playSnippetVideo);
+registerHelper('openSnippetVideos', openSnippetVideos);
+registerHelper('openSavedSnippetVideo', openSavedSnippetVideo);
 
 // 列表缩略图：进页面后只给看得到的卡片在空闲时补，不在渲染这一帧做任何解码。
 registerOnRender(() => {

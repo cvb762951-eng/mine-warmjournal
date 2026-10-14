@@ -5,6 +5,7 @@ import { makeDefaultState, migrateState, SCHEMA_VERSION } from '../model.js';
 import { setupPrivateVault, unlockPrivateVault, unlockPrivateVaultWithKey, privateVaultKeyBase64, privateVaultContent, privateVaultUnlocked, persistPrivateVault, lockPrivateVault, vaultPlayableDuration, vaultItemEdited, vaultItemOrientation, vaultFrameSize } from '../private-vault.js';
 
 const view = await readFile(new URL('../views/private-vault.js', import.meta.url), 'utf8');
+const videoSession = await readFile(new URL('../video-session.js', import.meta.url), 'utf8');
 const vaultCore = await readFile(new URL('../private-vault.js', import.meta.url), 'utf8');
 const store = await readFile(new URL('../vault-media-store.js', import.meta.url), 'utf8');
 const native = await readFile(new URL('../android/app/src/main/java/com/mine/focus/NativeMediaStorePlugin.java', import.meta.url), 'utf8');
@@ -249,7 +250,7 @@ test('private photos open in a full-screen swipe and zoom viewer without the old
   assert.match(view, /scale = Math\.max\(1, Math\.min\(5/);
   assert.match(view, /Math\.abs\(totalX\) > 58/);
   assert.match(view, /setTimeout\(\(\) => \{ if \(chrome\.isConnected\) chrome\.classList\.add\('hidden'\); \}, 1100\)/);
-  assert.match(view, /\[items\[index - 1\], items\[index \+ 1\]\]/);
+  assert.match(view, /\[items\[\(index - 1 \+ items\.length\) % items\.length\], items\[\(index \+ 1\) % items\.length\]\]/);
   assert.doesNotMatch(view, /vault-image-fullscreen/);
   assert.match(css, /\.modal-layer:has\(\.vault-photo-modal\)\{padding:0;background:#020504/);
   assert.match(css, /\.modal\.vault-photo-modal\{width:100%;max-width:none;height:100dvh/);
@@ -281,8 +282,8 @@ test('passwordless mode is process-memory only and manual lock always clears it'
   assert.match(view, /#vault-lock'\)\?\.addEventListener\('click'[\s\S]*?passwordlessForThisRun = false/);
   // 离开私密空间时（非免密模式）必须清掉指纹尝试与已解密缓存，再重新上锁。
   // 该逻辑在源码里分两处：lockAndLeave 与 registerOnRender 的关闭回调。
-  assert.match(view, /if \(!passwordlessForThisRun\) \{ decryptedVideoUrls\.clear\(\); decryptingVideoUrls\.clear\(\); await lockPrivateVault\(\); \}/, '离开私密空间要清缓存并重新上锁');
-  assert.match(view, /if \(!passwordlessForThisRun\) \{[\s\S]*?resetVaultFingerprintAttempt\(\);[\s\S]*?decryptedVideoUrls\.clear\(\);[\s\S]*?decryptingVideoUrls\.clear\(\);[\s\S]*?lockPrivateVault\(\);/, '退出路由时要重置指纹尝试并清缓存上锁');
+  assert.match(view, /if \(!passwordlessForThisRun\) \{ releaseVaultPlaybackCache\(\); await lockPrivateVault\(\); \}/, '离开私密空间要清缓存并重新上锁');
+  assert.match(view, /if \(!passwordlessForThisRun\) \{[\s\S]*?resetVaultFingerprintAttempt\(\);[\s\S]*?releaseVaultPlaybackCache\(\);[\s\S]*?lockPrivateVault\(\);/, '退出路由时要重置指纹尝试并清缓存上锁');
 });
 
 test('entry password keeps metadata encrypted while media uses fast app-private references', () => {
@@ -353,25 +354,33 @@ test('private videos use compact complete covers and keep encrypted editing in a
   assert.match(view, /new IntersectionObserver/);
 });
 
-test('private playback caches decrypted legacy sources, preloads neighbors and supports swipe continuation', () => {
-  assert.match(view, /const decryptedVideoUrls = new Map\(\)/);
-  assert.match(view, /items\[index - 1\], items\[index \+ 1\]/);
+test('private playback caches decrypted legacy sources, preloads the next video and supports swipe continuation', () => {
+  assert.match(view, /privateVideoCache/);
+  assert.match(view, /releaseVaultPlaybackCache\(\)/);
+  assert.match(view, /forgetVaultVideo\(/);
+  assert.match(videoSession, /URL\.revokeObjectURL/);
+  assert.doesNotMatch(view, /items\[index - 1\], items\[index \+ 1\]/);
+  assert.match(videoSession, /const next = items\?\.\[index \+ 1\]/);
   assert.match(view, /autoAdvance: false/);
-  assert.match(view, /onNavigate: \(next, direction\) => openVaultVideo/);
-  assert.match(view, /onProgress: \(\{ position, duration \}\)/);
+  assert.match(videoSession, /onNavigate: \(next, direction\)/);
+  assert.match(videoSession, /onProgress: \(\{ position: nextPosition, duration: nextDuration \}\)/);
+  const progress = videoSession.slice(videoSession.indexOf('onProgress:'), videoSession.indexOf('onEnded:'));
+  assert.doesNotMatch(progress, /save\(|persist\(/);
   assert.match(view, /sourceType: current\.sourceType/);
   assert.match(view, /currentVaultVideoScopeLabel/);
   assert.match(view, /episodeTitle: currentVaultVideoScopeLabel\(\)/);
-  assert.match(view, /date: entry\.date/);
+  assert.match(videoSession, /date: entry\.date/);
   assert.match(view, /watchHistory: current\.watchHistory \|\| \[\]/);
-  assert.match(view, /onWatchSession: session/);
-  assert.match(view, /record\.watchHistory = \[\.\.\.\(record\.watchHistory \|\| \[\]\), session\]/);
+  assert.match(videoSession, /onWatchSession: session =>/);
+  assert.match(videoSession, /watchHistory\.push\(session\)/);
+  assert.match(view, /record\.watchHistory = patch\.watchHistory\.slice\(-100\)/);
   assert.match(view, /const closing = Promise\.resolve\(callHelper\('closeVideoPlayer'\)\)/);
   assert.match(view, /closing\.finally\(\(\) => \{[\s\S]*?lockPrivateVault\(\)/);
-  assert.match(view, /onDeleteCurrent: \(\) => deleteVaultVideoFromFeed/);
+  assert.match(view, /onDelete: \(sessionItem, at\) => deleteVaultVideoFromFeed/);
   assert.match(view, /async function deleteVaultVideoFromFeed/);
   assert.match(vaultCore, /watchHistory: Array\.isArray/);
   assert.match(vaultCore, /watchedSeconds >= 3/);
+  assert.doesNotMatch(view.slice(view.indexOf('async function persistVaultPlayback'), view.indexOf('function vaultVideosForCurrentFolder')), /assetRef|remoteUrl|blob:/);
 });
 
 test('password-valid unlock renders immediately and never waits for legacy media migration', () => {
