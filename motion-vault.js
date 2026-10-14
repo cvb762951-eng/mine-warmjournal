@@ -802,7 +802,8 @@ function watchChrome() {
   if (!layer) return;
   new MutationObserver(() => {
     if (!plain() || tier() === 'none') return;
-    const modal = layer.querySelector('.modal.vault-photo-modal, .modal.vault-feed-modal');
+    // 随手拍/日历/首页/本机相册/大图里的视频也走同一个播放器，入场同样只淡入顶栏，和私密空间一致。
+    const modal = layer.querySelector('.modal.vault-photo-modal, .modal.vault-feed-modal, .modal.snippet-video-modal');
     if (!modal || seenChrome.has(modal)) return;
     seenChrome.add(modal);
     const chrome = modal.querySelector('#vault-photo-chrome, .warm-video-player > header');

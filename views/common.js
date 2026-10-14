@@ -1,10 +1,11 @@
-import { $, $$, pad, esc, imgSrc, state, cursor, formatMinutes, category, modal, confirmDelete, save, render, show, callHelper } from '../core.js';
+import { $, $$, pad, esc, imgSrc, state, cursor, formatMinutes, category, modal, closeModal, confirmDelete, save, render, show, callHelper } from '../core.js';
 import { clampStillTransform, measureLongStill } from '../photo-utils.js';
 import { photoFrameLayersHtml, revealViewerImageWhenDecoded } from '../photo-frame.js';
 import { thumbSource, thumbKeyFor, watchThumbImages } from '../photo-thumbs.js';
 import { MOODS, WEATHERS, WEEK_DAYS, dateKey, habitProgressForDate, habitGoalMet, formatShanghaiDateTime } from '../model.js';
 import { mediaFocusSummary } from '../analytics.js';
 import { rebuildActivityLog } from '../activity-log.js';
+import { openVideoSession } from '../video-session.js';
 
 // ---- 专注-习惯联动逻辑（focus / habits / calendar 共用）----
 export function activeFocusProject() {
@@ -172,17 +173,75 @@ export function mediaCard(entry) {
   return `<article class="media-card"><button class="media-cover" data-edit-media="${entry.id}" aria-label="编辑${esc(entry.title)}">${cover}<span class="media-type">${typeLabel}</span></button><div class="media-card-copy"><div><span class="media-state ${entry.status}">${statusLabel}</span>${entry.completedDate ? `<time>${entry.completedDate}</time>` : ''}</div><h3>${esc(entry.title)}</h3>${stars}<p>${esc(entry.notes || '还没有写下感受。')}</p>${entry.type === 'book' && focus.minutes ? `<button class="media-focus-link" data-media-focus="${entry.id}"><span class="material-symbols-outlined">timer</span>${formatMinutes(focus.minutes)} · ${focus.sessions.length} 次阅读专注</button>` : ''}<div class="media-card-actions"><button data-edit-media="${entry.id}">编辑</button><button class="danger" data-delete-media="${entry.id}">删除</button></div></div></article>`;
 }
 
+// 大图里的普通视频不再内嵌 <video controls>，统一交给公共播放会话（与私密空间同一个播放器）。
+// 页面有自己的会话（带续播、观看记录写回）时通过 options.onOpenVideo 接管；否则只读打开，不写任何数据。
+// 大图里的视频地址本来就是页面自己的（data:/file:/blob:），不需要再缓存：
+// 不放进全局 plainVideoCache（没有 id 的视频会按位置撞 id、串台，还越积越多），
+// 也绝不 revoke —— blob 归原页面管。id 按地址生成，地址不同就不会是同一条。
+export function viewerVideoId(item) {
+  return `viewer:${item?.video || ''}`;
+}
+
+export const viewerVideoCache = Object.freeze({
+  has: () => false,
+  get: () => undefined,
+  inflight: () => false,
+  resolve: item => {
+    try { return Promise.resolve(item.resolveSource()); }
+    catch (error) { return Promise.reject(error); }
+  },
+  drop() {},
+  retain() {},
+  release() {}
+});
+
+function viewerSessionItem(item, index, meta) {
+  return {
+    id: viewerVideoId(item),
+    resolveSource: () => item.video,
+    poster: item.poster || '',
+    label: item.label || meta?.[index]?.text?.slice(0, 20) || '视频',
+    date: meta?.[index]?.time || '',
+    sourceType: item.sourceType || '',
+    position: item.position || 0,
+    duration: item.duration || 0,
+    trim: item.trim || null,
+    crop: item.crop || null,
+    width: item.width || 0,
+    height: item.height || 0
+  };
+}
+
+export function openPhotoViewerVideo(photos, active, meta = null, options = {}) {
+  const current = photos[active];
+  if (!current || typeof current !== 'object' || !current.video) return null;
+  closeModal();
+  if (typeof options.onOpenVideo === 'function') return options.onOpenVideo(active, current);
+  const entries = photos.map((item, index) => ({ item, index })).filter(({ item }) => item && typeof item === 'object' && item.video && (!item.live || item === current));
+  const start = Math.max(0, entries.findIndex(({ item }) => item === current));
+  return openVideoSession({
+    items: entries.map(({ item, index }) => viewerSessionItem(item, index, meta)),
+    startIndex: start,
+    sourceCache: viewerVideoCache
+  }).catch(error => show(error?.message || '视频无法播放'));
+}
+
 export function photoViewer(photos, active = 0, meta = null, options = {}) {
   if (!photos.length) return;
   // 相册模式：meta 为与 photos 等长的 [{ text, time }]，显示当前照片说明与时间。
   const metaItem = meta?.[active];
   const current = photos[active];
-  // 视频项支持：photos 项为 { poster, video } 时渲染 <video controls>（poster 主图 + 可播放源）。
+  // 视频项支持：非实况视频项展示海报图与居中播放按钮；轻触打开统一播放会话 openVideoSession。
   const isVideo = current && typeof current === 'object' && current.video;
   const isLive = Boolean(isVideo && current.live);
-  const mediaHtml = isVideo
-    ? `<video id="photo-viewer-image" class="${isLive ? 'is-live-photo' : ''}" src="${imgSrc(current.video)}" poster="${imgSrc(current.poster)}" ${isLive ? 'autoplay loop muted' : ''} controls playsinline preload="metadata" draggable="false"></video>`
-    : `<img id="photo-viewer-image" src="${imgSrc(current)}" alt="照片 ${active + 1}，共 ${photos.length} 张" draggable="false">`;
+  let mediaHtml;
+  if (isVideo && !isLive) {
+    mediaHtml = `<div class="photo-viewer-video-container"><img id="photo-viewer-image" class="photo-viewer-poster" src="${imgSrc(current.poster || current.video)}" alt="视频 ${active + 1}，共 ${photos.length} 项" draggable="false"><button type="button" class="photo-viewer-play-btn" id="photo-viewer-play-btn" aria-label="播放视频"><span class="material-symbols-outlined">play_arrow</span></button></div>`;
+  } else if (isLive) {
+    mediaHtml = `<video id="photo-viewer-image" class="is-live-photo" src="${imgSrc(current.video)}" poster="${imgSrc(current.poster)}" autoplay loop muted playsinline preload="metadata" draggable="false"></video>`;
+  } else {
+    mediaHtml = `<img id="photo-viewer-image" src="${imgSrc(current)}" alt="照片 ${active + 1}，共 ${photos.length} 张" draggable="false">`;
+  }
   const metaLayer = meta
     ? `<div class="photo-viewer-meta">${metaItem?.time ? `<time>${esc(metaItem.time)}</time>` : ''}${metaItem?.text ? `<p>${esc(metaItem.text)}</p>` : '<p class="photo-viewer-no-caption">无说明</p>'}</div>`
     : '';
@@ -194,11 +253,21 @@ export function photoViewer(photos, active = 0, meta = null, options = {}) {
     const src = thumbRef ? esc(thumbSource(source)) : imgSrc(source);
     return `<button type="button" data-photo-strip="${index}" class="${index === active ? 'active' : ''}" aria-label="查看第 ${index + 1} 张"><img src="${src}" alt="" loading="lazy" decoding="async"${thumbRef ? ` data-thumb-ref="${esc(thumbRef)}"` : ''}></button>`;
   }).join('')}</nav>` : '';
-  modal(`<div class="photo-viewer ${strip ? 'has-filmstrip' : ''}"><div class="photo-viewer-stage" id="photo-viewer-stage">${mediaHtml}</div><div class="photo-viewer-chrome"><header><span><b>${active + 1}</b> / ${photos.length}${isLive ? '<em class="live-photo-mark">实况</em>' : ''}</span><button type="button" data-close aria-label="关闭大图"><span class="material-symbols-outlined">close</span></button></header>${strip}${metaLayer}<footer><button type="button" data-photo-prev="${previous}" ${!options.loop && active <= 0 ? 'disabled' : ''} aria-label="上一张"><span class="material-symbols-outlined">arrow_back</span></button><small>${isLive ? '实况循环播放 · 控件里可以开声音 · ' : ''}双击放大 · 双指缩放 · ${meta ? '左右滑动切换' : '拖动查看'}</small><button type="button" data-photo-next="${next}" ${!options.loop && active >= photos.length - 1 ? 'disabled' : ''} aria-label="下一张"><span class="material-symbols-outlined">arrow_forward</span></button></footer></div></div>`, 'photo-modal');
+  modal(`<div class="photo-viewer ${strip ? 'has-filmstrip' : ''}"><div class="photo-viewer-stage" id="photo-viewer-stage">${mediaHtml}</div><div class="photo-viewer-chrome"><header><span><b>${active + 1}</b> / ${photos.length}${isLive ? '<em class="live-photo-mark photo-viewer-live-badge" role="button" tabindex="0" aria-label="播放实况视频">实况</em>' : ''}</span><button type="button" data-close aria-label="关闭大图"><span class="material-symbols-outlined">close</span></button></header>${strip}${metaLayer}<footer><button type="button" data-photo-prev="${previous}" ${!options.loop && active <= 0 ? 'disabled' : ''} aria-label="上一张"><span class="material-symbols-outlined">arrow_back</span></button><small>${isLive ? '实况静音循环 · 点「实况」用播放器看 · ' : ''}双击放大 · 双指缩放 · ${meta ? '左右滑动切换' : '拖动查看'}</small><button type="button" data-photo-next="${next}" ${!options.loop && active >= photos.length - 1 ? 'disabled' : ''} aria-label="下一张"><span class="material-symbols-outlined">arrow_forward</span></button></footer></div></div>`, 'photo-modal');
   revealViewerImageWhenDecoded($('#photo-viewer-image'));
   if (isLive) {
     const video = $('#photo-viewer-image');
     if (video?.play) video.play().catch(() => {});
+    $('.photo-viewer-live-badge')?.addEventListener('click', event => {
+      event.stopPropagation();
+      openPhotoViewerVideo(photos, active, meta, options);
+    });
+  }
+  if (isVideo && !isLive) {
+    $('#photo-viewer-play-btn')?.addEventListener('click', event => {
+      event.stopPropagation();
+      openPhotoViewerVideo(photos, active, meta, options);
+    });
   }
   if (options.onVerticalNavigate) {
     const hint = $('.photo-viewer-chrome footer small');
@@ -310,6 +379,12 @@ export function bindPhotoViewerGestures(photos = [], meta = null, active = 0, op
     const wasMultiTouch = multiTouch;
     release(event);
     if (moved || switched || wasMultiTouch || pointers.size) return;
+    const current = photos[active];
+    if (current && typeof current === 'object' && current.video && !current.live) {
+      if (event.target?.closest?.('.photo-viewer-play-btn')) return;
+      openPhotoViewerVideo(photos, active, meta, options);
+      return;
+    }
     const now = Date.now();
     if (now - lastTap < 280) { zoomAtCenter(scale > 1 ? 1 : 2.5); lastTap = 0; }
     else { lastTap = now; setTimeout(() => { if (lastTap === now) chrome.classList.toggle('hidden'); }, 290); }
