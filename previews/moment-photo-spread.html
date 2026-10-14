@@ -265,8 +265,6 @@
       <div class="modal quick-modal" role="dialog" aria-modal="true" tabindex="-1">
       <!-- 快捷发布弹窗卡片（与 quickPhotoModal 输出结构完全一致） -->
       <div class="quick-modal-card" id="quick-photo-modal">
-        <img class="quick-paper-art" src="../assets/quick-photo-paper-v1.png" alt="" aria-hidden="true">
-        
         <div class="quick-modal-head">
           <div class="quick-modal-heading">
             <span class="quick-modal-title-mark material-symbols-outlined" aria-hidden="true">photo_camera</span>
@@ -315,7 +313,7 @@
           </div>
 
           <span class="quick-photo-overlay">
-            <small>6 张照片</small><button type="button" class="quick-photo-view-all" data-moment-spread-all>查看全部</button>
+            <small>6 张照片</small><button type="button" class="quick-photo-view-all plain-moment-btn" data-moment-spread-all>查看全部</button>
           </span>
         </div>
 
@@ -332,13 +330,13 @@
 
         <div class="quick-capture-bar" role="toolbar" aria-label="随手拍操作">
           <div class="quick-photo-actions">
-            <button type="button" id="quick-capture-snap"><span class="material-symbols-outlined">photo_camera</span><span><strong>拍照</strong><small>打开相机</small></span></button>
-            <button type="button" id="quick-pick-snap"><span class="material-symbols-outlined">photo_library</span><span><strong>选图</strong><small>从本机相册</small></span></button>
+            <button type="button" id="quick-capture-snap" class="plain-moment-btn"><span class="material-symbols-outlined" aria-hidden="true">photo_camera</span><span>拍照</span></button>
+            <button type="button" id="quick-pick-snap" class="plain-moment-btn"><span class="material-symbols-outlined" aria-hidden="true">photo_library</span><span>选图</span></button>
           </div>
           <div class="quick-video-actions">
-            <button type="button" id="quick-pick-video"><span class="material-symbols-outlined">video_library</span><span><strong>导入视频</strong><small>保存到本机</small></span></button>
+            <button type="button" id="quick-pick-video" class="plain-moment-btn"><span class="material-symbols-outlined" aria-hidden="true">video_library</span><span>导入视频</span></button>
           </div>
-          <button type="button" class="quick-publish-btn snap" id="quick-save-snap" aria-label="收进今日生活相册"><span>保存</span></button>
+          <button type="button" class="quick-publish-btn snap" id="quick-save-snap" aria-label="收进今日生活相册"><span class="material-symbols-outlined" aria-hidden="true">check</span><span>保存</span></button>
         </div>
 
         <div class="quick-modal-switch">

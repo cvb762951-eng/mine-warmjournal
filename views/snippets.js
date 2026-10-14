@@ -1704,13 +1704,13 @@ function quickPhotoModal() {
     </div>
     <div class="quick-capture-bar" role="toolbar" aria-label="随手拍操作">
       <div class="quick-photo-actions">
-        <button type="button" id="quick-capture-snap"><span class="material-symbols-outlined">photo_camera</span><span><strong>拍照</strong><small>打开相机</small></span></button>
-        <button type="button" id="quick-pick-snap"><span class="material-symbols-outlined">photo_library</span><span><strong>选图</strong><small>从本机相册</small></span></button>
+        <button type="button" id="quick-capture-snap" class="plain-moment-btn"><span class="material-symbols-outlined" aria-hidden="true">photo_camera</span><span>拍照</span></button>
+        <button type="button" id="quick-pick-snap" class="plain-moment-btn"><span class="material-symbols-outlined" aria-hidden="true">photo_library</span><span>选图</span></button>
       </div>
       <div class="quick-video-actions">
-        <button type="button" id="quick-pick-video"><span class="material-symbols-outlined">video_library</span><span><strong>导入视频</strong><small>保存到本机</small></span></button>
+        <button type="button" id="quick-pick-video" class="plain-moment-btn"><span class="material-symbols-outlined" aria-hidden="true">video_library</span><span>导入视频</span></button>
       </div>
-      <button type="button" class="quick-publish-btn snap" id="quick-save-snap" aria-label="收进今日生活相册"><span>保存</span></button>
+      <button type="button" class="quick-publish-btn snap" id="quick-save-snap" aria-label="收进今日生活相册"><span class="material-symbols-outlined" aria-hidden="true">check</span><span>保存</span></button>
     </div>
     <div class="quick-modal-switch"><button type="button" id="quick-switch-memo">或写一条灵感速记 ›</button></div>
   </div>`, 'quick-modal');
@@ -1756,7 +1756,7 @@ function quickPhotoPreview() {
     visual = cover ? `<img src="${imgSrc(cover)}" alt="预览画面">` : '<span class="quick-video-preview-placeholder"><span class="material-symbols-outlined">live_tv</span><strong>视频</strong></span>';
   }
   const liveCount = pendingSnippetLive.filter(item => photos.includes(item.still)).length;
-  const viewAllBtn = photos.length > 0 ? '<button type="button" class="quick-photo-view-all" data-moment-spread-all>查看全部</button>' : '';
+  const viewAllBtn = photos.length > 0 ? '<button type="button" class="quick-photo-view-all plain-moment-btn" data-moment-spread-all>查看全部</button>' : '';
   const bits = [];
   if (photos.length) bits.push(`${photos.length} 张照片`);
   if (liveCount) bits.push(`${liveCount} 张实况`);

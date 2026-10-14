@@ -2098,9 +2098,9 @@ button.danger) {
   width: var(--card-w);
   aspect-ratio: 3 / 4;
   transform: rotate(var(--rot, 0deg)) translateY(var(--lift, 0px));
-  border: 3px solid var(--plain-surface);
-  border-radius: 8px;
-  box-shadow: var(--pl-card-shadow, 0 6px 16px rgba(46, 52, 59, 0.12));
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: var(--shadow-sm);
   background: var(--plain-surface);
   box-sizing: border-box;
   z-index: calc(var(--i, 0) + 1);
@@ -2162,12 +2162,12 @@ button.danger) {
   justify-content: center;
   padding: 2px 7px;
   font-size: 11px;
-  font-weight: 700;
-  border: 0;
-  border-radius: 999px;
-  background: rgba(46, 52, 59, 0.82);
-  color: var(--plain-surface);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+  font-weight: 650;
+  border: 1px solid var(--pl-blue-line);
+  border-radius: 8px;
+  background: var(--plain-surface);
+  color: var(--pl-blue);
+  box-shadow: none;
   cursor: pointer;
   pointer-events: auto;
 }
@@ -2247,6 +2247,8 @@ button.danger) {
   border: 0;
   border-radius: 0;
   box-shadow: none;
+  color: var(--ink);
+  font-family: "Inter", "Noto Sans SC", sans-serif;
   padding: 10px 16px calc(8px + env(safe-area-inset-bottom));
   box-sizing: border-box;
   overflow: hidden;
@@ -2254,6 +2256,7 @@ button.danger) {
 
 :root[data-theme="plain"] #quick-photo-modal .quick-paper-art {
   display: none;
+  visibility: hidden;
 }
 
 :root[data-theme="plain"] #quick-photo-modal .quick-modal-head {
@@ -2282,24 +2285,33 @@ button.danger) {
 
 :root[data-theme="plain"] #quick-photo-modal .quick-modal-title {
   margin: 0;
+  font-family: inherit;
   font-size: 18px;
   font-weight: 650;
   color: var(--ink);
   line-height: 1.2;
+  letter-spacing: 0;
 }
 
 :root[data-theme="plain"] #quick-photo-modal .quick-modal-close {
-  width: 32px;
-  height: 32px;
-  border-radius: 999px;
-  background: transparent;
-  border: 0;
-  color: var(--ink-muted);
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  background-color: var(--plain-surface);
+  background-image: none;
+  border: 1px solid var(--line);
+  color: var(--ink-secondary);
   display: grid;
   place-items: center;
   transform: none;
   cursor: pointer;
   box-shadow: none;
+}
+
+:root[data-theme="plain"] #quick-photo-modal .quick-modal-close .material-symbols-outlined {
+  font-size: 20px;
+  color: var(--ink-secondary);
+  background: none;
 }
 
 :root[data-theme="plain"] #quick-photo-preview {
@@ -2415,12 +2427,14 @@ button.danger) {
 
 :root[data-theme="plain"] #quick-photo-preview .quick-photo-overlay .quick-photo-view-all {
   margin: 0;
-  padding: 0;
+  padding: 4px 10px;
   min-height: 0;
   border: 0;
-  border-radius: 0;
-  background: transparent;
+  border-radius: 999px;
+  background-color: var(--pl-blue-soft);
+  background-image: none;
   color: var(--pl-blue);
+  font-family: inherit;
   font-size: 12px;
   font-weight: 600;
   line-height: 1.3;
@@ -2460,6 +2474,7 @@ button.danger) {
   background: transparent;
   background-image: none;
   color: var(--ink);
+  font-family: inherit;
   font-size: 15px;
   line-height: 1.4;
   outline: none;
@@ -2489,6 +2504,7 @@ button.danger) {
   background: transparent;
   background-image: none;
   color: var(--ink-muted);
+  font-family: inherit;
   font-size: 12px;
   font-weight: 500;
   box-shadow: none;
@@ -2521,23 +2537,26 @@ button.danger) {
 :root[data-theme="plain"] #quick-photo-modal .quick-capture-bar button {
   flex: 1 1 0;
   width: auto;
-  min-height: 40px;
+  min-height: 44px;
   margin: 0;
-  display: flex;
-  flex-direction: column;
+  display: inline-flex;
+  flex-direction: row;
   align-items: center;
   justify-content: center;
-  gap: 1px;
-  padding: 4px 2px;
-  border: 0;
+  gap: 4px;
+  padding: 8px 6px;
+  border: 1px solid var(--line);
   border-radius: 12px;
-  background: transparent;
+  background-color: var(--plain-surface);
   background-image: none;
-  color: var(--ink-secondary);
+  color: var(--ink);
   box-shadow: none;
   cursor: pointer;
-  font-size: 11px;
-  font-weight: 550;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.2;
+  transform: none;
 }
 
 :root[data-theme="plain"] #quick-photo-modal .quick-capture-bar button small {
@@ -2547,35 +2566,44 @@ button.danger) {
 :root[data-theme="plain"] #quick-photo-modal .quick-capture-bar button .material-symbols-outlined {
   width: auto;
   height: auto;
-  font-size: 20px;
-  background: transparent;
+  font-size: 18px;
+  background: none;
   background-image: none;
-  color: var(--ink-secondary);
+  color: var(--pl-blue);
   border-radius: 0;
 }
 
 :root[data-theme="plain"] #quick-photo-modal .quick-capture-bar button strong,
 :root[data-theme="plain"] #quick-photo-modal .quick-capture-bar button > span:last-child {
-  font-size: 11px;
-  font-weight: 550;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
   line-height: 1.2;
-  color: var(--ink-secondary);
+  color: inherit;
+  background: none;
 }
 
 :root[data-theme="plain"] #quick-photo-modal .quick-capture-bar #quick-save-snap {
-  color: var(--pl-blue);
-  background-color: transparent;
+  color: var(--plain-surface);
+  background-color: var(--pl-blue);
   background-image: none;
+  border-color: transparent;
   box-shadow: none;
-  min-height: 40px;
+  min-height: 44px;
   width: auto;
   border-radius: 12px;
 }
 
-:root[data-theme="plain"] #quick-photo-modal .quick-capture-bar #quick-save-snap span {
-  color: var(--pl-blue);
+:root[data-theme="plain"] #quick-photo-modal .quick-capture-bar #quick-save-snap span,
+:root[data-theme="plain"] #quick-photo-modal .quick-capture-bar #quick-save-snap .material-symbols-outlined {
+  color: var(--plain-surface);
   font-size: 12px;
   font-weight: 650;
+  background: none;
+}
+
+:root[data-theme="plain"] #quick-photo-modal .quick-capture-bar #quick-save-snap .material-symbols-outlined {
+  font-size: 18px;
 }
 
 :root[data-theme="plain"] #quick-photo-modal .quick-modal-switch {
@@ -2689,28 +2717,29 @@ button.danger) {
 
 :root[data-theme="plain"] #snippet-form .snippet-capture-bar button {
   flex: 1 1 0;
-  min-height: 40px;
+  min-height: 44px;
   margin: 0;
-  padding: 4px 2px;
-  display: flex;
-  flex-direction: column;
+  padding: 8px 6px;
+  display: inline-flex;
+  flex-direction: row;
   align-items: center;
   justify-content: center;
-  gap: 1px;
-  border: 0;
+  gap: 4px;
+  border: 1px solid var(--line);
   border-radius: 12px;
-  background: transparent;
+  background-color: var(--plain-surface);
   background-image: none;
-  color: var(--ink-secondary);
+  color: var(--ink);
   box-shadow: none;
-  font-size: 11px;
-  font-weight: 550;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
 }
 
 :root[data-theme="plain"] #snippet-form .snippet-capture-bar button .material-symbols-outlined {
-  font-size: 20px;
-  color: var(--ink-secondary);
-  background: transparent;
+  font-size: 18px;
+  color: var(--pl-blue);
+  background: none;
 }
 
 :root[data-theme="plain"] #snippet-form .field-help {
@@ -2760,3 +2789,44 @@ button.danger) {
 }
 
 /* moment-spread end */
+
+/* 清简按钮压过暖色纸纹图（纸纹规则带 !important，必须在块外抬权重） */
+:root[data-theme="plain"] #quick-photo-modal .quick-paper-art {
+  display: none !important;
+  visibility: hidden !important;
+}
+:root[data-theme="plain"] #quick-photo-modal :is(.plain-moment-btn, .quick-modal-close, .quick-photo-view-all, .moment-spread-more, .quick-paper-tag, .quick-capture-bar button) {
+  background-image: none !important;
+  font-family: "Inter", "Noto Sans SC", sans-serif !important;
+}
+:root[data-theme="plain"] #quick-photo-modal .quick-capture-bar button:not(#quick-save-snap) {
+  background-color: var(--plain-surface) !important;
+  color: var(--ink) !important;
+  border: 1px solid var(--line) !important;
+  box-shadow: none !important;
+}
+:root[data-theme="plain"] #quick-photo-modal .quick-capture-bar button:not(#quick-save-snap) .material-symbols-outlined {
+  color: var(--pl-blue) !important;
+  background: none !important;
+}
+:root[data-theme="plain"] #quick-photo-modal #quick-save-snap {
+  background-color: var(--pl-blue) !important;
+  background-image: none !important;
+  color: var(--plain-surface) !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+:root[data-theme="plain"] #quick-photo-modal #quick-save-snap :is(span, .material-symbols-outlined) {
+  color: var(--plain-surface) !important;
+}
+:root[data-theme="plain"] #quick-photo-modal .quick-modal-close {
+  background-color: var(--plain-surface) !important;
+  background-image: none !important;
+  color: var(--ink-secondary) !important;
+  transform: none !important;
+  box-shadow: none !important;
+}
+:root[data-theme="plain"] #quick-photo-modal .quick-photo-view-all {
+  background-color: var(--pl-blue-soft) !important;
+  color: var(--pl-blue) !important;
+}

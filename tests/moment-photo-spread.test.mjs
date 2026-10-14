@@ -145,6 +145,8 @@ test('预览页加载真实样式，清简主题，锚点 #page #spread #save', 
   assert.match(preview, /href="#spread"/);
   assert.match(preview, /href="#save"/);
   assert.doesNotMatch(preview, /quick-hls|m3u8/);
+  assert.doesNotMatch(preview, /quick-photo-paper|quick-control-kraft|quick-photo-dropzone/);
+  assert.match(preview, /plain-moment-btn/);
 });
 
 test('清简舞台与页面同一底色，照片 contain，布局样式无 !important', () => {
