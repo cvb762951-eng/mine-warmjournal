@@ -83,3 +83,26 @@ test('styles.css 与 themes-plain.css 中的 moment-spread 块内无 !important 
     assert.match(block, /object-fit\s*:\s*contain/, `${name} 的 moment-spread 块应使用 object-fit: contain`);
   }
 });
+
+test('snippetPhotoGrid 输出 moment-spread-manage 与 data-moment-spread-all，且 CSS 默认隐藏缩略图网格 :not(.is-managing)', () => {
+  const gridStart = snippets.indexOf('function snippetPhotoGrid(');
+  const gridEnd = snippets.indexOf('function bindSnippetPhotoGrid(');
+  assert.ok(gridStart >= 0 && gridEnd > gridStart, 'snippetPhotoGrid 函数存在');
+  const gridBlock = snippets.slice(gridStart, gridEnd);
+
+  assert.match(gridBlock, /moment-spread-manage/, '包含 moment-spread-manage 容器');
+  assert.match(gridBlock, /data-moment-spread-all/, '包含 data-moment-spread-all 按钮');
+
+  const stylesBlock = extractSpreadCssBlock(styles, 'styles.css');
+  assert.match(stylesBlock, /:not\(\.is-managing\)\s*\.snippet-photo-grid-inner\s*\{\s*display\s*:\s*none;?\s*\}/, 'styles.css 包含未管理时隐藏网格的规则');
+});
+
+test('themes-plain.css moment-spread 块无 hardcoded hex、无 !important，并使用 var(...) 覆盖 #quick-photo-preview 背景', () => {
+  const plainBlock = extractSpreadCssBlock(plainThemes, 'themes-plain.css');
+  assert.doesNotMatch(plainBlock, /#[0-9a-f]{3,8}/i, 'themes-plain.css moment-spread 块内不得包含 hardcoded hex');
+  assert.doesNotMatch(plainBlock, /!important/, 'themes-plain.css moment-spread 块内不得包含 !important');
+  assert.doesNotMatch(plainBlock, /object-fit\s*:\s*cover/, 'themes-plain.css moment-spread 块内不得包含 object-fit: cover');
+  assert.match(plainBlock, /#quick-photo-preview/, 'themes-plain.css moment-spread 块应覆盖 #quick-photo-preview');
+  assert.match(plainBlock, /background\s*:\s*var\(/, 'themes-plain.css moment-spread 块使用 var( 覆盖 background');
+});
+

@@ -435,7 +435,7 @@ export function momentSpreadHtml(photos) {
   const cards = first4.map((photo, i) => {
     const rot = n === 1 ? 0 : (i - (n - 1) / 2) * 4;
     const lift = n === 1 ? 0 : (i % 2 ? 10 : -6);
-    const more = (total > 4 && i === n - 1) ? `<span class="moment-spread-more">+${total - 4}</span>` : '';
+    const more = (total > 4 && i === n - 1) ? `<button type="button" class="moment-spread-more" data-moment-spread-all aria-label="查看全部 ${total} 张照片">+${total - 4}</button>` : '';
     const frame = `<span class="moment-spread-frame photo-blur-frame is-edge">${photoFrameLayersHtml(imgSrc(photo), { alt: `待保存照片 ${i + 1}`, padClass: 'moment-spread-blur', stillClass: 'moment-spread-still' })}</span>`;
     return `<span class="moment-spread-card" style="--i:${i};--rot:${rot}deg;--lift:${lift}px">${frame}${more}</span>`;
   }).join('');
@@ -445,11 +445,16 @@ export function momentSpreadHtml(photos) {
 function snippetPhotoGrid() {
   if (!pendingSnippetPhotos.length) return '<div class="snippet-photo-empty"><span class="material-symbols-outlined">photo_camera</span><strong>拍下此刻</strong><small>也可以从相册选择，可连续添加</small></div>';
   const spread = momentSpreadHtml(pendingSnippetPhotos);
+  const manage = `<div class="moment-spread-manage"><button type="button" class="moment-spread-manage-btn" data-moment-spread-all>全部 ${pendingSnippetPhotos.length} 张 · 管理</button></div>`;
   const grid = `<div class="snippet-photo-grid-inner">${pendingSnippetPhotos.map((photo, index) => `<div class="snippet-photo-cell"><button type="button" class="snippet-photo-thumb photo-blur-frame is-edge" data-view-pending-snippet-photo="${index}" aria-label="查看第 ${index + 1} 张">${snippetPhotoImage(photo, `待保存照片 ${index + 1}`)}${photoHasLiveMark(photo, pendingSnippetLive)}</button><button type="button" class="snippet-photo-remove" data-remove-pending-snippet-photo="${index}" aria-label="删除第 ${index + 1} 张"><span class="material-symbols-outlined">close</span></button></div>`).join('')}</div>`;
-  return `${spread}${grid}`;
+  return `${spread}${manage}${grid}`;
 }
 
 function bindSnippetPhotoGrid() {
+  $$('#snippet-photo-grid [data-moment-spread-all]').forEach(button => button.onclick = event => {
+    event.stopPropagation();
+    $('#snippet-photo-grid')?.classList.toggle('is-managing');
+  });
   $$('[data-remove-pending-snippet-photo]').forEach(button => button.onclick = () => {
     const index = Number(button.dataset.removePendingSnippetPhoto);
     const removed = pendingSnippetPhotos[index];
@@ -500,7 +505,9 @@ function isCameraCancellation(error) {
 function refreshSnippetPhotoGrid() {
   const grid = $('#snippet-photo-grid');
   if (grid) {
+    const wasManaging = grid.classList.contains('is-managing');
     grid.innerHTML = snippetPhotoGrid();
+    if (wasManaging) grid.classList.add('is-managing');
     bindSnippetPhotoGrid();
   }
   const full = pendingSnippetPhotos.length >= SNIPPET_PHOTO_LIMIT;
@@ -1699,23 +1706,31 @@ function quickPhotoModal() {
     </div>
     <div class="quick-video-actions">
       <button type="button" id="quick-pick-video"><span class="material-symbols-outlined">video_library</span><span><strong>导入视频</strong><small>保存到本机</small></span></button>
-      <button type="button" id="quick-toggle-hls"><span class="material-symbols-outlined">stream</span><span><strong>m3u8</strong><small>保存播放地址</small></span></button>
     </div>
-    <div class="quick-hls-panel" id="quick-hls-panel" hidden><input type="url" id="quick-hls-url" maxlength="4096" placeholder="https://example.com/video/master.m3u8" autocomplete="off" inputmode="url"><button type="button" id="quick-add-hls">添加</button><small>只在点击播放时联网，不下载视频分片。</small></div>
     <div class="quick-modal-switch"><button type="button" id="quick-switch-memo">或写一条灵感速记 ›</button></div>
     <button type="button" class="quick-publish-btn snap" id="quick-save-snap"><span>收进今日生活相册</span><span class="material-symbols-outlined" aria-hidden="true">arrow_forward</span></button>
   </div>`, 'quick-modal');
-  $('#quick-photo-preview')?.addEventListener('click', () => pickSnippetPhoto(true).catch(error => show(error.message)).then(refreshQuickPhotoPreview));
+  $('#quick-photo-preview')?.addEventListener('click', event => {
+    const allBtn = event.target.closest('[data-moment-spread-all]');
+    if (allBtn) {
+      event.stopPropagation();
+      event.preventDefault();
+      if (pendingSnippetPhotos.length) {
+        photoViewer(photosWithLiveMotion(pendingSnippetPhotos, pendingSnippetLive), Math.min(3, pendingSnippetPhotos.length - 1));
+      }
+      return;
+    }
+    pickSnippetPhoto(true).catch(error => show(error.message)).then(refreshQuickPhotoPreview);
+  });
   $('#quick-photo-preview')?.addEventListener('keydown', event => {
     if (event.key !== 'Enter' && event.key !== ' ') return;
+    if (event.target.closest('[data-moment-spread-all]')) return;
     event.preventDefault();
     pickSnippetPhoto(true).catch(error => show(error.message)).then(refreshQuickPhotoPreview);
   });
   $('#quick-capture-snap')?.addEventListener('click', () => pickSnippetPhoto(true).catch(error => show(error.message)).then(refreshQuickPhotoPreview));
   $('#quick-pick-snap')?.addEventListener('click', () => pickSnippetPhoto(false).catch(error => show(error.message)).then(refreshQuickPhotoPreview));
   $('#quick-pick-video')?.addEventListener('click', () => pickSnippetVideo(false).then(refreshQuickPhotoPreview).catch(error => show(error.message)));
-  $('#quick-toggle-hls')?.addEventListener('click', () => { const panel = $('#quick-hls-panel'); if (panel) panel.hidden = !panel.hidden; });
-  $('#quick-add-hls')?.addEventListener('click', () => { if (addSnippetHlsAddress('#quick-hls-url')) refreshQuickPhotoPreview(); });
   $('#quick-snap-caption')?.addEventListener('input', event => { pendingQuickCaption = event.target.value; });
   $$('.quick-paper-tag').forEach(chip => chip.onclick = () => {
     pendingQuickTag = pendingQuickTag === chip.dataset.quickTag ? '' : chip.dataset.quickTag;
@@ -1737,7 +1752,8 @@ function quickPhotoPreview() {
     visual = cover ? `<img src="${imgSrc(cover)}" alt="预览画面">` : '<span class="quick-video-preview-placeholder"><span class="material-symbols-outlined">live_tv</span><strong>m3u8 在线视频</strong></span>';
   }
   const liveCount = pendingSnippetLive.filter(item => photos.includes(item.still)).length;
-  return `${visual}<span class="quick-photo-overlay"><span class="material-symbols-outlined">${videos.length || liveCount ? 'play_circle' : 'photo_camera'}</span><small>${photos.length} 张照片${liveCount ? ` · ${liveCount} 张实况` : ''} · ${videos.length} 段视频</small></span>`;
+  const viewAllBtn = photos.length > 0 ? '<button type="button" class="quick-photo-view-all" data-moment-spread-all>查看全部</button>' : '';
+  return `${visual}<span class="quick-photo-overlay"><span class="material-symbols-outlined">${videos.length || liveCount ? 'play_circle' : 'photo_camera'}</span><small>${photos.length} 张照片${liveCount ? ` · ${liveCount} 张实况` : ''} · ${videos.length} 段视频</small>${viewAllBtn}</span>`;
 }
 
 function refreshQuickPhotoPreview() {
