@@ -10,7 +10,7 @@ import { externalizeStateMedia, recoverReferencedMedia, warmMediaRefs, firstPain
 import { rebuildActivityLog } from './activity-log.js';
 import { openReleaseNotes } from './views/common.js';
 import { ensureReleaseActivities } from './release-activity.js';
-import { initializeNotificationChannel, syncScheduledReminders, onNotificationAction, isTimerAlarmRinging } from './notifications.js';
+import { initializeNotificationChannel, syncScheduledReminders, onNotificationAction, isTimerAlarmRinging, consumeWidgetRoute } from './notifications.js';
 import './orientation.js';
 import './voice.js';
 import './daily-summary.js';
@@ -43,7 +43,7 @@ import { snippetForm } from './views/snippets.js';
 import { journalForm } from './views/journal.js';
 import { sessionForm } from './views/calendar.js';
 import { mediaForm } from './views/media.js';
-import { syncCountdownWidget } from './views/countdown.js';
+import { syncCountdownWidget, openCountdownDetail } from './views/countdown.js';
 import { completeTimer, completionAlarmModal } from './views/focus.js';
 import { photoViewer } from './views/common.js';
 import { recoverJournalDraftCache } from './journal-drafts.js';
@@ -53,6 +53,7 @@ let booted = false;
 let pendingJournalReminder = false;
 let pendingPhotoReminder = false;
 let pendingCountdownReminder = false;
+let pendingWidgetCountdown = null;
 let pendingIncomingShare = false;
 const SystemBack = registerPlugin('SystemBack');
 
@@ -339,6 +340,7 @@ async function boot() {
       pendingCountdownReminder = false;
       setTimeout(() => go('countdown'), 300);
     }
+    await flushWidgetCountdown();
   } catch (error) {
     booted = false;
     document.documentElement?.classList?.remove('theme-pending');
@@ -377,6 +379,26 @@ requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(loadFallbackF
 window.addEventListener('mine-incoming-share', () => {
   if (booted) setTimeout(() => callHelper('checkIncomingShare'), 80);
   else pendingIncomingShare = true;
+});
+
+async function flushWidgetCountdown() {
+  if (pendingWidgetCountdown) {
+    const pending = pendingWidgetCountdown;
+    pendingWidgetCountdown = null;
+    setTimeout(() => openCountdownDetail(pending.id || ''), 300);
+    return;
+  }
+  const pending = await consumeWidgetRoute();
+  if (pending?.route !== 'countdown') return;
+  if (!booted) {
+    pendingWidgetCountdown = { id: pending.id || '' };
+    return;
+  }
+  setTimeout(() => openCountdownDetail(pending.id || ''), 300);
+}
+
+window.addEventListener('mine-widget-route', () => {
+  flushWidgetCountdown().catch(() => {});
 });
 
 onNotificationAction(route => {

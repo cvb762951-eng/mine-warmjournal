@@ -83,6 +83,7 @@ public class MainActivity extends BridgeActivity {
             && intent.getIntExtra(DailySummaryReceiver.EXTRA_AUTO_SUMMARY, 0) == 1;
         // 原生启动即重排，避免 WebView 或存储初始化失败时首次任务未登记。
         DailySummaryScheduler.scheduleNext(this);
+        notifyCountdownWidgetRoute(intent);
 
         // WebView 全窗口不透明渲染页面背景与自定义壁纸，此兜底色仅在加载/空白期可见，不会遮挡壁纸。
         View content = findViewById(android.R.id.content);
@@ -179,6 +180,17 @@ public class MainActivity extends BridgeActivity {
             && !activityForeground;
         if (intent != null && (Intent.ACTION_SEND.equals(intent.getAction()) || Intent.ACTION_SEND_MULTIPLE.equals(intent.getAction()))) {
             getBridge().triggerJSEvent("mine-incoming-share", "window");
+        }
+        notifyCountdownWidgetRoute(intent);
+    }
+
+    /** 小组件点击带 route=countdown&id。WebView 还没起来时事件会丢，JS 启动后再来取 extra。 */
+    private void notifyCountdownWidgetRoute(Intent intent) {
+        if (intent == null || !"countdown".equals(intent.getStringExtra("route"))) return;
+        try {
+            Bridge bridge = getBridge();
+            if (bridge != null) bridge.triggerJSEvent("mine-widget-route", "window");
+        } catch (Exception ignored) {
         }
     }
 

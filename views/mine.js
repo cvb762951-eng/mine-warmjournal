@@ -361,6 +361,7 @@ function selectTheme(theme) {
   if (!APP_THEMES.includes(theme) || state.settings.theme === theme) return;
   state.settings.theme = theme;
   applyTheme(theme);
+  callHelper('syncCountdownWidget');
   save().catch(error => show(error?.message || '主题保存失败'));
   // 就地更新选中态，避免重建整个弹窗（重建会丢失用户已调好的背景预览）
   const grid = $('.theme-picker-grid');

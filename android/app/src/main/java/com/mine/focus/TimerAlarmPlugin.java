@@ -1,10 +1,15 @@
 package com.mine.focus;
 
+import android.content.Intent;
+
+import com.getcapacitor.JSArray;
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
+
+import org.json.JSONArray;
 
 @CapacitorPlugin(name = "TimerAlarm")
 public class TimerAlarmPlugin extends Plugin {
@@ -74,18 +79,28 @@ public class TimerAlarmPlugin extends Plugin {
 
     @PluginMethod
     public void updateCountdownWidget(PluginCall call) {
-        String title = call.getString("title", "");
-        int days = call.getInt("days", -1);
-        String unit = call.getString("unit", "天后");
-        String label = call.getString("label", "倒数日");
-        getContext().getSharedPreferences("countdown_widget", android.content.Context.MODE_PRIVATE)
-            .edit()
-            .putString("title", title)
-            .putInt("days", days)
-            .putString("unit", unit)
-            .putString("label", label)
-            .apply();
+        String theme = call.getString("theme", "classic");
+        JSArray items = call.getArray("items");
+        JSONArray clean = CountdownWidgetStore.sanitize(items);
+        CountdownWidgetStore.saveSnapshot(getContext(), theme, clean);
         CountdownWidgetProvider.updateAll(getContext());
         call.resolve();
+    }
+
+    @PluginMethod
+    public void consumeWidgetRoute(PluginCall call) {
+        Intent intent = getActivity() == null ? null : getActivity().getIntent();
+        JSObject result = new JSObject();
+        String route = intent == null ? "" : intent.getStringExtra("route");
+        if (!"countdown".equals(route)) {
+            call.resolve(result);
+            return;
+        }
+        String id = intent.getStringExtra("id");
+        result.put("route", "countdown");
+        result.put("id", id == null ? "" : id);
+        intent.removeExtra("route");
+        intent.removeExtra("id");
+        call.resolve(result);
     }
 }

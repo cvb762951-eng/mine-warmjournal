@@ -1,5 +1,6 @@
-import { $, $$, state, save, render, go, show, modal, confirmDelete, imgSrc, esc, uid, pushBackState, registerView, registerBinder, registerSubmitHandler, callHelper } from '../core.js';
+import { $, $$, state, save, render, go, show, modal, confirmDelete, imgSrc, esc, uid, pushBackState, registerView, registerBinder, registerSubmitHandler, registerHelper, callHelper } from '../core.js';
 import { daysUntil, makeCountdown } from '../model.js';
+import { countdownWidgetSnapshot } from '../countdown-days.js';
 import { updateCountdownWidget } from '../notifications.js';
 import { compressPhoto, isSupportedJournalPhoto } from '../photo-utils.js';
 
@@ -108,17 +109,15 @@ export function countdownBanner() {
 }
 
 export function syncCountdownWidget() {
-  const upcoming = state.countdowns.filter(entry => daysUntil(entry.date) >= 0).sort((a, b) => daysUntil(a.date) - daysUntil(b.date));
-  const past = state.countdowns.filter(entry => daysUntil(entry.date) < 0).sort((a, b) => daysUntil(b.date) - daysUntil(a.date));
-  const entry = upcoming[0] || past[0];
-  if (!entry) { updateCountdownWidget({ title: '', days: -1, unit: '', label: '' }).catch(() => {}); return; }
-  const days = daysUntil(entry.date);
-  updateCountdownWidget({
-    title: entry.title,
-    days: Math.abs(days),
-    unit: days === 0 ? '就是今天' : (days < 0 ? '天前' : '天后'),
-    label: days === 0 ? '今天' : (days < 0 ? '已经过去' : '倒数日')
-  }).catch(() => {});
+  // 只推标题、日期和算天数需要的字段，天数由原生按当天自己算。
+  updateCountdownWidget(countdownWidgetSnapshot(state.countdowns, state.settings?.theme)).catch(() => {});
+}
+
+export function openCountdownDetail(id = '') {
+  const entry = id ? state.countdowns.find(item => item.id === id) : null;
+  pushBackState();
+  go('countdown');
+  if (entry) countdownForm(entry);
 }
 
 // ---- 绑定 ----
@@ -139,6 +138,8 @@ function bindCountdown() {
 // ---- 注册视图 ----
 registerView('countdown', countdownView);
 registerBinder(bindCountdown);
+registerHelper('syncCountdownWidget', syncCountdownWidget);
+registerHelper('openCountdownDetail', openCountdownDetail);
 
 // ---- 表单提交 ----
 registerSubmitHandler('countdown-form', async data => {
