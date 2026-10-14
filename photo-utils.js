@@ -290,7 +290,7 @@ async function keepLiveMotion(file, still, onLivePhoto) {
   } catch { /* 静帧已经落盘 */ }
 }
 
-export async function importPhotoBatch(files, compressor, { concurrency = 2, onProgress, onItemError, onLivePhoto } = {}) {
+export async function importPhotoBatch(files, compressor, { concurrency = 2, onProgress, onItemError, onLivePhoto, onItem } = {}) {
   const queue = [...files];
   const results = new Array(queue.length);
   let next = 0;
@@ -303,6 +303,7 @@ export async function importPhotoBatch(files, compressor, { concurrency = 2, onP
         const compressed = await compressor(queue[index]);
         results[index] = await persistImageData(compressed);
         await keepLiveMotion(queue[index], results[index], onLivePhoto);
+        if (onItem) onItem(results[index], index);
       } catch (error) {
         if (onItemError) onItemError(queue[index], error);
         else errors.push(error);
