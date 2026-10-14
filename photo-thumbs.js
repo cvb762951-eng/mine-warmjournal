@@ -243,8 +243,10 @@ function cancelDwell(img) {
 
 function scheduleUpgrade(img) {
   cancelDwell(img);
+  const ref = img.dataset?.thumbRef || '';
   const timer = setTimeout(() => {
     dwellTimerMap.delete(img);
+    if (!img.isConnected || img.dataset?.thumbRef !== ref) return;
     if (img.dataset?.wantsFull === '1') beginFullUpgrade(img);
   }, progressiveDwellMs);
   dwellTimerMap.set(img, timer);
@@ -254,7 +256,8 @@ function layersOf(img) {
   const parent = img?.parentElement;
   const ref = img?.dataset?.thumbRef || '';
   if (!parent?.querySelectorAll || !ref) return [img];
-  const nodes = [...parent.querySelectorAll('img[data-thumb-ref]')].filter(node => node.dataset?.thumbRef === ref);
+  // 只升清晰层：虚化铺底层（.photo-blur-pad）一律停在 480，省掉一份全尺寸解码。
+  const nodes = [...parent.querySelectorAll('img[data-thumb-ref]')].filter(node => node.dataset?.thumbRef === ref && !node.classList?.contains('photo-blur-pad'));
   return nodes.length ? nodes : [img];
 }
 
@@ -275,14 +278,47 @@ function commitFullUpgrade(img, full) {
   if (typeof document !== 'undefined') requestThumb(img.dataset?.thumbRef || '');
 }
 
+/** 显示宽度 × dpr 不超过 480 时，480 缩略图已经够清楚，不升原图（拼图小格等）。量不到宽度时照常升。 */
+export function needsFullResolution(img) {
+  const rect = img?.getBoundingClientRect?.();
+  const width = (rect && rect.width) || img?.clientWidth || 0;
+  if (!width) return true;
+  const dpr = (typeof window !== 'undefined' && window.devicePixelRatio) || 1;
+  return width * dpr > THUMB_MAX;
+}
+
+function stillCurrent(img, ref) {
+  return Boolean(img && img.isConnected && img.dataset?.thumbRef === ref && img.dataset?.wantsFull === '1');
+}
+
+/** 后台先加载并解码原图，成功才换 src；失败保留缩略图。用完把临时 Image 的引用清掉。 */
+function preloadAndCommit(img, ref, full) {
+  if (!full) return;
+  if (typeof Image !== 'function') { commitFullUpgrade(img, full); return; }
+  let probe = new Image();
+  probe.decoding = 'async';
+  const done = ok => {
+    if (probe) { probe.onload = probe.onerror = null; probe = null; }
+    if (ok && stillCurrent(img, ref)) commitFullUpgrade(img, full);
+  };
+  probe.src = full;
+  if (typeof probe.decode === 'function') {
+    probe.decode().then(() => done(true), () => done(false));
+  } else {
+    probe.onload = () => done(true);
+    probe.onerror = () => done(false);
+  }
+}
+
 function beginFullUpgrade(img) {
   const ref = img?.dataset?.thumbRef || '';
+  if (!stillCurrent(img, ref) || !needsFullResolution(img)) return;
   const ready = (ref && mediaSource(ref)) || img?.dataset?.fullSrc || '';
-  if (ready) { commitFullUpgrade(img, ready); return; }
+  if (ready) { preloadAndCommit(img, ref, ready); return; }
   if (!ref || !isMediaRef(ref)) return;
   resolveMediaReference(ref).then(full => {
-    if (img.dataset?.wantsFull !== '1') return;
-    commitFullUpgrade(img, full || '');
+    if (!stillCurrent(img, ref)) return;
+    preloadAndCommit(img, ref, full || '');
   }).catch(() => {});
 }
 
@@ -355,6 +391,16 @@ export function releaseProgressiveImages(scope) {
     return;
   }
   pruneDisconnected();
+}
+
+/** 离开随手拍页：卸掉所有原图，断开观察器，清空已登记节点。 */
+export function stopProgressiveImages() {
+  for (const img of [...progressiveSeen]) unloadFull(img);
+  for (const timer of dwellTimerMap.values()) clearTimeout(timer);
+  dwellTimerMap.clear();
+  progressiveSeen.clear();
+  progressiveIo?.disconnect();
+  progressiveIo = null;
 }
 
 /** 恢复备份后清掉整个缩略图缓存（原图文件可能已被同名替换，旧缩略图会过期）。

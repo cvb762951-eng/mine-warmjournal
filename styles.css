@@ -10245,3 +10245,6 @@ body #modal-layer .modal.confirm-sheet .modal-actions .danger { padding: 0 16px 
   margin-bottom: 12px;
 }
 /* moment-spread end */
+/* #85 没有缩略图的旧记录：第一帧不透明 */
+.photo-blur-frame img.photo-blur-pad[data-thumb-ref]{background-color:#efe7d6}
+:root[data-theme="plain"] .photo-blur-frame img.photo-blur-pad[data-thumb-ref]{background-color:#E8EDF5}

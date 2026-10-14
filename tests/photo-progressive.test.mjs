@@ -215,7 +215,7 @@ test('随手拍列表和相册网格升级，胶卷 / 图集牌 / 编辑器不�
   assert.match(snippets, /watchProgressiveImages\(scope\)/);
   assert.match(snippets, /watchProgressiveImages\(layer\)/);
   assert.match(snippets, /releaseProgressiveImages\(layer\)/);
-  assert.match(snippets, /releaseProgressiveImages\(\)/);
+  assert.match(snippets, /state\.route !== 'snippets'\) \{ stopProgressiveImages\(\); return; \}/);
   const album = snippets.slice(snippets.indexOf('function momentAlbumCardHtml('), snippets.indexOf('function momentAlbumStackHtml('));
   assert.doesNotMatch(album, /progressive:\s*true/);
   const editor = snippets.slice(snippets.indexOf('function snippetPhotoGrid('), snippets.indexOf('function bindSnippetPhotoGrid('));
@@ -224,6 +224,13 @@ test('随手拍列表和相册网格升级，胶卷 / 图集牌 / 编辑器不�
   assert.doesNotMatch(common, /watchProgressiveImages/);
   assert.match(common, /if\s*\(\s*strip\s*\)\s*watchThumbImages\(\s*\$\(['"]\.photo-viewer-filmstrip['"]\)\s*\)/);
   assert.match(common, /<img id="photo-viewer-image" src="\$\{imgSrc\(current\)\}"/);
-  assert.match(thumbs, /resolveMediaReference\(ref\)\.then\(full => \{\s*if \(img\.dataset\?\.wantsFull !== '1'\) return;/);
+  assert.match(thumbs, /resolveMediaReference\(ref\)\.then\(full => \{\s*if \(!stillCurrent\(img, ref\)\) return;/);
+  // #85 审查：后台 decode 成功才换、铺底层不升、按显示宽度判断、isConnected/thumbRef 校验、离页断开
+  assert.match(thumbs, /probe\.decode\(\)\.then\(\(\) => done\(true\), \(\) => done\(false\)\)/);
+  assert.match(thumbs, /!node\.classList\?\.contains\('photo-blur-pad'\)/);
+  assert.match(thumbs, /width \* dpr > THUMB_MAX/);
+  assert.match(thumbs, /img\.isConnected && img\.dataset\?\.thumbRef === ref/);
+  assert.match(thumbs, /if \(!img\.isConnected \|\| img\.dataset\?\.thumbRef !== ref\) return;/);
+  assert.match(thumbs, /export function stopProgressiveImages\(\) \{[\s\S]*?progressiveSeen\.clear\(\);\s*progressiveIo\?\.disconnect\(\);/);
   assert.doesNotMatch(thumbs, /URL\.revokeObjectURL\(full|revokeObjectURL\(mediaSource/);
 });

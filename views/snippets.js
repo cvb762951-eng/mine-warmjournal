@@ -7,7 +7,7 @@ import { makeSnippet, makeTodo, snippetEntries, dateKey, WEEK_DAYS, activeStreak
 import { photoViewer, micButtonHtml, bindVoiceInput } from './common.js';
 import { compressSnippetPhoto, captureVideoFrame, importPhotoBatch, isSupportedJournalPhoto } from '../photo-utils.js';
 import { livePhotoMarkHtml, photosWithLiveMotion } from '../motion-photo.js';
-import { thumbSource, thumbKeyFor, progressiveSource, watchThumbImages, watchProgressiveImages, releaseProgressiveImages, ensureThumb } from '../photo-thumbs.js';
+import { thumbSource, thumbKeyFor, progressiveSource, watchThumbImages, watchProgressiveImages, releaseProgressiveImages, stopProgressiveImages, ensureThumb } from '../photo-thumbs.js';
 import { mediaSource, saveMediaFile, saveNativeMediaSource } from '../media-store.js';
 import { attachVideoSource, formatVideoDuration, isHlsAddress, presentWatchSession, summarizeWatchSession } from '../video-player.js';
 import { openVideoSession, plainVideoCache } from '../video-session.js';
@@ -2606,7 +2606,7 @@ registerHelper('openSavedSnippetVideo', openSavedSnippetVideo);
 // 列表缩略图：进页面后只给看得到的卡片在空闲时补，不在渲染这一帧做任何解码。
 // 看得到的照片再升到原图；离开随手拍页面时，已经拆掉的节点把原图 src 卸掉。
 registerOnRender(() => {
-  if (state.route !== 'snippets') { releaseProgressiveImages(); return; }
+  if (state.route !== 'snippets') { stopProgressiveImages(); return; }
   const scope = document.getElementById('screen-snippets');
   if (scope) {
     watchThumbImages(scope);
