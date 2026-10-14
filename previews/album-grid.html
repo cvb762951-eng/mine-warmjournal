@@ -237,9 +237,7 @@ html, body { margin: 0; padding: 0; background: var(--canvas); color: var(--ink)
   align-items: center;
   gap: 8px;
   padding: 10px 12px 10px;
-  background: rgba(251, 252, 254, 0.94);
-  backdrop-filter: blur(12px) saturate(140%);
-  -webkit-backdrop-filter: blur(12px) saturate(140%);
+  background: rgba(251, 252, 254, 0.98);
   border-bottom: 1px solid rgba(85, 96, 108, 0.1);
 }
 .snippet-album-grid-back {
@@ -281,36 +279,53 @@ html, body { margin: 0; padding: 0; background: var(--canvas); color: var(--ink)
 }
 .snippet-album-grid-actions { width: 44px; }
 
-/* 3 列正方形网格 */
+/* JS 瀑布流双列/三列网格 */
 .snippet-album-grid-body {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 2px;
-  padding: 2px 2px 32px;
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 6px 6px 32px;
   box-sizing: border-box;
 }
 
-/* 单元格：aspect-ratio:1 + content-visibility:auto + contain-intrinsic-size */
+.snippet-album-grid-column {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* 单元格：JS 动态预留 aspect-ratio + 8px 圆角 + content-visibility:auto */
 .snippet-album-grid-cell {
   position: relative;
   display: block;
   width: 100%;
-  aspect-ratio: 1;
   padding: 0;
   margin: 0;
   border: 0;
+  border-radius: 8px;
   background: #E8EDF5;
   overflow: hidden;
   cursor: pointer;
   content-visibility: auto;
-  contain-intrinsic-size: auto 120px;
+  contain-intrinsic-size: auto 200px;
 }
+
+.snippet-album-grid-cell .photo-blur-frame,
+.snippet-album-grid-frame {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
 .snippet-album-grid-cell img {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
   display: block;
   border: 0;
 }
@@ -551,44 +566,50 @@ html, body { margin: 0; padding: 0; background: var(--canvas); color: var(--ink)
 </div>
 
 <script>
-// ---------- 演示数据：18 个不同色调的生成式 SVG 图片 ----------
-function makeSvgData(title, color1, color2, isVideo = false) {
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="600" height="600" viewBox="0 0 600 600">
+// ---------- 演示数据：18 个不同尺寸/色调的生成式 SVG 图片（竖图/横图/方图混合） ----------
+function makeSvgData(title, color1, color2, w = 600, h = 600, isVideo = false) {
+  const cx = w / 2;
+  const cy = h * 0.42;
+  const r = Math.min(w, h) * 0.22;
+  const textY = Math.min(h - 32, cy + r + 45);
+  const shape = w === h ? '1:1 方图' : (w < h ? `${w}×${h} 竖图` : `${w}×${h} 横图`);
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
     <defs>
-      <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
+      <linearGradient id="g_${w}_${h}_${encodeURIComponent(title)}" x1="0%" y1="0%" x2="100%" y2="100%">
         <stop offset="0%" stop-color="${color1}"/>
         <stop offset="100%" stop-color="${color2}"/>
       </linearGradient>
     </defs>
-    <rect width="600" height="600" fill="url(#g)"/>
-    <circle cx="300" cy="270" r="110" fill="rgba(255,255,255,0.22)"/>
-    <text x="300" y="440" font-family="sans-serif" font-size="28" font-weight="700" fill="#ffffff" text-anchor="middle">${title}</text>
+    <rect width="${w}" height="${h}" fill="url(#g_${w}_${h}_${encodeURIComponent(title)})"/>
+    <circle cx="${cx}" cy="${cy}" r="${r}" fill="rgba(255,255,255,0.22)"/>
+    <text x="${cx}" y="${textY}" font-family="sans-serif" font-size="${Math.max(16, Math.min(26, w * 0.045))}" font-weight="700" fill="#ffffff" text-anchor="middle">${title}</text>
+    <text x="${cx}" y="${textY + 22}" font-family="sans-serif" font-size="12" font-weight="600" fill="rgba(255,255,255,0.72)" text-anchor="middle">${shape}</text>
   </svg>`;
   return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
 }
 
 const ITEMS = [
-  { isVideo: false, title: '晨光手冲', time: '10月14日 08:15', caption: '手冲咖啡的蒸汽在阳光下升起。', c1: '#c47e68', c2: '#e5c3a6' },
-  { isVideo: false, title: '窗前绿植', time: '10月14日 07:30', caption: '薄荷和蕨叶在晨风中微晃。', c1: '#4d7056', c2: '#9ec2a8' },
-  { isVideo: true,  title: '街道小雨', time: '10月13日 18:20', caption: '傍晚下起细雨，路灯刚亮。', c1: '#4F76BD', c2: '#8CA5D8', hasPoster: true },
-  { isVideo: false, title: '书影翻阅', time: '10月13日 14:10', caption: '在旧书店翻到一本心心念念的诗集。', c1: '#8A5D3B', c2: '#C99E75' },
-  { isVideo: false, title: '午后烘焙', time: '10月13日 11:45', caption: '刚出炉的司康，弥漫黄油香。', c1: '#D48B47', c2: '#F3C58E' },
-  { isVideo: true,  title: '猫咪午睡', time: '10月12日 16:00', caption: '阳光晒在毛毯上，蜷缩成一团。', c1: '#7E6B8F', c2: '#B8A7C9', hasPoster: true },
-  { isVideo: false, title: '暮色天际', time: '10月12日 18:40', caption: '粉紫色的晚霞染满了半边天空。', c1: '#844D68', c2: '#D689A4' },
-  { isVideo: false, title: '湖畔漫步', time: '10月12日 10:20', caption: '秋天湖面像一面平静的镜子。', c1: '#3D5F9E', c2: '#7FA2E0' },
-  { isVideo: false, title: '手作陶杯', time: '10月11日 15:30', caption: '第一次拉坯做的粗陶茶杯。', c1: '#5A6572', c2: '#9EAAB8' },
-  { isVideo: true,  title: '落叶微风', time: '10月11日 13:05', caption: '银杏叶慢动作飘落在石阶上。', c1: '#C68B2C', c2: '#E9C368', hasPoster: false },
-  { isVideo: false, title: '夜读摘抄', time: '10月10日 22:15', caption: '台灯下的静心时光。', c1: '#1F2937', c2: '#4B5563' },
-  { isVideo: false, title: '清爽冷萃', time: '10月10日 15:50', caption: '加了柠檬片的埃塞俄比亚冷萃。', c1: '#A3684B', c2: '#DEAB8D' },
-  { isVideo: false, title: '山野远足', time: '10月09日 09:20', caption: '登上山顶俯瞰整座小镇。', c1: '#2E5B44', c2: '#68A882' },
-  { isVideo: false, title: '花店一角', time: '10月08日 17:10', caption: '打包了一束洋桔梗和尤加利。', c1: '#B35E75', c2: '#E4A2B4' },
-  { isVideo: true,  title: '壁炉余温', time: '10月07日 21:00', caption: '柴火偶尔哔剥作响。', c1: '#9A3A26', c2: '#D9735D', hasPoster: true },
-  { isVideo: false, title: '手账复盘', time: '10月06日 20:30', caption: '整理这一周的开销与习惯打卡。', c1: '#4A6274', c2: '#8BA1B3' },
-  { isVideo: false, title: '晴空云朵', time: '10月05日 14:00', caption: '秋高气爽，天格外蓝。', c1: '#2B6CB0', c2: '#63B3ED' },
-  { isVideo: false, title: '街角面包', time: '10月04日 08:00', caption: '清晨刚出炉的法棍和可颂。', c1: '#B7791F', c2: '#F6E05E' }
+  { isVideo: false, title: '晨光手冲', w: 600, h: 800, time: '10月14日 08:15', caption: '手冲咖啡的蒸汽在阳光下升起。', c1: '#c47e68', c2: '#e5c3a6' },
+  { isVideo: false, title: '窗前绿植', w: 800, h: 560, time: '10月14日 07:30', caption: '薄荷和蕨叶在晨风中微晃。', c1: '#4d7056', c2: '#9ec2a8' },
+  { isVideo: true,  title: '街道小雨', w: 600, h: 600, time: '10月13日 18:20', caption: '傍晚下起细雨，路灯刚亮。', c1: '#4F76BD', c2: '#8CA5D8', hasPoster: true },
+  { isVideo: false, title: '书影翻阅', w: 600, h: 900, time: '10月13日 14:10', caption: '在旧书店翻到一本心心念念的诗集。', c1: '#8A5D3B', c2: '#C99E75' },
+  { isVideo: false, title: '午后烘焙', w: 840, h: 600, time: '10月13日 11:45', caption: '刚出炉的司康，弥漫黄油香。', c1: '#D48B47', c2: '#F3C58E' },
+  { isVideo: true,  title: '猫咪午睡', w: 600, h: 750, time: '10月12日 16:00', caption: '阳光晒在毛毯上，蜷缩成一团。', c1: '#7E6B8F', c2: '#B8A7C9', hasPoster: true },
+  { isVideo: false, title: '暮色天际', w: 600, h: 600, time: '10月12日 18:40', caption: '粉紫色的晚霞染满了半边天空。', c1: '#844D68', c2: '#D689A4' },
+  { isVideo: false, title: '湖畔漫步', w: 800, h: 520, time: '10月12日 10:20', caption: '秋天湖面像一面平静的镜子。', c1: '#3D5F9E', c2: '#7FA2E0' },
+  { isVideo: false, title: '手作陶杯', w: 600, h: 840, time: '10月11日 15:30', caption: '第一次拉坯做的粗陶茶杯。', c1: '#5A6572', c2: '#9EAAB8' },
+  { isVideo: true,  title: '落叶微风', w: 600, h: 600, time: '10月11日 13:05', caption: '银杏叶慢动作飘落在石阶上。', c1: '#C68B2C', c2: '#E9C368', hasPoster: false },
+  { isVideo: false, title: '夜读摘抄', w: 800, h: 600, time: '10月10日 22:15', caption: '台灯下的静心时光。', c1: '#1F2937', c2: '#4B5563' },
+  { isVideo: false, title: '清爽冷萃', w: 600, h: 780, time: '10月10日 15:50', caption: '加了柠檬片的埃塞俄比亚冷萃。', c1: '#A3684B', c2: '#DEAB8D' },
+  { isVideo: false, title: '山野远足', w: 820, h: 540, time: '10月09日 09:20', caption: '登上山顶俯瞰整座小镇。', c1: '#2E5B44', c2: '#68A882' },
+  { isVideo: false, title: '花店一角', w: 600, h: 600, time: '10月08日 17:10', caption: '打包了一束洋桔梗和尤加利。', c1: '#B35E75', c2: '#E4A2B4' },
+  { isVideo: true,  title: '壁炉余温', w: 600, h: 800, time: '10月07日 21:00', caption: '柴火偶尔哔剥作响。', c1: '#9A3A26', c2: '#D9735D', hasPoster: true },
+  { isVideo: false, title: '手账复盘', w: 800, h: 560, time: '10月06日 20:30', caption: '整理这一周的开销与习惯打卡。', c1: '#4A6274', c2: '#8BA1B3' },
+  { isVideo: false, title: '晴空云朵', w: 600, h: 900, time: '10月05日 14:00', caption: '秋高气爽，天格外蓝。', c1: '#2B6CB0', c2: '#63B3ED' },
+  { isVideo: false, title: '街角面包', w: 600, h: 600, time: '10月04日 08:00', caption: '清晨刚出炉的法棍和可颂。', c1: '#B7791F', c2: '#F6E05E' }
 ].map(item => ({
   ...item,
-  url: makeSvgData(item.title, item.c1, item.c2, item.isVideo)
+  url: makeSvgData(item.title, item.c1, item.c2, item.w, item.h, item.isVideo)
 }));
 
 // 设置主页面的 Hero 图
@@ -610,21 +631,72 @@ const btnSnippetAlbum = document.getElementById('snippet-album');
 const btnGridBack = document.getElementById('snippet-album-grid-back');
 const btnHashGrid = document.getElementById('btn-hash-grid');
 
-// 填充 18 宫格单元
-gridBody.innerHTML = ITEMS.map((item, index) => {
-  let innerHtml = '';
-  if (item.isVideo) {
-    if (item.hasPoster) {
-      innerHtml = `<img src="${item.url}" alt="${item.title}" loading="lazy" decoding="async">`;
-    } else {
-      innerHtml = `<span class="snippet-grid-video-placeholder"><svg viewBox="0 0 24 24"><path d="M18 4l2 4h-3l-2-4h-2l2 4h-3l-2-4H8l2 4H7L5 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4h-4z"/></svg></span>`;
+const snippetGridAspect = new Map();
+
+function renderMasonryGrid() {
+  const colCount = (gridLayer.clientWidth >= 600) ? 3 : 2;
+  const colHeights = new Array(colCount).fill(0);
+  const columns = Array.from({ length: colCount }, () => []);
+
+  ITEMS.forEach((item, index) => {
+    const ref = `item-${index}`;
+    const aspect = snippetGridAspect.get(ref);
+    const aspectStyle = aspect ? `aspect-ratio: ${aspect.width} / ${aspect.height}` : 'aspect-ratio: 3 / 4';
+    const itemHeight = (aspect && aspect.width > 0 && aspect.height > 0)
+      ? (aspect.height / aspect.width)
+      : 1;
+
+    let shortest = 0;
+    for (let c = 1; c < colCount; c++) {
+      if (colHeights[c] < colHeights[shortest]) shortest = c;
     }
-    innerHtml += `<span class="snippet-grid-play-badge"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></span>`;
-  } else {
-    innerHtml = `<img src="${item.url}" alt="${item.title}" loading="lazy" decoding="async">`;
+
+    let innerHtml = '';
+    if (item.isVideo) {
+      if (item.hasPoster) {
+        innerHtml = `<span class="photo-blur-frame is-edge snippet-album-grid-frame"><img class="photo-blur-still" src="${item.url}" alt="${item.title}" loading="lazy" decoding="async"></span>`;
+      } else {
+        innerHtml = `<span class="snippet-grid-video-placeholder"><svg viewBox="0 0 24 24"><path d="M18 4l2 4h-3l-2-4h-2l2 4h-3l-2-4H8l2 4H7L5 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4h-4z"/></svg></span>`;
+      }
+      innerHtml += `<span class="snippet-grid-play-badge"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></span>`;
+    } else {
+      innerHtml = `<span class="photo-blur-frame is-edge snippet-album-grid-frame"><img class="photo-blur-still" src="${item.url}" alt="${item.title}" loading="lazy" decoding="async"></span>`;
+    }
+
+    const cellHtml = `<button type="button" class="snippet-album-grid-cell" data-index="${index}" data-ref="${ref}" style="${aspectStyle}" aria-label="${item.title}">${innerHtml}</button>`;
+    columns[shortest].push(cellHtml);
+    colHeights[shortest] += itemHeight;
+  });
+
+  gridBody.innerHTML = columns.map(col => `<div class="snippet-album-grid-column">${col.join('')}</div>`).join('');
+
+  gridBody.querySelectorAll('[data-index]').forEach(cell => {
+    cell.onclick = () => {
+      const idx = Number(cell.dataset.index);
+      openViewer(idx);
+    };
+  });
+}
+
+gridLayer.addEventListener('load', event => {
+  const img = event.target;
+  if (!img || img.tagName !== 'IMG' || !img.classList.contains('photo-blur-still')) return;
+  const nw = img.naturalWidth;
+  const nh = img.naturalHeight;
+  if (nw > 1 && nh > 1) {
+    const cell = img.closest('.snippet-album-grid-cell');
+    if (!cell) return;
+    const ref = cell.dataset.ref;
+    if (ref) snippetGridAspect.set(ref, { width: nw, height: nh });
+    const nextRatio = `${nw} / ${nh}`;
+    if (cell.style.aspectRatio !== nextRatio) {
+      cell.style.aspectRatio = nextRatio;
+    }
   }
-  return `<button type="button" class="snippet-album-grid-cell" data-index="${index}" aria-label="${item.title}">${innerHtml}</button>`;
-}).join('');
+}, true);
+
+// 首次渲染网格
+renderMasonryGrid();
 
 function openGrid() {
   if (gridLayer.classList.contains('open')) return;

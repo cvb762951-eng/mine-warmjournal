@@ -9900,40 +9900,45 @@ body #modal-layer .modal.confirm-sheet .modal-actions .danger { padding: 0 16px 
 }
 
 .snippet-album-grid-body {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 2px;
-  padding: 2px 2px calc(24px + var(--app-safe-bottom, 0px));
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 6px 6px calc(24px + var(--app-safe-bottom, 0px));
   box-sizing: border-box;
+}
+
+.snippet-album-grid-column {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
 .snippet-album-grid-cell {
   position: relative;
   display: block;
   width: 100%;
-  aspect-ratio: 1;
   padding: 0;
   margin: 0;
   border: 0;
-  border-radius: 0;
+  border-radius: 8px;
   background: #efe7d6;
   overflow: hidden;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
   content-visibility: auto;
-  contain-intrinsic-size: auto 120px;
+  contain-intrinsic-size: auto 200px;
 }
 
-
-.snippet-album-grid-cell img {
+.snippet-album-grid-cell .photo-blur-frame,
+.snippet-album-grid-frame {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
-  object-fit: cover;
-  display: block;
-  border: 0;
 }
+
 
 .snippet-grid-video-placeholder {
   position: absolute;

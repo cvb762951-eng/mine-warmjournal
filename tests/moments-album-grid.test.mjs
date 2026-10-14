@@ -19,37 +19,59 @@ test('#snippet-album opens grid not photoViewer directly', () => {
   assert.match(snippetsSrc, /相册/);
 });
 
-test('grid uses data-thumb-ref/hasThumb and no original src when thumbKeyFor works', () => {
-  // Imports hasThumb from photo-thumbs.js
-  assert.match(snippetsSrc, /import\s*\{[^}]*hasThumb[^}]*\}\s*from\s*['"]\.\.\/photo-thumbs\.js['"]/);
+test('grid reuses snippetPhotoImage/snippetCoverImage display helpers and watches thumbs', () => {
+  // Thumb lookup goes through the shared 随手拍 helper (photoFrameLayersHtml + thumbRef)
+  assert.match(snippetsSrc, /import\s*\{[^}]*watchThumbImages[^}]*\}\s*from\s*['"]\.\.\/photo-thumbs\.js['"]/);
   assert.match(snippetsSrc, /import\s*\{[^}]*thumbSource[^}]*\}\s*from\s*['"]\.\.\/photo-thumbs\.js['"]/);
   assert.match(snippetsSrc, /import\s*\{[^}]*thumbKeyFor[^}]*\}\s*from\s*['"]\.\.\/photo-thumbs\.js['"]/);
   assert.match(snippetsSrc, /import\s*\{[^}]*watchThumbImages[^}]*\}\s*from\s*['"]\.\.\/photo-thumbs\.js['"]/);
 
-  // Grid cell rendering logic: checks hasThumb and thumbKeyFor, sets data-thumb-ref
+  // Grid cell rendering logic: reuses snippetPhotoImage and snippetCoverImage with photo-blur-frame
   assert.match(snippetsSrc, /function snippetGridMediaHtml\(/);
-  assert.match(snippetsSrc, /hasThumb\(/);
-  assert.match(snippetsSrc, /thumbKeyFor\(/);
-  assert.match(snippetsSrc, /data-thumb-ref=/);
-
-  // Uses transparent 1x1 placeholder and never puts original src when thumbKeyFor works
-  assert.match(snippetsSrc, /data:image\/(?:gif;base64|svg\+xml)/);
+  assert.match(snippetsSrc, /snippetPhotoImage\(/);
+  assert.match(snippetsSrc, /snippetCoverImage\(/);
+  assert.match(snippetsSrc, /photo-blur-frame/);
+  assert.match(snippetsSrc, /snippet-album-grid-frame/);
 
   // Calls watchThumbImages after mounting
   assert.match(snippetsSrc, /watchThumbImages\(layer\)/);
 });
 
-test('grid imgs declare loading="lazy" and decoding="async"', () => {
-  const cellFn = snippetsSrc.slice(snippetsSrc.indexOf('function snippetGridMediaHtml('), snippetsSrc.indexOf('let snippetAlbumGridCloseToken'));
-  assert.match(cellFn, /loading="lazy"/);
-  assert.match(cellFn, /decoding="async"/);
+test('grid builds 2-column (or 3-column when width >= 600px) masonry layout in JS', () => {
+  // JS masonry column distribution by shortest-column height
+  assert.match(snippetsSrc, /snippet-album-grid-column/);
+  assert.match(snippetsSrc, /600\s*\?\s*3\s*:\s*2/);
+  assert.match(snippetsSrc, /colHeights/);
+  assert.doesNotMatch(snippetsSrc, /column-count/);
+
+  // CSS defines flex columns and 6px gap
+  assert.match(stylesCss, /\.snippet-album-grid-body\s*\{[^}]*gap:\s*6px/);
+  assert.match(stylesCss, /\.snippet-album-grid-column\s*\{[^}]*gap:\s*6px/);
+  assert.doesNotMatch(stylesCss, /\.snippet-album-grid-body\s*\{[^}]*grid-template-columns/);
 });
 
-test('object-fit: cover and aspect-ratio:1 in CSS for grid cells', () => {
-  assert.match(stylesCss, /\.snippet-album-grid-cell\s*\{[^}]*aspect-ratio:\s*1/);
+test('aspect-ratio reservation logic with snippetGridAspect and naturalWidth', () => {
+  // Module-level snippetGridAspect Map
+  assert.match(snippetsSrc, /snippetGridAspect\s*=\s*new Map\(\)/);
+  // Neutral default aspect-ratio 3 / 4
+  assert.match(snippetsSrc, /aspect-ratio:\s*3\s*\/\s*4/);
+  // Delegated load listener in capture phase reading naturalWidth on photo-blur-still
+  assert.match(snippetsSrc, /photo-blur-still/);
+  assert.match(snippetsSrc, /naturalWidth/);
+  assert.match(snippetsSrc, /naturalHeight/);
+  assert.match(snippetsSrc, /addEventListener\(['"]load['"],[\s\S]*?,?\s*true\)/);
+  // Compares string before writing style
+  assert.match(snippetsSrc, /cell\.style\.aspectRatio !==/);
+});
+
+test('object-fit: contain (not cover) and border-radius: 8px in CSS for grid cells', () => {
   assert.match(stylesCss, /\.snippet-album-grid-cell\s*\{[^}]*content-visibility:\s*auto/);
-  assert.match(stylesCss, /\.snippet-album-grid-cell\s*\{[^}]*contain-intrinsic-size:\s*auto\s*120px/);
-  assert.match(stylesCss, /\.snippet-album-grid-cell\s+img\s*\{[^}]*object-fit:\s*cover/);
+  assert.match(stylesCss, /\.snippet-album-grid-cell\s*\{[^}]*contain-intrinsic-size:\s*auto\s*200px/);
+  assert.match(stylesCss, /\.snippet-album-grid-cell\s*\{[^}]*border-radius:\s*8px/);
+  assert.doesNotMatch(stylesCss, /\.snippet-album-grid-cell\s*\{[^}]*aspect-ratio:\s*1/);
+  // 不另写 img 规则：完整显示由共享的 photo-blur-still（contain）负责，网格不覆盖它
+  assert.doesNotMatch(stylesCss, /\.snippet-album-grid-cell\s+img\s*\{/);
+  assert.match(stylesCss, /\.photo-blur-still[^{]*\{[^}]*object-fit:\s*contain/);
 });
 
 test('grid layer integrates with back handling via isSnippetAlbumGridOpen and closeSnippetAlbumGrid', () => {

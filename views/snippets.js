@@ -7,7 +7,7 @@ import { makeSnippet, makeTodo, snippetEntries, dateKey, WEEK_DAYS, activeStreak
 import { photoViewer, micButtonHtml, bindVoiceInput } from './common.js';
 import { compressSnippetPhoto, captureVideoFrame, importPhotoBatch, isSupportedJournalPhoto } from '../photo-utils.js';
 import { livePhotoMarkHtml, photosWithLiveMotion } from '../motion-photo.js';
-import { hasThumb, thumbSource, thumbKeyFor, watchThumbImages } from '../photo-thumbs.js';
+import { thumbSource, thumbKeyFor, watchThumbImages } from '../photo-thumbs.js';
 import { mediaSource, saveMediaFile, saveNativeMediaSource } from '../media-store.js';
 import { attachVideoSource, formatVideoDuration, isHlsAddress, normalizeHlsAddress, presentWatchSession, summarizeWatchSession } from '../video-player.js';
 import { openVideoSession, plainVideoCache } from '../video-session.js';
@@ -74,48 +74,62 @@ function openSnippetAlbum(startIndex = 0) {
 }
 
 // ---- 全屏相册缩略图网格层（#snippet-album-grid）----
-const TRANSPARENT_1X1 = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+export const snippetGridAspect = new Map();
+
+function onSnippetGridImgLoad(event) {
+  const img = event.target;
+  if (!img || img.tagName !== 'IMG' || !img.classList.contains('photo-blur-still')) return;
+  const nw = img.naturalWidth;
+  const nh = img.naturalHeight;
+  if (nw > 1 && nh > 1) {
+    const cell = img.closest('.snippet-album-grid-cell');
+    if (!cell) return;
+    const ref = cell.dataset.ref || img.dataset.thumbRef || '';
+    if (ref) {
+      snippetGridAspect.set(ref, { width: nw, height: nh });
+    }
+    const nextRatio = `${nw} / ${nh}`;
+    if (cell.style.aspectRatio !== nextRatio) {
+      cell.style.aspectRatio = nextRatio;
+    }
+  }
+}
 
 function snippetGridMediaHtml(item, index) {
   const isVideo = item && typeof item === 'object' && item.video;
   if (isVideo) {
     const poster = item.poster;
-    let visual = '';
-    if (poster) {
-      if (hasThumb(poster)) {
-        visual = `<img src="${esc(thumbSource(poster))}" alt="视频 ${index + 1} 封面" loading="lazy" decoding="async">`;
-      } else if (thumbKeyFor(poster)) {
-        visual = `<img src="${TRANSPARENT_1X1}" data-thumb-ref="${esc(poster)}" alt="视频 ${index + 1} 封面" loading="lazy" decoding="async">`;
-      } else {
-        visual = `<img src="${imgSrc(poster)}" alt="视频 ${index + 1} 封面" loading="lazy" decoding="async">`;
-      }
-    } else {
-      visual = `<span class="snippet-grid-video-placeholder"><span class="material-symbols-outlined">movie</span></span>`;
-    }
-    return `${visual}<span class="snippet-grid-play-badge" aria-hidden="true"><span class="material-symbols-outlined">play_arrow</span></span>`;
+    const alt = `视频 ${index + 1} 封面`;
+    const visual = poster
+      ? `<span class="photo-blur-frame is-edge snippet-album-grid-frame">${snippetCoverImage(poster, alt, true)}</span>`
+      : `<span class="snippet-grid-video-placeholder"><span class="material-symbols-outlined">movie</span></span>`;
+    return `${visual}<span class="snippet-grid-play-badge" aria-hidden="true"><span class="material-symbols-outlined">play_arrow</span></span>${videoDurationStamp(item)}`;
   }
 
   const ref = item;
-  if (hasThumb(ref)) {
-    return `<img src="${esc(thumbSource(ref))}" alt="照片 ${index + 1}" loading="lazy" decoding="async">`;
-  }
-  if (thumbKeyFor(ref)) {
-    return `<img src="${TRANSPARENT_1X1}" data-thumb-ref="${esc(ref)}" alt="照片 ${index + 1}" loading="lazy" decoding="async">`;
-  }
-  return `<img src="${imgSrc(ref)}" alt="照片 ${index + 1}" loading="lazy" decoding="async">`;
+  const alt = `照片 ${index + 1}`;
+  return `<span class="photo-blur-frame is-edge snippet-album-grid-frame">${snippetPhotoImage(ref, alt, { thumb: true, lazy: true })}</span>`;
 }
 
 let snippetAlbumGridCloseToken = 0;
 
 function ensureSnippetAlbumGridLayer() {
   let layer = $('#snippet-album-grid');
-  if (layer) return layer;
+  if (layer) {
+    if (!layer._hasAspectLoadListener) {
+      layer.addEventListener('load', onSnippetGridImgLoad, true);
+      layer._hasAspectLoadListener = true;
+    }
+    return layer;
+  }
   layer = document.createElement('div');
   layer.id = 'snippet-album-grid';
   layer.className = 'snippet-album-grid';
   layer.hidden = true;
   layer.setAttribute('role', 'dialog');
   layer.setAttribute('aria-modal', 'true');
+  layer.addEventListener('load', onSnippetGridImgLoad, true);
+  layer._hasAspectLoadListener = true;
   const host = $('.phone-shell') || document.body;
   host.appendChild(layer);
   return layer;
@@ -167,6 +181,34 @@ export function openSnippetAlbumGrid() {
   if (layer.classList.contains('is-closing')) layer.classList.remove('is-closing');
   layer.getAnimations?.().forEach(anim => anim.cancel());
 
+  const host = layer.parentElement || document.body;
+  const layerWidth = layer.clientWidth || host.clientWidth || window.innerWidth;
+  const colCount = layerWidth >= 600 ? 3 : 2;
+  const colHeights = new Array(colCount).fill(0);
+  const columns = Array.from({ length: colCount }, () => []);
+
+  stream.forEach((entry, index) => {
+    const isVideo = entry.item && typeof entry.item === 'object' && entry.item.video;
+    const ref = isVideo ? (entry.item.poster || '') : (typeof entry.item === 'string' ? entry.item : '');
+    const aspect = ref ? snippetGridAspect.get(ref) : null;
+    const aspectStyle = aspect ? `aspect-ratio: ${aspect.width} / ${aspect.height}` : 'aspect-ratio: 3 / 4';
+    const itemHeight = (aspect && aspect.width > 0 && aspect.height > 0)
+      ? (aspect.height / aspect.width)
+      : 1;
+
+    let shortest = 0;
+    for (let c = 1; c < colCount; c++) {
+      if (colHeights[c] < colHeights[shortest]) shortest = c;
+    }
+
+    const cellHtml = `<button type="button" class="snippet-album-grid-cell" data-grid-index="${index}" data-ref="${esc(ref)}" style="${aspectStyle}" aria-label="第 ${index + 1} 项">${snippetGridMediaHtml(entry.item, index)}</button>`;
+
+    columns[shortest].push(cellHtml);
+    colHeights[shortest] += itemHeight;
+  });
+
+  const columnsHtml = columns.map(col => `<div class="snippet-album-grid-column">${col.join('')}</div>`).join('');
+
   layer.innerHTML = `<header class="snippet-album-grid-header">
     <button type="button" class="snippet-album-grid-back" id="snippet-album-grid-back" aria-label="返回">
       <span class="material-symbols-outlined">arrow_back</span>
@@ -178,7 +220,7 @@ export function openSnippetAlbumGrid() {
     <div class="snippet-album-grid-actions"></div>
   </header>
   <div class="snippet-album-grid-body">
-    ${stream.map((entry, index) => `<button type="button" class="snippet-album-grid-cell" data-grid-index="${index}" aria-label="第 ${index + 1} 项">${snippetGridMediaHtml(entry.item, index)}</button>`).join('')}
+    ${columnsHtml}
   </div>`;
 
   layer.querySelector('#snippet-album-grid-back')?.addEventListener('click', () => closeSnippetAlbumGrid());
