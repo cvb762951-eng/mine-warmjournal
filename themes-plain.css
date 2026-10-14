@@ -118,14 +118,10 @@
 }
 
 /* —— 纹理 / 装饰图底：撤掉图片图层（颜色与渐变保留） —— */
-:root[data-theme="plain"] #app:has(.calendar-view),
-:root[data-theme="plain"] #app:has(.journal-view),
-:root[data-theme="plain"] #app:has(.ledger-view),
-:root[data-theme="plain"] #app:has(.snippets-view),
-:root[data-theme="plain"] #app:has(.today-view),
 :root[data-theme="plain"] #app>.private-vault-view,
 :root[data-theme="plain"] #app>.private-vault-view::before,
-:root[data-theme="plain"] #background-form :is(.background-zoom-control,.background-blur-control),
+:root[data-theme="plain"] #background-form .background-zoom-control,
+:root[data-theme="plain"] #background-form .background-blur-control,
 :root[data-theme="plain"] #countdown-banner,
 :root[data-theme="plain"] #countdown-banner + .today-bento-grid,
 :root[data-theme="plain"] #countdown-banner + .today-bento-grid::after,
@@ -210,7 +206,9 @@
 :root[data-theme="plain"] #subpage-habit-detail .habit-heatmap-year-switch button,
 :root[data-theme="plain"] #subpage-habit-detail .habit-hero-badge,
 :root[data-theme="plain"] #subpage-habit-detail .subpage-nav-bar,
-:root[data-theme="plain"] #subpage-habit-detail :is(.habit-hero-card,.habit-heatmap-card,.habit-achievement-card),
+:root[data-theme="plain"] #subpage-habit-detail .habit-hero-card,
+:root[data-theme="plain"] #subpage-habit-detail .habit-heatmap-card,
+:root[data-theme="plain"] #subpage-habit-detail .habit-achievement-card,
 :root[data-theme="plain"] #subpage-habit-detail.active,
 :root[data-theme="plain"] #subpage-journal-reader,
 :root[data-theme="plain"] #subpage-journal-reader .journal-reader-edit,
@@ -219,7 +217,8 @@
 :root[data-theme="plain"] #subpage-journal-reader .journal-reader-page .subpage-nav-bar,
 :root[data-theme="plain"] #subpage-journal-reader .journal-reader-quote,
 :root[data-theme="plain"] #subpage-journal-reader .subpage-nav-bar,
-:root[data-theme="plain"] #subpage-journal-reader :is(.journal-reader-hero,.journal-reader-paper),
+:root[data-theme="plain"] #subpage-journal-reader .journal-reader-hero,
+:root[data-theme="plain"] #subpage-journal-reader .journal-reader-paper,
 :root[data-theme="plain"] #subpage-journal-reader.active,
 :root[data-theme="plain"] #subpage-ledger-detail,
 :root[data-theme="plain"] #subpage-ledger-detail .subpage-nav-bar,
@@ -257,7 +256,8 @@
 :root[data-theme="plain"] .ai-composer,
 :root[data-theme="plain"] .ai-greet-setup,
 :root[data-theme="plain"] .ai-insight-action,
-:root[data-theme="plain"] .ai-ledger-card :is(input:not([type=checkbox]):not([type=radio]),select),
+:root[data-theme="plain"] .ai-ledger-card input:not([type=checkbox]):not([type=radio]),
+:root[data-theme="plain"] .ai-ledger-card select,
 :root[data-theme="plain"] .ai-ledger-card button,
 :root[data-theme="plain"] .ai-memory-import-modal #import-memory-json,
 :root[data-theme="plain"] .ai-memory-import-modal .modal-actions .save,
@@ -390,7 +390,8 @@
 :root[data-theme="plain"] .habit-modal .modal-actions .danger,
 :root[data-theme="plain"] .habit-modal .modal-actions .save,
 :root[data-theme="plain"] .habit-modal .modal-actions button,
-:root[data-theme="plain"] .habit-modal :is(.habit-tracking-picker,.habit-goal-picker)>label>span,
+:root[data-theme="plain"] .habit-modal .habit-tracking-picker>label>span,
+:root[data-theme="plain"] .habit-modal .habit-goal-picker>label>span,
 :root[data-theme="plain"] .habit-modal fieldset,
 :root[data-theme="plain"] .habit-modal input:checked+span,
 :root[data-theme="plain"] .habit-modal>input,
@@ -404,7 +405,6 @@
 :root[data-theme="plain"] .journal-inline-snippet-apply,
 :root[data-theme="plain"] .journal-inline-snippet-head .icon-button,
 :root[data-theme="plain"] .journal-inline-snippet-item,
-:root[data-theme="plain"] .journal-inline-snippet-item:has(input:checked),
 :root[data-theme="plain"] .journal-inline-snippet-picker,
 :root[data-theme="plain"] .journal-modal-draft-status,
 :root[data-theme="plain"] .journal-reader-edit,
@@ -452,7 +452,10 @@
 :root[data-theme="plain"] .media-detail-focus-card,
 :root[data-theme="plain"] .media-detail-hero-card,
 :root[data-theme="plain"] .media-detail-note-card,
-:root[data-theme="plain"] .media-detail-page :is(.media-detail-hero-card,.media-detail-quote-card,.media-detail-note-card,.media-detail-focus-card),
+:root[data-theme="plain"] .media-detail-page .media-detail-hero-card,
+:root[data-theme="plain"] .media-detail-page .media-detail-quote-card,
+:root[data-theme="plain"] .media-detail-page .media-detail-note-card,
+:root[data-theme="plain"] .media-detail-page .media-detail-focus-card,
 :root[data-theme="plain"] .media-detail-quote-card,
 :root[data-theme="plain"] .media-empty>button,
 :root[data-theme="plain"] .media-form-modal .modal-actions .save,
@@ -548,9 +551,6 @@
 :root[data-theme="plain"] .modal.vault-restore-moment-modal,
 :root[data-theme="plain"] .modal.vault-video-edit-modal,
 :root[data-theme="plain"] .modal.video-frame-picker-modal,
-:root[data-theme="plain"] .modal:has(form) .modal-head,
-:root[data-theme="plain"] .modal:has(form) :is(input:not([type=hidden]):not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]):not([type=color]),textarea,select),
-:root[data-theme="plain"] .modal:has(form) p.subtle,
 :root[data-theme="plain"] .moment-album-card,
 :root[data-theme="plain"] .password-entry,
 :root[data-theme="plain"] .password-gate-paper,
@@ -559,16 +559,6 @@
 :root[data-theme="plain"] .password-vault-view,
 :root[data-theme="plain"] .password-vault-view .password-entry,
 :root[data-theme="plain"] .password-vault-view .password-entry>div>button,
-:root[data-theme="plain"] .phone-shell:has(.calendar-view) .dock-btn.active,
-:root[data-theme="plain"] .phone-shell:has(.calendar-view) .floating-dock,
-:root[data-theme="plain"] .phone-shell:has(.journal-view) .dock-btn.active,
-:root[data-theme="plain"] .phone-shell:has(.journal-view) .floating-dock,
-:root[data-theme="plain"] .phone-shell:has(.ledger-view) .dock-btn.active,
-:root[data-theme="plain"] .phone-shell:has(.ledger-view) .floating-dock,
-:root[data-theme="plain"] .phone-shell:has(.snippets-view) .dock-btn.active,
-:root[data-theme="plain"] .phone-shell:has(.snippets-view) .floating-dock,
-:root[data-theme="plain"] .phone-shell:has(.today-view) .dock-btn.active,
-:root[data-theme="plain"] .phone-shell:has(.today-view) .floating-dock,
 :root[data-theme="plain"] .private-vault-view,
 :root[data-theme="plain"] .private-vault-view .vault-folder-copy,
 :root[data-theme="plain"] .private-vault-view .vault-folder-cover,
@@ -580,7 +570,8 @@
 :root[data-theme="plain"] .private-vault-view .vault-view-switch,
 :root[data-theme="plain"] .private-vault-view .vault-view-switch>button,
 :root[data-theme="plain"] .private-vault-view .vault-view-switch>button.active,
-:root[data-theme="plain"] .private-vault-view :is(#vault-fingerprint-settings,#vault-passwordless),
+:root[data-theme="plain"] .private-vault-view #vault-fingerprint-settings,
+:root[data-theme="plain"] .private-vault-view #vault-passwordless,
 :root[data-theme="plain"] .profile-modal .avatar-picker,
 :root[data-theme="plain"] .profile-modal .modal-actions .save,
 :root[data-theme="plain"] .profile-modal .modal-actions button,
@@ -733,16 +724,52 @@
 :root[data-theme="plain"] .warm-video-rates button,
 :root[data-theme="plain"] .warm-video-rates button.active,
 :root[data-theme="plain"] .warm-video-stage,
-:root[data-theme="plain"] :is(#password-vault-setup,#password-vault-unlock,#vault-setup-form,#vault-unlock-form) button.save,
-:root[data-theme="plain"] :is(#password-vault-setup,#password-vault-unlock,#vault-setup-form,#vault-unlock-form) input:not([type=checkbox]):not([type=radio]),
-:root[data-theme="plain"] :is(#subpage-habit-detail,#subpage-media-detail,#subpage-focus-detail,#subpage-ledger-detail) .subpage-nav-bar,
-:root[data-theme="plain"] :is(.focus-main-header,.taste-header,.mine-editorial-header,.vault-header,.password-vault-header),
+:root[data-theme="plain"] #password-vault-setup button.save,
+:root[data-theme="plain"] #password-vault-unlock button.save,
+:root[data-theme="plain"] #vault-setup-form button.save,
+:root[data-theme="plain"] #vault-unlock-form button.save,
+:root[data-theme="plain"] #password-vault-setup input:not([type=checkbox]):not([type=radio]),
+:root[data-theme="plain"] #password-vault-unlock input:not([type=checkbox]):not([type=radio]),
+:root[data-theme="plain"] #vault-setup-form input:not([type=checkbox]):not([type=radio]),
+:root[data-theme="plain"] #vault-unlock-form input:not([type=checkbox]):not([type=radio]),
+:root[data-theme="plain"] #subpage-habit-detail .subpage-nav-bar,
+:root[data-theme="plain"] #subpage-media-detail .subpage-nav-bar,
+:root[data-theme="plain"] #subpage-focus-detail .subpage-nav-bar,
+:root[data-theme="plain"] #subpage-ledger-detail .subpage-nav-bar,
+:root[data-theme="plain"] .focus-main-header,
+:root[data-theme="plain"] .taste-header,
+:root[data-theme="plain"] .mine-editorial-header,
+:root[data-theme="plain"] .vault-header,
+:root[data-theme="plain"] .password-vault-header,
+:root[data-theme="plain"] button.journal-deck-cut,
+:root[data-theme="plain"] button.journal-deck-open {
+  background-image: none !important;
+}
+:root[data-theme="plain"] #app:has(.calendar-view),
+:root[data-theme="plain"] #app:has(.journal-view),
+:root[data-theme="plain"] #app:has(.ledger-view),
+:root[data-theme="plain"] #app:has(.snippets-view),
+:root[data-theme="plain"] #app:has(.today-view),
+:root[data-theme="plain"] .journal-inline-snippet-item:has(input:checked),
+:root[data-theme="plain"] .modal:has(form) .modal-head,
+:root[data-theme="plain"] .modal:has(form) input:not([type=hidden]):not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]):not([type=color]),
+:root[data-theme="plain"] .modal:has(form) textarea,
+:root[data-theme="plain"] .modal:has(form) select,
+:root[data-theme="plain"] .modal:has(form) p.subtle,
+:root[data-theme="plain"] .phone-shell:has(.calendar-view) .dock-btn.active,
+:root[data-theme="plain"] .phone-shell:has(.calendar-view) .floating-dock,
+:root[data-theme="plain"] .phone-shell:has(.journal-view) .dock-btn.active,
+:root[data-theme="plain"] .phone-shell:has(.journal-view) .floating-dock,
+:root[data-theme="plain"] .phone-shell:has(.ledger-view) .dock-btn.active,
+:root[data-theme="plain"] .phone-shell:has(.ledger-view) .floating-dock,
+:root[data-theme="plain"] .phone-shell:has(.snippets-view) .dock-btn.active,
+:root[data-theme="plain"] .phone-shell:has(.snippets-view) .floating-dock,
+:root[data-theme="plain"] .phone-shell:has(.today-view) .dock-btn.active,
+:root[data-theme="plain"] .phone-shell:has(.today-view) .floating-dock,
 :root[data-theme="plain"] body:has(#screen-library) #app,
 :root[data-theme="plain"] body:has(.ai-companion-screen) #app,
 :root[data-theme="plain"] body:has(.focus-screen) #app,
-:root[data-theme="plain"] body:has(.mine-view) #app,
-:root[data-theme="plain"] button.journal-deck-cut,
-:root[data-theme="plain"] button.journal-deck-open {
+:root[data-theme="plain"] body:has(.mine-view) #app {
   background-image: none !important;
 }
 
@@ -868,7 +895,8 @@
 }
 
 /* —— 原本「图片 + 透明底」的元素 → 补一层纯色，避免变成没有底的纸片 —— */
-:root[data-theme="plain"] #background-form :is(.background-zoom-control,.background-blur-control),
+:root[data-theme="plain"] #background-form .background-zoom-control,
+:root[data-theme="plain"] #background-form .background-blur-control,
 :root[data-theme="plain"] #countdown-banner,
 :root[data-theme="plain"] #countdown-banner + .today-bento-grid,
 :root[data-theme="plain"] #full-ledger-modal,
@@ -922,14 +950,17 @@
 :root[data-theme="plain"] #subpage-habit-detail .habit-detail-switcher>button,
 :root[data-theme="plain"] #subpage-habit-detail .habit-heatmap-year-switch button,
 :root[data-theme="plain"] #subpage-habit-detail .subpage-nav-bar,
-:root[data-theme="plain"] #subpage-habit-detail :is(.habit-hero-card,.habit-heatmap-card,.habit-achievement-card),
+:root[data-theme="plain"] #subpage-habit-detail .habit-hero-card,
+:root[data-theme="plain"] #subpage-habit-detail .habit-heatmap-card,
+:root[data-theme="plain"] #subpage-habit-detail .habit-achievement-card,
 :root[data-theme="plain"] #subpage-journal-reader,
 :root[data-theme="plain"] #subpage-journal-reader .journal-reader-footnote-tag,
 :root[data-theme="plain"] #subpage-journal-reader .journal-reader-footnotes,
 :root[data-theme="plain"] #subpage-journal-reader .journal-reader-page .subpage-nav-bar,
 :root[data-theme="plain"] #subpage-journal-reader .journal-reader-quote,
 :root[data-theme="plain"] #subpage-journal-reader .subpage-nav-bar,
-:root[data-theme="plain"] #subpage-journal-reader :is(.journal-reader-hero,.journal-reader-paper),
+:root[data-theme="plain"] #subpage-journal-reader .journal-reader-hero,
+:root[data-theme="plain"] #subpage-journal-reader .journal-reader-paper,
 :root[data-theme="plain"] #subpage-ledger-detail,
 :root[data-theme="plain"] #subpage-ledger-detail .subpage-nav-bar,
 :root[data-theme="plain"] #subpage-media-detail,
@@ -954,7 +985,8 @@
 :root[data-theme="plain"] .ai-composer,
 :root[data-theme="plain"] .ai-greet-setup,
 :root[data-theme="plain"] .ai-insight-action,
-:root[data-theme="plain"] .ai-ledger-card :is(input:not([type=checkbox]):not([type=radio]),select),
+:root[data-theme="plain"] .ai-ledger-card input:not([type=checkbox]):not([type=radio]),
+:root[data-theme="plain"] .ai-ledger-card select,
 :root[data-theme="plain"] .ai-ledger-card button,
 :root[data-theme="plain"] .ai-memory-import-modal #import-memory-json,
 :root[data-theme="plain"] .ai-memory-import-modal .modal-actions button,
@@ -1050,7 +1082,8 @@
 :root[data-theme="plain"] .habit-modal .habit-icon-picker>label>span,
 :root[data-theme="plain"] .habit-modal .habit-tracking-picker span,
 :root[data-theme="plain"] .habit-modal .modal-actions button,
-:root[data-theme="plain"] .habit-modal :is(.habit-tracking-picker,.habit-goal-picker)>label>span,
+:root[data-theme="plain"] .habit-modal .habit-tracking-picker>label>span,
+:root[data-theme="plain"] .habit-modal .habit-goal-picker>label>span,
 :root[data-theme="plain"] .habit-modal fieldset,
 :root[data-theme="plain"] .habit-modal>input,
 :root[data-theme="plain"] .habit-starter-choices button,
@@ -1087,7 +1120,10 @@
 :root[data-theme="plain"] .media-detail-focus-card,
 :root[data-theme="plain"] .media-detail-hero-card,
 :root[data-theme="plain"] .media-detail-note-card,
-:root[data-theme="plain"] .media-detail-page :is(.media-detail-hero-card,.media-detail-quote-card,.media-detail-note-card,.media-detail-focus-card),
+:root[data-theme="plain"] .media-detail-page .media-detail-hero-card,
+:root[data-theme="plain"] .media-detail-page .media-detail-quote-card,
+:root[data-theme="plain"] .media-detail-page .media-detail-note-card,
+:root[data-theme="plain"] .media-detail-page .media-detail-focus-card,
 :root[data-theme="plain"] .media-detail-quote-card,
 :root[data-theme="plain"] .media-form-modal .modal-actions button,
 :root[data-theme="plain"] .media-form-modal .modal-head,
@@ -1174,20 +1210,12 @@
 :root[data-theme="plain"] .modal.vault-restore-moment-modal,
 :root[data-theme="plain"] .modal.vault-video-edit-modal,
 :root[data-theme="plain"] .modal.video-frame-picker-modal,
-:root[data-theme="plain"] .modal:has(form) .modal-head,
-:root[data-theme="plain"] .modal:has(form) :is(input:not([type=hidden]):not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]):not([type=color]),textarea,select),
-:root[data-theme="plain"] .modal:has(form) p.subtle,
 :root[data-theme="plain"] .password-entry,
 :root[data-theme="plain"] .password-gate-paper,
 :root[data-theme="plain"] .password-vault-empty,
 :root[data-theme="plain"] .password-vault-header,
 :root[data-theme="plain"] .password-vault-view .password-entry,
 :root[data-theme="plain"] .password-vault-view .password-entry>div>button,
-:root[data-theme="plain"] .phone-shell:has(.calendar-view) .dock-btn.active,
-:root[data-theme="plain"] .phone-shell:has(.journal-view) .dock-btn.active,
-:root[data-theme="plain"] .phone-shell:has(.ledger-view) .dock-btn.active,
-:root[data-theme="plain"] .phone-shell:has(.snippets-view) .dock-btn.active,
-:root[data-theme="plain"] .phone-shell:has(.today-view) .dock-btn.active,
 :root[data-theme="plain"] .private-vault-view .vault-folder-copy,
 :root[data-theme="plain"] .private-vault-view .vault-folder-cover,
 :root[data-theme="plain"] .private-vault-view .vault-item:not(.vault-video-item),
@@ -1195,7 +1223,8 @@
 :root[data-theme="plain"] .private-vault-view .vault-video-item>div,
 :root[data-theme="plain"] .private-vault-view .vault-view-switch,
 :root[data-theme="plain"] .private-vault-view .vault-view-switch>button,
-:root[data-theme="plain"] .private-vault-view :is(#vault-fingerprint-settings,#vault-passwordless),
+:root[data-theme="plain"] .private-vault-view #vault-fingerprint-settings,
+:root[data-theme="plain"] .private-vault-view #vault-passwordless,
 :root[data-theme="plain"] .profile-modal .avatar-picker,
 :root[data-theme="plain"] .profile-modal .modal-actions button,
 :root[data-theme="plain"] .profile-modal>input,
@@ -1293,9 +1322,31 @@
 :root[data-theme="plain"] .warm-video-player>header>button,
 :root[data-theme="plain"] .warm-video-rates button,
 :root[data-theme="plain"] .warm-video-stage,
-:root[data-theme="plain"] :is(#password-vault-setup,#password-vault-unlock,#vault-setup-form,#vault-unlock-form) input:not([type=checkbox]):not([type=radio]),
-:root[data-theme="plain"] :is(#subpage-habit-detail,#subpage-media-detail,#subpage-focus-detail,#subpage-ledger-detail) .subpage-nav-bar,
-:root[data-theme="plain"] :is(.focus-main-header,.taste-header,.mine-editorial-header,.vault-header,.password-vault-header) {
+:root[data-theme="plain"] #password-vault-setup input:not([type=checkbox]):not([type=radio]),
+:root[data-theme="plain"] #password-vault-unlock input:not([type=checkbox]):not([type=radio]),
+:root[data-theme="plain"] #vault-setup-form input:not([type=checkbox]):not([type=radio]),
+:root[data-theme="plain"] #vault-unlock-form input:not([type=checkbox]):not([type=radio]),
+:root[data-theme="plain"] #subpage-habit-detail .subpage-nav-bar,
+:root[data-theme="plain"] #subpage-media-detail .subpage-nav-bar,
+:root[data-theme="plain"] #subpage-focus-detail .subpage-nav-bar,
+:root[data-theme="plain"] #subpage-ledger-detail .subpage-nav-bar,
+:root[data-theme="plain"] .focus-main-header,
+:root[data-theme="plain"] .taste-header,
+:root[data-theme="plain"] .mine-editorial-header,
+:root[data-theme="plain"] .vault-header,
+:root[data-theme="plain"] .password-vault-header {
+  background-color: var(--plain-surface, #ffffff) !important;
+}
+:root[data-theme="plain"] .modal:has(form) .modal-head,
+:root[data-theme="plain"] .modal:has(form) input:not([type=hidden]):not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]):not([type=color]),
+:root[data-theme="plain"] .modal:has(form) textarea,
+:root[data-theme="plain"] .modal:has(form) select,
+:root[data-theme="plain"] .modal:has(form) p.subtle,
+:root[data-theme="plain"] .phone-shell:has(.calendar-view) .dock-btn.active,
+:root[data-theme="plain"] .phone-shell:has(.journal-view) .dock-btn.active,
+:root[data-theme="plain"] .phone-shell:has(.ledger-view) .dock-btn.active,
+:root[data-theme="plain"] .phone-shell:has(.snippets-view) .dock-btn.active,
+:root[data-theme="plain"] .phone-shell:has(.today-view) .dock-btn.active {
   background-color: var(--plain-surface, #ffffff) !important;
 }
 
@@ -3648,7 +3699,7 @@ button.danger) {
   padding: 0;
 }
 
-:root[data-theme="plain"] .modal.quick-modal:has(#quick-photo-modal) {
+:root[data-theme="plain"] .modal.quick-modal.quick-photo-sheet {
   width: 100%;
   max-width: none;
   height: auto;
@@ -3664,7 +3715,7 @@ button.danger) {
   overflow: auto;
 }
 
-:root[data-theme="plain"] .modal.quick-modal:has(#quick-photo-modal)::before {
+:root[data-theme="plain"] .modal.quick-modal.quick-photo-sheet::before {
   content: "";
   display: block;
   width: 36px;
@@ -4236,7 +4287,12 @@ button.danger) {
   display: none !important;
   visibility: hidden !important;
 }
-:root[data-theme="plain"] #quick-photo-modal :is(.plain-moment-btn, .quick-modal-close, .quick-photo-view-all, .moment-spread-more, .quick-paper-tag, .quick-capture-bar button) {
+:root[data-theme="plain"] #quick-photo-modal .plain-moment-btn,
+:root[data-theme="plain"] #quick-photo-modal .quick-modal-close,
+:root[data-theme="plain"] #quick-photo-modal .quick-photo-view-all,
+:root[data-theme="plain"] #quick-photo-modal .moment-spread-more,
+:root[data-theme="plain"] #quick-photo-modal .quick-paper-tag,
+:root[data-theme="plain"] #quick-photo-modal .quick-capture-bar button {
   background-image: none !important;
   font-family: "Inter", "Noto Sans SC", sans-serif !important;
 }
@@ -4257,7 +4313,8 @@ button.danger) {
   border-color: transparent !important;
   box-shadow: none !important;
 }
-:root[data-theme="plain"] #quick-photo-modal #quick-save-snap :is(span, .material-symbols-outlined) {
+:root[data-theme="plain"] #quick-photo-modal #quick-save-snap span,
+:root[data-theme="plain"] #quick-photo-modal #quick-save-snap .material-symbols-outlined {
   color: var(--plain-surface) !important;
 }
 :root[data-theme="plain"] #quick-photo-modal .quick-modal-close {
@@ -4300,7 +4357,7 @@ button.danger) {
    performance.css 的 .quick-photo-actions button / .quick-photo-preview 铺 kraft 与 dropzone；
    styles.css 的 .quick-video-actions button 铺 kraft。
    只写 .quick-input-field 的 background-image 盖不住简写，也清不掉 border-image 撕边。 */
-:root[data-theme="plain"] .modal.quick-modal:has(#quick-photo-modal),
+:root[data-theme="plain"] .modal.quick-modal.quick-photo-sheet,
 :root[data-theme="plain"] #quick-photo-modal {
   background: var(--plain-canvas) !important;
   background-image: none !important;
@@ -4309,17 +4366,15 @@ button.danger) {
   color: var(--ink);
   font-family: "Inter", "Noto Sans SC", sans-serif;
 }
-:root[data-theme="plain"] #quick-photo-modal :is(
-  #quick-snap-caption,
-  #quick-photo-preview,
-  .quick-paper-tag,
-  .quick-photo-actions button,
-  .quick-video-actions button,
-  #quick-save-snap,
-  .quick-modal-close,
-  .quick-photo-view-all,
-  .plain-moment-btn
-) {
+:root[data-theme="plain"] #quick-photo-modal #quick-snap-caption,
+:root[data-theme="plain"] #quick-photo-modal #quick-photo-preview,
+:root[data-theme="plain"] #quick-photo-modal .quick-paper-tag,
+:root[data-theme="plain"] #quick-photo-modal .quick-photo-actions button,
+:root[data-theme="plain"] #quick-photo-modal .quick-video-actions button,
+:root[data-theme="plain"] #quick-photo-modal #quick-save-snap,
+:root[data-theme="plain"] #quick-photo-modal .quick-modal-close,
+:root[data-theme="plain"] #quick-photo-modal .quick-photo-view-all,
+:root[data-theme="plain"] #quick-photo-modal .plain-moment-btn {
   border-image: none !important;
   border-image-source: none !important;
   -webkit-mask-image: none !important;
@@ -4378,7 +4433,8 @@ button.danger) {
   border-color: var(--pl-blue-line) !important;
   color: var(--pl-blue) !important;
 }
-:root[data-theme="plain"] #quick-photo-modal :is(.quick-photo-actions, .quick-video-actions) button {
+:root[data-theme="plain"] #quick-photo-modal .quick-photo-actions button,
+:root[data-theme="plain"] #quick-photo-modal .quick-video-actions button {
   background: var(--plain-surface) !important;
   background-image: none !important;
   border: 1px solid var(--line) !important;
@@ -4390,7 +4446,8 @@ button.danger) {
   font-family: "Inter", "Noto Sans SC", sans-serif !important;
   transform: none !important;
 }
-:root[data-theme="plain"] #quick-photo-modal :is(.quick-photo-actions, .quick-video-actions) button .material-symbols-outlined {
+:root[data-theme="plain"] #quick-photo-modal .quick-photo-actions button .material-symbols-outlined,
+:root[data-theme="plain"] #quick-photo-modal .quick-video-actions button .material-symbols-outlined {
   background: none !important;
   background-image: none !important;
   color: var(--pl-blue) !important;

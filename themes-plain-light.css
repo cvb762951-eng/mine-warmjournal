@@ -2221,7 +2221,7 @@ button.danger) {
   padding: 0;
 }
 
-:root[data-theme="plain"] .modal.quick-modal:has(#quick-photo-modal) {
+:root[data-theme="plain"] .modal.quick-modal.quick-photo-sheet {
   width: 100%;
   max-width: none;
   height: auto;
@@ -2237,7 +2237,7 @@ button.danger) {
   overflow: auto;
 }
 
-:root[data-theme="plain"] .modal.quick-modal:has(#quick-photo-modal)::before {
+:root[data-theme="plain"] .modal.quick-modal.quick-photo-sheet::before {
   content: "";
   display: block;
   width: 36px;
@@ -2809,7 +2809,12 @@ button.danger) {
   display: none !important;
   visibility: hidden !important;
 }
-:root[data-theme="plain"] #quick-photo-modal :is(.plain-moment-btn, .quick-modal-close, .quick-photo-view-all, .moment-spread-more, .quick-paper-tag, .quick-capture-bar button) {
+:root[data-theme="plain"] #quick-photo-modal .plain-moment-btn,
+:root[data-theme="plain"] #quick-photo-modal .quick-modal-close,
+:root[data-theme="plain"] #quick-photo-modal .quick-photo-view-all,
+:root[data-theme="plain"] #quick-photo-modal .moment-spread-more,
+:root[data-theme="plain"] #quick-photo-modal .quick-paper-tag,
+:root[data-theme="plain"] #quick-photo-modal .quick-capture-bar button {
   background-image: none !important;
   font-family: "Inter", "Noto Sans SC", sans-serif !important;
 }
@@ -2830,7 +2835,8 @@ button.danger) {
   border-color: transparent !important;
   box-shadow: none !important;
 }
-:root[data-theme="plain"] #quick-photo-modal #quick-save-snap :is(span, .material-symbols-outlined) {
+:root[data-theme="plain"] #quick-photo-modal #quick-save-snap span,
+:root[data-theme="plain"] #quick-photo-modal #quick-save-snap .material-symbols-outlined {
   color: var(--plain-surface) !important;
 }
 :root[data-theme="plain"] #quick-photo-modal .quick-modal-close {
@@ -2873,7 +2879,7 @@ button.danger) {
    performance.css 的 .quick-photo-actions button / .quick-photo-preview 铺 kraft 与 dropzone；
    styles.css 的 .quick-video-actions button 铺 kraft。
    只写 .quick-input-field 的 background-image 盖不住简写，也清不掉 border-image 撕边。 */
-:root[data-theme="plain"] .modal.quick-modal:has(#quick-photo-modal),
+:root[data-theme="plain"] .modal.quick-modal.quick-photo-sheet,
 :root[data-theme="plain"] #quick-photo-modal {
   background: var(--plain-canvas) !important;
   background-image: none !important;
@@ -2882,17 +2888,15 @@ button.danger) {
   color: var(--ink);
   font-family: "Inter", "Noto Sans SC", sans-serif;
 }
-:root[data-theme="plain"] #quick-photo-modal :is(
-  #quick-snap-caption,
-  #quick-photo-preview,
-  .quick-paper-tag,
-  .quick-photo-actions button,
-  .quick-video-actions button,
-  #quick-save-snap,
-  .quick-modal-close,
-  .quick-photo-view-all,
-  .plain-moment-btn
-) {
+:root[data-theme="plain"] #quick-photo-modal #quick-snap-caption,
+:root[data-theme="plain"] #quick-photo-modal #quick-photo-preview,
+:root[data-theme="plain"] #quick-photo-modal .quick-paper-tag,
+:root[data-theme="plain"] #quick-photo-modal .quick-photo-actions button,
+:root[data-theme="plain"] #quick-photo-modal .quick-video-actions button,
+:root[data-theme="plain"] #quick-photo-modal #quick-save-snap,
+:root[data-theme="plain"] #quick-photo-modal .quick-modal-close,
+:root[data-theme="plain"] #quick-photo-modal .quick-photo-view-all,
+:root[data-theme="plain"] #quick-photo-modal .plain-moment-btn {
   border-image: none !important;
   border-image-source: none !important;
   -webkit-mask-image: none !important;
@@ -2951,7 +2955,8 @@ button.danger) {
   border-color: var(--pl-blue-line) !important;
   color: var(--pl-blue) !important;
 }
-:root[data-theme="plain"] #quick-photo-modal :is(.quick-photo-actions, .quick-video-actions) button {
+:root[data-theme="plain"] #quick-photo-modal .quick-photo-actions button,
+:root[data-theme="plain"] #quick-photo-modal .quick-video-actions button {
   background: var(--plain-surface) !important;
   background-image: none !important;
   border: 1px solid var(--line) !important;
@@ -2963,7 +2968,8 @@ button.danger) {
   font-family: "Inter", "Noto Sans SC", sans-serif !important;
   transform: none !important;
 }
-:root[data-theme="plain"] #quick-photo-modal :is(.quick-photo-actions, .quick-video-actions) button .material-symbols-outlined {
+:root[data-theme="plain"] #quick-photo-modal .quick-photo-actions button .material-symbols-outlined,
+:root[data-theme="plain"] #quick-photo-modal .quick-video-actions button .material-symbols-outlined {
   background: none !important;
   background-image: none !important;
   color: var(--pl-blue) !important;

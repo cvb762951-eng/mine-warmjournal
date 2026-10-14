@@ -1713,7 +1713,7 @@ function quickPhotoModal() {
       <button type="button" class="quick-publish-btn snap" id="quick-save-snap" aria-label="收进今日生活相册"><span class="material-symbols-outlined" aria-hidden="true">check</span><span>保存</span></button>
     </div>
     <div class="quick-modal-switch"><button type="button" id="quick-switch-memo">或写一条灵感速记 ›</button></div>
-  </div>`, 'quick-modal');
+  </div>`, 'quick-modal quick-photo-sheet');
   $('#quick-photo-preview')?.addEventListener('click', event => {
     const allBtn = event.target.closest('[data-moment-spread-all]');
     if (allBtn) {
