@@ -374,13 +374,35 @@ test('private playback caches decrypted legacy sources, preloads the next video 
   assert.match(videoSession, /onWatchSession: session =>/);
   assert.match(videoSession, /watchHistory\.push\(session\)/);
   assert.match(view, /record\.watchHistory = patch\.watchHistory\.slice\(-100\)/);
+  assert.match(view, /remember: rememberVaultPlayback/);
+  assert.match(view, /flush: flushVaultPlayback/);
+  const vaultMemory = view.slice(view.indexOf('function rememberVaultPlayback'), view.indexOf('async function flushVaultPlayback'));
+  assert.doesNotMatch(vaultMemory, /save\(|persistPrivateVault\(/);
+  assert.match(view.slice(view.indexOf('async function flushVaultPlayback'), view.indexOf('function vaultVideosForCurrentFolder')), /await persistPrivateVault\(state\);[\s\S]*?await save\(\)/);
   assert.match(view, /const closing = Promise\.resolve\(callHelper\('closeVideoPlayer'\)\)/);
   assert.match(view, /closing\.finally\(\(\) => \{[\s\S]*?lockPrivateVault\(\)/);
   assert.match(view, /onDelete: \(sessionItem, at\) => deleteVaultVideoFromFeed/);
   assert.match(view, /async function deleteVaultVideoFromFeed/);
   assert.match(vaultCore, /watchHistory: Array\.isArray/);
   assert.match(vaultCore, /watchedSeconds >= 3/);
-  assert.doesNotMatch(view.slice(view.indexOf('async function persistVaultPlayback'), view.indexOf('function vaultVideosForCurrentFolder')), /assetRef|remoteUrl|blob:/);
+  assert.doesNotMatch(view.slice(view.indexOf('function rememberVaultPlayback'), view.indexOf('function vaultVideosForCurrentFolder')), /assetRef|remoteUrl|blob:/);
+});
+
+test('deleting the playing private video closes the player before revoking its blob', () => {
+  const deletion = view.slice(view.indexOf('async function deleteVaultVideoFromFeed'), view.indexOf('function showVaultPreparing'));
+  const closeAt = deletion.indexOf("callHelper('closeVideoPlayer')");
+  const forgetAt = deletion.indexOf('forgetVaultVideo(');
+  assert.ok(closeAt >= 0 && forgetAt > closeAt, '先停掉播放器，再 revoke 这条正在播的 blob');
+});
+
+test('background lock releases decrypted video urls only after locking is confirmed', () => {
+  const lock = view.slice(view.indexOf('function scheduleVisibilityLock'), view.indexOf('async function lockAndLeave'));
+  const arm = lock.slice(lock.indexOf('closing.finally'));
+  const gate = arm.indexOf("if (document.visibilityState !== 'hidden'");
+  const releaseAt = arm.indexOf('releaseVaultPlaybackCache()');
+  const lockAt = arm.indexOf('lockPrivateVault()');
+  assert.ok(gate >= 0 && releaseAt > gate && lockAt > releaseAt);
+  assert.doesNotMatch(arm.slice(0, gate), /releaseVaultPlaybackCache/);
 });
 
 test('password-valid unlock renders immediately and never waits for legacy media migration', () => {

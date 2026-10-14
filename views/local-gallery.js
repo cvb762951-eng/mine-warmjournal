@@ -191,7 +191,7 @@ async function openGalleryItem(index) {
 
    工具条按钮（选集 / 观看记录 / 删除）已统一渲染，这里补上对应的数据与回调：
    · 观看历史 —— 存在 state.localGalleryWatchHistory（顶层字段，已在 SECTIONS 登记）。
-     播放进度记在 state.localGalleryProgress，只在关掉当前视频时写一次，方便下次续播。
+     播放进度记在 state.localGalleryProgress，整个播放弹层关闭时写一次，方便下次续播。
      App 仍然不改系统相册里的原文件。
    · 删除 —— 调用原生 deleteOriginalMedia。它只接受 content:// 开头的 URI，
      并且会拉起 Android 系统自己的删除授权页，用户必须在系统弹窗里再确认一次。
@@ -228,7 +228,7 @@ function gallerySessionItem(item) {
   };
 }
 
-async function persistGalleryPlayback(sessionItem, patch) {
+function rememberGalleryPlayback(sessionItem, patch) {
   const id = String(sessionItem?.galleryId || sessionItem?.id || '');
   if (!id) return;
   const progress = { ...(state.localGalleryProgress || {}) };
@@ -249,6 +249,9 @@ async function persistGalleryPlayback(sessionItem, patch) {
       endedAt: Number(entry.endedAt) || Date.now()
     }))].slice(-200);
   }
+}
+
+async function flushGalleryPlayback() {
   await save();
 }
 
@@ -276,7 +279,8 @@ function openGalleryVideo(videos, active) {
     loopNavigation: true,
     galleryMode: true,
     folders: [{ mode: 'all', id: '', name: '全部相册', count: videos.length }, ...albums.map(album => ({ mode: 'album', id: album.id, name: album.name, count: album.count }))],
-    persist: persistGalleryPlayback,
+    remember: rememberGalleryPlayback,
+    flush: flushGalleryPlayback,
     currentItem: sessionItem => gallerySessionItem(videos.find(entry => entry.id === sessionItem.id) || item),
     onDelete: sessionItem => deleteGalleryVideo(videos.find(entry => entry.id === sessionItem?.id) || item),
     deleteConfirmText: sessionItem => `删除手机相册里的「${sessionItem?.label || item.name}」？\n\n这一步会删掉手机中的原文件，之后系统还会再让你确认一次。`,

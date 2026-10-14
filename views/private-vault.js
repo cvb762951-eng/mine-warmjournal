@@ -1007,9 +1007,9 @@ async function vaultVideoSource(item) {
   return privateVideoCache.resolve(vaultPlaybackItem(item));
 }
 
-async function persistVaultPlayback(sessionItem, patch) {
+function rememberVaultPlayback(sessionItem, patch) {
   if (!privateVaultUnlocked()) return;
-  // 写回仍在列表里的那一条。解密出来的播放地址绝不能进私密元数据。
+  // 写回仍在列表里的那一条。解密出来的播放地址绝不能进私密元数据。滑动时只改内存。
   const record = privateVaultContent()?.items?.find(entry => entry.id === sessionItem?.id);
   if (!record) return;
   record.position = Math.max(0, Math.floor(Number(patch?.position) || 0));
@@ -1017,6 +1017,10 @@ async function persistVaultPlayback(sessionItem, patch) {
   if (seconds) record.duration = seconds;
   if (patch?.width && patch?.height) { record.width = Math.floor(patch.width); record.height = Math.floor(patch.height); }
   if (Array.isArray(patch?.watchHistory)) record.watchHistory = patch.watchHistory.slice(-100);
+}
+
+async function flushVaultPlayback() {
+  if (!privateVaultUnlocked()) return;
   await persistPrivateVault(state);
   await save();
 }
@@ -1073,7 +1077,8 @@ async function openVaultVideo(item, providedItems = null, providedIndex = -1, fe
     deleteConfirmText: '永久删除当前私密视频？删除后将清理私密媒体文件，且无法恢复。',
     accept: () => privateVaultUnlocked() && state.route === 'private-vault',
     currentItem: sessionItem => vaultPlaybackItem(sessionItem),
-    persist: persistVaultPlayback,
+    remember: rememberVaultPlayback,
+    flush: flushVaultPlayback,
     onMediaReady: ({ item: sessionItem, duration, width, height }) => {
       const record = privateVaultContent()?.items?.find(entry => entry.id === sessionItem?.id);
       if (!record) return;
@@ -1092,6 +1097,7 @@ async function openVaultVideo(item, providedItems = null, providedIndex = -1, fe
 
 async function deleteVaultVideoFromFeed(item, items, index) {
   if (!item || !privateVaultUnlocked()) throw new Error('私密空间已经锁定');
+  await Promise.resolve(callHelper('closeVideoPlayer'));
   const remaining = items.filter(entry => entry.id !== item.id);
   touchFolder(item.folderId);
   const folder = privateVaultContent().folders.find(entry => entry.coverItemId === item.id);
@@ -1400,9 +1406,9 @@ function scheduleVisibilityLock() {
     const closing = Promise.resolve(callHelper('closeVideoPlayer'));
     closing.finally(() => {
       closeModal();
-      releaseVaultPlaybackCache();
       if (document.visibilityState !== 'hidden' || externalUiDepth > 0 || vaultFullscreenActive || !privateVaultUnlocked()) return;
       resetVaultFingerprintAttempt();
+      releaseVaultPlaybackCache();
       lockPrivateVault().finally(() => { if (state.route === 'private-vault') render(); });
     });
   }, 300);

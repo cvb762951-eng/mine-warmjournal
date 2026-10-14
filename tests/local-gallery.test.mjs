@@ -42,10 +42,13 @@ test('本机相册复用沉浸式视频流，并与私密空间功能对齐', ()
   // 播放器本身仍不会因为 transientMedia 在每次进度回调里 save()；续播由会话在关闭时写入。
   assert.match(player, /activeVideoDirty && !activeVideoOptions\?\.transientMedia/);
   assert.match(view, /localGalleryProgress/);
-  assert.match(view, /persistGalleryPlayback/);
-  const persist = view.slice(view.indexOf('async function persistGalleryPlayback'), view.indexOf('async function deleteGalleryVideo'));
-  assert.match(persist, /await save\(\)/);
-  assert.doesNotMatch(view.slice(view.indexOf('function gallerySessionItem'), view.indexOf('async function persistGalleryPlayback')), /save\(/);
+  assert.match(view, /rememberGalleryPlayback/);
+  assert.match(view, /flushGalleryPlayback/);
+  const memory = view.slice(view.indexOf('function rememberGalleryPlayback'), view.indexOf('async function flushGalleryPlayback'));
+  assert.doesNotMatch(memory, /save\(/);
+  const flush = view.slice(view.indexOf('async function flushGalleryPlayback'), view.indexOf('async function deleteGalleryVideo'));
+  assert.match(flush, /await save\(\)/);
+  assert.doesNotMatch(view.slice(view.indexOf('function gallerySessionItem'), view.indexOf('function rememberGalleryPlayback')), /save\(/);
   // 2026-10-09 用户要求「全部功能对标」：删除 / 选集 / 观看记录三项已与私密空间一致。
   // 旧断言（galleryMode 时隐藏删除、禁用选集）已按新要求移除。
   assert.match(player, /id="vault-feed-delete"/);
