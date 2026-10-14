@@ -466,7 +466,8 @@ export function momentSpreadHtml(photos, options = {}) {
   }).join('');
   const importingClass = importing ? ' is-importing' : '';
   const importingAttr = importing ? ' data-spread-importing="1"' : '';
-  return `<div class="moment-spread count-${count}${importingClass}" data-spread-sig="${esc(sig)}" data-fan-live="1" data-fan-count="${count}"${importingAttr}>${cards}</div>`;
+  const pendingAttr = interactive?.mode === 'pending' ? ' data-fan-scope="pending"' : '';
+  return `<div class="moment-spread count-${count}${importingClass}" data-spread-sig="${esc(sig)}" data-fan-live="1" data-fan-count="${count}"${pendingAttr}${importingAttr}>${cards}</div>`;
 }
 
 /* 封面只能是图片。视频文件地址、data:video 都不能进 <img>。 */
@@ -729,6 +730,7 @@ function upsertFanMore(spread, total, n, albumAttr = '') {
 /* 把扇面同步成「当前这批媒体的最终槽位」。新到的那张从下方弹入，被挤出窗口的旧卡淡出。 */
 export function syncMomentSpreadElement(spread, photos, videos, { arrivedKey = '', importing = false, animate = true, albumAttr = '', interactive = null } = {}) {
   if (!spread) return;
+  if (interactive?.mode === 'pending') markPendingFan(spread);
   const motion = readFanMotion();
   const { visible, total, n } = momentFanWindow(photos, videos);
   if (!n) {
@@ -771,9 +773,43 @@ export function syncMomentSpreadElement(spread, photos, videos, { arrivedKey = '
   upsertFanMore(spread, total, n, albumAttr);
 }
 
-function syncOpenMomentFans(arrivedKey = '', { importing = false, animate = true } = {}) {
+/* 待保存扇面只活在表单的两个容器里。时间线上已保存的 .moment-spread 不能进这张名单，
+   否则导入会换成未保存的图、把点击改成待保存视频，整批失败时还会把它们删掉。 */
+const PENDING_FAN_ROOTS = ['#snippet-photo-grid', '#quick-photo-preview'];
+
+function markPendingFan(spread) {
+  if (!spread) return;
+  if (typeof spread.setAttribute === 'function') spread.setAttribute('data-fan-scope', 'pending');
+  if (spread.dataset) spread.dataset.fanScope = 'pending';
+}
+
+function pendingFormFans() {
+  if (typeof document === 'undefined' || typeof document.querySelector !== 'function') return [];
+  const spreads = [];
+  PENDING_FAN_ROOTS.forEach(selector => {
+    const root = document.querySelector(selector);
+    if (!root || typeof root.querySelectorAll !== 'function') return;
+    const found = root.querySelectorAll('.moment-spread[data-fan-scope="pending"]');
+    for (const spread of found || []) {
+      if (!spread || spreads.includes(spread)) continue;
+      if (typeof root.contains === 'function' && !root.contains(spread)) continue;
+      spreads.push(spread);
+    }
+  });
+  return spreads;
+}
+
+export function _setPendingSnippetMediaForTest(photos = [], videos = []) {
+  pendingSnippetPhotos = [...(photos || [])];
+  pendingSnippetVideos = [...(videos || [])];
+  pendingSnippetLive = [];
+  snippetPhotoImporting = false;
+  pendingSnippetImportSlots = null;
+}
+
+export function syncOpenMomentFans(arrivedKey = '', { importing = false, animate = true } = {}) {
   if (typeof document === 'undefined') return;
-  document.querySelectorAll('.moment-spread').forEach(spread => {
+  pendingFormFans().forEach(spread => {
     syncMomentSpreadElement(spread, pendingSnippetPhotos, pendingSnippetVideos, {
       arrivedKey,
       importing: importing || Boolean(spread.classList?.contains?.('is-importing')),
@@ -1032,14 +1068,14 @@ function showSnippetImportProgress(done, total) {
   }
 }
 
-function finishSnippetPhotoImport() {
+export function finishSnippetPhotoImport() {
   const node = $('#snippet-photo-import-progress');
   if (node) node.hidden = true;
   restoreSnippetImportButtons();
 
   const total = pendingSnippetPhotos.length;
   const sig = momentSpreadSignature(pendingSnippetPhotos, pendingSnippetVideos);
-  document.querySelectorAll('.moment-spread').forEach(spread => {
+  pendingFormFans().forEach(spread => {
     if (!total && !pendingSnippetVideos.length) {
       spread.remove();
       return;
