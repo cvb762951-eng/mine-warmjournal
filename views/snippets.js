@@ -7,7 +7,7 @@ import { makeSnippet, makeTodo, snippetEntries, dateKey, WEEK_DAYS, activeStreak
 import { photoViewer, micButtonHtml, bindVoiceInput } from './common.js';
 import { compressSnippetPhoto, captureVideoFrame, importPhotoBatch, isSupportedJournalPhoto } from '../photo-utils.js';
 import { livePhotoMarkHtml, photosWithLiveMotion } from '../motion-photo.js';
-import { thumbSource, thumbKeyFor, watchThumbImages } from '../photo-thumbs.js';
+import { thumbSource, thumbKeyFor, watchThumbImages, ensureThumb } from '../photo-thumbs.js';
 import { mediaSource, saveMediaFile, saveNativeMediaSource } from '../media-store.js';
 import { attachVideoSource, formatVideoDuration, isHlsAddress, normalizeHlsAddress, presentWatchSession, summarizeWatchSession } from '../video-player.js';
 import { openVideoSession, plainVideoCache } from '../video-session.js';
@@ -2414,7 +2414,27 @@ function waitMomentAlbumFirstImage(layer, ms = 180) {
     const timer = setTimeout(finish, ms);
     still.addEventListener('load', finish, { once: true });
     still.addEventListener('error', finish, { once: true });
+    // 加载完还要解码；decode() 让第一帧就有像素，不再先空一帧
+    still.decode?.().then(finish, finish);
   });
+}
+
+/** 打开图集前：给前 3 张补缩略图并预解码，最多等 ms；失败/超时都照常打开。只读，不改原图和数据。 */
+export function preloadMomentAlbumImages(refs, ms = 120) {
+  const list = (refs || []).filter(Boolean).slice(0, 3);
+  if (!list.length) return Promise.resolve();
+  const warm = Promise.all(list.map(async ref => {
+    try {
+      await ensureThumb(ref);
+      const src = thumbSource(ref);
+      if (!src || typeof Image !== 'function') return;
+      const img = new Image();
+      img.decoding = 'async';
+      img.src = src;
+      await img.decode?.();
+    } catch { /* 预热失败不影响打开 */ }
+  }));
+  return Promise.race([warm, new Promise(resolve => setTimeout(resolve, ms))]);
 }
 
 function openMomentAlbumBrowse(entry, focusPhotoIndex = 0, originEl = null) {
@@ -2487,7 +2507,11 @@ function openMomentAlbumBrowse(entry, focusPhotoIndex = 0, originEl = null) {
 function openMomentMediaBrowse(entry, photoIndex = 0, originEl = null) {
   if (!entry) return;
   const items = momentAlbumItems(entry);
-  if (items.length > 1) return openMomentAlbumBrowse(entry, photoIndex, originEl);
+  if (items.length > 1) {
+    const refs = items.map(item => (item.kind === 'video' ? item.video?.poster : item.photo)).filter(Boolean);
+    const rotated = refs.slice(photoIndex).concat(refs.slice(0, photoIndex));
+    return preloadMomentAlbumImages(rotated).then(() => openMomentAlbumBrowse(entry, photoIndex, originEl));
+  }
   if (items[0]?.kind === 'video') return openSavedSnippetVideo(entry, items[0].index);
   return photoLightbox(entry, photoIndex);
 }
