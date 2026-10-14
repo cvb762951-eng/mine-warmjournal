@@ -90,3 +90,67 @@ test('Album flip: throw continues from finger, no full re-render per flip, pre-d
   assert.match(snippets, /momentAlbumOriginFrames/, '从点的缩略图位置展开/收回');
   assert.match(css, /\.moment-album-layer\.is-closing/);
 });
+
+test('Moments album deck plain theme visual polish and depth table', async () => {
+  const plainCss = await readFile(new URL('../themes-plain.css', import.meta.url), 'utf8');
+  const plainLightCss = await readFile(new URL('../themes-plain-light.css', import.meta.url), 'utf8');
+
+  // 1. JS: warm depth preserved & plain depth table present
+  assert.match(snippets, /const MOMENT_ALBUM_DEPTH = \[{\s*y:\s*0,\s*s:\s*1,\s*o:\s*1\s*},\s*{\s*y:\s*-12,\s*s:\s*0\.972,\s*o:\s*0\.96\s*},\s*{\s*y:\s*-24,\s*s:\s*0\.944,\s*o:\s*0\.9\s*}\];/);
+  assert.match(snippets, /const MOMENT_ALBUM_DEPTH_PLAIN = \[{\s*y:\s*0,\s*s:\s*1,\s*o:\s*1\s*},\s*{\s*y:\s*-18,\s*s:\s*0\.95,\s*o:\s*0\.94\s*},\s*{\s*y:\s*-34,\s*s:\s*0\.9,\s*o:\s*0\.86\s*}\];/);
+  assert.match(snippets, /function momentAlbumDepthTable\(\)/);
+  assert.match(snippets, /dataset\?\.theme === 'plain'/);
+
+  // 2. CSS: Both themes-plain.css and themes-plain-light.css have the plain rules
+  for (const [name, fileCss] of [['themes-plain', plainCss], ['themes-plain-light', plainLightCss]]) {
+    assert.match(fileCss, /:root\[data-theme="plain"\] \.moment-album-card\s*\{[^}]*border-radius:\s*18px !important;/, `${name} has card radius 18px`);
+    assert.match(fileCss, /:root\[data-theme="plain"\] \.moment-album-frame\s*\{[^}]*border-radius:\s*10px !important;/, `${name} has frame radius 10px`);
+    assert.match(fileCss, /:root\[data-theme="plain"\] \.moment-album-card\[data-depth="1"\]\s*\{[^}]*transform:\s*translate3d\(0,\s*-18px,\s*-10px\)\s*scale\(0\.95\);/, `${name} has depth 1 transform`);
+    assert.match(fileCss, /:root\[data-theme="plain"\] \.moment-album-card\[data-depth="2"\]\s*\{[^}]*transform:\s*translate3d\(0,\s*-34px,\s*-20px\)\s*scale\(0\.90?\);/, `${name} has depth 2 transform`);
+    assert.match(fileCss, /:root\[data-theme="plain"\] \.moment-album-card\s*\{[^}]*background-color:\s*var\(--plain-surface\) !important;/, `${name} has plain surface color`);
+    assert.match(fileCss, /:root\[data-theme="plain"\] \.moment-album-card\s*\{[^}]*background-image:\s*none !important;/, `${name} removes paper texture`);
+  }
+
+  // 3. No warm cream forced on plain moment-album-card
+  assert.doesNotMatch(plainCss, /:root\[data-theme="plain"\] \.moment-album-card\s*\{[^}]*#fdfcf9 !important;/);
+});
+
+test('Moments album centered dialog layout and scale/fade animation across themes', async () => {
+  const plainCss = await readFile(new URL('../themes-plain.css', import.meta.url), 'utf8');
+  const plainLightCss = await readFile(new URL('../themes-plain-light.css', import.meta.url), 'utf8');
+
+  // 1. Layer layout: centered, not flex-end bottom sheet; padding 16px + safe-area
+  assert.match(css, /\.moment-album-layer\s*\{[^}]*align-items:\s*center;/);
+  assert.match(css, /\.moment-album-layer\s*\{[^}]*justify-content:\s*center;/);
+  assert.doesNotMatch(css, /\.moment-album-layer\s*\{[^}]*align-items:\s*flex-end;/);
+  assert.match(css, /\.moment-album-layer\s*\{[^}]*padding:\s*calc\(16px\s*\+\s*env\(safe-area-inset-top,\s*0px\)\)\s*calc\(16px\s*\+\s*env\(safe-area-inset-right,\s*0px\)\)\s*calc\(16px\s*\+\s*env\(safe-area-inset-bottom,\s*0px\)\)\s*calc\(16px\s*\+\s*env\(safe-area-inset-left,\s*0px\)\);/);
+
+  // 2. Sheet dimensions: width min(100% - 32px, 440px), max-height min(86dvh, 760px)
+  assert.match(css, /\.moment-album-sheet\s*\{[^}]*width:\s*min\(100%\s*-\s*32px,\s*440px\);/);
+  assert.match(css, /\.moment-album-sheet\s*\{[^}]*max-height:\s*min\(86dvh,\s*760px\);/);
+
+  // 3. Border radius on all four corners, no bottom-only radius, no safe-area in sheet padding
+  assert.match(css, /\.moment-album-sheet\s*\{[^}]*border-radius:\s*var\(--radius-soft,\s*14px\);/);
+  assert.doesNotMatch(css, /\.moment-album-sheet\s*\{[^}]*border-radius:[^;]*0\s*0\s*;/);
+  assert.doesNotMatch(css, /\.moment-album-sheet\s*\{[^}]*safe-area-inset-bottom/);
+
+  // Plain theme sheet: 20px radius on all four corners
+  for (const [name, fileCss] of [['themes-plain', plainCss], ['themes-plain-light', plainLightCss]]) {
+    assert.match(fileCss, /:root\[data-theme="plain"\] \.moment-album-sheet\s*\{[^}]*border-radius:\s*20px !important;/, `${name} has sheet radius 20px`);
+    assert.doesNotMatch(fileCss, /:root\[data-theme="plain"\] \.moment-album-sheet\s*\{[^}]*border-radius:[^;]*0\s*0\s*!important;/, `${name} has no bottom-only radius`);
+  }
+
+  // 4. JS open/close animation: scale(.94)+opacity 0 -> none, no translateY(24px)
+  assert.match(snippets, /transform:\s*'scale\(\.?94\)',\s*opacity:\s*0/);
+  assert.doesNotMatch(snippets, /momentAlbumOriginFrames[\s\S]*?translateY\(24px\)/);
+  assert.doesNotMatch(snippets, /momentAlbumOriginFrames[\s\S]*?translate3d\(0,24px,0\)/);
+  assert.match(snippets, /const end = \{ transform: 'none', opacity: 1 \};/);
+
+  // 5. Reduced motion: tier none = no animation
+  assert.match(snippets, /if \(prefersReducedMotion\(\)\) return 'none';/);
+  assert.match(snippets, /momentAlbumTier\(\) !== 'none'/);
+
+  // 6. No :is/:has/:where in album rules
+  const albumCssChunk = css.slice(css.indexOf('.moment-album-layer'), css.indexOf('.moment-album-card'));
+  assert.doesNotMatch(albumCssChunk, /:(is|has|where)\(/);
+});

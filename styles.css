@@ -9494,9 +9494,10 @@ body #modal-layer .modal.confirm-sheet .modal-actions .danger { padding: 0 16px 
   inset: 0;
   z-index: 200;
   display: none;
-  align-items: flex-end;
+  align-items: center;
   justify-content: center;
-  padding: 0;
+  padding: calc(16px + env(safe-area-inset-top, 0px)) calc(16px + env(safe-area-inset-right, 0px)) calc(16px + env(safe-area-inset-bottom, 0px)) calc(16px + env(safe-area-inset-left, 0px));
+  box-sizing: border-box;
   background: rgba(40, 34, 26, 0.42);
   pointer-events: none;
 }
@@ -9508,25 +9509,27 @@ body #modal-layer .modal.confirm-sheet .modal-actions .danger { padding: 0 16px 
 .moment-album-layer.is-closing { display: flex; pointer-events: none; }
 .moment-album-sheet { transform-origin: 50% 50%; }
 .moment-album-sheet {
-  width: min(100%, 560px);
-  max-height: min(88dvh, 820px);
+  width: min(100% - 32px, 440px);
+  max-height: min(86dvh, 760px);
   margin: 0;
-  padding: 18px 16px calc(16px + env(safe-area-inset-bottom, 0px));
+  padding: 18px 16px 16px;
   display: grid;
   grid-template-rows: auto auto minmax(0, 1fr) auto;
   gap: 10px;
-  border-radius: var(--radius-soft, 14px) var(--radius-soft, 14px) 0 0;
+  border-radius: var(--radius-soft, 14px);
   background: var(--warm-sheet, #fdfcf9);
   border: 1px solid rgba(220, 212, 198, 0.65);
-  box-shadow: 0 -12px 36px rgba(32, 24, 15, 0.12);
+  box-shadow: 0 12px 36px rgba(32, 24, 15, 0.12);
   color: var(--warm-ink, #181614);
   overflow: hidden;
+  box-sizing: border-box;
 }
 :root[data-theme="plain"] .moment-album-sheet {
   background: #FBFCFE;
-  border-color: rgba(85, 96, 108, 0.12);
+  border: 1px solid rgba(85, 96, 108, 0.12);
+  border-radius: 20px;
   color: #2E343B;
-  box-shadow: 0 -12px 32px rgba(46, 52, 59, 0.1);
+  box-shadow: 0 16px 40px rgba(46, 52, 59, 0.12);
 }
 .moment-album-head {
   display: grid;

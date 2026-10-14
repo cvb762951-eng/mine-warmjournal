@@ -3114,3 +3114,112 @@ button.danger) {
 }
 /* quick-tags custom end */
 
+/* ==========================================================================
+   随手拍多图相册翻卡·清简主题专属美化 (Plain theme album deck visual polish)
+   - 形状圆角：外层卡片提升为 18px 柔和圆角，相框为 10px 同心圆角
+   - 阴影质感：冷调灰蓝多层环境光 + 接触光阴影阶梯，顶牌立体、后牌安静
+   - 叠牌层次：-18px / -34px 纵向层次进阶与缩放，更具层次纵深
+   - 撤掉暖纸纹理与米黄底色，完全走清简冷调白卡
+   ========================================================================== */
+:root[data-theme="plain"] .moment-album-layer {
+  background: rgba(46, 52, 59, 0.38) !important;
+}
+
+:root[data-theme="plain"] .moment-album-sheet {
+  background-color: var(--plain-surface) !important;
+  border: 1px solid rgba(85, 96, 108, 0.14) !important;
+  border-radius: 20px !important;
+  box-shadow: 0 16px 40px rgba(46, 52, 59, 0.12) !important;
+  color: var(--ink) !important;
+}
+
+:root[data-theme="plain"] .moment-album-close {
+  color: var(--ink-secondary) !important;
+}
+
+:root[data-theme="plain"] .moment-album-close:active {
+  background: rgba(85, 96, 108, 0.10) !important;
+}
+
+:root[data-theme="plain"] .moment-album-kicker {
+  color: var(--ink-muted) !important;
+  font-weight: 500 !important;
+  letter-spacing: 0.12em !important;
+}
+
+:root[data-theme="plain"] .moment-album-title > strong {
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Noto Sans SC", sans-serif !important;
+  font-weight: 600 !important;
+  color: var(--ink) !important;
+}
+
+:root[data-theme="plain"] .moment-album-title > small {
+  color: var(--ink-muted) !important;
+}
+
+:root[data-theme="plain"] .moment-album-caption {
+  color: var(--ink-secondary) !important;
+}
+
+:root[data-theme="plain"] .moment-album-card {
+  border-radius: 18px !important;
+  background-color: var(--plain-surface) !important;
+  background-image: none !important;
+  border: 1px solid rgba(85, 96, 108, 0.14) !important;
+  box-shadow: 0 1px 3px rgba(46, 52, 59, 0.05), 0 6px 16px rgba(46, 52, 59, 0.06), 0 18px 36px rgba(46, 52, 59, 0.09) !important;
+}
+
+:root[data-theme="plain"] .moment-album-card[data-depth="0"] {
+  z-index: 3;
+  transform: translate3d(0, 0, 0) scale(1);
+  opacity: 1;
+  box-shadow: 0 1px 3px rgba(46, 52, 59, 0.05), 0 6px 16px rgba(46, 52, 59, 0.06), 0 18px 36px rgba(46, 52, 59, 0.09) !important;
+}
+
+:root[data-theme="plain"] .moment-album-card[data-depth="1"] {
+  z-index: 2;
+  transform: translate3d(0, -18px, -10px) scale(0.95);
+  opacity: 0.94;
+  border-color: rgba(85, 96, 108, 0.12) !important;
+  box-shadow: 0 1px 2px rgba(46, 52, 59, 0.04), 0 4px 12px rgba(46, 52, 59, 0.05), 0 12px 24px rgba(46, 52, 59, 0.05) !important;
+}
+
+:root[data-theme="plain"] .moment-album-card[data-depth="2"] {
+  z-index: 1;
+  transform: translate3d(0, -34px, -20px) scale(0.90);
+  opacity: 0.86;
+  border-color: rgba(85, 96, 108, 0.10) !important;
+  box-shadow: 0 1px 2px rgba(46, 52, 59, 0.03), 0 2px 8px rgba(46, 52, 59, 0.04), 0 8px 18px rgba(46, 52, 59, 0.04) !important;
+}
+
+:root[data-theme="plain"] .moment-album-card[data-depth="out"] {
+  z-index: 4;
+  pointer-events: none;
+}
+
+:root[data-theme="plain"] .moment-album-frame {
+  border-radius: 10px !important;
+  background-color: var(--pl-blue-soft) !important;
+  border: 1px solid rgba(85, 96, 108, 0.08) !important;
+}
+
+:root[data-theme="plain"] .moment-album-frame img.photo-blur-still {
+  border-radius: 9px !important;
+  object-fit: contain !important;
+}
+
+:root[data-theme="plain"] .moment-album-play {
+  background: rgba(46, 52, 59, 0.72) !important;
+  color: var(--plain-surface) !important;
+}
+
+:root[data-theme="plain"] .moment-album-hint {
+  color: var(--ink-muted) !important;
+}
+
+:root[data-theme="plain"] .moment-album-counter {
+  color: var(--ink-muted) !important;
+  font-variant-numeric: tabular-nums !important;
+  font-weight: 500 !important;
+}
+

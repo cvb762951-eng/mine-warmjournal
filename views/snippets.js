@@ -2068,6 +2068,14 @@ function momentAlbumTier() {
 }
 // 深度 0/1/2 的静止姿态（与 CSS 一致），拖动时后牌按进度在相邻两档之间插值
 const MOMENT_ALBUM_DEPTH = [{ y: 0, s: 1, o: 1 }, { y: -12, s: 0.972, o: 0.96 }, { y: -24, s: 0.944, o: 0.9 }];
+const MOMENT_ALBUM_DEPTH_PLAIN = [{ y: 0, s: 1, o: 1 }, { y: -18, s: 0.95, o: 0.94 }, { y: -34, s: 0.9, o: 0.86 }];
+
+function momentAlbumDepthTable() {
+  if (typeof document !== 'undefined' && document.documentElement?.dataset?.theme === 'plain') {
+    return MOMENT_ALBUM_DEPTH_PLAIN;
+  }
+  return MOMENT_ALBUM_DEPTH;
+}
 const MOMENT_ALBUM_THROW_MS = 300;
 const MOMENT_ALBUM_SPRING = 'cubic-bezier(.34,1.56,.64,1)';
 const MOMENT_ALBUM_OUT = 'cubic-bezier(.2,.8,.2,1)';
@@ -2075,7 +2083,8 @@ let momentAlbumOrigin = null;
 let momentAlbumCloseToken = 0;
 
 function momentAlbumDepthTransform(depth) {
-  const d = MOMENT_ALBUM_DEPTH[Math.max(0, Math.min(2, depth))];
+  const table = momentAlbumDepthTable();
+  const d = table[Math.max(0, Math.min(2, depth))];
   return { transform: `translate3d(0,${d.y}px,0) scale(${d.s})`, opacity: d.o };
 }
 
@@ -2101,12 +2110,12 @@ function closeMomentAlbum() {
   layer.style.opacity = '';
   layer.classList.remove('open');
   momentAlbumEntryId = '';
-  // 收回：缩回到当初点的那张缩略图（还在页面上才做），只动 transform / opacity
+  // 收回：缩回到当初点的那张缩略图（还在页面上才做），无 origin 或 lite 则 scale(.94)+opacity 渐隐，只动 transform / opacity
   if (wasOpen && sheet && momentAlbumTier() !== 'none' && sheet.animate) {
     layer.classList.add('is-closing');
     const frames = momentAlbumOriginFrames(sheet, origin);
     try {
-      const anim = sheet.animate(frames.reverse(), { duration: momentAlbumTier() === 'lite' ? 160 : 240, easing: MOMENT_ALBUM_OUT, fill: 'forwards' });
+      const anim = sheet.animate(frames.slice().reverse(), { duration: momentAlbumTier() === 'lite' ? 160 : 240, easing: MOMENT_ALBUM_OUT, fill: 'forwards' });
       layer.animate?.([{ opacity: 1 }, { opacity: 0 }], { duration: 200, fill: 'forwards' });
       anim.onfinish = finish;
       setTimeout(finish, 400);
@@ -2118,7 +2127,7 @@ function closeMomentAlbum() {
   return wasOpen;
 }
 
-/** 从缩略图位置长出来的关键帧；缩略图不在了就退成轻微上浮。 */
+/** 从缩略图位置长出来的关键帧（居中落定）；无 origin 或 lite 则退成居中 scale(.94)+opacity 0 -> none。 */
 function momentAlbumOriginFrames(sheet, origin) {
   const end = { transform: 'none', opacity: 1 };
   if (origin?.isConnected && momentAlbumTier() === 'rich') {
@@ -2131,7 +2140,7 @@ function momentAlbumOriginFrames(sheet, origin) {
       return [{ transform: `translate3d(${x}px,${y}px,0) scale(${s})`, opacity: 0.2 }, end];
     }
   }
-  return [{ transform: 'translate3d(0,24px,0)', opacity: 0 }, end];
+  return [{ transform: 'scale(.94)', opacity: 0 }, end];
 }
 
 function ensureMomentAlbumLayer() {
@@ -2320,10 +2329,11 @@ function bindMomentAlbumDeck(layer) {
     if (tier !== 'rich') return;
     // 后牌跟着拖动进度往前挪一档（只往左拖 = 下一张时；往右是「上一张」，后牌不动）
     const p = dx < 0 ? Math.min(1, -dx / 56) : 0;
+    const depths = momentAlbumDepthTable();
     backCards().forEach((back, i) => {
       if (!back) return;
-      const a = MOMENT_ALBUM_DEPTH[i + 1];
-      const b = MOMENT_ALBUM_DEPTH[i];
+      const a = depths[i + 1];
+      const b = depths[i];
       back.style.transition = 'none';
       back.style.transform = `translate3d(0,${a.y + (b.y - a.y) * p}px,0) scale(${a.s + (b.s - a.s) * p})`;
       back.style.opacity = String(a.o + (b.o - a.o) * p);
@@ -2471,7 +2481,7 @@ function openMomentAlbumBrowse(entry, focusPhotoIndex = 0, originEl = null) {
   const startReveal = () => {
     if (token !== momentAlbumCloseToken) return;
     layer.style.opacity = '';
-    // 打开：从点的那张缩略图位置长出来（rich）；lite 轻微上浮；减弱动态直接出现
+    // 打开：从点的那张缩略图位置长出来（rich，居中落定）；无 origin 或 lite 则 scale(.94)+opacity 0 -> none 居中展开；减弱动态直接出现
     const sheet = layer.querySelector('.moment-album-sheet');
     if (sheet?.animate && momentAlbumTier() !== 'none') {
       try {
