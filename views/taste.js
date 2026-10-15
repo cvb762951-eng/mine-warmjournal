@@ -14,6 +14,7 @@ import { dateKey, makeTasteEntry, tasteDayGroups, tasteMealLabel, TASTE_MEALS, T
 import { compressSnippetPhoto, importPhotoBatch, isSupportedJournalPhoto } from '../photo-utils.js';
 import { photoViewer } from './common.js';
 import { photoFrameLayersHtml } from '../photo-frame.js';
+import { thumbKeyFor, progressiveSource, watchThumbImages, watchProgressiveImages } from '../photo-thumbs.js';
 import { withFlip, motionAllowed, mountRailMarker, EASE } from '../motion.js';
 
 let tasteFilter = 'all';
@@ -42,12 +43,16 @@ const PHOTO_ITEM = '#taste-photo-preview > span';
 const hasMeal = entry => Boolean(TASTE_MEALS[entry?.meal]);
 const verdictOf = entry => TASTE_VERDICTS[entry?.verdict] || TASTE_VERDICTS.good;
 
-/* 照片走全 App 统一的那套相框（photo-blur-frame：同图放大虚化铺底 + 上层 contain 完整显示，
+/* 照片走全 App 统一的那套相框（photo-blur-frame：同图放大铺底 + 上层 contain 完整显示，
    不裁切不拉伸，与随手拍 / 今日画页 / 私密空间同一实现）。
-   本页按用户要求**一律用原图**，不降到 480 缩略图（2026-10-15 用户明确），
-   所以这里不给 data-thumb-ref，也不接 progressive 观察器。 */
+   两段式（和随手拍同一套）：先 480 缩略图，清晰层进视口 / 够大了再换原图 ——
+   用户要的「原图」给到清晰层；**铺底层永远停在 480 缩略图**（全站约定）。
+   ⚠️ 2026-10-15 踩过：两层都传原图，竖幅照片在横幅相框里两侧的留边成了"半透明的同一张原图"，
+   看着像重影（用户报「观感有点差」）。 */
 function tastePhotoImage(source, alt = '') {
-  return photoFrameLayersHtml(imgSrc(source), { alt, lazy: true });
+  const thumbRef = thumbKeyFor(source) ? source : '';
+  const url = thumbRef ? esc(progressiveSource(source)) : imgSrc(source);
+  return photoFrameLayersHtml(url, { alt, thumbRef, progressive: Boolean(thumbRef), lazy: true });
 }
 
 // 新记录默认落在哪个餐次：按"现在几点"给一个**默认值**（界面上可见、可改），
@@ -89,12 +94,13 @@ function tasteDayGroup(group) {
 // 大图单独是一个按钮：点图直接看大图，点文字进详情（全 App 一致的手感）。
 function tasteEntryCard(entry) {
   const verdict = verdictOf(entry);
-  const mealLabel = tasteMealLabel(entry.meal);
+  /* 没选餐次的记录不要写成「记录 · 14:30」—— 那一行本来就是「记录」，重复一遍是噪音。 */
+  const mealLabel = hasMeal(entry) ? tasteMealLabel(entry.meal) : '';
   const time = timeLabel(entry);
   const photos = entry.photos || [];
   const cover = photos[0] || '';
   return `<article class="taste-entry-card verdict-${entry.verdict}${isJustAdded(entry.id) ? ' is-just-added' : ''}">
-    <div class="taste-entry-head"><span class="taste-entry-meta">${esc(mealLabel)}${time ? ` · ${time}` : ''}</span><span class="taste-verdict-tag">${esc(verdict.label)}</span></div>
+    <div class="taste-entry-head"><span class="taste-entry-meta">${esc([mealLabel, time].filter(Boolean).join(' · ') || '未填')}</span><span class="taste-verdict-tag">${esc(verdict.label)}</span></div>
     <button type="button" class="taste-entry-body" data-open-taste="${entry.id}">
       <strong class="taste-entry-title">${esc(entry.name)}</strong>
       ${entry.notes ? `<p class="taste-entry-notes">${esc(entry.notes)}</p>` : ''}
@@ -149,7 +155,7 @@ export function tasteView() {
 // 「今天」卡片：显示今天已经记下的，不做成待办清单，不出现"还没记"的格子（用户要求不强制记录）。
 function tasteTodayCard(todayEntries, total) {
   const strip = todayEntries.length
-    ? `<div class="taste-today-strip">${todayEntries.map(entry => `<button type="button"${isJustAdded(entry.id) ? ' class="is-just-added"' : ''} data-open-taste="${entry.id}"><span class="taste-today-thumb photo-blur-frame is-edge">${entry.photos?.[0] ? tastePhotoImage(entry.photos[0], entry.name) : `<b>${esc(tasteMealLabel(entry.meal).slice(0, 1))}</b>`}</span><strong>${esc(entry.name)}</strong><small>${esc(tasteMealLabel(entry.meal))}</small></button>`).join('')}<button type="button" class="taste-today-add" id="taste-today-new" aria-label="再记一顿"><span class="material-symbols-outlined">add</span><small>再记</small></button></div>`
+    ? `<div class="taste-today-strip">${todayEntries.map(entry => `<button type="button"${isJustAdded(entry.id) ? ' class="is-just-added"' : ''} data-open-taste="${entry.id}"><span class="taste-today-thumb photo-blur-frame is-edge">${entry.photos?.[0] ? tastePhotoImage(entry.photos[0], entry.name) : `<b>${esc(tasteMealLabel(entry.meal).slice(0, 1))}</b>`}</span><strong>${esc(entry.name)}</strong><small>${esc(hasMeal(entry) ? tasteMealLabel(entry.meal) : (timeLabel(entry) || '记录'))}</small></button>`).join('')}<button type="button" class="taste-today-add" id="taste-today-new" aria-label="再记一顿"><span class="material-symbols-outlined">add</span><small>再记</small></button></div>`
     : `<div class="taste-today-empty"><p>今天还没有记录。想记的时候随手添一笔就行。</p><button type="button" id="taste-today-new"><span class="material-symbols-outlined">add</span>记一顿</button></div>`;
   return `<section class="taste-today-card"><header><span><small>TODAY</small><h2>${todayEntries.length ? `今天记了 ${todayEntries.length} 顿` : '今天吃了什么'}</h2></span><em>${total} 条</em></header>${strip}</section>`;
 }
@@ -168,7 +174,7 @@ export function tasteForm(entry = null) {
 }
 
 function tastePhotoPreview(newIndex = -1) {
-  return pendingTastePhotos.length ? pendingTastePhotos.map((photo, index) => `<span class="photo-blur-frame is-edge${index === newIndex ? ' is-new' : ''}" data-photo-key="${esc(photo)}">${photoFrameLayersHtml(imgSrc(photo), { alt: `照片 ${index + 1}` })}<button type="button" data-remove-taste-photo="${index}" aria-label="移除第 ${index + 1} 张照片"><span class="material-symbols-outlined">close</span></button></span>`).join('') : '<p><span class="material-symbols-outlined">photo_camera</span><small>最多 6 张照片</small></p>';
+  return pendingTastePhotos.length ? pendingTastePhotos.map((photo, index) => `<span class="photo-blur-frame is-edge${index === newIndex ? ' is-new' : ''}" data-photo-key="${esc(photo)}">${tastePhotoImage(photo, `照片 ${index + 1}`)}<button type="button" data-remove-taste-photo="${index}" aria-label="移除第 ${index + 1} 张照片"><span class="material-symbols-outlined">close</span></button></span>`).join('') : '<p><span class="material-symbols-outlined">photo_camera</span><small>最多 6 张照片</small></p>';
 }
 
 /* 删一张照片：被删的那张先缩走，其余几张滑到新位置（FLIP）。
@@ -247,8 +253,8 @@ async function deleteTasteEntry(id) {
 
 function tasteDetail(entry) {
   if (!entry) return;
-  const verdict = verdictOf(entry), mealLabel = tasteMealLabel(entry.meal), time = timeLabel(entry);
-  modal(`<article class="taste-detail"><header><small>${esc(mealLabel)} · ${esc(entry.date)}${time ? ` · ${time}` : ''}</small><h2>${esc(entry.name)}</h2><span class="taste-detail-verdict verdict-${entry.verdict}">${esc(verdict.label)}</span></header>${entry.photos.length ? `<button type="button" class="taste-detail-gallery photo-blur-frame is-edge" id="taste-detail-gallery">${photoFrameLayersHtml(imgSrc(entry.photos[0]), { alt: entry.name })}<span>${entry.photos.length} 张照片</span></button>` : ''}${entry.notes ? `<p>${esc(entry.notes)}</p>` : ''}<div class="modal-actions"><button type="button" data-close>关闭</button><button type="button" class="save" id="taste-detail-edit">编辑</button></div></article>`, 'taste-detail-modal');
+  const verdict = verdictOf(entry), mealLabel = hasMeal(entry) ? tasteMealLabel(entry.meal) : '', time = timeLabel(entry);
+  modal(`<article class="taste-detail"><header><small>${esc([mealLabel, entry.date, time].filter(Boolean).join(' · '))}</small><h2>${esc(entry.name)}</h2><span class="taste-detail-verdict verdict-${entry.verdict}">${esc(verdict.label)}</span></header>${entry.photos.length ? `<button type="button" class="taste-detail-gallery photo-blur-frame is-edge" id="taste-detail-gallery">${tastePhotoImage(entry.photos[0], entry.name)}<span>${entry.photos.length} 张照片</span></button>` : ''}${entry.notes ? `<p>${esc(entry.notes)}</p>` : ''}<div class="modal-actions"><button type="button" data-close>关闭</button><button type="button" class="save" id="taste-detail-edit">编辑</button></div></article>`, 'taste-detail-modal');
   $('#taste-detail-gallery')?.addEventListener('click', () => photoViewer(entry.photos, 0));
   $('#taste-detail-edit').onclick = () => tasteForm(entry);
 }
@@ -281,6 +287,9 @@ function bindTaste() {
     if (entry?.photos?.length) photoViewer(entry.photos, 0);
   });
   mountRailMarker($('#taste-filter-rail'));
+  // 照片两段式：缩略图进视口就生成（铺底层用它），清晰层够大了再升原图；离开自动卸掉
+  watchThumbImages(document);
+  watchProgressiveImages(document);
 }
 
 registerSubmitHandler('taste-search-form', async data => {

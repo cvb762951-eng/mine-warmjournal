@@ -72,7 +72,7 @@ test('迁移与联动：老状态可升级，吃喝记录仍进日历与活动�
   assert.match(app, /item\.kind === 'taste'[\s\S]*openTasteEntry/);
 });
 
-test('记录册页：按顿记、不催办、照片用原图并走统一相框', () => {
+test('记录册页：按顿记、不催办、照片走统一相框（480 铺底 + 原图清晰层）', () => {
   assert.match(mine, /id="open-taste-archive"/);
   assert.match(mine, /go\('taste'\)/);
   assert.match(mine, /吃喝记录/);
@@ -88,10 +88,16 @@ test('记录册页：按顿记、不催办、照片用原图并走统一相框',
   assert.match(view, /confirmDelete/);
   assert.match(view, /registerHelper\('openTasteEntry'/);
   assert.match(view, /registerHelper\('newTasteEntry'/);
-  // 照片：统一相框 + 原图两层同址，不接缩略图 / 渐进升级
-  assert.match(viewCode, /photoFrameLayersHtml\(imgSrc\(/);
+  /* 照片：统一相框 + 两段式（先 480 缩略图、清晰层够大/进视口再升原图），和随手拍同一套。
+     ⚠️ 铺底层必须停在 480：两层都吃原图时，竖幅照片在相框里两侧的留边会变成
+     "半透明的同一张原图"，看着像重影（2026-10-15 用户报「观感有点差」，就是这么来的）。 */
+  assert.match(viewCode, /photoFrameLayersHtml\(url, \{ alt, thumbRef, progressive: Boolean\(thumbRef\), lazy: true \}\)/);
   assert.match(viewCode, /photo-blur-frame is-edge/);
-  assert.doesNotMatch(viewCode, /thumbSource|progressiveSource|data-thumb-ref|registerOnRender/);
+  assert.match(viewCode, /progressiveSource\(source\)/, '清晰层起始要给缩略图/占位，不能一上来就拉原图');
+  assert.match(viewCode, /watchThumbImages\(document\)/, '要接缩略图观察器（铺底层用的就是它）');
+  assert.match(viewCode, /watchProgressiveImages\(document\)/, '要接原图升级观察器');
+  assert.doesNotMatch(viewCode, /photoFrameLayersHtml\(imgSrc\(/, '不许再让铺底层吃原图——那就是重影');
+  assert.doesNotMatch(viewCode, /registerOnRender/);
   // 不强制记录：界面上不出现"还差几顿"式的催办，旧版点评元素也彻底退场
   assert.doesNotMatch(viewCode, /还没记|差 \d+ 顿|今日待记/);
   assert.doesNotMatch(viewCode, /回购清单|避雷清单|店铺档案|taste-stars|评分|价格/);

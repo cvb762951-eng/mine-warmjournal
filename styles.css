@@ -8065,7 +8065,10 @@ video.is-awaiting-frame{opacity:0}
 .taste-entry-title{display:block;font:600 17px/1.4 'LXGW WenKai Screen R','Noto Serif SC',serif;overflow-wrap:anywhere}
 .taste-entry-notes{margin:7px 0 0;font-family:'LXGW WenKai Screen R','Noto Serif SC',serif;color:var(--ink-secondary);font-size:13px;line-height:1.85;white-space:pre-wrap;overflow-wrap:anywhere}
 .taste-entry-note-hint{display:block;margin-top:7px;padding:7px 0;border-top:1px dashed var(--border-cool);color:var(--ink-muted);font-size:11px}
-.taste-entry-cover{display:block;width:calc(100% + 30px);aspect-ratio:4/3;margin:14px -15px -14px;padding:0;overflow:hidden;border:0}
+/* 4/5 竖幅：手机拍吃喝基本都是竖着拿的（照片多是 3:4 上下），框跟着竖一点，
+   照片两侧的留边从约 22% 收到个位数。横幅照片上下留一点，铺底层用的是 480 缩略图，
+   看着是柔和的底而不是重影（2026-10-15：竖幅照片塞进 4:3 横幅、两层又都是原图，用户报观感差）。 */
+.taste-entry-cover{display:block;width:calc(100% + 30px);aspect-ratio:4/5;margin:14px -15px -14px;padding:0;overflow:hidden;border:0}
 /* 照片那一块要贴满卡片下沿，四角由卡片的圆角裁掉，所以这里必须是 0 圆角。 */
 .taste-entry-cover.photo-blur-frame.is-edge{border-radius:0!important}
 .taste-today-thumb.photo-blur-frame.is-edge,.taste-detail-gallery.photo-blur-frame.is-edge{border-radius:var(--radius-soft)!important}
@@ -8105,7 +8108,7 @@ video.is-awaiting-frame{opacity:0}
 .taste-detail-verdict{display:inline-flex;align-items:center;padding:5px 12px;border:1px solid var(--sage-green-dark);border-radius:999px;background:var(--sage-green-light);color:var(--sage-green-dark);font-size:11px}
 .taste-detail-verdict.verdict-okay{border-color:var(--border-cool);background:transparent;color:var(--ink-secondary)}
 .taste-detail-verdict.verdict-bad{border-color:transparent;background:var(--warm-taupe);color:var(--ink-secondary)}
-.taste-detail-gallery{position:relative;width:100%;height:min(40dvh,320px);margin:14px 0 10px;padding:0;overflow:hidden;border:0;background:var(--warm-beige)}
+.taste-detail-gallery{position:relative;width:100%;aspect-ratio:4/5;max-height:56dvh;margin:14px 0 10px;padding:0;overflow:hidden;border:0;background:var(--warm-beige)}
 .taste-detail-gallery img{display:block;width:100%;height:100%;object-fit:contain}
 .taste-detail-gallery span{position:absolute;right:8px;bottom:8px;padding:4px 9px;border-radius:999px;background:rgba(26,44,36,.78);color:#fff;font-size:10px}
 .taste-detail>p{margin:0;padding:12px 13px;border-radius:var(--radius-soft);font-family:'LXGW WenKai Screen R','Noto Serif SC',serif;background:var(--warm-beige-light);color:var(--ink-secondary);font-size:13px;line-height:1.85;white-space:pre-wrap;overflow-wrap:anywhere}
