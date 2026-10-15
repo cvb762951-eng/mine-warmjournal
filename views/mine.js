@@ -8,8 +8,20 @@ import { aiKeyStorageMode } from '../ai-key-vault.js';
 import { clearJournalDraftCache } from '../journal-drafts.js';
 import { clearThumbCache } from '../photo-thumbs.js';
 import { Capacitor } from '@capacitor/core';
+import { applyMotionPreference } from '../motion-layers.js';
 import { describeReminderStatus } from './reminder-status.js';
 import { getReminderStatus, openExactAlarmSettings, openNotificationSettings } from '../notifications.js';
+
+/* 动效偏好（2026-10-15 用户要求）：手机系统的「减弱动态效果」会把 App 里的动画全关掉，
+   连纯 CSS 那些也关（那部分 CSS 里靠 :root:not([data-pl-motion-explicit="rich"]) 让路）。
+   这里给他一个自己说了算的开关，默认仍然跟随系统。 */
+const MOTION_CHOICES = ['', 'full', 'off'];
+const MOTION_LABELS = { '': '跟随系统', full: '始终完整', off: '关闭' };
+const MOTION_HINTS = {
+  '': '按手机设置来 —— 手机开了「减弱动态效果 / 省电」，App 里就没有动画',
+  full: '不管手机怎么设，全部动效都放出来（会多耗一点电）',
+  off: '一个动画都不放，最省电'
+};
 import { DAILY_MAX_PER_DAY } from '../reminder-plan.js';
 import { APP_VERSION_NAME, fetchUpdateManifest, hasNewerVersion, effectiveVersion, describeUpdateOffer, currentVersion, appliedResourceVersionCode, pendingResourceUpdate, downloadUpdate, installUpdate, canInstall, openInstallSettings, clearDownload, isUpdateSupported, formatBytes, fetchResourceManifest, applyResourceUpdate } from '../app-updater.js';
 
@@ -143,6 +155,7 @@ export function mineView() {
   const aiConfigured = Boolean(state.settings?.aiEnabled && state.settings?.aiApiKey);
   const clarity = 100 - Math.max(0, Math.min(100, Number(state.settings?.backgroundOverlayOpacity) || 0));
   const themeLabel = (THEME_META[state.settings?.theme] || THEME_META.classic).label;
+  const motionChoice = MOTION_CHOICES.includes(state.settings?.motionPreference) ? state.settings.motionPreference : '';
   const version = displayedAppVersion();
   return `<section class="view mine-view">
     <header class="subpage-header mine-editorial-header">
@@ -183,6 +196,7 @@ export function mineView() {
       <section class="mine-settings-section mine-appearance-section"><header class="mine-section-heading"><span class="mine-section-index" aria-hidden="true">03</span><h2>外观与偏好</h2><small>LOOK &amp; FEEL</small></header>
       <div class="settings-group-card">
         <button class="setting-item-row" id="settings-background"><span class="setting-row-left"><span class="setting-icon-box"><span class="material-symbols-outlined">palette</span></span><span><span class="setting-row-title">主题与外观</span><span class="setting-row-subtitle">${esc(themeLabel)}主题 · 背景清晰度 ${clarity}%</span></span></span><span class="setting-row-right"><span>${state.settings?.backgroundImage ? '自定义壁纸' : esc(themeLabel)}</span><span class="material-symbols-outlined">chevron_right</span></span></button>
+        <button class="setting-item-row" id="settings-motion"><span class="setting-row-left"><span class="setting-icon-box"><span class="material-symbols-outlined">auto_awesome</span></span><span><span class="setting-row-title">动效</span><span class="setting-row-subtitle">${esc(MOTION_HINTS[motionChoice])}</span></span></span><span class="setting-row-right"><span>${esc(MOTION_LABELS[motionChoice])}</span><span class="material-symbols-outlined">chevron_right</span></span></button>
       </div></section>
       <section class="mine-settings-section mine-security-section"><header class="mine-section-heading"><span class="mine-section-index" aria-hidden="true">04</span><h2>数据与安全</h2><small>LOCAL SAFETY</small></header>
       <div class="settings-group-card">
@@ -369,6 +383,24 @@ function selectTheme(theme) {
   $$('[data-theme-option]').forEach(button => {
     button.onclick = () => selectTheme(button.dataset.themeOption);
   });
+}
+
+/** 动效设置：三个选择，点一下立即生效（和主题一样，不用按保存）。 */
+function motionForm() {
+  const current = MOTION_CHOICES.includes(state.settings?.motionPreference) ? state.settings.motionPreference : '';
+  modal(`<form id="motion-form"><span class="eyebrow">MOTION</span><h2>动效</h2><p class="subtle">手机的「减弱动态效果」会把 App 里的动画全部关掉。想让它一直好看，就选「始终完整」。</p><div class="background-fit-control">${MOTION_CHOICES.map(value => `<label class="background-fit-option"><input type="radio" name="motionPreference" value="${value}" ${current === value ? 'checked' : ''}><span><strong>${MOTION_LABELS[value]}</strong><small>${MOTION_HINTS[value]}</small></span></label>`).join('')}</div><div class="modal-actions"><button type="button" data-close>完成</button></div></form>`, 'motion-modal');
+  $$('#motion-form input[name="motionPreference"]').forEach(input => input.addEventListener('change', async () => {
+    state.settings.motionPreference = input.value;
+    applyMotionPreference(input.value);
+    try {
+      await save();
+    } catch (error) {
+      show(error.message);
+      return;
+    }
+    render();
+    show(`${MOTION_LABELS[input.value]} · 已生效`);
+  }));
 }
 
 function backgroundForm() {
@@ -947,6 +979,7 @@ function bindMine() {
   $('#settings-reminder')?.addEventListener('click', () => callHelper('dailyReminderSettingsForm'));
   refreshReminderStatus();
   $('#settings-background')?.addEventListener('click', backgroundForm);
+  $('#settings-motion')?.addEventListener('click', motionForm);
   $('#settings-snapshot')?.addEventListener('click', async () => { await createLocalSnapshot('用户手动创建'); await refreshMineHealth(mediaCount); show('已创建本机安全快照'); });
   $('#settings-snapshot-list')?.addEventListener('click', safetySnapshotList);
   $('#settings-backup')?.addEventListener('click', openBackupModal);

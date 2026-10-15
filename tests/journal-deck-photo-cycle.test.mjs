@@ -39,5 +39,7 @@ test('换图先预载再换、多张才显示圆点、尊重减少动态', () =>
   assert.match(motion, /new Image\(\)[\s\S]*img\.onload/);
   assert.match(motion, /photos\.length > 1[\s\S]*journal-deck-photo-dots/);
   assert.match(motion, /prefersReducedMotion\(\)\) \{ swap\(\)/);
-  assert.match(styles, /prefers-reduced-motion:reduce\)\{\.journal-deck-photo \.photo-blur-still/);
+  // 2026-10-15：降级块的选择器统一加了 `:root:not([data-pl-motion-explicit="rich"])` 这道闸
+  // （用户可以在设置里选"始终完整"压过系统的减弱动效），所以这里不再要求紧贴着 `{`。
+  assert.match(styles, /prefers-reduced-motion:reduce\)\{[^}]*\.journal-deck-photo \.photo-blur-still/);
 });

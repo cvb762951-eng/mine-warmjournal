@@ -134,7 +134,7 @@ body, button, input, textarea, select { font-family: Inter, "Noto Sans SC", sans
 #app.nav-swap-out { animation: navSwapOut 150ms var(--ease-ios) both; }
 #app.nav-swap-in { animation: navSwapIn 220ms var(--ease-ios) both; }
 @media (prefers-reduced-motion: reduce) {
-  #app.nav-swap-out, #app.nav-swap-in { animation: none !important; }
+  :root:not([data-pl-motion-explicit="rich"]) #app.nav-swap-out, :root:not([data-pl-motion-explicit="rich"]) #app.nav-swap-in{ animation: none !important; }
 }
 @keyframes viewSlideFade {
   from { opacity: 0; transform: translateY(10px) scale(.995); }
@@ -1996,8 +1996,8 @@ body.focus-pure .flip-clock.with-hours{font-size:52px}
 .focus-view .focus-orb{transition:opacity .35s var(--ease-ios)}
 body.focus-pure .focus-view .focus-orb{opacity:0}
 @media (prefers-reduced-motion: reduce){
-  .focus-view .focus-orb,.flip-clock{transition:none}
-  body.focus-pure .flip-clock{transform:none}
+  :root:not([data-pl-motion-explicit="rich"]) .focus-view .focus-orb, :root:not([data-pl-motion-explicit="rich"]) .flip-clock{transition:none}
+  :root:not([data-pl-motion-explicit="rich"]) body.focus-pure .flip-clock{transform:none}
 }
 /* 真机 GPU 弱：过渡动画沿用 native 禁用约定（与呼吸辉光一致；WAAPI 侧已在 syncImmersiveBody 判断跳过） */
 .native-platform .focus-view .focus-orb,
@@ -2438,7 +2438,7 @@ body.focus-pure .focus-view .focus-orb{opacity:0}
    R6 动效收尾（核心平台②）：prefers-reduced-motion 降级 + 全局 token 兜底
    ============================================================ */
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
+  :root:not([data-pl-motion-explicit="rich"]) *, :root:not([data-pl-motion-explicit="rich"]) *::before, :root:not([data-pl-motion-explicit="rich"]) *::after{
     animation-duration: .01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: .01ms !important;
@@ -2805,7 +2805,7 @@ body.focus-fullscreen .timer-session-info .ambient-picker{background:rgba(240,24
 .today-hero-copy #today-motto.marquee .marquee-track{display:inline-flex;white-space:nowrap;will-change:transform;animation:today-motto-marquee var(--marquee-duration,12s) linear infinite}
 .today-hero-copy #today-motto.marquee .marquee-track span{padding-right:44px}
 @keyframes today-motto-marquee{from{transform:translateX(0)}to{transform:translateX(-50%)}}
-@media (prefers-reduced-motion:reduce){.today-hero-copy #today-motto.marquee .marquee-track{animation:none}}
+@media (prefers-reduced-motion:reduce){:root:not([data-pl-motion-explicit="rich"]) .today-hero-copy #today-motto.marquee .marquee-track{animation:none}}
 
 /* 岗位②：AI 沉浸式聊天只隐藏全局底部导航，其他页面与导航行为保持不变。 */
 body.ai-chat-active .bottom-nav { display: none; }
@@ -4425,17 +4425,7 @@ body:has(.ai-companion-screen) main{padding-top:0}
    全局兜底只把时长压到 0.001ms，**延时还留着** —— 带 220ms 延时的元素会先隐形
    等一个延时再瞬间蹦出来，比不做动画更难看。所以这里把 animation 整个摘掉。 */
 @media (prefers-reduced-motion: reduce) {
-  :root .taste-header,
-  :root .taste-today-card,
-  :root .taste-controls-paper,
-  :root .taste-section > header,
-  :root .taste-section > .taste-day-group,
-  :root .taste-entry-list > .taste-entry-card,
-  :root .taste-day-date::after,
-  :root .taste-today-strip > button,
-  :root .today-meal-strip > *,
-  :root #taste-photo-preview > span.is-new,
-  :root .taste-detail > * { animation: none !important; }
+  :root:not([data-pl-motion-explicit="rich"]) .taste-header, :root:not([data-pl-motion-explicit="rich"]) .taste-today-card, :root:not([data-pl-motion-explicit="rich"]) .taste-controls-paper, :root:not([data-pl-motion-explicit="rich"]) .taste-section > header, :root:not([data-pl-motion-explicit="rich"]) .taste-section > .taste-day-group, :root:not([data-pl-motion-explicit="rich"]) .taste-entry-list > .taste-entry-card, :root:not([data-pl-motion-explicit="rich"]) .taste-day-date::after, :root:not([data-pl-motion-explicit="rich"]) .taste-today-strip > button, :root:not([data-pl-motion-explicit="rich"]) .today-meal-strip > *, :root:not([data-pl-motion-explicit="rich"]) #taste-photo-preview > span.is-new, :root:not([data-pl-motion-explicit="rich"]) .taste-detail > *{ animation: none !important; }
 }
 
 /* ── View Transitions（卡片→详情）：让浏览器自己算那一趟 FLIP ──
@@ -4587,12 +4577,10 @@ img.shared-element-ghost {
 
 /* ── 减弱动态效果：保留状态切换，去掉一切运动 ── */
 @media (prefers-reduced-motion: reduce) {
-  .halo-ring,
-  .halo-card::after { animation: none; }
-  .halo-card::after { opacity: 0.35; }
-  .morph-surface,
-  .shared-element-ghost { display: none !important; }
-  *, *::before, *::after {
+  :root:not([data-pl-motion-explicit="rich"]) .halo-ring, :root:not([data-pl-motion-explicit="rich"]) .halo-card::after{ animation: none; }
+  :root:not([data-pl-motion-explicit="rich"]) .halo-card::after{ opacity: 0.35; }
+  :root:not([data-pl-motion-explicit="rich"]) .morph-surface, :root:not([data-pl-motion-explicit="rich"]) .shared-element-ghost{ display: none !important; }
+  :root:not([data-pl-motion-explicit="rich"]) *, :root:not([data-pl-motion-explicit="rich"]) *::before, :root:not([data-pl-motion-explicit="rich"]) *::after{
     animation-duration: 0.001ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;

@@ -31,12 +31,17 @@ export const LAYER_MOTION = {
 
 /* ── 纯函数（tests/motion-layers.test.mjs 锁定）───────────────────── */
 
-/** 三档：显式写在 <html data-pl-motion> 上的优先；减弱动态效果 → none；会话降档 → lite；低端机 → lite。 */
+/** 三档：显式写在 <html data-pl-motion> 上的优先；用户选了"完整"再优先；减弱动态效果 → none；
+   会话降档 → lite；低端机 → lite。
+   ⚠️ 顺序很重要：`override === 'rich'` 必须排在 `reduced` **前面** —— 那是用户在 App 里
+   明确选的「完整动效」（设置 → 外观与偏好 → 动效），要压过系统的「减弱动态效果」。
+   2026-10-15：cvb 手机开着"减弱动态效果"导致 App 里动画全没了，而他手写的预览页没读这个开关、
+   一直很好看，于是给 App 加了用户可选的开关（默认仍跟随系统）。 */
 export function motionTier({ override = '', reduced = false, deviceMemory = 0, cores = 0, sessionLite = false } = {}) {
   if (['none', 'lite'].includes(override)) return override;
+  if (override === 'rich') return override;
   if (reduced) return 'none';
   if (sessionLite) return 'lite';
-  if (override === 'rich') return override;
   if ((deviceMemory && deviceMemory <= 3) || (cores && cores <= 4)) return 'lite';
   return 'rich';
 }
@@ -259,6 +264,23 @@ function syncTier() {
     sessionLite,
   });
 }
+
+/** 用户在 App 里选的动效偏好（设置 → 外观与偏好 → 动效）：
+    '' → 跟随系统（默认）；'full' → 始终完整（压过系统的"减弱动态效果"）；'off' → 关闭（最省电）。
+    ⚠️ 写的是 `data-pl-motion-explicit` —— motion.js 的 canAnimate() 也认这一个口子，
+      所以"完整"是真的完整，不只是 CSS 那边不关。 */
+export function applyMotionPreference(preference = '') {
+  if (!root) return;
+  const value = ['full', 'off'].includes(preference) ? preference : '';
+  if (value === 'full') root.dataset.plMotionExplicit = 'rich';
+  else if (value === 'off') root.dataset.plMotionExplicit = 'none';
+  else delete root.dataset.plMotionExplicit;
+  tierOwned = true;      // 用户的显式选择由我们来写，不许被后面的自动判定盖掉
+  syncTier();
+}
+
+/** 测试与调试用：现在到底是哪一档。 */
+export function currentMotionTier() { return root?.dataset?.plMotion || ''; }
 
 /** 用手指速度驱动一段弹簧；none 档直接到终点。返回取消函数。 */
 function springTo(from, to, velocity, { stiffness, damping }, onUpdate, onDone) {

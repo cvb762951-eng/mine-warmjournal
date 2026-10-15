@@ -2278,7 +2278,7 @@ body.subpage-active .floating-dock {
 @keyframes launchSignatureIn{to{opacity:1;transform:translateY(0)}}
 @media(max-width:370px){.launch-emblem{width:184px;height:184px}.launch-signature strong{font-size:17px}}
 @media(min-width:480px){.launch-emblem{width:270px;height:270px}.launch-signature strong{font-size:21px}.launch-signature small{font-size:10px}}
-@media(prefers-reduced-motion:reduce){.launch-line-art,.launch-ink-wash{display:none}.launch-icon{opacity:1;transform:translate(-50%,-50%);clip-path:circle(72% at 50% 50%);animation:none!important}.launch-signature{opacity:1;transform:none;animation:none!important}}
+@media(prefers-reduced-motion:reduce){:root:not([data-pl-motion-explicit="rich"]) .launch-line-art, :root:not([data-pl-motion-explicit="rich"]) .launch-ink-wash{display:none}:root:not([data-pl-motion-explicit="rich"]) .launch-icon{opacity:1;transform:translate(-50%,-50%);clip-path:circle(72% at 50% 50%);animation:none!important}:root:not([data-pl-motion-explicit="rich"]) .launch-signature{opacity:1;transform:none;animation:none!important}}
 
 /* 成品启动素材：App 仅播放预渲染 WebM，不在运行时绘制标志。 */
 .launch-film{
@@ -2344,7 +2344,7 @@ body.subpage-active .floating-dock {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
+  :root:not([data-pl-motion-explicit="rich"]) *, :root:not([data-pl-motion-explicit="rich"]) *::before, :root:not([data-pl-motion-explicit="rich"]) *::after{
     scroll-behavior: auto;
     animation-duration: 0.01ms;
     animation-iteration-count: 1;
@@ -7777,7 +7777,7 @@ video.is-awaiting-frame{opacity:0}
 @keyframes vaultFeedExitUp{to{transform:translateY(-100%)}}@keyframes vaultFeedExitDown{to{transform:translateY(100%)}}@keyframes vaultFeedEnterUp{from{transform:translateY(100%)}to{transform:none}}@keyframes vaultFeedEnterDown{from{transform:translateY(-100%)}to{transform:none}}
 @keyframes vaultFeedHint{0%,62%{opacity:1}100%{opacity:0;visibility:hidden}}
 @keyframes vaultFeedToolsReveal{from{opacity:0;transform:translateY(-8px) scale(.92)}to{opacity:1;transform:none}}@keyframes vaultFeedToolItem{from{opacity:0;transform:translateX(9px)}to{opacity:1;transform:none}}
-@media(prefers-reduced-motion:reduce){.vault-feed-modal .warm-video-player.feed-exit-up,.vault-feed-modal .warm-video-player.feed-exit-down,.vault-feed-modal .warm-video-player.feed-enter-up,.vault-feed-modal .warm-video-player.feed-enter-down{animation-duration:.01ms}.vault-feed-modal .warm-video-player.is-feed-settling,.vault-feed-transition-preview.is-feed-settling{transition-duration:.01ms}}
+@media(prefers-reduced-motion:reduce){:root:not([data-pl-motion-explicit="rich"]) .vault-feed-modal .warm-video-player.feed-exit-up, :root:not([data-pl-motion-explicit="rich"]) .vault-feed-modal .warm-video-player.feed-exit-down, :root:not([data-pl-motion-explicit="rich"]) .vault-feed-modal .warm-video-player.feed-enter-up, :root:not([data-pl-motion-explicit="rich"]) .vault-feed-modal .warm-video-player.feed-enter-down{animation-duration:.01ms}:root:not([data-pl-motion-explicit="rich"]) .vault-feed-modal .warm-video-player.is-feed-settling, :root:not([data-pl-motion-explicit="rich"]) .vault-feed-transition-preview.is-feed-settling{transition-duration:.01ms}}
 .mine-backup-modal .backup-export-status{margin:12px 0 3px;padding:11px 12px;display:grid;gap:8px;background:rgba(49,91,73,.08);border-left:3px solid #315b49;color:#5f5548;font-size:9px}.mine-backup-modal .backup-export-status progress{width:100%;height:5px;border:0;appearance:none;background:rgba(49,91,73,.14)}.mine-backup-modal .backup-export-status progress::-webkit-progress-bar{background:rgba(49,91,73,.14)}.mine-backup-modal .backup-export-status progress::-webkit-progress-value{background:#315b49;transition:width .25s ease}.mine-backup-modal .backup-export-status progress::-moz-progress-bar{background:#315b49}
 .backup-restore-status{margin:12px 0 3px;padding:11px 12px;display:grid;gap:8px;background:rgba(49,91,73,.08);border-left:3px solid #315b49;color:#5f5548;font-size:9px}.backup-restore-status progress{width:100%;height:6px;border:0;appearance:none;background:rgba(49,91,73,.14)}.backup-restore-status progress::-webkit-progress-bar{background:rgba(49,91,73,.14)}.backup-restore-status progress::-webkit-progress-value{background:#315b49;transition:width .2s ease}.backup-restore-status progress::-moz-progress-bar{background:#315b49}.backup-restore-status small{color:#786b5b;font-size:8px;line-height:1.5}
 .modal.vault-import-progress-modal,.modal.vault-import-result-modal{max-width:420px;padding:28px 23px;background:#f2e6d1 url('assets/secondary-content-paper-v1.png') center/100% 100% no-repeat}.vault-import-progress{min-height:245px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}.vault-import-progress>.material-symbols-outlined,.vault-import-result>.material-symbols-outlined{font-size:38px;color:#315b49}.vault-import-progress>small{margin-top:8px;color:#a05a42;font-size:7px;font-weight:800;letter-spacing:.18em}.vault-import-progress h2,.vault-import-result h2{margin:4px 0 12px;font-family:'LXGW WenKai Screen R','Noto Serif SC',serif;font-weight:600}.vault-import-progress>strong{font-size:11px}.vault-import-progress progress{width:min(280px,100%);height:7px;margin:16px 0 10px;border:0;appearance:none;background:rgba(49,91,73,.14)}.vault-import-progress progress::-webkit-progress-bar{background:rgba(49,91,73,.14)}.vault-import-progress progress::-webkit-progress-value{background:#315b49;transition:width .2s ease}.vault-import-progress progress::-moz-progress-bar{background:#315b49}.vault-import-progress>p{max-width:290px;margin:0;overflow:hidden;color:#706455;font-size:9px;line-height:1.5;text-overflow:ellipsis;white-space:nowrap}.vault-import-progress>em{margin-top:12px;color:#986044;font-size:8px;font-style:normal}.vault-import-result{text-align:center}.vault-import-result>p{color:#6f6354;font-size:9px;line-height:1.6}.vault-import-result>div:not(.modal-actions){max-height:38dvh;margin-top:12px;display:grid;gap:6px;overflow-y:auto;text-align:left}.vault-import-result>div:not(.modal-actions)>span{padding:8px 10px;display:grid;background:rgba(255,249,235,.58)}.vault-import-result>div:not(.modal-actions) strong{overflow:hidden;font-size:9px;text-overflow:ellipsis;white-space:nowrap}.vault-import-result>div:not(.modal-actions) small{margin-top:2px;color:#9a5140;font-size:7px}
@@ -7889,7 +7889,7 @@ video.is-awaiting-frame{opacity:0}
 .vault-photo-loading[hidden]{display:none}.vault-photo-loading .material-symbols-outlined{animation:vaultPhotoSpin .8s linear infinite}
 @keyframes vaultPhotoSpin{to{transform:rotate(360deg)}}
 @media(orientation:landscape){.vault-photo-chrome header{min-height:82px;padding-top:max(8px,env(safe-area-inset-top));padding-right:max(18px,env(safe-area-inset-right));padding-left:max(18px,env(safe-area-inset-left))}.vault-photo-chrome footer{padding-right:max(22px,env(safe-area-inset-right));padding-bottom:max(14px,env(safe-area-inset-bottom));padding-left:max(22px,env(safe-area-inset-left))}}
-@media(prefers-reduced-motion:reduce){.vault-photo-stage img,.vault-photo-chrome{transition-duration:.01ms}.vault-photo-loading .material-symbols-outlined{animation:none}}
+@media(prefers-reduced-motion:reduce){:root:not([data-pl-motion-explicit="rich"]) .vault-photo-stage img, :root:not([data-pl-motion-explicit="rich"]) .vault-photo-chrome{transition-duration:.01ms}:root:not([data-pl-motion-explicit="rich"]) .vault-photo-loading .material-symbols-outlined{animation:none}}
 
 /* 日记阅读页：全部照片以完整比例陈列，点击进入相册浏览。 */
 .journal-reader-gallery{margin:0 -8px 14px;padding:6px 0 2px;border-style:solid;border-width:26px 32px 46px 32px;border-image:url('assets/journal-photo-frame-v3.png') 117 146 207 145 fill / 26px 32px 46px 32px / 0 stretch;background:none}
@@ -9366,10 +9366,8 @@ button.journal-deck-cut.journal-deck-mini-more{position:absolute;top:8px;right:6
 .journal-deck-spread.is-fanning-in .journal-deck-spread-bar,
 .journal-deck-spread.is-fanning-in .journal-deck-spread-label{opacity:0;transition:opacity 180ms ease}
 @media (prefers-reduced-motion: reduce){
-  .journal-deck-mini{transition:none!important}
-  .journal-deck-spread.is-collapsing .journal-deck-mini:not(.is-flying),
-  .journal-deck-spread.is-fanning-in .journal-deck-spread-bar,
-  .journal-deck-spread.is-fanning-in .journal-deck-spread-label{transition:none!important;opacity:1}
+  :root:not([data-pl-motion-explicit="rich"]) .journal-deck-mini{transition:none!important}
+  :root:not([data-pl-motion-explicit="rich"]) .journal-deck-spread.is-collapsing .journal-deck-mini:not(.is-flying), :root:not([data-pl-motion-explicit="rich"]) .journal-deck-spread.is-fanning-in .journal-deck-spread-bar, :root:not([data-pl-motion-explicit="rich"]) .journal-deck-spread.is-fanning-in .journal-deck-spread-label{transition:none!important;opacity:1}
 }
 
 /* 牌组照片轻点轮换：底边小圆点（多张才有），换图时淡一下 */
@@ -9379,7 +9377,7 @@ button.journal-deck-cut.journal-deck-mini-more{position:absolute;top:8px;right:6
 .journal-deck-photo-dots i{width:5px;height:5px;border-radius:50%;background:rgba(255,250,240,.55)}
 .journal-deck-photo-dots i.is-on{background:#fffaf0}
 :root[data-theme="plain"] .journal-deck-photo-dots{background:rgba(40,52,68,.28)}
-@media (prefers-reduced-motion:reduce){.journal-deck-photo .photo-blur-still,.journal-deck-photo .photo-blur-pad{transition:none}}
+@media (prefers-reduced-motion:reduce){:root:not([data-pl-motion-explicit="rich"]) .journal-deck-photo .photo-blur-still, :root:not([data-pl-motion-explicit="rich"]) .journal-deck-photo .photo-blur-pad{transition:none}}
 
 /* ===== 柔角：牌组、照片框、摊开网格、月份签、⋯ 菜单、摊开/收起按钮 =====
    圆角统一走 --radius-soft / --radius-soft-sm（主题根上定义），不写死数字；
@@ -9489,9 +9487,8 @@ button.journal-deck-cut.journal-deck-mini-more{border-radius:var(--radius-soft-s
   100% { transform: scale(1); opacity: 1; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .today-view .habit-check-btn.is-pop .habit-check-dot { animation: none !important; }
-  .today-view .habit-check-dot,
-  .today-view .habit-check-dot .material-symbols-outlined { transition: none !important; }
+  :root:not([data-pl-motion-explicit="rich"]) .today-view .habit-check-btn.is-pop .habit-check-dot{ animation: none !important; }
+  :root:not([data-pl-motion-explicit="rich"]) .today-view .habit-check-dot, :root:not([data-pl-motion-explicit="rich"]) .today-view .habit-check-dot .material-symbols-outlined{ transition: none !important; }
 }
 
 /* ═══ 打卡动效：习惯圆勾 / 待办圆勾共用同一套语言 ═════════════════════
@@ -9546,12 +9543,8 @@ button.journal-deck-cut.journal-deck-mini-more{border-radius:var(--radius-soft-s
 .daily-task-check.is-done .material-symbols-outlined { transform: scale(1); }
 
 @media (prefers-reduced-motion: reduce) {
-  .habit-check-dot::after,
-  .hs-tick-dot::after,
-  .bento-item-check::after,
-  .daily-task-check .material-symbols-outlined::after { animation: none !important; }
-  .bento-item-mini.is-pop .bento-item-check,
-  .daily-task-check.is-pop .material-symbols-outlined { animation: none !important; }
+  :root:not([data-pl-motion-explicit="rich"]) .habit-check-dot::after, :root:not([data-pl-motion-explicit="rich"]) .hs-tick-dot::after, :root:not([data-pl-motion-explicit="rich"]) .bento-item-check::after, :root:not([data-pl-motion-explicit="rich"]) .daily-task-check .material-symbols-outlined::after{ animation: none !important; }
+  :root:not([data-pl-motion-explicit="rich"]) .bento-item-mini.is-pop .bento-item-check, :root:not([data-pl-motion-explicit="rich"]) .daily-task-check.is-pop .material-symbols-outlined{ animation: none !important; }
 }
 /* 页脚汇总：普通小字，不加粗不上色 */
 .today-view .habits-bento-card .bento-card-footer b { font-weight: 600; color: inherit; font-family: inherit; font-size: inherit; }
@@ -9564,7 +9557,7 @@ button.journal-deck-cut.journal-deck-mini-more{border-radius:var(--radius-soft-s
 .photo-viewer-stage img,.vault-photo-stage img{transition:transform .18s ease}
 .photo-viewer-stage img.is-decoding,.vault-photo-stage img.is-decoding{opacity:0}
 .photo-viewer-stage img.zoomed,.vault-photo-stage img.zoomed{transition:none}
-@media (prefers-reduced-motion:reduce){.photo-viewer-stage img,.vault-photo-stage img{transition:none!important}}
+@media (prefers-reduced-motion:reduce){:root:not([data-pl-motion-explicit="rich"]) .photo-viewer-stage img, :root:not([data-pl-motion-explicit="rich"]) .vault-photo-stage img{transition:none!important}}
 
 /* ── 习惯详情 / 待办详情（detail-sheet）：纸面、细线、留白，与今日习惯+待办列同一语言 ──
    不做大色块与徽章；状态与连续天数用灰字；小圆勾视觉 26px、热区 48px。
@@ -9669,8 +9662,8 @@ body #modal-layer .modal.todo-sheet .todo-custom-date[hidden] { display: none !i
 body #modal-layer .modal.todo-sheet #todo-custom-date { width: auto; min-height: 34px; padding: 0 !important; border: 0 !important; background: transparent !important; box-shadow: none !important; color: var(--ds-ink) !important; font-size: 13px; }
 body #modal-layer .modal.todo-sheet .ts-actions { margin-top: 18px !important; border-top: 1px solid var(--ds-line) !important; }
 @media (prefers-reduced-motion: reduce) {
-  body #modal-layer .modal.detail-sheet .hs-tick.is-pop .hs-tick-dot { animation: none !important; }
-  body #modal-layer .modal.detail-sheet .hs-tick-dot, body #modal-layer .modal.detail-sheet .hs-tick-dot .material-symbols-outlined { transition: none !important; }
+  :root:not([data-pl-motion-explicit="rich"]) body #modal-layer .modal.detail-sheet .hs-tick.is-pop .hs-tick-dot{ animation: none !important; }
+  :root:not([data-pl-motion-explicit="rich"]) body #modal-layer .modal.detail-sheet .hs-tick-dot, :root:not([data-pl-motion-explicit="rich"]) body #modal-layer .modal.detail-sheet .hs-tick-dot .material-symbols-outlined{ transition: none !important; }
 }
 body #modal-layer .modal.confirm-sheet { max-width: 420px; }
 body #modal-layer .modal.confirm-sheet p { margin: 10px 0 0; font-size: 13px; line-height: 1.6; color: var(--ds-muted); }
@@ -9896,8 +9889,7 @@ body #modal-layer .modal.confirm-sheet .modal-actions .danger { padding: 0 16px 
 .moment-album-hint { color: var(--warm-ink-muted, #878177); font-size: 11px; }
 .moment-album-counter { color: var(--warm-ink-muted, #878177); font-size: 11px; font-variant-numeric: tabular-nums; }
 @media (prefers-reduced-motion: reduce) {
-  .moment-album-stack.is-flip-next,
-  .moment-album-stack.is-flip-prev { animation: none; }
+  :root:not([data-pl-motion-explicit="rich"]) .moment-album-stack.is-flip-next, :root:not([data-pl-motion-explicit="rich"]) .moment-album-stack.is-flip-prev{ animation: none; }
 }
 
 /* 内容图迁移到共用相框后：固定尺寸容器只包 frame，仍图用 contain（pad 层除外） */
@@ -9999,7 +9991,7 @@ body #modal-layer .modal.confirm-sheet .modal-actions .danger { padding: 0 16px 
 .setting-reminder-status-action { flex: 0 0 auto; padding: 4px 10px; border: 1px solid var(--warm-sage, #7e9d86); border-radius: 999px; background: transparent; color: var(--warm-sage-strong, #4d7056); font: inherit; font-weight: 700; cursor: pointer; transition: background-color .18s ease; }
 .setting-reminder-status-action:active { background: color-mix(in srgb, var(--warm-sage, #7e9d86) 14%, transparent); }
 .setting-reminder-status-action[hidden] { display: none; }
-@media (prefers-reduced-motion: reduce) { .setting-reminder-status-action { transition: none; } }
+@media (prefers-reduced-motion: reduce) { :root:not([data-pl-motion-explicit="rich"]) .setting-reminder-status-action{ transition: none; } }
 
 /* ── 随手拍相册网格层（#snippet-album-grid，全屏 3 栏，清简 theme look）── */
 #snippet-album-grid,
@@ -10174,8 +10166,7 @@ body #modal-layer .modal.confirm-sheet .modal-actions .danger { padding: 0 16px 
 }
 
 @media (prefers-reduced-motion: reduce) {
-  #snippet-album-grid,
-  .snippet-album-grid {
+  :root:not([data-pl-motion-explicit="rich"]) #snippet-album-grid, :root:not([data-pl-motion-explicit="rich"]) .snippet-album-grid{
     transition: none !important;
     animation: none !important;
   }
@@ -10197,7 +10188,7 @@ body #modal-layer .modal.confirm-sheet .modal-actions .danger { padding: 0 16px 
 .vault-feed-bottom-tools button.warm-fullscreen-btn{background:transparent;padding:0}
 .warm-video-fullscreen-tools button.warm-fullscreen-btn:active,.vault-feed-bottom-tools button.warm-fullscreen-btn:active{background:rgba(255,243,220,.15)}
 .warm-video-fullscreen-tools button.warm-fullscreen-btn .material-symbols-outlined{font-size:20px}
-@media (prefers-reduced-motion: reduce){.photo-viewer-play-btn:active{transform:none}}
+@media (prefers-reduced-motion: reduce){:root:not([data-pl-motion-explicit="rich"]) .photo-viewer-play-btn:active{transform:none}}
 /* 多段视频卡封面改成按钮（点开翻牌相册），去掉按钮自带的边框/内边距，外观与原 div 一致 */
 .snippets-view button.snippet-cover-frame{padding:0;border:0;margin:0;font:inherit;color:inherit;cursor:pointer;text-align:inherit;-webkit-tap-highlight-color:transparent}
 
@@ -10590,11 +10581,10 @@ button.moment-spread-hit {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .moment-spread.is-importing .moment-spread-card,
-  .moment-spread.is-transitioning .moment-spread-card {
+  :root:not([data-pl-motion-explicit="rich"]) .moment-spread.is-importing .moment-spread-card, :root:not([data-pl-motion-explicit="rich"]) .moment-spread.is-transitioning .moment-spread-card{
     transition: none !important;
   }
-  .snippet-import-spinner {
+  :root:not([data-pl-motion-explicit="rich"]) .snippet-import-spinner{
     animation-duration: 2s;
   }
 }

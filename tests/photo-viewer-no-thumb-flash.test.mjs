@@ -49,7 +49,9 @@ test('大图仍等解码完成才显示，但不再淡入', async () => {
     '不再有 opacity 过渡');
   assert.doesNotMatch(styles, /\.photo-viewer-stage img,\.vault-photo-stage img\{transition:transform \.18s ease,opacity/,
     '淡入已经去掉');
-  assert.match(styles, /prefers-reduced-motion:reduce\)\{\.photo-viewer-stage img,\.vault-photo-stage img\{transition:none!important\}/);
+  // 2026-10-15：降级块的选择器前面多了 `:root:not([data-pl-motion-explicit="rich"])` 这道闸，
+  // 而且两个选择器各自带一份（中间夹着守卫与换行），所以这里要宽松匹配。
+  assert.match(styles, /prefers-reduced-motion:reduce\)\{[\s\S]*?\.photo-viewer-stage img,[\s\S]{0,160}\.vault-photo-stage img\{transition:none!important\}/);
 });
 
 test('revealViewerImageWhenDecoded reveals after decode and skips video', async () => {

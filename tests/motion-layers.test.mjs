@@ -102,8 +102,10 @@ test('参数照抄方案 9.1', () => {
 
 test('接线：app.js 启动时安装；不碰 core / snippets / 通知', () => {
   const app = readFileSync(new URL('../app.js', import.meta.url), 'utf8');
-  assert.match(app, /import \{ installLayerMotion \} from '\.\/motion-layers\.js'/);
+  assert.match(app, /import \{ installLayerMotion, applyMotionPreference \} from '\.\/motion-layers\.js'/);
   assert.match(app, /installLayerMotion\(\);/);
+  // 动效偏好要在读完设置之后立刻应用一次（2026-10-15 加：用户可在设置里选"始终完整"）
+  assert.match(app, /setState\(await initializeStorage\(defaults\)\);[\s\S]{0,400}applyMotionPreference\(state\.settings\?\.motionPreference\)/);
   const src = readFileSync(new URL('../motion-layers.js', import.meta.url), 'utf8');
   assert.doesNotMatch(src, /from '\.\/(core|storage|notifications|private-vault)\.js'/);
   assert.doesNotMatch(src, /views\/snippets/);
@@ -335,3 +337,42 @@ test('swallowNextClick 在窗口期后自动失效，不吞后续正常点击', 
   assert.equal(listeners.has('click'), false);
 });
 
+test('动效开关：选「始终完整」要压过系统的减弱动效，并且覆盖所有降级块', () => {
+  const src = readFileSync(new URL('../motion-layers.js', import.meta.url), 'utf8');
+  const mine = readFileSync(new URL('../views/mine.js', import.meta.url), 'utf8');
+  const motion = readFileSync(new URL('../motion.js', import.meta.url), 'utf8');
+
+  // ① 档位判定：显式 rich 必须排在 reduced 之前 —— 否则用户选了“完整”也没用
+  const richAt = src.indexOf("if (override === 'rich') return override;");
+  const reducedAt = src.indexOf("if (reduced) return 'none';");
+  assert.ok(richAt > 0 && reducedAt > 0, '两处判定都要在');
+  assert.ok(richAt < reducedAt, '显式“完整”要排在“减弱动态效果”之前');
+
+  // ② 写这个显式偏好的只有一个地方
+  assert.match(src, /export function applyMotionPreference/);
+  assert.match(src, /root\.dataset\.plMotionExplicit = 'rich'/);
+  assert.match(src, /root\.dataset\.plMotionExplicit = 'none'/);
+
+  // ③ JS 那层也要认（筛选 FLIP、✕ 退场、扫动/弹层物理全看 canAnimate）
+  assert.match(motion, /explicit === 'rich'[\s\S]{0,120}!document\.hidden/, 'canAnimate 要认“完整”');
+  assert.match(motion, /explicit === 'none'[\s\S]{0,80}return false/, 'canAnimate 要认“关闭”');
+
+  // ④ 设置界面里能选到（我的 → 外观与偏好 → 动效）
+  assert.match(mine, /id="settings-motion"/, '「我的」里要有这一行');
+  assert.match(mine, /MOTION_CHOICES = \['', 'full', 'off'\]/, '三个选项：跟随系统 / 始终完整 / 关闭');
+  assert.match(mine, /applyMotionPreference\(input\.value\)/, '选了要立刻生效');
+
+  /* ⑤ 最关键的一条：CSS 里的降级块是**纯 CSS** 关动画的（animation: none !important），
+     JS 的 canAnimate 管不到。所以每个降级块里的选择器都得带上
+     :root:not([data-pl-motion-explicit="rich"]) 这道闸，否则就成了“开关只救得回几个动效”。 */
+  const files = ['styles.css', 'performance.css', 'themes-plain-light.css', 'themes-plain.css'];
+  let blocks = 0;
+  let guards = 0;
+  for (const name of files) {
+    const css = readFileSync(new URL('../' + name, import.meta.url), 'utf8');
+    blocks += (css.match(/@media\s*\(\s*prefers-reduced-motion:\s*reduce\s*\)/g) || []).length;
+    guards += (css.match(/data-pl-motion-explicit="rich"/g) || []).length;
+  }
+  assert.ok(blocks >= 30, '降级块数量不对（' + blocks + '），检查扫描');
+  assert.ok(guards >= blocks, '有降级块没带守卫：块 ' + blocks + ' 处，守卫 ' + guards + ' 处');
+});

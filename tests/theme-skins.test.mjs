@@ -117,8 +117,12 @@ test('清简主题：质感重置只作用于本主题，且确实存在', async
   for (const block of selectorBlocks) {
     const selectors = block.replace(/[{}]/g, '').trim();
     if (!selectors) continue;
-    if (/^(@|:root\[data-theme="plain"\])/.test(selectors)) continue;
-    if (/^:root\[data-theme="plain"\][\s\S]*/.test(selectors)) continue;
+    /* 2026-10-15：降级块的选择器前面统一多了一道 `:root:not([data-pl-motion-explicit="rich"])`
+       （用户可以在设置里选"始终完整"压过系统的减弱动效）。判断主题前缀前先剥掉那个 :not(...) 即可，
+       注意别连 `:root` 一起剥掉。 */
+    const bare = selectors.replace(/:not\(\[data-pl-motion-explicit="rich"\]\)/g, '');
+    if (/^(@|:root\[data-theme="plain"\])/.test(bare)) continue;
+    if (/^:root\[data-theme="plain"\][\s\S]*/.test(bare)) continue;
     assert.fail(`出现未加主题前缀的选择器：${selectors.slice(0, 70)}`);
   }
 

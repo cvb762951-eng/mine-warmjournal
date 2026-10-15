@@ -3,7 +3,7 @@ import { APP_VERSION_NAME } from './app-updater.js';
 import { Capacitor, registerPlugin } from '@capacitor/core';
 import { $, $$, state, cursor, selected, setState, setCursor, setSelected, defaults, render, go, goBack, save, show, confirmDelete, closeModal, getSubmitHandler, registerBinder, registerHelper, registerOnRender, callHelper, pushBackState, applyTheme, primeThemeFromNativeMirror, notifyPersistedKeySeal } from './core.js';
 import { installPressFeedback, installMagneticDock } from './motion.js';
-import { installLayerMotion } from './motion-layers.js';
+import { installLayerMotion, applyMotionPreference } from './motion-layers.js';
 import { installSignatureMotion } from './motion-signature.js';
 import { migrateState, dateKey } from './model.js';
 import { externalizeStateMedia, recoverReferencedMedia, warmMediaRefs, firstPaintMediaRefs, stateMediaReferences } from './media-store.js';
@@ -268,6 +268,9 @@ async function boot() {
     // 在任何 UI/通知初始化前识别凌晨静默唤醒，避免改变用户正常启动流程。
     autoSummaryLaunch = Boolean(await callHelper('isAutoSummaryLaunch'));
     setState(await initializeStorage(defaults));
+    /* 动效偏好要尽早上 —— 系统「减弱动态效果」会把动画全关，用户选了「始终完整」就得压过去。
+       ⚠️ 必须在这里（读完设置之后）调一次，否则那一整段都是按系统开关走的。 */
+    applyMotionPreference(state.settings?.motionPreference);
     recoverJournalDraftCache(state);
     // 版本更新：说明仍整份入库；当天活动只钉刚升级到的这一版（见 release-activity.js）。
     ensureReleaseActivities(state);

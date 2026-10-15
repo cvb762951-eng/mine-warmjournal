@@ -54,5 +54,10 @@ test('切页：外壳淡出/淡入都不许到 0（到 0 会露出底色）', ()
   assert.doesNotMatch(performanceCss, /@keyframes navSwapIn \{[^}]*opacity: 0[;\s]/, '淡入不许从 0 起');
   // 只动 opacity / transform（合成器上跑，不触发布局与绘制属性）
   assert.doesNotMatch(block, /(width|height|left|top|margin|padding|box-shadow|filter):/, '只许动 transform / opacity');
-  assert.match(block, /prefers-reduced-motion[\s\S]{0,120}animation: none !important/, '减弱动效时整段摘掉');
+  // 降级块现在带着 `:root:not([data-pl-motion-explicit="rich"])` 守卫，会把间距撑长，所以切大一点
+  const reducedBlock = performanceCss.slice(performanceCss.indexOf('@keyframes navSwapIn'));
+  assert.match(reducedBlock.slice(0, 1200), /prefers-reduced-motion[\s\S]{0,400}animation: none !important/, '减弱动效时整段摘掉');
+  // 2026-10-15：降级块统一加了 `:root:not([data-pl-motion-explicit="rich"])` —— 用户在设置里
+  // 选「始终完整」时，这一段要让路（否则开关只救得回部分动效）。
+  assert.match(reducedBlock.slice(0, 1200), /:root:not\(\[data-pl-motion-explicit="rich"\]\)/, '要给"始终完整"留出路');
 });

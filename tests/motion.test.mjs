@@ -33,7 +33,12 @@ test('动效层：四个原子动作都在一个地方，且都尊重「减弱�
   }
   // 统一的开关：所有动画都要过 canAnimate，它包含 prefersReducedMotion
   assert.match(motion, /export const prefersReducedMotion/, '要有统一的系统偏好判定');
-  assert.match(motion, /const canAnimate = \(\) => !prefersReducedMotion\(\)/, 'canAnimate 必须包含偏好判定');
+  /* 2026-10-15：canAnimate 多了一层「用户显式偏好」——
+     设置里选"始终完整"要能压过系统的减弱动效（否则手机上什么动画都没有）。 */
+  assert.match(motion, /const canAnimate = \(\) => \{[\s\S]{0,400}explicitMotion\(\)/, 'canAnimate 必须认用户的显式偏好');
+  assert.match(motion, /explicit === 'rich'/, '"始终完整"要能压过系统偏好');
+  assert.match(motion, /explicit === 'none'/, '"关闭"要能直接关掉');
+  assert.match(motion, /!prefersReducedMotion\(\)/, 'canAnimate 必须包含系统偏好判定');
   // 页面不可见时不跑动画（省电）
   assert.match(motion, /!document\.hidden/, '页面不在前台时不应跑动画');
   // 每一个原子动作都要走 safely 兜底
@@ -107,7 +112,7 @@ test('旋转描边与呼吸背光：只在合成器上跑，不做逐帧样式�
   assert.match(performance, /mask-composite: exclude/, '要用 mask 挖空，只留描边');
   // 减弱动态效果时必须停
   const reduced = performance.slice(performance.indexOf('prefers-reduced-motion'));
-  assert.match(reduced, /halo-ring[\s\S]{0,60}animation: none/, '减弱动效时要停掉旋转与呼吸');
+  assert.match(reduced, /halo-ring[\s\S]{0,200}animation: none/, '减弱动效时要停掉旋转与呼吸');
 });
 
 test('动效性能红线：位移动画只许动 transform，不许动会触发布局的属性', async () => {

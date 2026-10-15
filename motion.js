@@ -44,7 +44,15 @@ export const prefersReducedMotion = () =>
   typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 /** 页面不在前台时不做动画（省电，也避免回到前台时看到一堆补间）。 */
-const canAnimate = () => !prefersReducedMotion() && typeof document !== 'undefined' && !document.hidden;
+/* 显式动效偏好（设置 → 动效）：'rich' = 用户要完整动效（压过系统的"减弱动态效果"），
+   'none' = 用户要关闭。写它的只有一个地方：motion-layers.js 的 applyMotionPreference()。 */
+const explicitMotion = () => (typeof document === 'undefined' ? '' : document.documentElement?.dataset?.plMotionExplicit || '');
+const canAnimate = () => {
+  const explicit = explicitMotion();
+  if (explicit === 'rich') return typeof document === 'undefined' || !document.hidden;
+  if (explicit === 'none') return false;
+  return !prefersReducedMotion() && typeof document !== 'undefined' && !document.hidden;
+};
 
 /** 统一的动画执行器：包一层 try/catch，动画永远不能拖垮功能。 */
 function safely(run) {
