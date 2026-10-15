@@ -9678,7 +9678,24 @@ body #modal-layer .modal.confirm-sheet .modal-actions .danger { padding: 0 16px 
   left: 6px;
   top: 6px;
 }
-.moment-album-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 0 2px; }
+.moment-album-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 0 2px; flex-wrap: wrap; }
+.moment-album-remove {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+  margin: 0;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.2;
+}
+.moment-album-remove[hidden] { display: none; }
+.moment-album-remove .material-symbols-outlined { font-size: 16px; }
 .moment-album-hint { color: var(--warm-ink-muted, #878177); font-size: 11px; }
 .moment-album-counter { color: var(--warm-ink-muted, #878177); font-size: 11px; font-variant-numeric: tabular-nums; }
 @media (prefers-reduced-motion: reduce) {

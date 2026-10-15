@@ -27,8 +27,9 @@ test('snippetStreamCard 源码包含 data-snippet-video-album 封面按钮', () 
 
 test('事件绑定中调用 openMomentMediaBrowse 处理 data-snippet-video-album', () => {
   assert.match(snippets, /\$\$\('\[data-snippet-video-album\]'\)/);
-  assert.match(snippets, /openMomentMediaBrowse\(entry,\s*0,\s*button\)/);
-  assert.match(snippets, /\$\$\('\[data-snippet-video-album\]'\)\.forEach\(button => button\.onclick = \(\) => \{ const entry = state\.snippets\.find\(item => item\.id === button\.dataset\.snippetVideoAlbum\); openMomentMediaBrowse\(entry, 0, button\); \}\);/);
+  assert.match(snippets, /openMomentMediaBrowse\(entry,\s*focus,\s*button\)/);
+  assert.match(snippets, /button\.hasAttribute\('data-video-index'\)/);
+  assert.match(snippets, /kind: 'video'/);
 });
 
 test('snippetStreamCard 与 momentAlbumCard 渲染函数体中不包含 <video 标签', () => {
@@ -49,11 +50,19 @@ test('flipMomentAlbum 翻牌阻尼与阈值 / 56 依然保留', () => {
   assert.match(snippets, /\/\s*56/);
 });
 
-test('随手拍播放器隐藏删除和文件夹按钮，私密空间与本机相册仍显示', () => {
+test('随手拍播放器可以移除单段视频，文件夹按钮仍然隐藏', () => {
   const block = (src, a, b) => { const i = src.indexOf(a); const j = src.indexOf(b, i + 1); assert.ok(i >= 0 && j > i, a); return src.slice(i, j); };
   const snippetOpen = block(snippets, 'function openSnippetVideos(', 'function openSavedSnippetVideo(');
   assert.match(snippetOpen, /showFolders:\s*false/);
-  assert.doesNotMatch(snippetOpen, /onDelete/);
+  assert.match(snippetOpen, /onDelete:/);
+  assert.match(snippetOpen, /deleteConfirmText:/);
+  assert.match(snippetOpen, /snippetVideoDeletePrompt\(/);
+  assert.doesNotMatch(snippetOpen, /永久删除/);
+  assert.doesNotMatch(snippetOpen, /deleteMediaReference/);
+  const prompt = block(snippets, 'export function snippetVideoDeletePrompt(', 'async function deleteSavedSnippetVideo(');
+  assert.match(prompt, /从这条随手拍移除这段视频？/);
+  assert.match(prompt, /整条删除/);
+  assert.doesNotMatch(prompt, /永久删除/);
   const rail = block(snippets, 'function feedRailHtml(', 'function feedInfoHtml(');
   assert.match(rail, /options\.showFolders !== false \? '<button id="vault-feed-folders"/);
   assert.match(rail, /typeof options\.onDeleteCurrent === 'function' \? '<button id="vault-feed-delete"/);

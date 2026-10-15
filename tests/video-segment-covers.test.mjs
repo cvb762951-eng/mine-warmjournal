@@ -334,8 +334,9 @@ test('视频卡用封面原图和播放按钮，视频文件不进 img', async (
     progressive: true,
     interactive: { mode: 'saved', entryId: 'e1' },
   });
-  assert.match(html, /data-play-snippet-video="e1"/);
+  assert.match(html, /data-snippet-video-album="e1"/);
   assert.match(html, /data-video-index="0"/);
+  assert.doesNotMatch(html, /data-play-snippet-video/);
   assert.match(html, /data-view-snippet-photo="e1"/);
   assert.match(html, /moment-spread-play/);
   assert.match(html, /play_arrow/);

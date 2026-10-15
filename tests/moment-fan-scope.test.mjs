@@ -221,7 +221,8 @@ test('待保存扇面带 data-fan-scope，导入不再全局扫描 .moment-sprea
   });
   assert.doesNotMatch(saved, /data-fan-scope/);
   assert.match(saved, /data-view-snippet-photo="saved-entry"/);
-  assert.match(saved, /data-play-snippet-video="saved-entry"/);
+  assert.match(saved, /data-snippet-video-album="saved-entry"/);
+  assert.doesNotMatch(saved, /data-play-snippet-video/);
 
   const source = await readFile(new URL('../views/snippets.js', import.meta.url), 'utf8');
   assert.doesNotMatch(source, /document\.querySelectorAll\(\s*['"]\.moment-spread['"]\s*\)/);

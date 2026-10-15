@@ -420,7 +420,7 @@ export function snippetForm(entry = null, requestedType = 'text', openCamera = f
   pendingSnippetVideos = [...(item.videos || [])];
   pendingSnippetStructure = { tags: [...(item.tags || [])], summary: item.summary || '' };
   snippetSuggestion = null;
-  modal(`<form id="snippet-form"><input type="hidden" name="id" value="${entry ? item.id : ''}"><input type="hidden" name="type" value="${item.type}"><span class="eyebrow">QUICK CAPTURE</span><h2>${entry ? '编辑' : '新增'}${item.type === 'photo' ? '随手拍' : '随手记'}</h2><label>日期</label><input name="date" type="date" required value="${item.date}">${item.type === 'photo' ? `<div class="snippet-photo-stage"><div id="snippet-photo-grid" class="snippet-photo-grid">${snippetPhotoGrid()}</div></div><label class="snippet-caption-label" for="snippet-photo-caption">图说</label><textarea id="snippet-photo-caption" name="text" maxlength="300" placeholder="写一句图说">${esc(item.text)}</textarea><div class="snippet-capture-bar" role="toolbar" aria-label="照片与视频"><div class="snippet-photo-actions"><button type="button" id="capture-snippet-photo" ${pendingSnippetPhotos.length >= SNIPPET_PHOTO_LIMIT ? 'disabled' : ''}><span class="material-symbols-outlined">photo_camera</span>${pendingSnippetPhotos.length ? '再拍' : '拍照'}</button><button type="button" id="pick-snippet-photo" ${pendingSnippetPhotos.length >= SNIPPET_PHOTO_LIMIT ? 'disabled' : ''}><span class="material-symbols-outlined">photo_library</span>${pendingSnippetPhotos.length ? '再选' : '选图'}</button></div><div class="snippet-photo-actions snippet-video-actions"><button type="button" id="capture-snippet-video" ${pendingSnippetVideos.length >= SNIPPET_PHOTO_LIMIT ? 'disabled' : ''}><span class="material-symbols-outlined">videocam</span>${pendingSnippetVideos.length ? '再拍视频' : '拍视频'}</button><button type="button" id="pick-snippet-video" ${pendingSnippetVideos.length >= SNIPPET_PHOTO_LIMIT ? 'disabled' : ''}><span class="material-symbols-outlined">video_library</span>导入视频</button></div></div><small class="field-help">一次最多 ${PHOTO_IMPORT_BATCH_LIMIT} 张，每条最多 ${SNIPPET_PHOTO_LIMIT} 张。</small><div class="snippet-video-head"><div><strong>视频</strong><small>已导入的片段</small></div></div><div id="snippet-video-grid" class="snippet-photo-grid">${snippetVideoGrid()}</div>` : `<div class="snippet-write-head"><label>记录内容</label>${micButtonHtml()}</div><textarea name="text" maxlength="2000" required placeholder="记下一句话、一个想法或稍后想写进日记的内容……">${esc(item.text)}</textarea>`}${aiStructureCard(item)}<div class="modal-actions"><button type="button" data-close>取消</button><button class="save">保存素材</button></div></form>`, 'snippet-form-modal');
+  modal(`<form id="snippet-form"><input type="hidden" name="id" value="${entry ? item.id : ''}"><input type="hidden" name="type" value="${item.type}"><span class="eyebrow">QUICK CAPTURE</span><h2>${entry ? '编辑' : '新增'}${item.type === 'photo' ? '随手拍' : '随手记'}</h2><label>日期</label><input name="date" type="date" required value="${item.date}">${item.type === 'photo' ? `<div class="snippet-photo-stage"><div id="snippet-photo-grid" class="snippet-photo-grid">${snippetPhotoGrid()}</div></div><label class="snippet-caption-label" for="snippet-photo-caption">图说</label><textarea id="snippet-photo-caption" name="text" maxlength="300" placeholder="写一句图说">${esc(item.text)}</textarea><div class="snippet-capture-bar" role="toolbar" aria-label="照片与视频"><div class="snippet-photo-actions"><button type="button" id="capture-snippet-photo" ${pendingSnippetPhotos.length >= SNIPPET_PHOTO_LIMIT ? 'disabled' : ''}><span class="material-symbols-outlined">photo_camera</span>${pendingSnippetPhotos.length ? '再拍' : '拍照'}</button><button type="button" id="pick-snippet-photo" ${pendingSnippetPhotos.length >= SNIPPET_PHOTO_LIMIT ? 'disabled' : ''}><span class="material-symbols-outlined">photo_library</span>${pendingSnippetPhotos.length ? '再选' : '选图'}</button></div><div class="snippet-photo-actions snippet-video-actions"><button type="button" id="capture-snippet-video" ${pendingSnippetVideos.length >= SNIPPET_PHOTO_LIMIT ? 'disabled' : ''}><span class="material-symbols-outlined">videocam</span>${pendingSnippetVideos.length ? '再拍视频' : '拍视频'}</button><button type="button" id="pick-snippet-video" ${pendingSnippetVideos.length >= SNIPPET_PHOTO_LIMIT ? 'disabled' : ''}><span class="material-symbols-outlined">video_library</span>导入视频</button></div></div><small class="field-help">一次最多 ${PHOTO_IMPORT_BATCH_LIMIT} 张，每条最多 ${SNIPPET_PHOTO_LIMIT} 张。</small><div class="snippet-video-head"><div><strong>视频</strong><small>已导入的片段</small></div></div><div id="snippet-video-grid" class="snippet-photo-grid">${snippetVideoGrid()}</div>` : `<div class="snippet-write-head"><label>记录内容</label>${micButtonHtml()}</div><textarea name="text" maxlength="2000" required placeholder="记下一句话、一个想法或稍后想写进日记的内容……">${esc(item.text)}</textarea>`}${aiStructureCard(item)}${snippetTagEditorHtml()}<div class="modal-actions"><button type="button" data-close>取消</button><button class="save">保存素材</button></div></form>`, 'snippet-form-modal');
   $('#capture-snippet-photo')?.addEventListener('click', () => pickSnippetPhoto(true).catch(error => show(error.message)));
   $('#pick-snippet-photo')?.addEventListener('click', () => pickSnippetPhoto(false).catch(error => show(error.message)));
   $('#capture-snippet-video')?.addEventListener('click', () => pickSnippetVideo(true).catch(error => show(error.message)));
@@ -428,6 +428,7 @@ export function snippetForm(entry = null, requestedType = 'text', openCamera = f
   bindSnippetPhotoGrid();
   bindSnippetVideoGrid();
   bindSnippetStructureActions(item);
+  bindSnippetTagEditor();
   snippetVoice = bindVoiceInput($('#snippet-form'), { input: () => $('textarea[name="text"]', $('#snippet-form')), onText: () => {} });
   $('#snippet-form [data-close]')?.addEventListener('click', () => { snippetVoice?.destroy(); snippetVoice = null; });
   if (openCamera && !entry) pickSnippetPhoto(true).catch(error => {
@@ -462,6 +463,8 @@ export function momentSpreadHtml(photos, options = {}) {
       lazy,
       progressive,
       livePhotos: interactive?.livePhotos,
+      /* 一条里不止一项时，时间线上的视频卡先翻牌，不直接进播放器。 */
+      browse: total > 1,
     });
   }).join('');
   const importingClass = importing ? ' is-importing' : '';
@@ -614,7 +617,7 @@ function momentSpreadFaceHtml(item, alt, { lazy = false, progressive = false } =
   return `<span class="${frameClass}">${inner}</span>${play}`;
 }
 
-function momentSpreadCardHtml(item, index, count, { more = '', interactive = null, lazy = false, progressive = false, livePhotos = null, alt = '' } = {}) {
+function momentSpreadCardHtml(item, index, count, { more = '', interactive = null, lazy = false, progressive = false, livePhotos = null, alt = '', browse = false } = {}) {
   const pose = momentFanPose(index, count);
   const style = `--i:${pose.i};--rot:${pose.rot}deg;--lift:${pose.lift}px;z-index:${pose.i + 1}`;
   const faceAlt = alt || (item.kind === 'video' ? `视频 ${item.index + 1}` : `待保存照片 ${item.index + 1}`);
@@ -624,7 +627,11 @@ function momentSpreadCardHtml(item, index, count, { more = '', interactive = nul
   const pending = interactive?.mode === 'pending';
   let hitAttr = '';
   let label = item.kind === 'video' ? `播放第 ${item.index + 1} 个视频` : `查看第 ${item.index + 1} 张照片`;
-  if (item.kind === 'video' && saved) hitAttr = ` data-play-snippet-video="${esc(interactive.entryId)}" data-video-index="${item.index}"`;
+  /* 已保存、且这一条有多张（多段视频或图+视频）：点视频卡先翻牌。只有一段视频时仍直接播放。导入中的待保存卡不走这里。 */
+  if (item.kind === 'video' && saved && browse) {
+    hitAttr = ` data-snippet-video-album="${esc(interactive.entryId)}" data-video-index="${item.index}"`;
+    label = `翻看第 ${item.index + 1} 段视频`;
+  } else if (item.kind === 'video' && saved) hitAttr = ` data-play-snippet-video="${esc(interactive.entryId)}" data-video-index="${item.index}"`;
   else if (item.kind === 'photo' && saved) hitAttr = ` data-view-snippet-photo="${esc(interactive.entryId)}" data-photo-index="${item.index}"`;
   else if (item.kind === 'video' && pending) hitAttr = ` data-play-pending-snippet-video="${item.index}"`;
   else label = '';
@@ -1201,12 +1208,17 @@ function scopedSnippetVideoRecords() {
 }
 
 let snippetPlaybackNeedsSave = false;
+let snippetSkipRemember = false;
 
 function rememberSnippetVideo(item, patch) {
+  if (snippetSkipRemember && !item?.pending) return;
   const video = item?.pending
     ? pendingSnippetVideos[item.videoIndex]
     : state.snippets.find(entry => entry.id === item?.entryId)?.videos?.[item.videoIndex];
   if (!video) return;
+  /* 删掉一段之后下标会前移。关播放器时如果这个槽已经不是刚才那一段，就不要把进度写到下一段上。 */
+  const expected = typeof item?.resolveSource === 'function' ? item.resolveSource() : '';
+  if (expected && video.video !== expected) return;
   // 只写进度和观看记录。播放地址（尤其是私密空间解密出来的 blob）不能进随手拍。
   const position = Math.max(0, Math.floor(Number(patch?.position) || 0));
   const duration = Math.max(0, Math.floor(Number(patch?.duration) || 0));
@@ -1227,9 +1239,87 @@ async function flushSnippetPlayback() {
   await save();
 }
 
+/* 标签：去掉开头的 #，去重，最多 8 个，每个最多 24 字。makeSnippet 保存时还会再夹一次。 */
+export function normalizeSnippetTags(value) {
+  const list = Array.isArray(value) ? value : [value];
+  const seen = new Set();
+  const tags = [];
+  for (const raw of list) {
+    const text = String(raw ?? '').trim().replace(/^#+/, '').trim().slice(0, 24);
+    if (!text || seen.has(text)) continue;
+    seen.add(text);
+    tags.push(text);
+    if (tags.length >= 8) break;
+  }
+  return tags;
+}
+
+/* 从一条随手拍拿掉一段视频。没有照片也没有视频时不能留空记录（加载时会被丢掉），整条删除。不碰媒体文件。 */
+export function snippetAfterVideoRemoval(entry, videoIndex) {
+  if (!entry) return { missing: true, dropped: false, entry: null };
+  const photos = entry.photos?.length ? [...entry.photos] : (entry.photo ? [entry.photo] : []);
+  const videos = Array.isArray(entry.videos) ? [...entry.videos] : [];
+  const index = Number(videoIndex);
+  if (!Number.isInteger(index) || index < 0 || index >= videos.length) return { missing: true, dropped: false, entry };
+  const nextVideos = videos.filter((_, itemIndex) => itemIndex !== index);
+  if (!photos.length && !nextVideos.length) return { missing: false, dropped: true, entry: null };
+  return {
+    missing: false,
+    dropped: false,
+    entry: makeSnippet({ ...entry, photos, videos: nextVideos, updatedAt: Date.now() })
+  };
+}
+
+export function snippetVideoDeletePrompt(entry, videoIndex) {
+  const plan = snippetAfterVideoRemoval(entry, videoIndex);
+  if (plan.dropped) return '这条随手拍只剩这段视频，继续会整条删除。';
+  return '从这条随手拍移除这段视频？';
+}
+
+async function deleteSavedSnippetVideo(sessionItem) {
+  if (!sessionItem || sessionItem.pending) return;
+  const entry = state.snippets.find(record => record.id === sessionItem.entryId);
+  if (!entry) return;
+  const videoIndex = Number(sessionItem.videoIndex);
+  const plan = snippetAfterVideoRemoval(entry, videoIndex);
+  if (plan.missing) return;
+  const albumOpen = isMomentAlbumOpen() && momentAlbumEntryId === entry.id;
+  const photos = entry.photos?.length ? entry.photos : (entry.photo ? [entry.photo] : []);
+  const removedAlbumIndex = photos.length + videoIndex;
+  if (plan.dropped) state.snippets = state.snippets.filter(record => record.id !== entry.id);
+  else {
+    const target = state.snippets.find(record => record.id === entry.id);
+    if (target) Object.assign(target, plan.entry);
+  }
+  /* 先改数据，再关播放器。播放器 id 是 entryId:index，删完下标会变，不能让会话接着写到下一段。 */
+  snippetSkipRemember = true;
+  try {
+    await Promise.resolve(callHelper('closeVideoPlayer'));
+    closeModal();
+  } finally {
+    snippetSkipRemember = false;
+  }
+  await save();
+  if (albumOpen) {
+    if (plan.dropped) closeMomentAlbum();
+    else {
+      const items = momentAlbumItems(plan.entry);
+      if (items.length < 2) closeMomentAlbum();
+      else {
+        if (momentAlbumIndex > removedAlbumIndex) momentAlbumIndex -= 1;
+        momentAlbumIndex = Math.max(0, Math.min(momentAlbumIndex, items.length - 1));
+        renderMomentAlbumStack(plan.entry);
+      }
+    }
+  }
+  render();
+  show(plan.dropped ? '已整条删除这条随手拍' : '已从这条随手拍移除这段视频');
+}
+
 function openSnippetVideos(records, startIndex = 0, scopeLabel = '随手拍') {
   const list = (records || []).filter(item => item?.video?.video);
   if (!list.length) return Promise.resolve(null);
+  const canDeleteSaved = list.some(item => item.entry && !item.pending);
   return openVideoSession({
     items: list.map(item => snippetSessionItem(item.video, item.entry, item.index, Boolean(item.pending))),
     startIndex,
@@ -1243,6 +1333,13 @@ function openSnippetVideos(records, startIndex = 0, scopeLabel = '随手拍') {
     sourceCache: plainVideoCache,
     remember: rememberSnippetVideo,
     flush: flushSnippetPlayback,
+    ...(canDeleteSaved ? {
+      deleteConfirmText: liveItem => snippetVideoDeletePrompt(
+        state.snippets.find(record => record.id === liveItem?.entryId),
+        liveItem?.videoIndex
+      ),
+      onDelete: liveItem => deleteSavedSnippetVideo(liveItem)
+    } : {}),
     currentItem: sessionItem => {
       if (sessionItem.pending) {
         const video = pendingSnippetVideos[sessionItem.videoIndex];
@@ -1749,7 +1846,7 @@ function episodePickerHtml(items, activeIndex, scopeTitle = '') {
 let feedRailOptions = {};
 function feedRailHtml(totalVideos, options = feedRailOptions) {
   // 本机相册与私密空间共用同一套工具条（2026-10-09 用户要求「全部功能对标」）。
-  // 删除按钮只在调用方提供 onDeleteCurrent（即传了 onDelete）时出现；文件夹按钮 showFolders:false 时隐藏（随手拍两者都不显示）。
+  // 删除按钮只在调用方提供 onDeleteCurrent（即传了 onDelete）时出现；文件夹按钮 showFolders:false 时隐藏。
   return `<nav class="vault-feed-bottom-tools" aria-label="视频工具"><button id="vault-feed-sound" aria-label="静音" aria-pressed="true"><span class="material-symbols-outlined" id="vault-feed-sound-icon">volume_up</span></button><button id="vault-feed-rate" aria-label="切换播放速度"><span class="material-symbols-outlined">speed</span></button><button id="vault-feed-history" aria-label="观看记录"><span class="material-symbols-outlined">history</span></button><button id="vault-feed-library" aria-label="资料库"><span class="material-symbols-outlined">collections</span></button>${options.showFolders !== false ? '<button id="vault-feed-folders" aria-label="文件夹"><span class="material-symbols-outlined">folder</span></button>' : ''}${totalVideos > 1 ? '<button id="vault-feed-episodes" aria-label="视频选集"><span class="material-symbols-outlined">video_library</span></button>' : ''}${typeof options.onDeleteCurrent === 'function' ? '<button id="vault-feed-delete" class="vault-feed-delete-button" aria-label="删除当前视频"><span class="material-symbols-outlined">delete</span></button>' : ''}<button id="vault-feed-landscape" class="warm-fullscreen-btn" hidden aria-label="横屏"><span class="material-symbols-outlined">screen_rotation</span></button></nav>`;
 }
 
@@ -2065,6 +2162,54 @@ function pickSnippetVideoWithInput(useCamera = false) {
 }
 
 // ---- AI 结构化建议 ----
+function snippetTagEditorHtml() {
+  return `<div class="snippet-tag-editor" id="snippet-tag-editor"><div class="snippet-tag-head"><div><strong>标签</strong><small>可手动添加或移除，最多 8 个</small></div></div><div class="snippet-tag-chips" id="snippet-tag-chips"></div><div class="snippet-tag-add"><input id="snippet-tag-input" maxlength="24" placeholder="输入标签，不用写 #" autocomplete="off" enterkeyhint="done"><button type="button" id="snippet-tag-add">添加</button></div></div>`;
+}
+
+function renderSnippetTagChips() {
+  const host = $('#snippet-tag-chips');
+  if (!host) return;
+  const tags = pendingSnippetStructure.tags;
+  host.innerHTML = tags.length
+    ? tags.map(tag => `<span class="snippet-tag-chip"><span>#${esc(tag)}</span><button type="button" class="snippet-tag-remove" data-remove-snippet-tag="${esc(tag)}" aria-label="移除标签 ${esc(tag)}"><span class="material-symbols-outlined" aria-hidden="true">close</span></button></span>`).join('')
+    : '<span class="snippet-tag-empty">还没有标签</span>';
+  host.querySelectorAll('[data-remove-snippet-tag]').forEach(button => {
+    button.onclick = () => {
+      const target = button.dataset.removeSnippetTag;
+      pendingSnippetStructure.tags = pendingSnippetStructure.tags.filter(tag => tag !== target);
+      renderSnippetTagChips();
+    };
+  });
+  const archived = $('#snippet-form .ai-structure-card.accepted .ai-structure-tags');
+  if (archived) archived.innerHTML = tags.map(tag => `<span class="ai-tag-chip read-only">#${esc(tag)}</span>`).join('');
+}
+
+function bindSnippetTagEditor() {
+  pendingSnippetStructure.tags = normalizeSnippetTags(pendingSnippetStructure.tags);
+  renderSnippetTagChips();
+  const addTag = () => {
+    const input = $('#snippet-tag-input');
+    const raw = input?.value || '';
+    const next = normalizeSnippetTags([...pendingSnippetStructure.tags, raw]);
+    if (String(raw).trim() && next.length === pendingSnippetStructure.tags.length) {
+      const cleaned = String(raw).trim().replace(/^#+/, '').trim().slice(0, 24);
+      if (!cleaned) show('标签不能为空');
+      else if (pendingSnippetStructure.tags.includes(cleaned)) show('这个标签已经有了');
+      else show('最多 8 个标签');
+      return;
+    }
+    pendingSnippetStructure.tags = next;
+    if (input) input.value = '';
+    renderSnippetTagChips();
+  };
+  $('#snippet-tag-add')?.addEventListener('click', addTag);
+  $('#snippet-tag-input')?.addEventListener('keydown', event => {
+    if (event.key !== 'Enter') return;
+    event.preventDefault();
+    addTag();
+  });
+}
+
 function bindSnippetStructureActions(item) {
   $('#ai-structure-run')?.addEventListener('click', () => runSnippetStructure(item).catch(error => show(error.message)));
   $('#ai-structure-result')?.addEventListener('click', event => bindSnippetStructureApply(item, event));
@@ -2117,7 +2262,8 @@ function bindSnippetStructureApply(item, event) {
 async function adoptSnippetStructure(item, { tags = [], todos = [], summary = '' } = {}) {
   const accepted = { summary: '' };
   if (tags.length) {
-    pendingSnippetStructure.tags = [...new Set([...pendingSnippetStructure.tags, ...tags])].slice(0, 8);
+    pendingSnippetStructure.tags = normalizeSnippetTags([...pendingSnippetStructure.tags, ...tags]);
+    renderSnippetTagChips();
     const existing = state.snippets.find(entry => entry.id === item.id);
     if (existing) existing.tags = pendingSnippetStructure.tags;
     show(`已采纳 ${tags.length} 个标签`);
@@ -2584,6 +2730,26 @@ function momentAlbumItems(entry) {
   return items;
 }
 
+/* 翻牌从哪一张开始。数字表示照片下标；{ kind, index } 用来对准点开的那一段视频。 */
+export function momentAlbumFocusIndex(items, focus) {
+  const list = Array.isArray(items) ? items : [];
+  if (focus && typeof focus === 'object') {
+    const kind = focus.kind === 'video' ? 'video' : 'photo';
+    const index = Number(focus.index) || 0;
+    const found = list.findIndex(item => item.kind === kind && item.index === index);
+    return found >= 0 ? found : 0;
+  }
+  const photoIndex = Number(focus) || 0;
+  const found = list.findIndex(item => item.kind === 'photo' && item.index === photoIndex);
+  return found >= 0 ? found : 0;
+}
+
+function momentAlbumCoverRef(item) {
+  if (!item) return '';
+  if (item.kind === 'video') return momentCoverFace(item.video?.poster || '', item.video?.video || '');
+  return item.photo || '';
+}
+
 /** 动效档位：none = 系统减弱动态；lite = 低端机（只留位移，不跟手推后牌、不倾斜）；rich = 完整。 */
 function momentAlbumTier() {
   if (prefersReducedMotion()) return 'none';
@@ -2686,13 +2852,14 @@ function momentAlbumCardHtml(item, entry, depth) {
   const kindClass = item.kind === 'video' ? ' is-video' : '';
   let media = '';
   if (item.kind === 'video') {
-    const video = item.video;
+    const video = item.video || {};
     const hls = video.sourceType === 'hls' || isHlsAddress(video.video);
-    const poster = video.poster ? imgSrc(video.poster) : '';
+    const face = momentCoverFace(video.poster || '', video.video || '');
+    const poster = face ? imgSrc(face) : '';
     media = poster
       ? photoFrameLayersHtml(poster, { alt: entry.text || `视频 ${item.index + 1}`, padClass: 'moment-album-blur', stillClass: 'moment-album-still' })
-      : `<span class="moment-album-empty material-symbols-outlined">${hls ? 'stream' : 'movie'}</span>`;
-    media += `<span class="moment-album-play" aria-hidden="true"><span class="material-symbols-outlined">play_arrow</span></span>${videoDurationStamp(video)}`;
+      : `<span class="moment-album-empty material-symbols-outlined" aria-hidden="true">${hls ? 'stream' : 'movie'}</span>`;
+    media += `<span class="moment-album-play" aria-hidden="true"><span class="material-symbols-outlined" aria-hidden="true">play_arrow</span></span>${videoDurationStamp(video)}`;
   } else {
     media = `${snippetPhotoImage(item.photo, entry.text || `随手拍 ${item.index + 1}`)}${photoHasLiveMark(item.photo, entry.livePhotos)}`;
   }
@@ -2735,6 +2902,15 @@ function renderMomentAlbumStack(entry) {
 function momentAlbumUpdateCounter(count) {
   const counter = $('#moment-album-layer')?.querySelector('#moment-album-counter');
   if (counter) counter.textContent = `${momentAlbumIndex + 1} / ${count}`;
+  syncMomentAlbumRemove();
+}
+
+function syncMomentAlbumRemove() {
+  const button = $('#moment-album-remove');
+  if (!button) return;
+  const entry = state.snippets.find(item => item.id === momentAlbumEntryId);
+  const current = entry ? momentAlbumItems(entry)[momentAlbumIndex] : null;
+  button.hidden = current?.kind !== 'video';
 }
 
 function momentAlbumCardNode(item, entry, depth) {
@@ -2978,8 +3154,7 @@ function openMomentAlbumBrowse(entry, focusPhotoIndex = 0, originEl = null) {
   momentAlbumEntryId = entry.id;
   const active = typeof document === 'object' ? document.activeElement : null;
   momentAlbumOrigin = originEl || (active?.closest?.('[data-view-snippet-photo]') ? active : null);
-  const focusPos = items.findIndex(item => item.kind === 'photo' && item.index === (Number(focusPhotoIndex) || 0));
-  momentAlbumIndex = focusPos >= 0 ? focusPos : 0;
+  momentAlbumIndex = momentAlbumFocusIndex(items, focusPhotoIndex);
   const time = entry.createdAt ? new Date(entry.createdAt) : null;
   const timeText = time ? `${time.getFullYear()}年${time.getMonth() + 1}月${time.getDate()}日 · ${pad2(time.getHours())}:${pad2(time.getMinutes())}` : (entry.date || '');
   const tag = (entry.tags || [])[0];
@@ -2997,9 +3172,23 @@ function openMomentAlbumBrowse(entry, focusPhotoIndex = 0, originEl = null) {
     </header>
     ${entry.text ? `<p class="moment-album-caption">${esc(entry.text)}</p>` : ''}
     <div class="moment-album-stage" id="moment-album-stage"><div class="moment-album-stack" id="moment-album-stack"></div></div>
-    <div class="moment-album-foot"><span class="moment-album-hint">轻触看大图 · 左右拖动翻下一张</span><small class="moment-album-counter" id="moment-album-counter"></small></div>
+    <div class="moment-album-foot"><span class="moment-album-hint">轻触看大图 · 左右拖动翻下一张</span><button type="button" class="moment-album-remove" id="moment-album-remove" hidden><span class="material-symbols-outlined" aria-hidden="true">delete</span>移除这段视频</button><small class="moment-album-counter" id="moment-album-counter"></small></div>
   </div>`;
   layer.onclick = event => { if (event.target === layer || event.target.closest?.('[data-moment-album-close]')) closeMomentAlbum(); };
+  layer.querySelector('#moment-album-remove')?.addEventListener('click', () => {
+    const currentEntry = state.snippets.find(item => item.id === momentAlbumEntryId);
+    const current = currentEntry ? momentAlbumItems(currentEntry)[momentAlbumIndex] : null;
+    if (!currentEntry || current?.kind !== 'video') return;
+    const dropped = snippetAfterVideoRemoval(currentEntry, current.index).dropped;
+    confirmDelete(snippetVideoDeletePrompt(currentEntry, current.index), () => deleteSavedSnippetVideo({
+      entryId: currentEntry.id,
+      videoIndex: current.index
+    }), {
+      title: dropped ? '整条删除' : '移除视频',
+      note: '文件不会直接删掉，快照和 7 天回收会留着。',
+      confirmText: dropped ? '整条删除' : '移除'
+    });
+  });
   renderMomentAlbumStack(entry);
   bindMomentAlbumDeck(layer);
 
@@ -3032,8 +3221,10 @@ function openMomentMediaBrowse(entry, photoIndex = 0, originEl = null) {
   if (!entry) return;
   const items = momentAlbumItems(entry);
   if (items.length > 1) {
-    const refs = items.map(item => (item.kind === 'video' ? item.video?.poster : item.photo)).filter(Boolean);
-    const rotated = refs.slice(photoIndex).concat(refs.slice(0, photoIndex));
+    const start = momentAlbumFocusIndex(items, photoIndex);
+    const refs = items.map(momentAlbumCoverRef).filter(Boolean);
+    const at = Math.max(0, refs.indexOf(momentAlbumCoverRef(items[start])));
+    const rotated = refs.slice(at).concat(refs.slice(0, at));
     return preloadMomentAlbumImages(rotated).then(() => openMomentAlbumBrowse(entry, photoIndex, originEl));
   }
   if (items[0]?.kind === 'video') return openSavedSnippetVideo(entry, items[0].index);
@@ -3079,7 +3270,13 @@ function bindSnippets() {
     const entry = state.snippets.find(item => item.id === button.dataset.viewSnippetPhoto);
     openMomentMediaBrowse(entry, Number(button.dataset.photoIndex) || 0, button);
   });
-  $$('[data-snippet-video-album]').forEach(button => button.onclick = () => { const entry = state.snippets.find(item => item.id === button.dataset.snippetVideoAlbum); openMomentMediaBrowse(entry, 0, button); });
+  $$('[data-snippet-video-album]').forEach(button => button.onclick = () => {
+    const entry = state.snippets.find(item => item.id === button.dataset.snippetVideoAlbum);
+    const focus = button.hasAttribute('data-video-index')
+      ? { kind: 'video', index: Number(button.dataset.videoIndex) || 0 }
+      : 0;
+    openMomentMediaBrowse(entry, focus, button);
+  });
   $$('[data-play-snippet-video]').forEach(button => button.onclick = () => {
     const entry = state.snippets.find(item => item.id === button.dataset.playSnippetVideo);
     const index = Number(button.dataset.videoIndex) || 0;
