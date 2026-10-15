@@ -49,7 +49,11 @@ export const prefersReducedMotion = () =>
 const explicitMotion = () => (typeof document === 'undefined' ? '' : document.documentElement?.dataset?.plMotionExplicit || '');
 const canAnimate = () => {
   const explicit = explicitMotion();
-  if (explicit === 'rich') return typeof document === 'undefined' || !document.hidden;
+  /* 用户显式选了「始终完整」：完全按他的意思来，不再叠加任何条件。
+     ⚠️ 2026-10-15：用户点了「始终完整」后仍旧看不到筛选/✕ 那些互动动效，而它们正是走这条判断的。
+        安卓 WebView 的 `document.hidden` 有不可靠的时候，所以这一档不再看它 ——
+        宁可偶尔在后台多跑一次动画，也不能让用户选了"完整"却什么都没发生。 */
+  if (explicit === 'rich') return true;
   if (explicit === 'none') return false;
   return !prefersReducedMotion() && typeof document !== 'undefined' && !document.hidden;
 };

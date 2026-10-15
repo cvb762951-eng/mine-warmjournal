@@ -269,6 +269,7 @@ function syncTier() {
     '' → 跟随系统（默认）；'full' → 始终完整（压过系统的"减弱动态效果"）；'off' → 关闭（最省电）。
     ⚠️ 写的是 `data-pl-motion-explicit` —— motion.js 的 canAnimate() 也认这一个口子，
       所以"完整"是真的完整，不只是 CSS 那边不关。 */
+let motionPreferenceWatch = false;
 export function applyMotionPreference(preference = '') {
   if (!root) return;
   const value = ['full', 'off'].includes(preference) ? preference : '';
@@ -277,6 +278,23 @@ export function applyMotionPreference(preference = '') {
   else delete root.dataset.plMotionExplicit;
   tierOwned = true;      // 用户的显式选择由我们来写，不许被后面的自动判定盖掉
   syncTier();
+  /* 兜底：切回前台时再确认一次档位没被别的东西写回去（安卓 WebView 上宁可多写一次）。 */
+  if (!motionPreferenceWatch && typeof document !== 'undefined') {
+    motionPreferenceWatch = true;
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) syncTier(); });
+  }
+}
+
+/** 当前真实生效的档位（设置界面里显示给人看，也方便排查"点了没生效"）。 */
+export function describeMotionState() {
+  const tier = root?.dataset?.plMotion || '';
+  const explicit = root?.dataset?.plMotionExplicit || '';
+  let reduced = false;
+  try { reduced = root?.ownerDocument?.defaultView?.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches === true; } catch { /* 忽略 */ }
+  if (tier === 'rich') return explicit === 'rich' ? '现在：动画已全部打开（已压过手机的「减弱动态效果」）' : '现在：动画已全部打开';
+  if (tier === 'none') return reduced ? '现在：被手机的「减弱动态效果」关着' : '现在：动画已关闭';
+  if (tier === 'lite') return '现在：轻量动效（设备或会话降档）';
+  return '现在：动画已全部打开';
 }
 
 /** 测试与调试用：现在到底是哪一档。 */

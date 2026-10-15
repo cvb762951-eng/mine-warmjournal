@@ -271,6 +271,17 @@ async function boot() {
     /* 动效偏好要尽早上 —— 系统「减弱动态效果」会把动画全关，用户选了「始终完整」就得压过去。
        ⚠️ 必须在这里（读完设置之后）调一次，否则那一整段都是按系统开关走的。 */
     applyMotionPreference(state.settings?.motionPreference);
+    /* 手机开着「减弱动态效果」而用户还没做过选择时，提一次怎么开 —— 否则他会以为 App 就是没动效。
+       只说一次（motionHintSeen），而且只提示、不替他改设置。 */
+    (() => {
+      if (state.settings?.motionPreference || state.settings?.motionHintSeen) return;
+      let reduced = false;
+      try { reduced = globalThis.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches === true; } catch { return; }
+      if (!reduced) return;
+      state.settings.motionHintSeen = true;
+      save().catch(() => {});
+      setTimeout(() => show('手机的「减弱动态效果」关掉了 App 的动画 · 想全开：我的 → 外观与偏好 → 动效 → 始终完整'), 1400);
+    })();
     recoverJournalDraftCache(state);
     // 版本更新：说明仍整份入库；当天活动只钉刚升级到的这一版（见 release-activity.js）。
     ensureReleaseActivities(state);

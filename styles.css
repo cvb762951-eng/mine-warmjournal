@@ -9788,6 +9788,26 @@ body #modal-layer .modal.confirm-sheet .modal-actions .danger { padding: 0 16px 
 .moment-album-stack.is-flip-prev { animation: momentAlbumFlipPrev .28s var(--spring-entrance, cubic-bezier(0.22, 1, 0.36, 1)) both; }
 @keyframes momentAlbumFlipNext { from { transform: translate3d(18%, 0, 0); opacity: .4; } to { transform: none; opacity: 1; } }
 @keyframes momentAlbumFlipPrev { from { transform: translate3d(-18%, 0, 0); opacity: .4; } to { transform: none; opacity: 1; } }
+
+/* ── 打开随手拍相册的进入动效（2026-10-15 用户要的）───────────────────────
+   以前这一层是 display:none → flex，直接「啪」地出现，没有进入动效。
+   现在：暗底淡入 + 那张纸片从下方轻轻托起来（回弹收尾）。
+   ⚠️ **不要去动 .moment-album-card 的 transform** —— 后两张牌靠 depth 的
+      translate/scale/opacity 露出边角（见下面 [data-depth] 那几条），
+      给牌加 transform 动画会把露边压平。所以进入动效只做「整体淡入 + 纸片起落」。
+   ⚠️ 只动 opacity / transform；低端机（data-pl-motion="none"）与系统减弱动效时整段关掉
+      （减弱动效那段的 :root:not([data-pl-motion-explicit="rich"]) 是给用户「始终完整」留的路）。 */
+@keyframes momentAlbumBackdropIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes momentAlbumSheetIn {
+  from { opacity: 0; transform: translate3d(0, 18px, 0) scale(0.94); }
+  to { opacity: 1; transform: none; }
+}
+:root:not([data-pl-motion="none"]) .moment-album-layer.open { animation: momentAlbumBackdropIn 200ms var(--ease-ios, cubic-bezier(0.32, 0.72, 0, 1)) both; }
+:root:not([data-pl-motion="none"]) .moment-album-layer.open .moment-album-sheet { animation: momentAlbumSheetIn 380ms var(--ease-spring, cubic-bezier(0.34, 1.56, 0.64, 1)) both; }
+@media (prefers-reduced-motion: reduce) {
+  :root:not([data-pl-motion-explicit="rich"]) .moment-album-layer.open,
+  :root:not([data-pl-motion-explicit="rich"]) .moment-album-layer.open .moment-album-sheet { animation: none !important; }
+}
 .moment-album-card {
   position: absolute;
   inset: 18px 12px 10px;

@@ -354,7 +354,9 @@ test('动效开关：选「始终完整」要压过系统的减弱动效，并�
   assert.match(src, /root\.dataset\.plMotionExplicit = 'none'/);
 
   // ③ JS 那层也要认（筛选 FLIP、✕ 退场、扫动/弹层物理全看 canAnimate）
-  assert.match(motion, /explicit === 'rich'[\s\S]{0,120}!document\.hidden/, 'canAnimate 要认“完整”');
+  /* 2026-10-15 下午修正：「始终完整」要**完全**按用户的意思来 —— 不再叠加"页面不在前台"这类条件。
+     用户在安卓上点了"始终完整"却还是看不到筛选/✕ 的动效，就是因为那一档当时还看着 document.hidden。 */
+  assert.match(motion, /if \(explicit === 'rich'\) return true;/, '「始终完整」要无条件放行');
   assert.match(motion, /explicit === 'none'[\s\S]{0,80}return false/, 'canAnimate 要认“关闭”');
 
   // ④ 设置界面里能选到（我的 → 外观与偏好 → 动效）

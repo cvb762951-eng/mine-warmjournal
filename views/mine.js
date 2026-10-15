@@ -8,7 +8,7 @@ import { aiKeyStorageMode } from '../ai-key-vault.js';
 import { clearJournalDraftCache } from '../journal-drafts.js';
 import { clearThumbCache } from '../photo-thumbs.js';
 import { Capacitor } from '@capacitor/core';
-import { applyMotionPreference } from '../motion-layers.js';
+import { applyMotionPreference, describeMotionState } from '../motion-layers.js';
 import { describeReminderStatus } from './reminder-status.js';
 import { getReminderStatus, openExactAlarmSettings, openNotificationSettings } from '../notifications.js';
 
@@ -388,10 +388,13 @@ function selectTheme(theme) {
 /** 动效设置：三个选择，点一下立即生效（和主题一样，不用按保存）。 */
 function motionForm() {
   const current = MOTION_CHOICES.includes(state.settings?.motionPreference) ? state.settings.motionPreference : '';
-  modal(`<form id="motion-form"><span class="eyebrow">MOTION</span><h2>动效</h2><p class="subtle">手机的「减弱动态效果」会把 App 里的动画全部关掉。想让它一直好看，就选「始终完整」。</p><div class="background-fit-control">${MOTION_CHOICES.map(value => `<label class="background-fit-option"><input type="radio" name="motionPreference" value="${value}" ${current === value ? 'checked' : ''}><span><strong>${MOTION_LABELS[value]}</strong><small>${MOTION_HINTS[value]}</small></span></label>`).join('')}</div><div class="modal-actions"><button type="button" data-close>完成</button></div></form>`, 'motion-modal');
+  modal(`<form id="motion-form"><span class="eyebrow">MOTION</span><h2>动效</h2><p class="subtle">手机的「减弱动态效果」会把 App 里的动画全部关掉。想让它一直好看，就选「始终完整」。</p><div class="background-fit-control">${MOTION_CHOICES.map(value => `<label class="background-fit-option"><input type="radio" name="motionPreference" value="${value}" ${current === value ? 'checked' : ''}><span><strong>${MOTION_LABELS[value]}</strong><small>${MOTION_HINTS[value]}</small></span></label>`).join('')}</div><p class="subtle" id="motion-state-line" aria-live="polite">${esc(describeMotionState())}</p><div class="modal-actions"><button type="button" data-close>完成</button></div></form>`, 'motion-modal');
   $$('#motion-form input[name="motionPreference"]').forEach(input => input.addEventListener('change', async () => {
     state.settings.motionPreference = input.value;
     applyMotionPreference(input.value);
+    // 当场把"现在到底生效没有"写出来 —— 点完看不见变化时，这一行就是判据
+    const line = $('#motion-state-line');
+    if (line) line.textContent = describeMotionState();
     try {
       await save();
     } catch (error) {
