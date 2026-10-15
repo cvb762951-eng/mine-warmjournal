@@ -25,18 +25,26 @@ export function habitHeadLimit(duration) {
 }
 
 export const WEEK_DAYS = ['日', '一', '二', '三', '四', '五', '六'];
-export const TASTE_TYPES = {
-  dish: { label: '菜品', icon: 'restaurant' },
-  snack: { label: '零食饮料', icon: 'cookie' },
-  place: { label: '店铺', icon: 'storefront' }
+// 吃喝记录（2026-10-15 由「味觉档案」升级而来）：一顿一条，餐次只是分类标签。
+// 用户明确「不要强制记录」——餐次用于归类和筛选，不表示每天都要记满。
+// ⚠️ 这里刻意不给餐次配图标：图标字体是本地子集（fonts/ms-65.woff2），
+// 没进子集的图标名会退化成一串字面文字撑开界面（AGENTS.md §3），所以餐次一律用文字。
+export const TASTE_MEALS = {
+  breakfast: { label: '早餐', order: 1 },
+  lunch: { label: '午餐', order: 2 },
+  dinner: { label: '晚餐', order: 3 },
+  snack: { label: '加餐', order: 4 },
+  drink: { label: '喝的', order: 5 }
 };
+// 对食物的态度只留三档。旧版五档（挚爱/再来/一般/不再买/避雷）在 makeTasteEntry 里归一化到这里。
 export const TASTE_VERDICTS = {
-  favorite: { label: '非常喜欢', short: '挚爱', icon: 'favorite' },
-  again: { label: '还会再吃', short: '再来', icon: 'replay' },
-  okay: { label: '感觉一般', short: '一般', icon: 'remove' },
-  no: { label: '不会再买', short: '不再买', icon: 'block' },
-  avoid: { label: '需要避雷', short: '避雷', icon: 'warning' }
+  good: { label: '好吃' },
+  okay: { label: '还行' },
+  bad: { label: '不合口味' }
 };
+export const TASTE_LEGACY_VERDICTS = { favorite: 'good', again: 'good', okay: 'okay', no: 'bad', avoid: 'bad' };
+export const tasteMealOrder = meal => TASTE_MEALS[meal]?.order ?? 9;
+export const tasteMealLabel = meal => TASTE_MEALS[meal]?.label || '记录';
 export const MOODS = {
   happy: { label: '开心', symbol: '😊' },
   calm: { label: '平静', symbol: '😌' },
@@ -669,50 +677,55 @@ export function makeSnippet(input = {}) {
 
 export function makeTasteEntry(input = {}) {
   const createdAt = Number(input.createdAt) || Date.now();
-  const type = Object.hasOwn(TASTE_TYPES, input.type) ? input.type : 'dish';
-  const verdict = Object.hasOwn(TASTE_VERDICTS, input.verdict) ? input.verdict : 'again';
+  const meal = Object.hasOwn(TASTE_MEALS, input.meal) ? input.meal : '';
+  const rawVerdict = String(input.verdict || '');
+  const verdict = Object.hasOwn(TASTE_VERDICTS, rawVerdict)
+    ? rawVerdict
+    : TASTE_LEGACY_VERDICTS[rawVerdict] || 'good';
   const photos = Array.isArray(input.photos)
     ? [...new Set(input.photos.map(item => isLocalImage(item) ? String(item) : '').filter(Boolean))].slice(0, 6)
     : [];
   return {
     id: String(input.id || crypto.randomUUID()),
-    type,
+    meal,
     name: String(input.name || '').trim().slice(0, 80),
-    placeName: String(input.placeName || '').trim().slice(0, 80),
-    brand: String(input.brand || '').trim().slice(0, 80),
     date: /^\d{4}-\d{2}-\d{2}$/.test(String(input.date || '')) ? String(input.date) : dateKey(new Date(createdAt)),
-    rating: clamp(Math.round(Number(input.rating) || 0), 0, 5),
     verdict,
-    price: clampAmount(input.price),
-    location: String(input.location || '').trim().slice(0, 120),
-    flavorTags: normalizeStringArray(input.flavorTags, 12, 24),
     notes: String(input.notes || '').trim().slice(0, 1200),
     photos,
     ledgerTransactionId: String(input.ledgerTransactionId || '').trim().slice(0, 120),
+    // —— 以下为「味觉档案」时期的字段 ——
+    // 2026-10-15 升级为吃喝记录后，界面不再展示这几项（用户要求移除）。
+    // 但仍原样保留在原记录里，避免升级动作把用户已有的评分/店铺/价格数据抹掉；
+    // 新记录不再采集，值为 0 / 空。恢复展示只需改视图，数据还在。
+    rating: clamp(Math.round(Number(input.rating) || 0), 0, 5),
+    price: clampAmount(input.price),
+    placeName: String(input.placeName || '').trim().slice(0, 80),
+    brand: String(input.brand || '').trim().slice(0, 80),
+    location: String(input.location || '').trim().slice(0, 120),
+    flavorTags: normalizeStringArray(input.flavorTags, 12, 24),
     createdAt,
     updatedAt: Number(input.updatedAt) || createdAt
   };
 }
 
-export function tastePlaceGroups(entries = []) {
+// 按天给吃喝记录分组，组内先按餐次、再按记录时间倒序。
+// 旧记录没有餐次（meal 为空），排在有餐次的记录后面，仍按时间倒序。
+export function tasteDayGroups(entries = []) {
   const groups = new Map();
   for (const entry of entries) {
-    const name = String(entry?.type === 'place' ? entry.name : entry?.placeName || '').trim();
-    if (!name) continue;
-    const key = name.toLocaleLowerCase('zh-CN');
-    const group = groups.get(key) || { key, name, entries: [], totalRating: 0, rated: 0, latestAt: 0 };
-    group.entries.push(entry);
-    if (entry.rating) { group.totalRating += entry.rating; group.rated += 1; }
-    group.latestAt = Math.max(group.latestAt, Number(entry.updatedAt) || Number(entry.createdAt) || 0);
-    groups.set(key, group);
+    const day = String(entry?.date || '');
+    if (!day) continue;
+    if (!groups.has(day)) groups.set(day, []);
+    groups.get(day).push(entry);
   }
-  return [...groups.values()].map(group => ({
-    ...group,
-    averageRating: group.rated ? Math.round(group.totalRating * 10 / group.rated) / 10 : 0,
-    favorites: group.entries.filter(entry => ['favorite', 'again'].includes(entry.verdict)).length,
-    avoid: group.entries.filter(entry => entry.verdict === 'avoid').length,
-    cover: group.entries.find(entry => entry.photos?.length)?.photos?.[0] || ''
-  })).sort((a, b) => b.latestAt - a.latestAt || a.name.localeCompare(b.name, 'zh-CN'));
+  return [...groups.entries()]
+    .map(([date, items]) => ({
+      date,
+      entries: [...items].sort((a, b) => tasteMealOrder(a.meal) - tasteMealOrder(b.meal)
+        || (Number(b.createdAt) || 0) - (Number(a.createdAt) || 0))
+    }))
+    .sort((a, b) => b.date.localeCompare(a.date));
 }
 
 function normalizeLocalGalleryProgress(value) {

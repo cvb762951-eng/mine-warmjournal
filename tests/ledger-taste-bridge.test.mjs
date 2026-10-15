@@ -55,11 +55,22 @@ test('taste bridge never asks twice for the same transaction', () => {
 
 test('taste bridge only offers for food expenses and refuses to invent data', () => {
   assert.match(bridgeSource, /transaction\.type !== 'expense'\) return false/, '非支出不询问');
-  // 猜不出名字时用占位提示，不编造店名或菜名
-  assert.match(bridgeSource, /const suggestedName = name \|\| '这道菜'/, '猜不出名字时用中性占位');
+  // 猜不出吃了什么时留空让用户自己填，不编造菜名或店名
+  assert.match(bridgeSource, /const suggestedName = guessNames\(transaction\)/, '名字只从备注里取，取不到就留空');
+  assert.match(bridgeSource, /if \(!note\) return '';/, '备注为空时不猜');
   assert.doesNotMatch(bridgeSource, /guess[\s\S]{0,400}?placeName: ['"][^'"]+['"]\s*[,}]/, '不得凭空生成店名');
   // 用户没填名字时不写入
   assert.match(bridgeSource, /if \(!entry \|\| !entry\.name\) \{/, '必须填了吃了什么才写入');
+});
+
+test('taste bridge 只问吃喝记录界面上的字段，不再问星级、店名和价格', () => {
+  assert.match(bridgeSource, /class="taste-meal-picker"/, '弹窗里应有餐次选择');
+  assert.match(bridgeSource, /class="taste-verdict-picker"/, '弹窗里应有态度选择');
+  assert.match(bridgeSource, /MEAL_KEYS\.map/, '餐次来自模型的枚举，不写死');
+  assert.match(bridgeSource, /VERDICT_KEYS\.map/, '态度来自模型的枚举，不写死');
+  assert.doesNotMatch(bridgeSource, /taste-star|name="rating"/, '星级选择器已随升级移除');
+  assert.doesNotMatch(bridgeSource, /price:\s*transaction\.amount/, '金额交给账本本身，不再复制进吃喝记录');
+  assert.doesNotMatch(bridgeSource, /placeName:\s*transaction/, '不再从账目里编店名');
 });
 
 test('both ledger save paths offer the taste archive for new food expenses', () => {

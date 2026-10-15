@@ -1,4 +1,4 @@
-import { habitProgressForDate, TASTE_VERDICTS } from './model.js';
+import { habitProgressForDate, tasteMealLabel, TASTE_VERDICTS } from './model.js';
 
 const pad = value => String(value).padStart(2, '0');
 const dayOf = timestamp => { const date=new Date(timestamp); return `${date.getFullYear()}-${pad(date.getMonth()+1)}-${pad(date.getDate())}`; };
@@ -23,7 +23,7 @@ export function rebuildActivityLog(state) {
   for(const todo of state.todos||[]) if(todo.completed&&todo.completedAt) events.push(event({id:`todo:${todo.id}`,kind:'todo',date:todo.completedDate||dayOf(todo.completedAt),timestamp:todo.completedAt,title:todo.title,summary:'已完成',sourceId:todo.id}));
   for(const [date,values] of Object.entries(state.habitCompletions||{})) for(const [habitId,timestamp] of Object.entries(values)){const habit=state.habits.find(item=>item.id===habitId);if(habit)events.push(event({id:`habit:${date}:${habitId}`,kind:'habit',date,timestamp,title:habit.name,summary:`完成 ${habitProgressForDate(state,habit,date)}${habit.unit}`,sourceId:habitId}));}
   for(const snippet of state.snippets||[]) events.push(event({id:`snippet:${snippet.id}`,kind:snippet.type==='photo'?'photo':'note',date:snippet.date,timestamp:snippet.createdAt,title:snippet.type==='photo'?'随手拍':'随手记',summary:snippet.text||(snippet.photos?.length>1?`保存了 ${snippet.photos.length} 张照片`:'保存了一张照片'),sourceId:snippet.id,media:(snippet.photos?.[0])||snippet.photo||''}));
-  for(const taste of state.tasteEntries||[]) events.push(event({id:`taste:${taste.id}`,kind:'taste',date:taste.date,timestamp:taste.createdAt,title:taste.name,summary:[TASTE_VERDICTS[taste.verdict]?.label,taste.placeName||taste.brand].filter(Boolean).join(' · '),sourceId:taste.id,media:taste.photos?.[0]||''}));
+  for(const taste of state.tasteEntries||[]) events.push(event({id:`taste:${taste.id}`,kind:'taste',date:taste.date,timestamp:taste.createdAt,title:taste.name,summary:[tasteMealLabel(taste.meal),TASTE_VERDICTS[taste.verdict]?.label].filter(Boolean).join(' · '),sourceId:taste.id,media:taste.photos?.[0]||''}));
   for(const [date,journal] of Object.entries(state.journals||{})) events.push(event({id:`journal:${date}`,kind:'journal',date,timestamp:journal.updatedAt,title:'生活日记',summary:String(journal.content||'').slice(0,80)||'记录了心情与生活',sourceId:date}));
   // 版本更新只显示刚升级到的那一版（settings.timelineRelease*）。
   // state.releases 里的历史说明保留给「更新记录」，不回放进生活流。

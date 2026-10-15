@@ -1,5 +1,5 @@
 import { $, $$, esc, state, save, render, modal, closeModal, emptyState, go, avatarContent, imgSrc, registerView, registerBinder, callHelper, pushBackState, pad, show } from '../core.js';
-import { habitsForDate, todosForDate, todayCompletion, activeStreak, dateKey, WEEK_DAYS, habitProgressForDate, habitGoalMet, formatShanghaiClock } from '../model.js';
+import { habitsForDate, todosForDate, todayCompletion, activeStreak, dateKey, WEEK_DAYS, habitProgressForDate, habitGoalMet, formatShanghaiClock, tasteMealOrder, tasteMealLabel } from '../model.js';
 import { recentActivity, openReleaseNotes } from './common.js';
 import { countdownBanner } from './countdown.js';
 import { isSupportedJournalPhoto } from '../photo-utils.js';
@@ -120,6 +120,9 @@ export function todayView() {
     { action: 'library', icon: 'auto_stories', label: '书影音', color: '#6b5e51' }
   ];
   const customCover = state.settings?.todayCoverImage || '';
+  const todayMeals = (state.tasteEntries || [])
+    .filter(entry => entry.date === day)
+    .sort((a, b) => tasteMealOrder(a.meal) - tasteMealOrder(b.meal) || (Number(a.createdAt) || 0) - (Number(b.createdAt) || 0));
   return `<section class="view today-view">
     <div class="today-editorial-cover">
       <span class="editorial-paperclip-corner" aria-hidden="true"></span>
@@ -160,6 +163,7 @@ export function todayView() {
         <button type="button" class="bento-card-footer" id="new-todo"><span>新增今日待办</span><span class="material-symbols-outlined">add</span></button>
       </div>
     </div>
+    ${todayMealsHtml(todayMeals)}
     <section class="today-life-stream-section">
       <div class="today-section-layer-header life-stream-heading"><span class="section-layer-title-wrap"><span class="section-layer-title">Life Stream / 当天活动</span></span><button type="button" class="section-layer-more" id="life-stream-more">更多 <span class="material-symbols-outlined">chevron_right</span></button></div>
       <div class="timeline" id="today-timeline-stream">${recent.length ? recent.map(timelineNode).join('') : `<div class="life-stream-empty"><span class="life-stream-empty-icon"><span class="life-stream-glyph material-symbols-outlined" aria-hidden="true">history_toggle_off</span></span><span><strong>今天还很安静</strong><small>完成一次专注、打卡或记录后，时光会在这里留下足迹</small></span></div>`}</div>
@@ -169,6 +173,16 @@ export function todayView() {
     <div class="quick-access-grid">${quickFuncs.map(item => `<button class="qa-card" data-func-action="${item.action}"><span class="material-symbols-outlined" style="color:${item.color}">${item.icon}</span><span>${item.label}</span></button>`).join('')}</div>
     </div>
   </section>`;
+}
+
+/* 今日首页的「今天吃了什么」卡片（2026-10-15 随吃喝记录升级新增）。
+   刻意不做成待办清单：不列「早餐/午餐/晚餐还没记」这类格子，也不催办 ——
+   用户明确要求「不强制记录」，所以没记的时候只有一句中性说明 + 一个入口。 */
+function todayMealsHtml(meals) {
+  const strip = meals.length
+    ? `<div class="today-meal-strip">${meals.map(entry => `<button type="button" class="today-meal-chip" data-today-meal="${esc(entry.id)}">${entry.photos?.[0] ? `<span class="today-meal-thumb photo-blur-frame is-edge">${photoFrameLayersHtml(imgSrc(entry.photos[0]), { alt: entry.name, lazy: true })}</span>` : `<span class="today-meal-thumb is-text">${esc(tasteMealLabel(entry.meal).slice(0, 1))}</span>`}<span class="today-meal-copy"><small>${esc(tasteMealLabel(entry.meal))}</small><strong>${esc(entry.name)}</strong></span></button>`).join('')}<button type="button" class="today-meal-add" id="today-meal-new" aria-label="再记一顿"><span class="material-symbols-outlined">add</span></button></div>`
+    : `<div class="today-meal-empty"><p>今天还没有记录，想起来就记一笔</p><button type="button" id="today-meal-new"><span class="material-symbols-outlined">add</span>记一顿</button></div>`;
+  return `<section class="today-meals-card"><header><button type="button" class="today-meals-title" id="today-meals-title">今天吃了什么</button><button type="button" class="today-meals-more" id="today-meals-more">记录册<span class="material-symbols-outlined">chevron_right</span></button></header>${strip}</section>`;
 }
 
 // 拍立得照片堆叠（#photo-stack）
@@ -413,6 +427,14 @@ function bindToday() {
   $('#new-todo')?.addEventListener('click', () => callHelper('openTodoForm'));
   $('#open-todo-manager')?.addEventListener('click', () => callHelper('openTodoManager'));
   $('#life-stream-more')?.addEventListener('click', () => go('calendar'));
+  // 今天吃了什么：点某一条看详情、点「＋」直接补记（不离开首页）、点「全部」进记录册。
+  $$('[data-today-meal]').forEach(button => button.onclick = () => callHelper('openTasteEntry', button.dataset.todayMeal));
+  $('#today-meal-new')?.addEventListener('click', () => callHelper('newTasteEntry'));
+  // 「今天吃了什么」这一块：标题和右侧的「记录册」都进记录册（标题是那块最像按钮的地方，
+  // 只让右上角两个小字能点的话，第一反应点标题会以为坏了）；某一条仍然是进它自己的详情。
+  const openTasteArchive = () => { pushBackState(); go('taste'); };
+  $('#today-meals-more')?.addEventListener('click', openTasteArchive);
+  $('#today-meals-title')?.addEventListener('click', openTasteArchive);
   $('#today-avatar')?.addEventListener('click', () => go('mine'));
   $('#photo-stack')?.addEventListener('click', event => {
     // Today 的照片区只负责切图；放大查看由 Moments/Library 等专属入口提供。

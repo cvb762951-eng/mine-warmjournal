@@ -7984,21 +7984,157 @@ video.is-awaiting-frame{opacity:0}
 @media(max-width:370px){.snippet-photo-mosaic.count-1{height:167px}.snippet-photo-mosaic.count-2{height:129px}.snippet-photo-mosaic.count-3,.snippet-photo-mosaic.count-4,.snippet-photo-mosaic.count-5{height:150px}}
 
 /* Taste Archive｜个人味觉档案：纸上菜单、回购票签与店铺笔记。 */
-.taste-view{min-height:100dvh;padding:calc(env(safe-area-inset-top) + 10px) 14px calc(env(safe-area-inset-bottom) + 28px);box-sizing:border-box;color:#352f27;background:#eee3ce url('assets/today-paper-texture.png') center/240px repeat}
+/* ===================================================================
+   吃喝记录（2026-10-15 由「味觉档案」升级为按顿记的记录册）
+   视觉语言：奶油纸底 + 白卡 + 衬线标题 + 小字元信息 + 大图原比例完整显示。
+   除页面底纹（沿用 App 的纸感画布，清简主题由 gen-plain-theme.mjs 撤图）外，
+   本区块一律使用主题变量 —— 米白 / 暖阳 / 清简三套主题共用同一套规则。
+   =================================================================== */
+.taste-view{min-height:100dvh;padding:calc(env(safe-area-inset-top) + 10px) 14px calc(env(safe-area-inset-bottom) + 28px);box-sizing:border-box;color:var(--ink);background:#eee3ce url('assets/today-paper-texture.png') center/240px repeat}
 .phone-shell:has(.taste-view) .floating-dock{display:none}
 .taste-header{min-height:78px;padding:11px 12px;display:grid;grid-template-columns:44px minmax(0,1fr) 44px;align-items:center;background:transparent url('assets/secondary-header-paper-v1.png') center/100% 100% no-repeat}
-.taste-header>button{width:44px;height:44px;border:0;background:transparent;color:#315b49}.taste-header>span{min-width:0;display:grid;text-align:center}.taste-header small{color:#9e583f;font:800 8px/1.1 'Newsreader',serif;letter-spacing:.19em}.taste-header strong{margin-top:2px;font:600 24px/1.1 'LXGW WenKai Screen R','Noto Serif SC',serif}.taste-header em{margin-top:3px;color:#746858;font-size:9px;font-style:normal}
-.taste-hero-paper{margin:8px 3px 10px;padding:19px 19px 15px;border-left:4px solid #a65b43;background-color:#e5dfc9;background-image:linear-gradient(rgba(239,233,215,.82),rgba(239,233,215,.82)),url('assets/today-paper-texture.png');background-position:center;background-size:auto,210px 210px;background-repeat:repeat;background-blend-mode:normal,multiply;color:#244c3d;box-shadow:0 7px 18px rgba(73,56,35,.09)}
-.taste-hero-paper>div:first-child{display:grid;grid-template-columns:48px minmax(0,1fr);align-items:center;gap:11px}.taste-hero-mark{width:48px;height:48px;display:grid;place-items:center;border:1px solid rgba(49,91,73,.24);background:rgba(255,250,235,.42);color:#a65b43;font-size:27px}.taste-hero-paper h2{margin:2px 0;font:600 19px/1.2 'LXGW WenKai Screen R','Noto Serif SC',serif}.taste-hero-paper small{color:#9b563f;font:700 7px/1 'Newsreader',serif;letter-spacing:.15em}.taste-hero-paper p{margin:4px 0 0;color:#6e6253;font-size:9px}.taste-kpis{margin-top:15px;padding-top:11px;display:grid!important;grid-template-columns:repeat(3,1fr)!important;border-top:1px solid rgba(67,82,69,.18);text-align:center}.taste-kpis span{display:grid;border-right:1px solid rgba(67,82,69,.14)}.taste-kpis span:last-child{border:0}.taste-kpis b{color:#244c3d;font:700 18px/1 'Newsreader',serif}.taste-kpis small{margin-top:4px;color:#706455;font:500 8px/1 'LXGW WenKai Screen R',sans-serif;letter-spacing:0}
-.taste-controls-paper{margin:0 3px 12px;padding:11px 12px;background:rgba(249,241,225,.88) url('assets/secondary-content-paper-v1.png') center/100% 100% no-repeat}.taste-controls-paper form{min-height:44px;display:grid;grid-template-columns:24px minmax(0,1fr) 50px;align-items:center;border-bottom:1px solid rgba(78,62,41,.14)}.taste-controls-paper form>.material-symbols-outlined{color:#315b49;font-size:19px}.taste-controls-paper input{min-width:0;border:0!important;background:transparent!important;box-shadow:none!important;font-size:11px}.taste-controls-paper form button{min-height:40px;border:0;background:transparent;color:#9a503a;font-weight:700}.taste-filter-rail{display:flex;gap:5px;margin-top:8px;overflow-x:auto;scrollbar-width:none}.taste-filter-rail::-webkit-scrollbar{display:none}.taste-filter-rail button{min-height:38px;flex:none;padding:7px 12px;border:0;background:transparent url('assets/quick-control-ivory-v1.png') center/100% 100% no-repeat;color:#675d50;font-size:9px}.taste-filter-rail button.active{background-image:url('assets/quick-control-sage-v1.png');color:#fff0d8}
-.taste-memory-shelf{margin:0 3px 12px;padding:13px 14px 15px;background:rgba(247,237,217,.82);border-left:4px solid #a04e38}.taste-memory-shelf>header{display:flex;align-items:center;gap:8px}.taste-memory-shelf>header>.material-symbols-outlined{color:#a04e38}.taste-memory-shelf>header>span:last-child{display:grid}.taste-memory-shelf strong{font:600 15px/1.1 'LXGW WenKai Screen R','Noto Serif SC',serif}.taste-memory-shelf small{margin-top:3px;color:#7c6d5b;font-size:8px}.taste-memory-shelf>div{margin-top:10px;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}.taste-memory-shelf>div>button{min-width:0;padding:0 0 7px;border:1px solid rgba(80,62,40,.12);background:rgba(255,249,235,.66);color:#40382f;text-align:left}.taste-memory-shelf>div img,.taste-memory-shelf>div>button>.material-symbols-outlined{width:100%;aspect-ratio:1;display:grid;place-items:center;object-fit:cover;background:#e7dfcf;color:#315b49}.taste-memory-shelf>div b,.taste-memory-shelf>div small{display:block;margin:6px 6px 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.taste-memory-shelf>div b{font-size:9px}.taste-memory-shelf>div small{color:#a04e38;font-size:7px}
-.taste-section{margin:0 3px 15px}.taste-section>header{min-height:46px;padding:4px 9px;display:flex;align-items:center;justify-content:space-between;border-left:4px solid #9f5038}.taste-section>header>span{display:grid}.taste-section>header small{color:#9e583f;font:800 7px/1 'Newsreader',serif;letter-spacing:.17em}.taste-section>header h2{margin:4px 0 0;font:600 18px/1.1 'LXGW WenKai Screen R','Noto Serif SC',serif}.taste-section>header em{color:#7d705f;font-size:9px;font-style:normal}
-.taste-place-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.taste-place-card{min-width:0;min-height:112px;padding:8px;border:0;display:grid;grid-template-columns:52px minmax(0,1fr) 16px;align-items:center;gap:8px;background:rgba(249,241,225,.9) url('assets/secondary-content-paper-v1.png') center/100% 100% no-repeat;color:#3a332b;text-align:left}.taste-place-card>img,.taste-place-card>.material-symbols-outlined:first-child{width:52px;height:64px;display:grid;place-items:center;object-fit:cover;background:#244c3d;color:#f3e2c1}.taste-place-card>span{min-width:0;display:grid}.taste-place-card strong,.taste-place-card small,.taste-place-card em{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.taste-place-card strong{font-size:11px}.taste-place-card small{margin-top:4px;color:#786b5c;font-size:8px}.taste-place-card em{margin-top:5px;color:#9c523b;font-size:7px;font-style:normal}.taste-place-card>i{color:#8c7e6d;font-size:16px}
-.taste-entry-list{display:grid;gap:8px}.taste-entry-card{background:rgba(249,241,225,.92) url('assets/secondary-content-paper-v1.png') center/100% 100% no-repeat;border-left:3px solid #315b49}.taste-entry-card.verdict-no,.taste-entry-card.verdict-avoid{border-left-color:#9e4f39}.taste-entry-open{width:100%;min-height:118px;padding:9px;border:0;display:grid;grid-template-columns:96px minmax(0,1fr) 18px;align-items:center;gap:10px;background:transparent;color:#352f27;text-align:left}.taste-entry-photo{position:relative;width:96px;height:92px;display:grid;place-items:center;overflow:hidden;background:#243e34;color:#f5e8cf}.taste-entry-photo img{width:100%;height:100%;object-fit:cover}.taste-entry-photo>.material-symbols-outlined{font-size:31px}.taste-entry-photo em{position:absolute;left:5px;bottom:5px;padding:3px 6px;background:rgba(35,72,58,.9);color:#fff0d8;font-size:7px;font-style:normal}.verdict-no .taste-entry-photo em,.verdict-avoid .taste-entry-photo em{background:rgba(151,71,50,.92)}.taste-entry-copy{min-width:0;display:grid}.taste-entry-copy>small{color:#9a573f;font-size:7px;letter-spacing:.04em}.taste-entry-copy>strong{margin-top:3px;overflow:hidden;font:600 15px/1.25 'LXGW WenKai Screen R','Noto Serif SC',serif;text-overflow:ellipsis;white-space:nowrap}.taste-stars{margin-top:4px;color:#9b6b31;font-size:10px;letter-spacing:.03em}.taste-entry-copy p{margin:5px 0 0;overflow:hidden;color:#6f6456;font-size:9px;text-overflow:ellipsis;white-space:nowrap}.taste-entry-copy i{margin-top:5px;overflow:hidden;color:#315b49;font-size:7px;font-style:normal;text-overflow:ellipsis;white-space:nowrap}.taste-entry-open>span:last-child{color:#8a7b6a;font-size:18px}
-.taste-empty{min-height:260px;padding:28px;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(249,241,225,.85) url('assets/secondary-content-paper-v1.png') center/100% 100% no-repeat;text-align:center}.taste-empty>.material-symbols-outlined{font-size:38px;color:#315b49}.taste-empty strong{margin-top:8px;font:600 17px 'LXGW WenKai Screen R','Noto Serif SC',serif}.taste-empty p{max-width:260px;margin:6px 0 13px;color:#776b5c;font-size:9px;line-height:1.6}.taste-empty button{min-height:44px;padding:8px 17px;border:0;background:#315b49;color:#fff0d8}.taste-local-note{margin:10px 6px 0;color:#7c705f;font-size:8px;text-align:center}.taste-local-note .material-symbols-outlined{margin-right:3px;font-size:14px;vertical-align:-3px}
-.modal.taste-form-modal,.modal.taste-detail-modal{max-width:480px;background:#f1e5cf url('assets/secondary-content-paper-v1.png') center/100% 100% no-repeat}.taste-photo-picker{margin:11px 0;padding:9px;background:rgba(255,249,237,.52)}#taste-photo-preview{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}#taste-photo-preview>span{position:relative;aspect-ratio:1;overflow:hidden}#taste-photo-preview img{width:100%;height:100%;object-fit:cover}#taste-photo-preview>span button{position:absolute;right:3px;top:3px;width:30px;height:30px;padding:0;border:0;border-radius:50%;background:rgba(37,48,41,.8);color:#fff}#taste-photo-preview>span button .material-symbols-outlined{font-size:17px}#taste-photo-preview>p{grid-column:1/-1;min-height:70px;margin:0;display:grid;place-items:center;color:#7a6d5c}#taste-photo-preview>p span{font-size:27px}#taste-photo-preview>p small{font-size:8px}.taste-photo-picker>#taste-pick-photos{width:100%;min-height:42px;margin-top:7px;border:0;background:transparent;color:#315b49}.taste-verdict-picker{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:4px;margin:6px 0 12px}.taste-verdict-picker input{position:absolute;opacity:0;pointer-events:none}.taste-verdict-picker span{min-height:56px;padding:5px 2px;display:flex;flex-direction:column;align-items:center;justify-content:center;border:1px solid rgba(81,64,43,.12);background:rgba(248,239,222,.7);font-size:7px;text-align:center}.taste-verdict-picker i{margin-bottom:3px;color:#315b49;font-size:19px}.taste-verdict-picker input:checked+span{border-color:#315b49;background:#315b49;color:#fff0d8}.taste-verdict-picker input:checked+span i{color:#fff0d8}.taste-more-fields{margin:8px 0;padding:9px 11px;background:rgba(244,234,214,.6)}.taste-more-fields summary{min-height:40px;display:flex;align-items:center;color:#315b49;font-size:10px;font-weight:700;cursor:pointer}.taste-more-fields[open] summary{margin-bottom:7px}.taste-detail header{text-align:center}.taste-detail header>small{color:#9d583f;font-size:8px}.taste-detail h2{margin:4px 0 8px;font-family:'LXGW WenKai Screen R','Noto Serif SC',serif}.taste-detail-verdict{display:inline-flex;align-items:center;gap:4px;padding:5px 9px;background:#315b49;color:#fff0d8;font-size:9px}.taste-detail-verdict.verdict-no,.taste-detail-verdict.verdict-avoid{background:#9e4f39}.taste-detail-verdict i{font-size:16px}.taste-detail-gallery{position:relative;width:100%;height:min(34dvh,280px);margin:13px 0 9px;padding:0;border:0;background:#243d33}.taste-detail-gallery img{width:100%;height:100%;object-fit:contain}.taste-detail-gallery span{position:absolute;right:6px;bottom:6px;padding:4px 7px;background:rgba(26,44,36,.8);color:#fff;font-size:8px}.taste-detail-facts{display:grid;grid-template-columns:1fr 1fr;gap:6px}.taste-detail-facts>span{padding:8px 9px;display:grid;background:rgba(255,249,237,.54)}.taste-detail-facts small{color:#827463;font-size:7px}.taste-detail-facts strong{margin-top:3px;overflow-wrap:anywhere;font-size:10px}.taste-detail-tags{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}.taste-detail-tags span{padding:4px 7px;background:#e4eadf;color:#315b49;font-size:8px}.taste-detail>p{padding:10px;background:rgba(255,249,237,.5);color:#615649;font-size:10px;line-height:1.65;white-space:pre-wrap}
-.taste-archive-entry .setting-icon-box{background:#e5eadf!important;color:#315b49!important}
-@media(max-width:370px){.taste-view{padding-inline:10px}.taste-memory-shelf>div{grid-template-columns:repeat(3,minmax(0,1fr))}.taste-place-grid{grid-template-columns:1fr}.taste-entry-open{grid-template-columns:82px minmax(0,1fr) 16px}.taste-entry-photo{width:82px;height:86px}.taste-verdict-picker{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.taste-header>button{width:44px;height:44px;border:0;background:transparent;color:var(--sage-green-dark)}
+.taste-header>span{min-width:0;display:grid;text-align:center}
+.taste-header small{color:var(--terracotta-dark);font:800 8px/1.1 'Newsreader',serif;letter-spacing:.19em}
+.taste-header strong{margin-top:2px;font:600 24px/1.1 'LXGW WenKai Screen R','Noto Serif SC',serif}
+.taste-header em{margin-top:3px;color:var(--ink-muted);font-size:9px;font-style:normal}
+
+/* —— 今天卡片：只呈现已经记下的，绝不写成「还差几顿」的待办 —— */
+.taste-today-card{margin:10px 3px 12px;padding:15px 16px 16px;border-radius:var(--radius-md);background:linear-gradient(180deg,var(--sage-green-light),transparent 60%),var(--sheet-card);border:var(--card-border-subtle);box-shadow:var(--shadow-ambient)}
+.taste-today-card>header{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.taste-today-card>header>span{display:grid;min-width:0}
+.taste-today-card small{color:var(--terracotta-dark);font:800 8px/1 'Newsreader',serif;letter-spacing:.17em}
+.taste-today-card h2{margin:5px 0 0;font:600 17px/1.25 'LXGW WenKai Screen R','Noto Serif SC',serif}
+.taste-today-card em{color:var(--ink-muted);font-size:10px;font-style:normal;white-space:nowrap}
+.taste-today-strip{display:flex;gap:9px;margin-top:13px;overflow-x:auto;scrollbar-width:none}
+.taste-today-strip::-webkit-scrollbar{display:none}
+.taste-today-strip>button{flex:none;width:104px;min-width:0;padding:0;border:0;background:transparent;color:var(--ink);text-align:left}
+.taste-today-thumb{display:grid;place-items:center;width:104px;height:78px;overflow:hidden;background:var(--warm-beige)}
+.taste-today-thumb img{display:block;width:100%;height:100%;object-fit:cover}
+.taste-today-thumb b{font:500 17px/1 'LXGW WenKai Screen R','Noto Serif SC',serif;color:var(--sage-green-dark)}
+.taste-today-strip>button>strong,.taste-today-strip>button>small{display:block;margin-top:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.taste-today-strip>button>strong{font-family:'LXGW WenKai Screen R','Noto Serif SC',serif;font-size:13px;font-weight:600}
+.taste-today-strip>button>small{color:var(--ink-muted);font-size:10px}
+.taste-today-strip>button.taste-today-add{width:66px;height:78px;display:grid;place-items:center;border:1px dashed var(--border-cool);border-radius:var(--radius-soft);color:var(--sage-green-dark)}
+.taste-today-strip>button.taste-today-add .material-symbols-outlined{font-size:20px}
+.taste-today-strip>button.taste-today-add small{margin:0;color:var(--ink-muted);font-size:10px}
+.taste-today-empty{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:12px}
+.taste-today-empty p{margin:0;color:var(--ink-secondary);font-size:12px;line-height:1.65}
+.taste-today-empty button{flex:none;min-height:40px;padding:0 16px;border:0;border-radius:999px;display:inline-flex;align-items:center;gap:4px;background:var(--sage-green-dark);color:var(--sheet-card);font-size:12px}
+.taste-today-empty button .material-symbols-outlined{font-size:17px}
+
+/* —— 搜索与筛选 —— */
+.taste-controls-paper{margin:0 3px 14px;padding:12px 13px;border-radius:var(--radius-md);background:var(--sheet-card);border:var(--card-border-subtle);box-shadow:var(--shadow-ambient)}
+.taste-controls-paper form{min-height:42px;display:grid;grid-template-columns:22px minmax(0,1fr) 48px;align-items:center;border-bottom:1px solid var(--line)}
+.taste-controls-paper form>.material-symbols-outlined{color:var(--sage-green-dark);font-size:18px}
+.taste-controls-paper input{min-width:0;border:0!important;background:transparent!important;box-shadow:none!important;font-size:12px}
+.taste-controls-paper form button{min-height:40px;border:0;background:transparent;color:var(--terracotta-dark);font-size:12px;font-weight:700}
+.taste-filter-rail{position:relative;display:flex;gap:6px;margin-top:10px;overflow-x:auto;scrollbar-width:none}
+.taste-filter-rail::-webkit-scrollbar{display:none}
+/* z-index 是因为选中的那块底色是另摆的一层（.rail-marker，样式与逻辑在动效层）*/
+.taste-filter-rail button{position:relative;z-index:1;min-height:38px;flex:none;padding:8px 14px;border:0;border-radius:999px;background:var(--warm-beige);color:var(--ink-secondary);font-size:12px}
+.taste-filter-rail button.active{background:var(--sage-green-dark);color:var(--sheet-card)}
+
+/* —— 按天分组的流水 —— */
+.taste-section{margin:0 3px 15px}
+/* 栏目头：不用左边那条色条（会像贴上去的标签），改成底下一条极细的线，像刊头。 */
+.taste-section>header{min-height:44px;padding:6px 6px 11px;display:flex;align-items:flex-end;justify-content:space-between;gap:8px;border-bottom:1px solid var(--border-cool)}
+.taste-section>header>span{display:grid}
+.taste-section>header small{color:var(--terracotta-dark);font:800 8px/1 'Newsreader',serif;letter-spacing:.17em}
+.taste-section>header h2{margin:6px 0 0;font:600 19px/1.1 'LXGW WenKai Screen R','Noto Serif SC',serif}
+.taste-section>header em{color:var(--ink-muted);font:600 10px/1 'Newsreader',serif;font-style:normal;letter-spacing:.06em;white-space:nowrap}
+.taste-day-group{margin-bottom:22px}
+/* 日期行：大字日期 + 小字星期 + 一条拉满的细线，中间不再空一截。 */
+.taste-day-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px;padding:14px 6px 11px}
+.taste-day-date{display:flex;align-items:baseline;gap:8px;flex:1;min-width:0}
+.taste-day-date b{font:600 27px/1 'Newsreader',serif;color:var(--ink);letter-spacing:-.01em}
+.taste-day-date em{color:var(--ink-muted);font-size:11px;font-style:normal;white-space:nowrap}
+.taste-day-date::after{content:'';flex:1;min-width:14px;height:1px;margin-left:5px;align-self:center;background:var(--border-cool)}
+.taste-day-count{flex:none;color:var(--ink-muted);font:600 10px/1 'Newsreader',serif;letter-spacing:.06em;white-space:nowrap}
+.taste-entry-list{display:grid;gap:12px}
+/* 卡片：照片直接铺到卡片下沿（去掉"照片塞在框里"的双层边），文字块自己留白。 */
+.taste-entry-card{padding:14px 15px;border-radius:var(--radius-md);background:var(--sheet-card);border:var(--card-border-subtle);box-shadow:var(--shadow-ambient);overflow:hidden}
+.taste-entry-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.taste-entry-meta{color:var(--ink-muted);font-size:10px;letter-spacing:.04em}
+/* 三档态度不能只靠颜色区分 —— 清简主题里三个强调色是同一个蓝，只靠色相根本看不出差别。
+   所以改成靠**形状与重量**：好吃＝描边+淡底实心、还行＝只有一道描边、不合口味＝灰底无描边。 */
+.taste-verdict-tag{flex:none;padding:3px 10px;border:1px solid var(--sage-green-dark);border-radius:999px;background:var(--sage-green-light);color:var(--sage-green-dark);font-size:10px;letter-spacing:.02em;white-space:nowrap}
+.taste-entry-card.verdict-okay .taste-verdict-tag{border-color:var(--border-cool);background:transparent;color:var(--ink-secondary)}
+.taste-entry-card.verdict-bad .taste-verdict-tag{border-color:transparent;background:var(--warm-taupe);color:var(--ink-secondary)}
+.taste-entry-body{display:block;width:100%;margin-top:9px;padding:0;border:0;background:transparent;color:var(--ink);text-align:left}
+.taste-entry-title{display:block;font:600 17px/1.4 'LXGW WenKai Screen R','Noto Serif SC',serif;overflow-wrap:anywhere}
+.taste-entry-notes{margin:7px 0 0;font-family:'LXGW WenKai Screen R','Noto Serif SC',serif;color:var(--ink-secondary);font-size:13px;line-height:1.85;white-space:pre-wrap;overflow-wrap:anywhere}
+.taste-entry-note-hint{display:block;margin-top:7px;padding:7px 0;border-top:1px dashed var(--border-cool);color:var(--ink-muted);font-size:11px}
+.taste-entry-cover{display:block;width:calc(100% + 30px);aspect-ratio:4/3;margin:14px -15px -14px;padding:0;overflow:hidden;border:0}
+/* 照片那一块要贴满卡片下沿，四角由卡片的圆角裁掉，所以这里必须是 0 圆角。 */
+.taste-entry-cover.photo-blur-frame.is-edge{border-radius:0!important}
+.taste-today-thumb.photo-blur-frame.is-edge,.taste-detail-gallery.photo-blur-frame.is-edge{border-radius:var(--radius-soft)!important}
+.taste-entry-count{position:absolute;right:9px;bottom:9px;padding:3px 9px;border-radius:999px;background:rgba(26,44,36,.72);color:#fff;font-size:10px;letter-spacing:.02em}
+.taste-empty{min-height:250px;padding:30px 26px;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:var(--radius-md);background:var(--sheet-card);border:var(--card-border-subtle);text-align:center}
+.taste-empty>.material-symbols-outlined{font-size:38px;color:var(--sage-green-dark)}
+.taste-empty strong{margin-top:9px;font:600 17px/1.4 'LXGW WenKai Screen R','Noto Serif SC',serif}
+.taste-empty p{max-width:260px;margin:7px 0 15px;color:var(--ink-secondary);font-size:12px;line-height:1.7}
+.taste-empty button{min-height:44px;padding:0 20px;border:0;border-radius:999px;display:inline-flex;align-items:center;gap:5px;background:var(--sage-green-dark);color:var(--sheet-card);font-size:12px}
+.taste-empty button .material-symbols-outlined{font-size:17px}
+.taste-local-note{margin:12px 6px 0;color:var(--ink-muted);font-size:10px;text-align:center}
+.taste-local-note .material-symbols-outlined{margin-right:4px;font-size:14px;vertical-align:-3px}
+
+/* —— 记一顿 / 详情 弹层 —— */
+.modal.taste-form-modal,.modal.taste-detail-modal{max-width:480px;background:var(--sheet-card)}
+.taste-photo-picker{margin:12px 0;padding:10px;border-radius:var(--radius-md);background:var(--warm-beige)}
+#taste-photo-preview{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
+#taste-photo-preview>span{position:relative;aspect-ratio:1;overflow:hidden;border-radius:var(--radius-soft)}
+#taste-photo-preview img{display:block;width:100%;height:100%;object-fit:cover}
+#taste-photo-preview>span button{position:absolute;right:4px;top:4px;width:30px;height:30px;padding:0;border:0;border-radius:50%;background:rgba(37,48,41,.78);color:#fff}
+#taste-photo-preview>span button .material-symbols-outlined{font-size:17px}
+#taste-photo-preview>p{grid-column:1/-1;min-height:72px;margin:0;display:grid;place-items:center;gap:4px;color:var(--ink-muted)}
+#taste-photo-preview>p span{font-size:26px}
+#taste-photo-preview>p small{font-size:11px}
+/* 这行是整块浅底上的主操作，框线太淡就完全看不出是个可以点的框，
+   所以这里的虚线用主色而不是 --border-cool（那条 14% 的灰在长条形状上几乎看不见）。 */
+.taste-photo-picker>#taste-pick-photos{width:100%;min-height:44px;margin-top:8px;border:1px dashed var(--sage-green-dark);border-radius:var(--radius-soft);display:inline-flex;align-items:center;justify-content:center;gap:5px;background:transparent;color:var(--sage-green-dark);font-size:12px}
+.taste-meal-picker,.taste-verdict-picker{display:grid;gap:6px;margin:7px 0 14px}
+.taste-meal-picker{grid-template-columns:repeat(5,minmax(0,1fr))}
+.taste-verdict-picker{grid-template-columns:repeat(3,minmax(0,1fr))}
+.taste-meal-picker input,.taste-verdict-picker input{position:absolute;opacity:0;pointer-events:none}
+.taste-meal-picker span,.taste-verdict-picker span{min-height:44px;padding:6px 2px;display:flex;align-items:center;justify-content:center;border:1px solid var(--border-cool);border-radius:var(--radius-soft);background:var(--warm-beige-light);color:var(--ink-secondary);font-size:12px;text-align:center;cursor:pointer}
+.taste-meal-picker input:checked+span,.taste-verdict-picker input:checked+span{border-color:var(--sage-green-dark);background:var(--sage-green-dark);color:var(--sheet-card)}
+.taste-detail header{text-align:center}
+.taste-detail header>small{color:var(--ink-muted);font-size:10px}
+.taste-detail h2{margin:6px 0 10px;font:600 20px/1.4 'LXGW WenKai Screen R','Noto Serif SC',serif;overflow-wrap:anywhere}
+.taste-detail-verdict{display:inline-flex;align-items:center;padding:5px 12px;border:1px solid var(--sage-green-dark);border-radius:999px;background:var(--sage-green-light);color:var(--sage-green-dark);font-size:11px}
+.taste-detail-verdict.verdict-okay{border-color:var(--border-cool);background:transparent;color:var(--ink-secondary)}
+.taste-detail-verdict.verdict-bad{border-color:transparent;background:var(--warm-taupe);color:var(--ink-secondary)}
+.taste-detail-gallery{position:relative;width:100%;height:min(40dvh,320px);margin:14px 0 10px;padding:0;overflow:hidden;border:0;background:var(--warm-beige)}
+.taste-detail-gallery img{display:block;width:100%;height:100%;object-fit:contain}
+.taste-detail-gallery span{position:absolute;right:8px;bottom:8px;padding:4px 9px;border-radius:999px;background:rgba(26,44,36,.78);color:#fff;font-size:10px}
+.taste-detail>p{margin:0;padding:12px 13px;border-radius:var(--radius-soft);font-family:'LXGW WenKai Screen R','Noto Serif SC',serif;background:var(--warm-beige-light);color:var(--ink-secondary);font-size:13px;line-height:1.85;white-space:pre-wrap;overflow-wrap:anywhere}
+.taste-archive-entry .setting-icon-box{background:var(--sage-green-light)!important;color:var(--sage-green-dark)!important}
+
+/* —— 今日首页「今天吃了什么」—— */
+.today-meals-card{margin:14px 0 0;padding:13px 14px 14px;border-radius:var(--radius-md);background:linear-gradient(180deg,var(--sage-green-light),transparent 62%),var(--sheet-card);border:var(--card-border-subtle);box-shadow:var(--shadow-ambient)}
+.today-meals-card>header{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.today-meals-title{min-height:0;padding:0;border:0;background:transparent;text-align:left;font:600 14px/1.4 'LXGW WenKai Screen R','Noto Serif SC',serif;color:var(--ink)}
+.today-meals-more{min-height:36px;padding:0;border:0;display:inline-flex;align-items:center;gap:2px;background:transparent;color:var(--sage-green-dark);font-size:11px}
+.today-meals-more .material-symbols-outlined{font-size:16px}
+.today-meal-strip{display:flex;gap:9px;margin-top:11px;overflow-x:auto;scrollbar-width:none}
+.today-meal-strip::-webkit-scrollbar{display:none}
+.today-meal-chip{flex:none;max-width:158px;min-height:50px;padding:5px 12px 5px 5px;border:1px solid var(--border-cool);border-radius:999px;display:flex;align-items:center;gap:9px;background:var(--warm-beige-light);color:var(--ink);text-align:left}
+.today-meal-thumb{flex:none;width:40px;height:40px;display:grid;place-items:center;overflow:hidden;border-radius:50%;background:var(--warm-beige)}
+.today-meal-thumb img{display:block;width:100%;height:100%;object-fit:cover}
+/* 相框的 is-edge 自带 5px 圆角且带 !important，会压掉上面的 50%。
+   今日首页这一格必须是正圆：有照片的用相框、没照片的只是个字，两格并排时形状必须一致。 */
+.today-meal-thumb.photo-blur-frame.is-edge{border-radius:50%!important}
+.today-meal-thumb.is-text{font:500 15px/1 'LXGW WenKai Screen R','Noto Serif SC',serif;color:var(--sage-green-dark)}
+.today-meal-copy{min-width:0;display:grid}
+.today-meal-copy small{color:var(--ink-muted);font-size:10px}
+.today-meal-copy strong{overflow:hidden;font-family:'LXGW WenKai Screen R','Noto Serif SC',serif;font-size:12px;font-weight:600;text-overflow:ellipsis;white-space:nowrap}
+.today-meal-add{flex:none;width:50px;height:50px;display:grid;place-items:center;border:1px dashed var(--border-cool);border-radius:50%;background:transparent;color:var(--sage-green-dark)}
+.today-meal-empty{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:10px}
+.today-meal-empty p{margin:0;color:var(--ink-secondary);font-size:12px;line-height:1.65}
+.today-meal-empty button{flex:none;min-height:40px;padding:0 16px;border:0;border-radius:999px;display:inline-flex;align-items:center;gap:4px;background:var(--sage-green-dark);color:var(--sheet-card);font-size:12px}
+.today-meal-empty button .material-symbols-outlined{font-size:17px}
+@media(max-width:370px){.taste-view{padding-inline:10px}.taste-meal-picker{grid-template-columns:repeat(3,minmax(0,1fr))}.taste-today-strip>button{width:88px}.taste-today-thumb{width:88px;height:68px}.taste-today-strip>button.taste-today-add{width:58px;height:68px}.taste-day-date b{font-size:24px}}
 
 /* 本机相册播放器：只读浏览，沿用纸张与深绿的页面语言。 */
 .phone-shell:has(.local-gallery-view) .floating-dock{display:none}
@@ -8582,16 +8718,7 @@ body:has(.mine-view) #app{
 .media-detail-actions button{min-height:48px;padding:8px 12px;border:8px solid transparent!important;border-image:url('assets/quick-control-kraft-v1.png') 212 110 210 110 fill / 8px / 0 stretch!important;background:none!important;font-family:var(--paper-body-font);font-size:13px;line-height:1.5;display:flex;gap:6px;align-items:center;justify-content:center}
 .media-detail-actions .media-detail-btn{border-image-source:url('assets/quick-control-sage-v1.png')!important;color:var(--warm-sheet)!important}
 
-/* 店铺卡片的封面图标与右箭头各有自己的轨道。 */
-.taste-place-grid{grid-template-columns:minmax(0,1fr)}
-.taste-place-card{padding:8px;border:10px solid transparent;border-image:url('assets/secondary-content-paper-v1.png') 84 96 84 96 fill / 10px / 0 stretch;background:none;grid-template-columns:60px minmax(0,1fr) 32px;gap:10px}
-.taste-place-card>img,.taste-place-card>.material-symbols-outlined:first-child{width:60px;height:72px;background:var(--sage-green-dark);color:var(--warm-sheet)}
-.taste-place-card>i{width:32px;height:44px;display:grid;place-items:center;background:none;padding:0;font-size:18px;color:var(--sage-green-dark)}
-.taste-place-card strong{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;white-space:normal;font-family:var(--paper-body-font);font-size:14px;line-height:1.5}
-.taste-place-card small{font-size:11px;line-height:1.5}
-.taste-place-card em{font-size:10px;line-height:1.5;color:var(--terracotta-dark)}
-.taste-entry-card{border:10px solid transparent;border-image:url('assets/secondary-content-paper-v1.png') 84 96 84 96 fill / 10px / 0 stretch;background:none}
-@media(min-width:540px){.taste-place-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+/* 吃喝记录改版后不再有店铺卡片，原先那层纸边覆盖一并移除（2026-10-15）。 */
 
 /* 私密照片沿用真实相框的九宫格，视频与全屏播放器不套这层纸边。 */
 .private-vault-view .vault-item:not(.vault-video-item){padding:4px 4px 6px;border:7px solid transparent;border-inline-width:8px;border-bottom-width:12px;border-image:url('assets/journal-photo-frame-v3.png') 117 146 207 145 fill / 7px 8px 12px 8px / 0 stretch;background:none;border-radius:0;box-shadow:none}
@@ -9769,17 +9896,6 @@ body #modal-layer .modal.confirm-sheet .modal-actions .danger { padding: 0 16px 
 .snippet-video-segments button.photo-blur-frame.is-edge > img {
   object-fit: contain;
 }
-.taste-shelf-thumb.photo-blur-frame.is-edge,
-.taste-place-thumb.photo-blur-frame.is-edge {
-  width: 56px;
-  height: 56px;
-  display: block;
-  overflow: hidden;
-  flex: none;
-}
-.taste-entry-photo.photo-blur-frame.is-edge {
-  background: #efe7d6 !important;
-}
 .taste-detail-gallery.photo-blur-frame.is-edge {
   background: #efe7d6 !important;
 }
@@ -9799,7 +9915,6 @@ body #modal-layer .modal.confirm-sheet .modal-actions .danger { padding: 0 16px 
 :root[data-theme="plain"] .calendar-view .day-photo-thumb.photo-blur-frame.is-edge,
 :root[data-theme="plain"] .snippet-photo-thumb.photo-blur-frame.is-edge,
 :root[data-theme="plain"] .journal-reader-gallery button.photo-blur-frame.is-edge,
-:root[data-theme="plain"] .taste-entry-photo.photo-blur-frame.is-edge,
 :root[data-theme="plain"] .taste-detail-gallery.photo-blur-frame.is-edge,
 :root[data-theme="plain"] .local-gallery-tile.photo-blur-frame.is-edge,
 :root[data-theme="plain"] .vault-moment-preview.photo-blur-frame.is-edge {

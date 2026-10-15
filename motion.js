@@ -435,10 +435,12 @@ const CASCADE_ITEMS = [
   '.detail-sheet-row',
   '.cal-activity-row',
   '.media-card',
-  '.taste-card',
   '.course-row',
   '.setting-item-row',
 ].join(',');
+/* ⚠️ 吃喝记录（.taste-*）故意**不在**这份名单里：它有一套自己的编排
+   （见 performance.css「吃喝记录 · 动效编排」），日期组与组内卡片是两层错落，
+   这里再套一层就会互相抢 animation，变成两个动画打架。 */
 
 export function autoStagger(root = document, { step = DURATION.staggerStep, max = 7 } = {}) {
   if (!canAnimate() || !root?.querySelectorAll) return;
@@ -477,6 +479,8 @@ const PRESS_SOLID = [
   '.ledger-add-btn', '.habit-switch-chip', '.habit-check-btn', '.subpage-back-btn', '.profile-edit-pill',
   '.modal-actions button', '.vault-item-menu-actions > button', '.bento-card-footer',
   '.journal-deck-cut', '.journal-deck-open',
+  '.taste-filter-rail button', '.taste-meal-picker span', '.taste-verdict-picker span',
+  '#taste-pick-photos', '.taste-today-add', '.today-meal-add', '.taste-empty button',
 ].join(',');
 
 const PRESS_LIGHT = [
@@ -484,6 +488,8 @@ const PRESS_LIGHT = [
   '.stats-habit-row', '.snippet-item-card', '.snippet-media-card', '.snippet-photo-tile',
   '.ledger-row', '.account-mini-card', '.day-photo-thumb',
   '.vault-item-open', '.countdown-card', '.course-row', '.setting-item-row',
+  '.taste-entry-body', '.taste-entry-cover', '.taste-today-strip > button', '.today-meal-chip',
+  '.today-meals-title',
 ].join(',');
 
 export const PRESS_SELECTOR = `${PRESS_SOLID},${PRESS_LIGHT}`;
@@ -1777,4 +1783,119 @@ export function installMagneticDock() {
     }, { passive: true });
     magneticDockInstalled = true;
   });
+}
+
+
+/* ── 6 · 列表重排的 FLIP ──────────────────────────────────────────────────
+ *
+ * 「我一操作，东西要滑到新位置，而不是瞬间跳过去」—— 筛选、搜索、删一张照片都是这一类。
+ *
+ * 经典 FLIP：先记下每条的位置（First），改完 DOM 再量一次（Last），
+ * 中间的差值先用 transform 反向抵消（Invert），再放开回到原位（Play）——
+ * 全程只动 transform，在合成器上跑，不触发布局。
+ *
+ * ⚠️ 三条纪律：
+ *   ① 重排后新渲染出来的元素**自带入场动画**（列表错落）。FLIP 和它抢同一个 transform，
+ *      而且入场动画的 backwards 填充会把元素按在"隐形"状态 —— 所以参与 FLIP 的元素
+ *      必须先把动画摘掉（连同它所在的那一层容器，用 mute 指定），否则会看到一堆原地隐形的卡片。
+ *   ② 新出现的元素不参与（交给入场错落）；消失的元素不管（DOM 已经没了）。
+ *   ③ 减弱动态效果 / data-pl-motion="none" / 页面不在前台 → 整个跳过，退化成"瞬间重排"。
+ */
+export function motionAllowed() {
+  return canAnimate() && (typeof document === 'undefined' || document.documentElement?.dataset?.plMotion !== 'none');
+}
+
+const flipKeyOf = (el, key) => (typeof key === 'function' ? key(el) : el?.getAttribute?.(key || '') || '');
+
+function measureFlipRects(root, item, key) {
+  const map = new Map();
+  if (!root?.querySelectorAll) return map;
+  root.querySelectorAll(item).forEach(el => {
+    const id = flipKeyOf(el, key);
+    if (!id) return;
+    const box = el.getBoundingClientRect();
+    /* 被 display:none 藏起来的元素两个方向都是 0 —— 记下来就会变成"从左上角飞过来"，
+       所以量到 0 的直接当它不存在（它本来就是看不见的）。 */
+    if (!box.width && !box.height) return;
+    map.set(id, box);
+  });
+  return map;
+}
+
+/** 记下位置 → 跑 update() 改 DOM → 让留下来的那些滑到新位置。返回 update() 的结果。 */
+export function withFlip(root, update, { item, key = '', duration = 380, easing = EASE.fluid, mute = '' } = {}) {
+  const before = item && motionAllowed() ? safely(() => measureFlipRects(root, item, key)) : null;
+  const result = update();
+  if (!before?.size) return result;
+  safely(() => {
+    root.querySelectorAll(item).forEach(el => {
+      const from = before.get(flipKeyOf(el, key));
+      if (!from) return;                                   // 新出现的：交给入场错落
+      el.style.animation = 'none';                         // 别和入场动画抢 transform / opacity
+      if (mute) { const holder = el.closest(mute); if (holder) holder.style.animation = 'none'; }
+      const now = el.getBoundingClientRect();
+      if (!now.width && !now.height) return;                 // 这次被藏起来了：不用滑
+      const dx = Math.round(from.left - now.left);
+      const dy = Math.round(from.top - now.top);
+      if (!dx && !dy) return;
+      el.animate?.([{ transform: `translate3d(${dx}px, ${dy}px, 0)` }, { transform: 'none' }], { duration, easing });
+    });
+  });
+  return result;
+}
+/* ── 7 · 横排按钮上的"选中底" ──────────────────────────────────────────────
+ *
+ * 一排筛选项里，选中的那块应该**滑过去**，而不是"啪"地出现在新位置。
+ *
+ * ⚠️ 每次重新渲染都会把这一排连同那块底一起重建，所以新挂上来的那块要先摆到
+ *    上一次的位置、再把过渡打开移到新位置 —— 少这一步就永远看不到滑动（只会闪现）。
+ *    上一次的位置按 key（默认用 rail 的 id）记着，因为 rail 元素本身每次都是新的。
+ * ⚠️ none 档 / 减弱动态效果下不给滑动过渡（直接到位）。
+ */
+const railMarkerX = new Map();
+
+export function mountRailMarker(rail, { active = '.active', markerClass = 'rail-marker', hostClass = 'has-rail-marker', key = '' } = {}) {
+  if (!rail?.querySelector) return false;
+  const mapKey = key || rail.id || rail.className || 'rail';
+  const current = rail.querySelector(active);
+  let marker = rail.querySelector(`:scope > .${markerClass}`);
+  if (!current) {
+    if (marker) marker.remove();
+    rail.classList.remove(hostClass);
+    railMarkerX.delete(mapKey);
+    return false;
+  }
+  const fresh = !marker;
+  if (fresh) {
+    marker = document.createElement('i');
+    marker.className = markerClass;
+    marker.setAttribute('aria-hidden', 'true');
+    rail.prepend(marker);
+    rail.classList.add(hostClass);
+  }
+  const railBox = rail.getBoundingClientRect();
+  const box = current.getBoundingClientRect();
+  const x = Math.round(box.left - railBox.left + rail.scrollLeft);
+  marker.style.width = `${Math.round(box.width)}px`;
+  marker.style.height = `${Math.round(box.height)}px`;
+  marker.style.top = `${Math.round(box.top - railBox.top + rail.scrollTop)}px`;
+  /* ⚠️ 判据是"有没有上一次的位置"，**不是**"是不是刚挂上来的"：
+     整页重渲染的场景（真机）那块底每次都是新的，静态页面的场景（设计预览）那块底一直都在 ——
+     两种都要能滑。只看 fresh 的话，静态页面里它会"跳"过去。 */
+  const previous = railMarkerX.get(mapKey);
+  const sliding = previous !== undefined && previous !== x;
+  if (sliding) {
+    marker.style.transition = 'none';
+    marker.style.transform = `translate3d(${previous}px, 0, 0)`;
+    void marker.offsetWidth;   // 让"起点"真的落定，否则起点和终点会被合成成一次样式变更
+  }
+  marker.style.transition = sliding ? '' : 'none';
+  marker.style.transform = `translate3d(${x}px, 0, 0)`;
+  if (!sliding) requestAnimationFrame(() => { marker.style.transition = ''; });
+  railMarkerX.set(mapKey, x);
+  // 选中的那块要是滑到栏外了，把它带回中间（只横着挪，不动整页）
+  if (rail.scrollWidth > rail.clientWidth + 4) {
+    rail.scrollTo({ left: Math.max(0, x + box.width / 2 - rail.clientWidth / 2), behavior: motionAllowed() ? 'smooth' : 'auto' });
+  }
+  return true;
 }

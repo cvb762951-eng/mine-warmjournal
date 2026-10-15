@@ -32,9 +32,9 @@ test('Mine keeps every existing entry once and removes the duplicate settings me
 test('Mine taste counters are derived inside the view before the template uses them', () => {
   const viewBody = mine.slice(mine.indexOf('export function mineView'), mine.indexOf('function profileForm'));
   assert.match(viewBody, /const tasteCount = \(state\.tasteEntries \|\| \[\]\)\.length/);
-  assert.match(viewBody, /const tasteAgainCount/);
+  assert.match(viewBody, /const tasteTodayCount = \(state\.tasteEntries \|\| \[\]\)\.filter\(entry => entry\.date === dateKey\(\)\)\.length/);
   const binder = mine.slice(mine.indexOf('function bindMine'), mine.indexOf('// ---- 表单提交'));
-  assert.doesNotMatch(binder, /const tasteCount|const tasteAgainCount/);
+  assert.doesNotMatch(binder, /const tasteCount|const tasteTodayCount/);
 });
 
 test('new routes disable scroll anchoring while navigation history still owns restoration', () => {

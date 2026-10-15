@@ -24,7 +24,7 @@ const CALENDAR_EVENT_META = {
   income: { icon: 'payments', tone: 'sage', label: '收入' },
   transfer: { icon: 'swap_horiz', tone: 'brown', label: '转账' },
   calibrate: { icon: 'balance', tone: 'gold', label: '校准' },
-  taste: { icon: 'restaurant_menu', tone: 'ochre', label: '尝鲜' },
+  taste: { icon: 'restaurant_menu', tone: 'ochre', label: '吃喝' },
   release: { icon: 'new_releases', tone: 'sage', label: '更新' }
 };
 

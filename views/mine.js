@@ -1,5 +1,5 @@
 import { $, $$, esc, state, save, render, modal, closeModal, show, confirmDelete, imgSrc, emptyState, go, formatMinutes, setState, defaults, registerView, registerBinder, registerSubmitHandler, callHelper, NAV_TABS, renderNav, pushBackState, applyTheme, notifyPersistedKeySeal } from '../core.js';
-import { journalEntries, migrateState, makeDefaultNavTabs, APP_THEMES, THEME_META, formatShanghaiDateTime } from '../model.js';
+import { journalEntries, migrateState, makeDefaultNavTabs, APP_THEMES, THEME_META, formatShanghaiDateTime, dateKey } from '../model.js';
 import { openReleaseNotes } from './common.js';
 import { exportEncryptedBackup, importEncryptedBackup, finalizeImportedBackup, rollbackImportedBackup, verifyEncryptedBackup } from '../backup.js';
 import { createSafetySnapshot, listSafetySnapshots, readSafetySnapshot, storageHealth, replaceState } from '../storage.js';
@@ -135,7 +135,7 @@ export function mineView() {
   const documentCount = (state.documents || []).length;
   const releaseNoteCount = (state.releases || []).length;
   const tasteCount = (state.tasteEntries || []).length;
-  const tasteAgainCount = (state.tasteEntries || []).filter(entry => ['favorite', 'again'].includes(entry.verdict)).length;
+  const tasteTodayCount = (state.tasteEntries || []).filter(entry => entry.date === dateKey()).length;
   const watched = state.media.filter(entry => entry.type === 'movie' && entry.status === 'completed').length;
   const read = state.media.filter(entry => entry.type === 'book' && entry.status === 'completed').length;
   const focusText = totalMinutes >= 60 ? `${Number((totalMinutes / 60).toFixed(totalMinutes >= 6000 ? 0 : 1))}h` : `${totalMinutes}m`;
@@ -168,7 +168,7 @@ export function mineView() {
     <div class="stream-sheet mine-stream">
       <section class="mine-settings-section mine-life-section"><header class="mine-section-heading"><span class="mine-section-index" aria-hidden="true">01</span><h2>我的生活</h2><small>LIFE ARCHIVE</small></header>
       <div class="settings-group-card">
-        <button class="setting-item-row taste-archive-entry" id="open-taste-archive"><span class="setting-row-left"><span class="setting-icon-box"><span class="material-symbols-outlined">restaurant_menu</span></span><span><span class="setting-row-title">味觉档案</span><span class="setting-row-subtitle">${tasteCount ? `${tasteCount} 条记录 · ${tasteAgainCount} 样还想再吃` : '记录吃过的菜、零食和店铺'}</span></span></span><span class="setting-row-right"><span>${tasteCount ? '查看档案' : '去记录'}</span><span class="material-symbols-outlined">chevron_right</span></span></button>
+        <button class="setting-item-row taste-archive-entry" id="open-taste-archive"><span class="setting-row-left"><span class="setting-icon-box"><span class="material-symbols-outlined">restaurant_menu</span></span><span><span class="setting-row-title">吃喝记录</span><span class="setting-row-subtitle">${tasteCount ? `共 ${tasteCount} 顿${tasteTodayCount ? ` · 今天记了 ${tasteTodayCount} 顿` : ''}` : '记录每天吃了什么、喝了什么'}</span></span></span><span class="setting-row-right"><span>${tasteCount ? '打开记录册' : '去记录'}</span><span class="material-symbols-outlined">chevron_right</span></span></button>
         <button class="setting-item-row" id="open-local-gallery"><span class="setting-row-left"><span class="setting-icon-box"><span class="material-symbols-outlined">perm_media</span></span><span><span class="setting-row-title">本机相册播放器</span><span class="setting-row-subtitle">查看手机照片和视频 · 原件留在相册</span></span></span><span class="setting-row-right"><span>打开</span><span class="material-symbols-outlined">chevron_right</span></span></button>
         <button class="setting-item-row" id="open-media-detail-mine"><span class="setting-row-left"><span class="setting-icon-box"><span class="material-symbols-outlined">auto_stories</span></span><span><span class="setting-row-title">我的书影音与资料流</span><span class="setting-row-subtitle">${mediaCount ? `${watched} 部电影 · ${read} 本书已完成归档` : '暂无记录 · 前往书影音资料库'}</span></span></span><span class="setting-row-right"><span>${mediaCount ? '查看详情' : '去记录'}</span><span class="material-symbols-outlined">chevron_right</span></span></button>
         <button class="setting-item-row" id="open-documents"><span class="setting-row-left"><span class="setting-icon-box"><span class="material-symbols-outlined">folder</span></span><span><span class="setting-row-title">资料库</span><span class="setting-row-subtitle">${documentCount ? `${documentCount} 个文件 · Word / PDF` : 'Word、PDF，以及分享进来的文件'}</span></span></span><span class="setting-row-right"><span>${documentCount ? '打开' : '去查看'}</span><span class="material-symbols-outlined">chevron_right</span></span></button>

@@ -73,7 +73,7 @@ test('Content photo surfaces migrated to shared photo-frame helper', () => {
   assert.match(calendar, /day-photo-thumb photo-blur-frame is-edge/);
   assert.match(journal, /journal-polaroid-frame photo-blur-frame is-edge/);
   assert.match(journal, /journal-reader-gallery[\s\S]*photo-blur-frame is-edge/);
-  assert.match(taste, /taste-entry-photo photo-blur-frame is-edge/);
+  assert.match(taste, /taste-entry-cover photo-blur-frame is-edge/);
   assert.match(gallery, /local-gallery-tile photo-blur-frame is-edge/);
   assert.match(vault, /vault-moment-preview photo-blur-frame is-edge/);
   assert.match(snippets, /snippet-photo-thumb photo-blur-frame is-edge/);

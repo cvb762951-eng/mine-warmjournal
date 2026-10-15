@@ -88,7 +88,7 @@ export function openReleaseNotes(code) {
 }
 
 export function recentActivity() {
-  const labels = { focus: '专注', journal: '日记', movie: '电影', book: '书籍', photo: '随手拍', note: '随手记', todo: '待办', habit: '习惯', taste: '尝鲜', release: '更新' };
+  const labels = { focus: '专注', journal: '日记', movie: '电影', book: '书籍', photo: '随手拍', note: '随手记', todo: '待办', habit: '习惯', taste: '吃喝', release: '更新' };
   return rebuildActivityLog(state).map(item => {
     // 版本更新动态要带全量说明和演示图，从 releases 分区整条取回。
     if (item.kind === 'release') {

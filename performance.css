@@ -4078,16 +4078,11 @@ body:has(.ai-companion-screen) main{padding-top:0}
 .ai-semantic-scope-list em{color:#9a7468;font-size:9px;font-style:normal}
 @media(max-width:395px){.ai-semantic-scope{margin-inline:0}.ai-semantic-scope-list span{font-size:9px}}
 
-/* ---- 账本 → 味觉档案 联动询问弹窗（ledger-taste-bridge.js） ---- */
+/* ---- 账本 → 吃喝记录 联动询问弹窗（ledger-taste-bridge.js） ---- */
+/* 星级选择已随「味觉档案 → 吃喝记录」升级移除，态度改成三档文字 chip
+   （.taste-meal-picker / .taste-verdict-picker 的样式在 styles.css）。 */
 .taste-offer-form{gap:12px}
 .taste-offer-form h2{margin:0}
-.taste-star-row{display:flex;align-items:center;gap:4px;flex-wrap:wrap}
-.taste-star{cursor:pointer}
-.taste-star input{position:absolute;opacity:0;pointer-events:none}
-.taste-star span{display:inline-block;font-size:22px;line-height:1;color:#c8a26a;opacity:.42;transition:opacity .15s ease,transform .15s ease}
-.taste-star input:checked~span,
-.taste-star input:checked+span{opacity:1}
-.taste-star:hover span{opacity:.75;transform:translateY(-1px)}
 
 /* ---- 今日页 bento 卡片头部的小图标动作（查看全部待办等） ---- */
 .bento-header{position:relative}
@@ -4313,6 +4308,125 @@ body:has(.ai-companion-screen) main{padding-top:0}
 @keyframes cascade-in {
   from { opacity: 0; transform: translate3d(0, 16px, 0) scale(0.985); }
   to   { opacity: 1; transform: none; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   吃喝记录 · 动效编排（2026-10-15）
+
+   要讲清楚的是「顺序」：页头先到，今天那张卡片跟上，照片一张张滑进来，
+   最后才铺开日期和一条条记录。让眼睛知道先看哪儿，而不是所有东西同时出现。
+
+   —— 纪律（与动效层其余部分一致）
+     ① 只动 transform 与 opacity，全程在合成器上，不碰布局与绘制属性；
+     ② **不写 will-change**：这些元素每次 render 都会重播动画，
+        常驻提升等于一直占着合成层不放（列表越长越吃显存）；
+     ③ `<html data-pl-motion="none">`（清简的低端机 / 会话降档）整段关掉；
+        系统「减弱动态效果」由本节末尾那条 + 文件末尾的全局兜底一起管住；
+     ④ **点照片放大仍然直接开大图，这里一概不做进入动效**（用户 2026-10-12 明确）。
+
+   —— 编排（清简 / 米白 / 暖阳共用同一套，只是配色不同）
+     0ms    页头
+     60ms   今日卡片（主角，抬高一点）
+     120ms  照片条逐张横滑（每张 +45ms）
+     140ms  搜索与筛选
+     180ms  栏目头
+     220ms  日期组（每多一组 +40ms），组内每条再各自错落一次
+     240ms  日期后面那条细线从左往右长出来
+   ═══════════════════════════════════════════════════════════════════════════ */
+@keyframes taste-head-in  { from { opacity: 0; transform: translate3d(0, 8px, 0); } }
+@keyframes taste-hero-in  { from { opacity: 0; transform: translate3d(0, 14px, 0); } }
+@keyframes taste-row-in   { from { opacity: 0; transform: translate3d(0, 10px, 0); } }
+@keyframes taste-slide-in { from { opacity: 0; transform: translate3d(18px, 0, 0); } }
+@keyframes taste-land     { from { opacity: 0; transform: translate3d(0, -14px, 0) scale(0.985); } }
+@keyframes taste-pop      { from { opacity: 0; transform: scale(0.9); } }
+@keyframes taste-rule-in  { from { opacity: 0; transform: scaleX(0); } }
+
+/* ① 三拍：页头 → 主角卡 → 其余 */
+:root:not([data-pl-motion="none"]) .taste-header { animation: taste-head-in 420ms var(--spring-entrance) backwards; }
+:root:not([data-pl-motion="none"]) .taste-today-card { animation: taste-hero-in 460ms var(--spring-entrance) 60ms backwards; }
+:root:not([data-pl-motion="none"]) .taste-controls-paper { animation: taste-row-in 420ms var(--spring-entrance) 140ms backwards; }
+:root:not([data-pl-motion="none"]) .taste-section > header { animation: taste-row-in 420ms var(--spring-entrance) 180ms backwards; }
+
+/* ② 今日卡片里的照片条：从右边一张张滑进来（今日首页那条入口同理）
+      ⚠️ 每条延时规则都必须**再写一遍同一道闸**：上面那条 animation 是简写、里面已经带了延时，
+      它的权重比裸的 `:nth-child()` 高 —— 少写一次就静默失效（所有东西一起进来，看不出错）。 */
+:root:not([data-pl-motion="none"]) .taste-today-strip > button,
+:root:not([data-pl-motion="none"]) .today-meal-strip > * { animation: taste-slide-in 420ms var(--spring-entrance) 120ms backwards; }
+:root:not([data-pl-motion="none"]) .taste-today-strip > button:nth-child(2),
+:root:not([data-pl-motion="none"]) .today-meal-strip > *:nth-child(2) { animation-delay: 165ms; }
+:root:not([data-pl-motion="none"]) .taste-today-strip > button:nth-child(3),
+:root:not([data-pl-motion="none"]) .today-meal-strip > *:nth-child(3) { animation-delay: 210ms; }
+:root:not([data-pl-motion="none"]) .taste-today-strip > button:nth-child(4),
+:root:not([data-pl-motion="none"]) .today-meal-strip > *:nth-child(4) { animation-delay: 255ms; }
+:root:not([data-pl-motion="none"]) .taste-today-strip > button:nth-child(5),
+:root:not([data-pl-motion="none"]) .today-meal-strip > *:nth-child(5) { animation-delay: 300ms; }
+:root:not([data-pl-motion="none"]) .taste-today-strip > button:nth-child(n+6),
+:root:not([data-pl-motion="none"]) .today-meal-strip > *:nth-child(n+6) { animation-delay: 345ms; }
+
+/* ③ 日期组先到，组内的记录再各自错落一次（级联套级联，一眼能看出"哪天"是分界）
+      ⚠️ :nth-child 从 2 起算 —— 栏目头 <header> 就是 .taste-section 的第 1 个孩子 */
+:root:not([data-pl-motion="none"]) .taste-section > .taste-day-group { animation: taste-row-in 460ms var(--spring-entrance) 220ms backwards; }
+:root:not([data-pl-motion="none"]) .taste-section > .taste-day-group:nth-child(3) { animation-delay: 260ms; }
+:root:not([data-pl-motion="none"]) .taste-section > .taste-day-group:nth-child(4) { animation-delay: 300ms; }
+:root:not([data-pl-motion="none"]) .taste-section > .taste-day-group:nth-child(n+5) { animation-delay: 340ms; }
+:root:not([data-pl-motion="none"]) .taste-entry-list > .taste-entry-card { animation: taste-row-in 420ms var(--spring-entrance) 20ms backwards; }
+:root:not([data-pl-motion="none"]) .taste-entry-list > .taste-entry-card:nth-child(2) { animation-delay: 54ms; }
+:root:not([data-pl-motion="none"]) .taste-entry-list > .taste-entry-card:nth-child(3) { animation-delay: 88ms; }
+:root:not([data-pl-motion="none"]) .taste-entry-list > .taste-entry-card:nth-child(n+4) { animation-delay: 122ms; }
+/* 日期后面那条细线从左往右长出来 —— 只做 scaleX，不改宽度（改宽度会每帧重排） */
+:root:not([data-pl-motion="none"]) .taste-day-date::after { transform-origin: left center; animation: taste-rule-in 560ms var(--spring-entrance) 240ms backwards; }
+
+/* ④ 「刚记下」的那一条不排队：直接从上方落位，一眼看见自己刚写的东西进了哪儿。
+      写在 :root 里才压得住上面那条级联（级联那条权重更高）。 */
+:root:not([data-pl-motion="none"]) .taste-entry-card.is-just-added { animation: taste-land 560ms var(--spring-entrance) backwards; }
+:root:not([data-pl-motion="none"]) .today-meal-chip.is-just-added,
+:root:not([data-pl-motion="none"]) .taste-today-strip > button.is-just-added { animation: taste-pop 520ms var(--spring-entrance) backwards; }
+
+/* ⑤ 保存后新加进照片格的那一张弹一下（其余已存在的照片不重播，不然删一张会整排乱动） */
+:root:not([data-pl-motion="none"]) #taste-photo-preview > span.is-new { animation: taste-pop 460ms var(--spring-entrance) backwards; }
+
+/* ⑥ 点开一条之后，弹层里的内容依次落位：标题 → 态度 → 照片 → 写下的话 → 按钮。
+      不是整块「唰」地一起出现，视线会自己顺着往下走。
+      （共享元素转场只留给习惯档案，这里不上共享转场。） */
+:root:not([data-pl-motion="none"]) .taste-detail > * { animation: taste-row-in 420ms var(--spring-entrance) backwards; }
+:root:not([data-pl-motion="none"]) .taste-detail > *:nth-child(2) { animation-delay: 50ms; }
+:root:not([data-pl-motion="none"]) .taste-detail > *:nth-child(3) { animation-delay: 100ms; }
+:root:not([data-pl-motion="none"]) .taste-detail > *:nth-child(4) { animation-delay: 150ms; }
+:root:not([data-pl-motion="none"]) .taste-detail > *:nth-child(n+5) { animation-delay: 190ms; }
+
+/* ⑦ 照片条：滑一下就停在整格上，不用手动对齐（proximity 而不是 mandatory，
+      不然想停在两张之间看下一张会被拽回去）。 */
+.taste-today-strip, .today-meal-strip { scroll-snap-type: x proximity; }
+.taste-today-strip > button, .today-meal-strip > * { scroll-snap-align: start; }
+
+/* ⑧ 横排按钮上的「选中底」：换选项时它滑过去，而不是"啪"地闪现。
+     位置由 motion.js 的 mountRailMarker 摆（它记着上一次的位置）；
+      没跑起脚本时 .has-rail-marker 不会加上，选中态仍由按钮自己的底色负责，功能不受影响。
+      选中底滑走的那一格颜色要跟着退回来，否则会有 300ms 是"白字压浅底"（看不清）。 */
+.rail-marker { position: absolute; left: 0; top: 0; z-index: 0; border-radius: 999px; background: var(--sage-green-dark); pointer-events: none; }
+:root:not([data-pl-motion="none"]) .rail-marker { transition: transform 320ms var(--spring-entrance); }
+:root:not([data-pl-motion="none"]) .has-rail-marker > button { transition: color 140ms var(--spring-entrance); }
+.has-rail-marker > button.active { background: transparent; color: var(--sheet-card); }
+
+/* ⑨ 只有入场，没有退场：删掉一条时内容已经没了，再做退场动画会拖住
+      「记录已删除」那一下的即时感 —— 所以这里刻意不写 @keyframes taste-*-out。
+      （删照片的退场是另一回事：那是弹层里的一次局部收窄，写在 views/taste.js 里。） */
+
+/* 减弱动态效果：这些元素必须**立刻可见**。
+   全局兜底只把时长压到 0.001ms，**延时还留着** —— 带 220ms 延时的元素会先隐形
+   等一个延时再瞬间蹦出来，比不做动画更难看。所以这里把 animation 整个摘掉。 */
+@media (prefers-reduced-motion: reduce) {
+  :root .taste-header,
+  :root .taste-today-card,
+  :root .taste-controls-paper,
+  :root .taste-section > header,
+  :root .taste-section > .taste-day-group,
+  :root .taste-entry-list > .taste-entry-card,
+  :root .taste-day-date::after,
+  :root .taste-today-strip > button,
+  :root .today-meal-strip > *,
+  :root #taste-photo-preview > span.is-new,
+  :root .taste-detail > * { animation: none !important; }
 }
 
 /* ── View Transitions（卡片→详情）：让浏览器自己算那一趟 FLIP ──
