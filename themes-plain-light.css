@@ -3232,4 +3232,90 @@ button.danger) {
   background: var(--pl-blue-tint) !important;
 }
 
+/* snippet-tag-editor start */
+:root[data-theme="plain"] .snippet-tag-editor {
+  margin: 14px 0 4px;
+  padding: 14px;
+  border-radius: 16px;
+  background: var(--plain-surface);
+  border: 1px solid var(--pl-blue-line);
+}
+:root[data-theme="plain"] .snippet-tag-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ink);
+}
+:root[data-theme="plain"] .snippet-tag-head small {
+  display: block;
+  color: var(--ink-muted);
+  font-size: 12px;
+  font-weight: 400;
+}
+:root[data-theme="plain"] .snippet-tag-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 10px 0;
+}
+:root[data-theme="plain"] .snippet-tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px 4px 4px 10px;
+  border-radius: 999px;
+  background: var(--pl-blue-soft);
+  color: var(--ink);
+  font-size: 12px;
+}
+:root[data-theme="plain"] .snippet-tag-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--ink-muted);
+}
+:root[data-theme="plain"] .snippet-tag-remove .material-symbols-outlined {
+  font-size: 16px;
+}
+:root[data-theme="plain"] .snippet-tag-empty {
+  color: var(--ink-muted);
+  font-size: 12px;
+}
+:root[data-theme="plain"] .snippet-tag-add {
+  display: flex;
+  gap: 8px;
+}
+:root[data-theme="plain"] .snippet-tag-add input {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid var(--pl-blue-line);
+  border-radius: 12px;
+  background: var(--plain-surface);
+  color: var(--ink);
+  padding: 8px 10px;
+}
+:root[data-theme="plain"] .snippet-tag-add button {
+  border: 0;
+  border-radius: 12px;
+  background: var(--pl-blue);
+  color: var(--plain-surface);
+  padding: 8px 14px;
+}
+:root[data-theme="plain"] .moment-album-remove {
+  border-color: var(--pl-blue-line);
+  background: var(--plain-surface);
+  color: var(--pl-danger);
+}
+:root[data-theme="plain"] .moment-album-remove[hidden] {
+  display: none;
+}
+/* snippet-tag-editor end */
+
 
