@@ -1,4 +1,5 @@
 import { $, $$, esc, state, save, render, modal, closeModal, emptyState, go, avatarContent, imgSrc, registerView, registerBinder, callHelper, pushBackState, pad, show } from '../core.js';
+import { thumbKeyFor, progressiveSource, watchThumbImages, watchProgressiveImages } from '../photo-thumbs.js';
 import { habitsForDate, todosForDate, todayCompletion, activeStreak, dateKey, WEEK_DAYS, habitProgressForDate, habitGoalMet, formatShanghaiClock, tasteMealOrder, tasteMealLabel } from '../model.js';
 import { recentActivity, openReleaseNotes } from './common.js';
 import { countdownBanner } from './countdown.js';
@@ -178,9 +179,26 @@ export function todayView() {
 /* 今日首页的「今天吃了什么」卡片（2026-10-15 随吃喝记录升级新增）。
    刻意不做成待办清单：不列「早餐/午餐/晚餐还没记」这类格子，也不催办 ——
    用户明确要求「不强制记录」，所以没记的时候只有一句中性说明 + 一个入口。 */
+
+/* 那枚 40px 小图。两件事缺一不可：
+   ① 走缩略图管线（先给占位、进视口就生成 480，永远不会出现空 src）；
+   ② **背后永远垫一个「餐次首字」** —— 图没到之前看到的是一个有意义的字，不是一块灰。
+   ⚠️ 原来是 `photoFrameLayersHtml(imgSrc(photo))`：冷启动时「已有短引用的地址解析」排在
+      首屏之后 ⇒ `imgSrc()` 会先返回**空串**，而空 src 就是"一块灰底"，
+      要等地址解析完才出现 —— 用户反馈「每次打开都显示成这样好一会」就是这个。
+      图片是绝对定位，天然盖在首字之上，所以图一到就自动接管。 */
+function todayMealThumb(entry) {
+  const initial = esc(tasteMealLabel(entry.meal).slice(0, 1));
+  const photo = entry.photos?.[0];
+  if (!photo) return `<span class="today-meal-thumb is-text">${initial}</span>`;
+  const thumbRef = thumbKeyFor(photo) ? photo : '';
+  const url = thumbRef ? esc(progressiveSource(photo)) : imgSrc(photo);
+  return `<span class="today-meal-thumb photo-blur-frame is-edge"><b class="today-meal-thumb-fallback" aria-hidden="true">${initial}</b>${photoFrameLayersHtml(url, { alt: entry.name, thumbRef, progressive: Boolean(thumbRef), lazy: true })}</span>`;
+}
+
 function todayMealsHtml(meals) {
   const strip = meals.length
-    ? `<div class="today-meal-strip">${meals.map(entry => `<button type="button" class="today-meal-chip" data-today-meal="${esc(entry.id)}">${entry.photos?.[0] ? `<span class="today-meal-thumb photo-blur-frame is-edge">${photoFrameLayersHtml(imgSrc(entry.photos[0]), { alt: entry.name, lazy: true })}</span>` : `<span class="today-meal-thumb is-text">${esc(tasteMealLabel(entry.meal).slice(0, 1))}</span>`}<span class="today-meal-copy"><small>${esc(tasteMealLabel(entry.meal))}</small><strong>${esc(entry.name)}</strong></span></button>`).join('')}<button type="button" class="today-meal-add" id="today-meal-new" aria-label="再记一顿"><span class="material-symbols-outlined">add</span></button></div>`
+    ? `<div class="today-meal-strip">${meals.map(entry => `<button type="button" class="today-meal-chip" data-today-meal="${esc(entry.id)}">${todayMealThumb(entry)}<span class="today-meal-copy"><small>${esc(tasteMealLabel(entry.meal))}</small><strong>${esc(entry.name)}</strong></span></button>`).join('')}<button type="button" class="today-meal-add" id="today-meal-new" aria-label="再记一顿"><span class="material-symbols-outlined">add</span></button></div>`
     : `<div class="today-meal-empty"><p>今天还没有记录，想起来就记一笔</p><button type="button" id="today-meal-new"><span class="material-symbols-outlined">add</span>记一顿</button></div>`;
   return `<section class="today-meals-card"><header><button type="button" class="today-meals-title" id="today-meals-title">今天吃了什么</button><button type="button" class="today-meals-more" id="today-meals-more">记录册<span class="material-symbols-outlined">chevron_right</span></button></header>${strip}</section>`;
 }
@@ -410,6 +428,10 @@ function todayHabitDetailTarget() {
 // ---- 绑定 ----
 function bindToday() {
   bindPrivateVaultDateHold();
+  /* 「今天吃了什么」那两枚 40px 小图走缩略图管线：进视口就生成 480（便宜），
+     够大了才升原图。⚠️ 这两个观察器不接上的话，小图永远停在占位/首字上。 */
+  watchThumbImages(document);
+  watchProgressiveImages(document);
   $('#refresh-weather')?.addEventListener('click', () => callHelper('refreshWeather')?.catch(error => show(error.message)));
   $('#open-timetable')?.addEventListener('click', () => callHelper('openTimetable'));
   $('#btn-snap')?.addEventListener('click', () => callHelper('openQuickPhotoModal'));

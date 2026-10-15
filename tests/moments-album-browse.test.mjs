@@ -97,7 +97,7 @@ test('Moments album deck plain theme visual polish and depth table', async () =>
 
   // 1. JS: warm depth preserved & plain depth table present
   assert.match(snippets, /const MOMENT_ALBUM_DEPTH = \[{\s*y:\s*0,\s*s:\s*1,\s*o:\s*1\s*},\s*{\s*y:\s*-12,\s*s:\s*0\.972,\s*o:\s*0\.96\s*},\s*{\s*y:\s*-24,\s*s:\s*0\.944,\s*o:\s*0\.9\s*}\];/);
-  assert.match(snippets, /const MOMENT_ALBUM_DEPTH_PLAIN = \[{\s*y:\s*0,\s*s:\s*1,\s*o:\s*1\s*},\s*{\s*y:\s*-18,\s*s:\s*0\.95,\s*o:\s*0\.94\s*},\s*{\s*y:\s*-34,\s*s:\s*0\.9,\s*o:\s*0\.86\s*}\];/);
+  assert.match(snippets, /const MOMENT_ALBUM_DEPTH_PLAIN = \[{\s*y:\s*0,\s*s:\s*1,\s*o:\s*1\s*},\s*{\s*y:\s*-16,\s*s:\s*0\.955,\s*o:\s*0\.94\s*},\s*{\s*y:\s*-30,\s*s:\s*0\.915,\s*o:\s*0\.86\s*}\];/);
   assert.match(snippets, /function momentAlbumDepthTable\(\)/);
   assert.match(snippets, /dataset\?\.theme === 'plain'/);
 
@@ -105,8 +105,10 @@ test('Moments album deck plain theme visual polish and depth table', async () =>
   for (const [name, fileCss] of [['themes-plain', plainCss], ['themes-plain-light', plainLightCss]]) {
     assert.match(fileCss, /:root\[data-theme="plain"\] \.moment-album-card\s*\{[^}]*border-radius:\s*18px !important;/, `${name} has card radius 18px`);
     assert.match(fileCss, /:root\[data-theme="plain"\] \.moment-album-frame\s*\{[^}]*border-radius:\s*10px !important;/, `${name} has frame radius 10px`);
-    assert.match(fileCss, /:root\[data-theme="plain"\] \.moment-album-card\[data-depth="1"\]\s*\{[^}]*transform:\s*translate3d\(0,\s*-18px,\s*-10px\)\s*scale\(0\.95\);/, `${name} has depth 1 transform`);
-    assert.match(fileCss, /:root\[data-theme="plain"\] \.moment-album-card\[data-depth="2"\]\s*\{[^}]*transform:\s*translate3d\(0,\s*-34px,\s*-20px\)\s*scale\(0\.90?\);/, `${name} has depth 2 transform`);
+    // 2026-10-15：深度值按"肉眼看到的露边间距"重新配平（两层各约 7px / 6.6px），
+    // 与 JS 的 MOMENT_ALBUM_DEPTH_PLAIN 保持一致（那才是姿态真身，这两条只是首帧兜底）。
+    assert.match(fileCss, /:root\[data-theme="plain"\] \.moment-album-card\[data-depth="1"\]\s*\{[^}]*transform:\s*translate3d\(0,\s*-16px,\s*0\)\s*scale\(0\.955\);/, `${name} has depth 1 transform`);
+    assert.match(fileCss, /:root\[data-theme="plain"\] \.moment-album-card\[data-depth="2"\]\s*\{[^}]*transform:\s*translate3d\(0,\s*-30px,\s*0\)\s*scale\(0\.915\);/, `${name} has depth 2 transform`);
     assert.match(fileCss, /:root\[data-theme="plain"\] \.moment-album-card\s*\{[^}]*background-color:\s*var\(--plain-surface\) !important;/, `${name} has plain surface color`);
     assert.match(fileCss, /:root\[data-theme="plain"\] \.moment-album-card\s*\{[^}]*background-image:\s*none !important;/, `${name} removes paper texture`);
   }

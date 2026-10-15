@@ -8136,6 +8136,9 @@ video.is-awaiting-frame{opacity:0}
    今日首页这一格必须是正圆：有照片的用相框、没照片的只是个字，两格并排时形状必须一致。 */
 .today-meal-thumb.photo-blur-frame.is-edge{border-radius:50%!important}
 .today-meal-thumb.is-text{font:500 15px/1 'LXGW WenKai Screen R','Noto Serif SC',serif;color:var(--sage-green-dark)}
+/* 有照片时的兜底：图还没到之前显示「餐次首字」，图一到就被盖住（图片是绝对定位，天然在上层）。
+   2026-10-15：原来这里没有兜底，而冷启动时 imgSrc() 会先返回空串 ⇒ 那枚小圆就是一块灰。 */
+.today-meal-thumb-fallback{font:500 15px/1 'LXGW WenKai Screen R','Noto Serif SC',serif;color:var(--sage-green-dark)}
 .today-meal-copy{min-width:0;display:grid}
 .today-meal-copy small{color:var(--ink-muted);font-size:10px}
 .today-meal-copy strong{overflow:hidden;font-family:'LXGW WenKai Screen R','Noto Serif SC',serif;font-size:12px;font-weight:600;text-overflow:ellipsis;white-space:nowrap}
@@ -9711,7 +9714,11 @@ body #modal-layer .modal.confirm-sheet .modal-actions .danger { padding: 0 16px 
   border: 1px solid rgba(220, 212, 198, 0.65);
   box-shadow: 0 12px 36px rgba(32, 24, 15, 0.12);
   color: var(--warm-ink, #181614);
-  overflow: hidden;
+  /* ⚠️ 必须是 visible（2026-10-15 用户要求「翻牌时卡牌要能超出图集预览的框」）：
+     翻牌时脚本本来就把牌平移出 1.15 倍宽度并带一点旋转，之前被这里的 hidden 在纸片边缘裁断，
+     看着像"牌撞到框上没了"。放开之后牌会滑到纸片外、落在暗底上，才是完整的甩牌动作。
+     纸片里没有别的东西需要靠它裁（照片由各自的相框裁、说明文字自己 clamp）。 */
+  overflow: visible;
   box-sizing: border-box;
 }
 :root[data-theme="plain"] .moment-album-sheet {
@@ -9910,6 +9917,41 @@ body #modal-layer .modal.confirm-sheet .modal-actions .danger { padding: 0 16px 
 .moment-album-counter { color: var(--warm-ink-muted, #878177); font-size: 11px; font-variant-numeric: tabular-nums; }
 @media (prefers-reduced-motion: reduce) {
   :root:not([data-pl-motion-explicit="rich"]) .moment-album-stack.is-flip-next, :root:not([data-pl-motion-explicit="rich"]) .moment-album-stack.is-flip-prev{ animation: none; }
+}
+
+/* ═══ 图集卡牌的观感打磨（2026-10-15 用户要求）══════════════════════════════
+   只做视觉，翻牌逻辑一行没动：三条 flip keyframes、[data-depth] 的层级与脚本手势全部原样。
+   也刻意**不新增任何动画**（进入动效那两条已经够了），免得又踩"同页重渲染重播"的坑。
+   ⚠️ 牌的圆角/底色/描边/阴影、以及三张牌的深度姿态，清简层（themes-plain-light.css）
+      已经用 `!important` 写过了 —— 那才是它们该待的地方，改动都落在那边。
+   ⚠️ 深度姿态的**真身是 JS 那张表**（views/snippets.js 的 MOMENT_ALBUM_DEPTH / _PLAIN，
+      以内联样式落到牌上，优先级高于这里）⇒ CSS 这两条只是首帧兜底，改的时候要两边一起改。
+      所以这里**不加 perspective**：脚本写的位移没有 z，加了也不会有任何效果，只会让人误会。
+   这里只留清简层没管的几处：纸的顶边高光、播放按钮的柔光环、时长戳的胶囊形。 */
+
+/* ① 顶边一线高光：纸的厚度感（纯静态描边，不参与任何动画） */
+:root[data-theme="plain"] .moment-album-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  border-radius: inherit;
+  pointer-events: none;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.86);
+}
+
+/* ③ 播放按钮：一圈柔光晕 + 更干净的心（底色与字色清简层已定，这里只补尺寸与投影） */
+:root[data-theme="plain"] .moment-album-play {
+  width: 40px;
+  height: 40px;
+  box-shadow: 0 0 0 6px rgba(255, 255, 255, 0.16), 0 6px 18px rgba(16, 24, 20, 0.32);
+}
+:root[data-theme="plain"] .moment-album-play .material-symbols-outlined { font-size: 25px; }
+
+/* ④ 时长戳：方角改成圆角胶囊（只改图集里这一个，全局那条别处还要用） */
+:root[data-theme="plain"] .moment-album-card .video-duration-stamp {
+  border-radius: 999px;
+  box-shadow: 0 2px 8px rgba(13, 24, 19, 0.2);
 }
 
 /* 内容图迁移到共用相框后：固定尺寸容器只包 frame，仍图用 contain（pad 层除外） */

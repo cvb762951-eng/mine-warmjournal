@@ -2831,7 +2831,11 @@ function momentAlbumTier() {
 }
 // 深度 0/1/2 的静止姿态（与 CSS 一致），拖动时后牌按进度在相邻两档之间插值
 const MOMENT_ALBUM_DEPTH = [{ y: 0, s: 1, o: 1 }, { y: -12, s: 0.972, o: 0.96 }, { y: -24, s: 0.944, o: 0.9 }];
-const MOMENT_ALBUM_DEPTH_PLAIN = [{ y: 0, s: 1, o: 1 }, { y: -18, s: 0.95, o: 0.94 }, { y: -34, s: 0.9, o: 0.86 }];
+/* 清简主题的三档深度。2026-10-15 调整：原来 -18/0.95 与 -34/0.90 叠起来
+   后两张露出的边太挤、也不均匀；现在按"肉眼看到的间距"配平，两层露边各约 7px 和 6.6px。
+   ⚠️ 这张表是深度姿态的**真身**（内联样式落到牌上，优先级高于 CSS）⇒
+      改它必须同步改 themes-plain-light.css 与 themes-plain.css 里那两条 [data-depth]。 */
+const MOMENT_ALBUM_DEPTH_PLAIN = [{ y: 0, s: 1, o: 1 }, { y: -16, s: 0.955, o: 0.94 }, { y: -30, s: 0.915, o: 0.86 }];
 
 function momentAlbumDepthTable() {
   if (typeof document !== 'undefined' && document.documentElement?.dataset?.theme === 'plain') {

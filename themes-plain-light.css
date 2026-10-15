@@ -3181,17 +3181,19 @@ button.danger) {
 
 :root[data-theme="plain"] .moment-album-card[data-depth="1"] {
   z-index: 2;
-  transform: translate3d(0, -18px, -10px) scale(0.95);
+  /* 姿态与 JS 的 MOMENT_ALBUM_DEPTH_PLAIN 保持一致（那才是真身，这条只是首帧兜底） */
+  transform: translate3d(0, -16px, 0) scale(0.955);
   opacity: 0.94;
-  border-color: rgba(85, 96, 108, 0.12) !important;
+  border-color: var(--pl-blue-line) !important;
   box-shadow: 0 1px 2px rgba(46, 52, 59, 0.04), 0 4px 12px rgba(46, 52, 59, 0.05), 0 12px 24px rgba(46, 52, 59, 0.05) !important;
 }
 
 :root[data-theme="plain"] .moment-album-card[data-depth="2"] {
   z-index: 1;
-  transform: translate3d(0, -34px, -20px) scale(0.90);
+  /* 同上：两层露边各约 7px 与 6.6px，看着才均匀 */
+  transform: translate3d(0, -30px, 0) scale(0.915);
   opacity: 0.86;
-  border-color: rgba(85, 96, 108, 0.10) !important;
+  border-color: var(--pl-blue-line) !important;
   box-shadow: 0 1px 2px rgba(46, 52, 59, 0.03), 0 2px 8px rgba(46, 52, 59, 0.04), 0 8px 18px rgba(46, 52, 59, 0.04) !important;
 }
 
