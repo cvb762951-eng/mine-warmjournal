@@ -1059,7 +1059,7 @@ function cycleDeckPhoto(card, entry) {
       frame.querySelectorAll('.journal-deck-photo-dots i').forEach((dot, i) => dot.classList.toggle('is-on', i === next));
       frame.classList.remove('is-cycling');
     };
-    if (prefersReducedMotion()) { swap(); return; }
+    if (!motionAllowed()) { swap(); return; }
     frame.classList.add('is-cycling');
     setTimeout(swap, 120);
   };
@@ -1167,6 +1167,8 @@ export function mountJournalDeck(host, entries = [], options = {}) {
     const offset = new SpringODE({ mass: 1, stiffness: 210, damping: 24, precision: 0.6 });
     const pitch = new SpringODE({ mass: 0.8, stiffness: 240, damping: 20, precision: 0.15 });
     const yaw = new SpringODE({ mass: 0.8, stiffness: 240, damping: 20, precision: 0.15 });
+    /* 长按把牌"拿起来"的量：0=平放，1=抬起并微微转一下（松手回弹） */
+    const lift = new SpringODE({ mass: 0.9, stiffness: 250, damping: 24, precision: 0.01 });
     let deckApi = null;
 
     let spreadButton = null;
@@ -1237,9 +1239,15 @@ export function mountJournalDeck(host, entries = [], options = {}) {
     // 顶牌引用在 paint() 里缓存，拖动中不再 querySelector；姿态写入按 rAF 合并，一帧最多写一次 transform。
     let topCard = null;
     let poseFrame = 0;
+    let holdTimer = 0;
     /* 顶牌姿态唯一来源：升牌终点与 paint/applyPose 落定必须同一套，否则交接会抖。 */
-    const topCardPose = (x = 0, tiltX = 0, tiltY = 0) =>
-      `translate3d(${Number(x).toFixed(2)}px, 0, 28px) rotateX(${(Number(tiltX) * 0.3).toFixed(2)}deg) rotateY(${(Number(tiltY) * 0.3).toFixed(2)}deg) rotateZ(${(Number(x) * 0.012).toFixed(2)}deg)`;
+    const topCardPose = (x = 0, tiltX = 0, tiltY = 0, liftValue = 0) => {
+      const up = Number(liftValue) || 0;
+      const y = (-up * 9).toFixed(2);
+      const z = (28 + up * 34).toFixed(2);
+      const scale = (1 + up * 0.03).toFixed(3);
+      return `translate3d(${Number(x).toFixed(2)}px, ${y}px, ${z}px) rotateX(${(Number(tiltX) * 0.3).toFixed(2)}deg) rotateY(${(Number(tiltY) * 0.3).toFixed(2)}deg) rotateZ(${(Number(x) * 0.012).toFixed(2)}deg) scale(${scale})`;
+    };
     const applyPose = () => {
       poseFrame = 0;
       if (!active || !host.isConnected) {
@@ -1251,10 +1259,10 @@ export function mountJournalDeck(host, entries = [], options = {}) {
       const x = offset.current;
       const tiltX = pitch.current;
       const tiltY = yaw.current;
-      card.style.transform = topCardPose(x, tiltX, tiltY);
+      card.style.transform = topCardPose(x, tiltX, tiltY, lift.current);
       const travel = Math.min(1, Math.abs(x) / stageWidth);
       const gone = travel < 0.35 ? 0 : (travel - 0.35) / 0.65;
-      const nextOpacity = prefersReducedMotion() || gone < 0.02 ? '' : (1 - gone * 0.45).toFixed(3);
+      const nextOpacity = !motionAllowed() || gone < 0.02 ? '' : (1 - gone * 0.45).toFixed(3);
       if (card.style.opacity !== nextOpacity) card.style.opacity = nextOpacity;
       // 拖动中只动顶牌的 transform/opacity，阴影等松手后再跟上，避免每帧多一层写入
       if (dragged && tracking) return;
@@ -1268,6 +1276,7 @@ export function mountJournalDeck(host, entries = [], options = {}) {
     offset.onUpdate = schedulePose;
     pitch.onUpdate = schedulePose;
     yaw.onUpdate = schedulePose;
+    lift.onUpdate = schedulePose;
     const setActiveLayer = on => { topCard?.classList.toggle('is-active-drag', on); };
 
     const pool = new Map();
@@ -1492,11 +1501,24 @@ export function mountJournalDeck(host, entries = [], options = {}) {
       startY = event.clientY;
       trail.length = 0;
       trail.push({ x: event.clientX, t: performance.now() });
+      /* ── 长按把牌拿起来（2026-10-15 用户要的「长按有旋转感」）──────────────
+         拖动的倾斜一直是有的，但长按什么都不做。按住 320ms、期间没移动也没开始拖动
+         ⇒ 抬起这张牌并轻轻转一个角度；一动、一松手就回弹。
+         ⚠️ 用 motionAllowed()（认"始终完整"），不要用 prefersReducedMotion()。 */
+      clearTimeout(holdTimer);
+      if (!cutting && motionAllowed()) {
+        holdTimer = setTimeout(() => {
+          if (!tracking || dragged || vertical || cutting) return;
+          lift.to(1);
+          pitch.to(-10);
+          yaw.to(7);
+        }, 320);
+      }
     };
     const onMove = event => {
       if (!tracking || event.pointerId !== pointerId) {
         // 悬停倾斜只给鼠标；矩形在 pointerenter 时量一次，移动中不再读布局
-        if (!tracking && event.pointerType === 'mouse' && hoverRect && !prefersReducedMotion()) {
+        if (!tracking && event.pointerType === 'mouse' && hoverRect && motionAllowed()) {
           const rect = hoverRect;
           if (!rect.width || !rect.height) return;
           const nx = ((event.clientX - rect.left) / rect.width) * 2 - 1;
@@ -1508,6 +1530,10 @@ export function mountJournalDeck(host, entries = [], options = {}) {
       }
       const dx = event.clientX - startX;
       const dy = event.clientY - startY;
+      if (Math.hypot(dx, dy) > 8) {
+        clearTimeout(holdTimer);
+        if (lift.current > 0.02) lift.to(0);
+      }
       trail.push({ x: event.clientX, t: performance.now() });
       if (trail.length > 6) trail.shift();
       // 飞出进行中：同方向不拉回；反向才打断并从当前位移接着走
@@ -1539,7 +1565,7 @@ export function mountJournalDeck(host, entries = [], options = {}) {
         offset.set(offset.current + dx);
         startX = event.clientX;
         startY = event.clientY;
-        if (!prefersReducedMotion()) {
+        if (motionAllowed()) {
           yaw.set(Math.max(-18, Math.min(18, offset.current / 16)));
           pitch.set(Math.max(-8, Math.min(8, -dy / 36)));
         }
@@ -1558,7 +1584,7 @@ export function mountJournalDeck(host, entries = [], options = {}) {
         setActiveLayer(true);
       }
       offset.set(dx);
-      if (!prefersReducedMotion()) {
+      if (motionAllowed()) {
         yaw.set(Math.max(-18, Math.min(18, dx / 16)));
         pitch.set(Math.max(-8, Math.min(8, -dy / 36)));
       }
@@ -1583,6 +1609,8 @@ export function mountJournalDeck(host, entries = [], options = {}) {
         schedulePose();
         setTimeout(() => { if (!tracking) setActiveLayer(false); }, 700);
       }
+      clearTimeout(holdTimer);
+      if (lift.current > 0.02) lift.to(0);
       if (wasVertical || !wasDrag) {
         offset.to(0);
         yaw.to(0);
@@ -1663,6 +1691,7 @@ export function mountJournalDeck(host, entries = [], options = {}) {
       destroy() {
         if (!active) return;
         active = false;
+        clearTimeout(holdTimer);
         abort.abort();
         offset.stop();
         pitch.stop();

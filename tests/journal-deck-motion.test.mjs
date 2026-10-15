@@ -75,7 +75,9 @@ test('牌组相框不拉伸，说明在照片下面，切页不靠模糊', async
   assert.match(motion, /card\.inert = true/);
   assert.match(motion, /button\.tabIndex = -1/);
   const dragTilt = motion.slice(motion.indexOf('offset.set(dx);'), motion.indexOf('const finish = event'));
-  assert.match(dragTilt, /if \(!prefersReducedMotion\(\)\)/);
+  /* 2026-10-15：牌组的动效判断从 prefersReducedMotion() 换成 motionAllowed() ——
+   用户在设置里选「始终完整」时也要生效，不能只看系统开关。 */
+  assert.match(dragTilt, /if \(motionAllowed\(\)\)/);
   const rise = performance.slice(performance.indexOf('@keyframes v3-masthead-rise'), performance.indexOf('.today-view .magazine-header > *'));
   assert.match(rise, /transform: translate3d/);
   assert.ok(!rise.includes('blur'));
