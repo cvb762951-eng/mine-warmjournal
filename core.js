@@ -625,7 +625,12 @@ export function go(route, calendarDate = '', options = {}) {
     launcher.classList.add('nav-swap-out');
     requestAnimationFrame(() => {
       if (token !== navSwapToken) return;   // 连点两个标签：只认最后一次
+      /* 换页这一帧给外壳打一个标记：只有"真的进入这一页"才该播整页入场。
+         同页重渲染（点筛选、搜索、删一条）不该再演一遍 —— 入场是从全透明开始的，
+         重播会让整页先淡没再淡回来（2026-10-15 用户录屏里 2.08s 那帧就是这个）。 */
+      launcher.dataset.routeEnter = '1';
       apply(false);
+      requestAnimationFrame(() => { delete launcher.dataset.routeEnter; });
       launcher.classList.remove('nav-swap-out');
       launcher.classList.add('nav-swap-in');
       setTimeout(() => {

@@ -4382,6 +4382,30 @@ body:has(.ai-companion-screen) main{padding-top:0}
 :root:not([data-pl-motion="none"]) .taste-entry-list > .taste-entry-card:nth-child(2) { animation-delay: 54ms; }
 :root:not([data-pl-motion="none"]) .taste-entry-list > .taste-entry-card:nth-child(3) { animation-delay: 88ms; }
 :root:not([data-pl-motion="none"]) .taste-entry-list > .taste-entry-card:nth-child(n+4) { animation-delay: 122ms; }
+
+/* ── 同页重渲染不该重播整页入场（2026-10-15 用户录屏定位）─────────────────────
+   换页那一帧 core 会给 #app 打 data-route-enter；只有那一帧进来才播入场。
+   点筛选 / 搜索 / 删一条都会 render() 整页，这些入场动画从 opacity 0 起播、
+   日期组还带 220ms 延迟 ⇒ 用户看到的是"整页先淡没、再淡回来"（录屏 2.08s 那帧几乎全白）。
+   预览页没这问题，因为它点筛选只挪卡片、不重建页面 —— 这就是他说的"不一样"。 */
+#app:not([data-route-enter]) .taste-header,
+#app:not([data-route-enter]) .taste-today-card,
+#app:not([data-route-enter]) .taste-controls-paper,
+#app:not([data-route-enter]) .taste-section > header,
+#app:not([data-route-enter]) .taste-section > .taste-day-group,
+#app:not([data-route-enter]) .taste-entry-list > .taste-entry-card { animation: none !important; }
+
+/* ── 同页重渲染不该重播整页入场（2026-10-15 用户录屏定位）─────────────────────
+   换页那一帧 core 会给 #app 打 data-route-enter；只有那一帧进来才播入场。
+   点筛选 / 搜索 / 删一条都会 render() 整页，这些入场动画从 opacity 0 起播、
+   日期组还带 220ms 延迟 ⇒ 用户看到的是"整页先淡没、再淡回来"（录屏 2.08s 那帧几乎全白）。
+   预览页没这问题，因为它点筛选只挪卡片、不重建页面 —— 这就是他说的"不一样"。 */
+#app:not([data-route-enter]) .taste-header,
+#app:not([data-route-enter]) .taste-today-card,
+#app:not([data-route-enter]) .taste-controls-paper,
+#app:not([data-route-enter]) .taste-section > header,
+#app:not([data-route-enter]) .taste-section > .taste-day-group,
+#app:not([data-route-enter]) .taste-entry-list > .taste-entry-card { animation: none !important; }
 /* 日期后面那条细线从左往右长出来 —— 只做 scaleX，不改宽度（改宽度会每帧重排） */
 :root:not([data-pl-motion="none"]) .taste-day-date::after { transform-origin: left center; animation: taste-rule-in 560ms var(--spring-entrance) 240ms backwards; }
 

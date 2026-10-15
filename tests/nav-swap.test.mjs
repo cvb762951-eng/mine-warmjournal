@@ -31,7 +31,11 @@ test('切页：重建放进下一帧，点下去第一帧就有动作', () => {
   assert.match(core, /nav-swap-in/, '重建完要把外壳淡回来');
   // 重建必须在 rAF 里 —— 否则动画还没来得及交给合成器就被重活挡住了
   const go = core.slice(core.indexOf('const launcher = routeChanged'), core.indexOf('// ---- 统一页面历史'));
-  assert.match(go, /requestAnimationFrame\(\(\) => \{[\s\S]{0,200}apply\(false\)/, '重建要放在下一帧做');
+  assert.match(go, /requestAnimationFrame\(\(\) => \{[\s\S]{0,400}apply\(false\)/, '重建要放在下一帧做');
+  /* 2026-10-15 追加：换页那一帧给外壳打 data-route-enter，只有"真的进入这一页"才播整页入场；
+     同页重渲染（点筛选/搜索）不播 —— 否则整页会先淡没再淡回来（用户录屏里 2.08s 那帧几乎全白）。 */
+  assert.match(go, /launcher\.dataset\.routeEnter = '1'/, '换页这一帧要打标记');
+  assert.match(go, /requestAnimationFrame\(\(\) => \{ delete launcher\.dataset\.routeEnter; \}\)/, '下一帧要把标记撤掉');
   assert.match(core, /if \(token !== navSwapToken\) return;/, '连点两个标签时只认最后一次');
   assert.match(core, /motionAllowed\(\)/, '减弱动态效果 / none 档要整段跳过');
 });
