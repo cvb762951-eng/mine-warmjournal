@@ -8095,9 +8095,13 @@ video.is-awaiting-frame{opacity:0}
 #taste-photo-preview>p small{font-size:11px}
 /* 这行是整块浅底上的主操作，框线太淡就完全看不出是个可以点的框，
    所以这里的虚线用主色而不是 --border-cool（那条 14% 的灰在长条形状上几乎看不见）。 */
-/* 加照片两个入口并排：拍一张 / 从相册选（原来只有一个「添加照片」，手机上分不出用相机还是相册） */
+/* 加照片两个入口并排：拍一张 / 从相册选
+   （原来只有一个「添加照片」，手机上分不出用相机还是相册）。
+   观感对齐随手拍那排拍照按钮：软底 + 细边 + 彩色图标；不用虚线框 ——
+   虚线是"占位/待补"的语气，这两个都是实打实的动作。 */
 .taste-photo-picker>.taste-photo-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
-.taste-photo-picker>.taste-photo-actions>button{min-height:44px;border:1px dashed var(--sage-green-dark);border-radius:var(--radius-soft);display:inline-flex;align-items:center;justify-content:center;gap:5px;background:transparent;color:var(--sage-green-dark);font-size:12px}
+.taste-photo-picker>.taste-photo-actions>button{min-height:44px;padding:8px 6px;border:1px solid var(--line);border-radius:12px;display:inline-flex;align-items:center;justify-content:center;gap:5px;background:var(--sheet-card);color:var(--ink);font-size:12px;font-weight:600}
+.taste-photo-picker>.taste-photo-actions>button .material-symbols-outlined{font-size:18px;color:var(--sage-green-dark)}
 .taste-meal-picker,.taste-verdict-picker{display:grid;gap:6px;margin:7px 0 14px}
 .taste-meal-picker{grid-template-columns:repeat(5,minmax(0,1fr))}
 .taste-verdict-picker{grid-template-columns:repeat(3,minmax(0,1fr))}
