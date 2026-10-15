@@ -2072,6 +2072,13 @@ button.danger) {
   :root[data-theme="plain"] :is(.subpage-header, .ledger-page-header, .cal-screen-head, .halo-card) { animation: none !important; }
 }
 
+/* 随手拍跨天相册网格层（清简主题）：只用主题变量 */
+:root[data-theme="plain"] .snippet-album-grid { background: var(--plain-canvas) !important; color: var(--ink) !important; }
+:root[data-theme="plain"] .snippet-album-grid-header { background: var(--plain-surface) !important; border-bottom: 1px solid var(--line, rgba(85, 96, 108, 0.1)) !important; }
+:root[data-theme="plain"] .snippet-album-grid-cell { background: var(--plain-surface) !important; }
+:root[data-theme="plain"] .snippet-album-grid-count { color: var(--ink-muted, var(--muted)) !important; }
+:root[data-theme="plain"] .snippet-grid-video-placeholder { background: var(--plain-ink-block) !important; color: var(--plain-surface) !important; }
+
 /* moment-spread start */
 :root[data-theme="plain"] .moment-spread {
   position: relative;
@@ -2499,7 +2506,8 @@ button.danger) {
   outline: none;
 }
 
-:root[data-theme="plain"] #quick-photo-modal .quick-tag-row {
+:root[data-theme="plain"] #quick-photo-modal .quick-tag-row,
+:root[data-theme="plain"] #snippet-form .quick-tag-row {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
@@ -2508,7 +2516,8 @@ button.danger) {
   background: transparent;
 }
 
-:root[data-theme="plain"] #quick-photo-modal .quick-paper-tag {
+:root[data-theme="plain"] #quick-photo-modal .quick-paper-tag,
+:root[data-theme="plain"] #snippet-form .quick-paper-tag {
   min-height: 28px;
   padding: 4px 10px;
   border: 1px solid var(--line);
@@ -2523,7 +2532,8 @@ button.danger) {
   text-decoration: none;
 }
 
-:root[data-theme="plain"] #quick-photo-modal .quick-paper-tag.active {
+:root[data-theme="plain"] #quick-photo-modal .quick-paper-tag.active,
+:root[data-theme="plain"] #snippet-form .quick-paper-tag.active {
   background: var(--pl-blue-soft);
   color: var(--pl-blue);
   border-color: var(--pl-blue-line);
@@ -2814,6 +2824,7 @@ button.danger) {
 :root[data-theme="plain"] #quick-photo-modal .quick-photo-view-all,
 :root[data-theme="plain"] #quick-photo-modal .moment-spread-more,
 :root[data-theme="plain"] #quick-photo-modal .quick-paper-tag,
+:root[data-theme="plain"] #snippet-form .quick-paper-tag,
 :root[data-theme="plain"] #quick-photo-modal .quick-capture-bar button {
   background-image: none !important;
   font-family: "Inter", "Noto Sans SC", sans-serif !important;
@@ -2857,7 +2868,8 @@ button.danger) {
   border-radius: 12px !important;
   color: var(--ink) !important;
 }
-:root[data-theme="plain"] #quick-photo-modal .quick-tag-row > button.quick-paper-tag {
+:root[data-theme="plain"] #quick-photo-modal .quick-tag-row > button.quick-paper-tag,
+:root[data-theme="plain"] #snippet-form .quick-tag-row > button.quick-paper-tag {
   background-color: var(--plain-surface) !important;
   background-image: none !important;
   border-width: 1px !important;
@@ -2867,7 +2879,8 @@ button.danger) {
   color: var(--ink-muted) !important;
   padding: 4px 10px !important;
 }
-:root[data-theme="plain"] #quick-photo-modal .quick-tag-row > button.quick-paper-tag.active {
+:root[data-theme="plain"] #quick-photo-modal .quick-tag-row > button.quick-paper-tag.active,
+:root[data-theme="plain"] #snippet-form .quick-tag-row > button.quick-paper-tag.active {
   background-color: var(--pl-blue-soft) !important;
   border-color: var(--pl-blue-line) !important;
   color: var(--pl-blue) !important;
@@ -2891,6 +2904,7 @@ button.danger) {
 :root[data-theme="plain"] #quick-photo-modal #quick-snap-caption,
 :root[data-theme="plain"] #quick-photo-modal #quick-photo-preview,
 :root[data-theme="plain"] #quick-photo-modal .quick-paper-tag,
+:root[data-theme="plain"] #snippet-form .quick-paper-tag,
 :root[data-theme="plain"] #quick-photo-modal .quick-photo-actions button,
 :root[data-theme="plain"] #quick-photo-modal .quick-video-actions button,
 :root[data-theme="plain"] #quick-photo-modal #quick-save-snap,
@@ -2940,7 +2954,9 @@ button.danger) {
   color: var(--ink-muted) !important;
 }
 :root[data-theme="plain"] #quick-photo-modal .quick-paper-tag,
-:root[data-theme="plain"] #quick-photo-modal .quick-paper-tag.active {
+:root[data-theme="plain"] #quick-photo-modal .quick-paper-tag.active,
+:root[data-theme="plain"] #snippet-form .quick-paper-tag,
+:root[data-theme="plain"] #snippet-form .quick-paper-tag.active {
   background-image: none !important;
   border-image: none !important;
   border-image-source: none !important;
@@ -2950,7 +2966,8 @@ button.danger) {
   text-underline-offset: 0 !important;
   font-family: "Inter", "Noto Sans SC", sans-serif !important;
 }
-:root[data-theme="plain"] #quick-photo-modal .quick-paper-tag.active {
+:root[data-theme="plain"] #quick-photo-modal .quick-paper-tag.active,
+:root[data-theme="plain"] #snippet-form .quick-paper-tag.active {
   background-color: var(--pl-blue-soft) !important;
   border-color: var(--pl-blue-line) !important;
   color: var(--pl-blue) !important;
@@ -3233,81 +3250,7 @@ button.danger) {
 }
 
 /* snippet-tag-editor start */
-:root[data-theme="plain"] .snippet-tag-editor {
-  margin: 14px 0 4px;
-  padding: 14px;
-  border-radius: 16px;
-  background: var(--plain-surface);
-  border: 1px solid var(--pl-blue-line);
-}
-:root[data-theme="plain"] .snippet-tag-head {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--ink);
-}
-:root[data-theme="plain"] .snippet-tag-head small {
-  display: block;
-  color: var(--ink-muted);
-  font-size: 12px;
-  font-weight: 400;
-}
-:root[data-theme="plain"] .snippet-tag-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin: 10px 0;
-}
-:root[data-theme="plain"] .snippet-tag-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  padding: 4px 4px 4px 10px;
-  border-radius: 999px;
-  background: var(--pl-blue-soft);
-  color: var(--ink);
-  font-size: 12px;
-}
-:root[data-theme="plain"] .snippet-tag-remove {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 22px;
-  margin: 0;
-  padding: 0;
-  border: 0;
-  border-radius: 50%;
-  background: transparent;
-  color: var(--ink-muted);
-}
-:root[data-theme="plain"] .snippet-tag-remove .material-symbols-outlined {
-  font-size: 16px;
-}
-:root[data-theme="plain"] .snippet-tag-empty {
-  color: var(--ink-muted);
-  font-size: 12px;
-}
-:root[data-theme="plain"] .snippet-tag-add {
-  display: flex;
-  gap: 8px;
-}
-:root[data-theme="plain"] .snippet-tag-add input {
-  flex: 1;
-  min-width: 0;
-  border: 1px solid var(--pl-blue-line);
-  border-radius: 12px;
-  background: var(--plain-surface);
-  color: var(--ink);
-  padding: 8px 10px;
-}
-:root[data-theme="plain"] .snippet-tag-add button {
-  border: 0;
-  border-radius: 12px;
-  background: var(--pl-blue);
-  color: var(--plain-surface);
-  padding: 8px 14px;
-}
+/* 编辑表单的标签芯片与拍摄弹层共用 .quick-paper-tag，样式写在 #snippet-form / #quick-photo-modal 那一组。 */
 :root[data-theme="plain"] .moment-album-remove {
   border-color: var(--pl-blue-line);
   background: var(--plain-surface);

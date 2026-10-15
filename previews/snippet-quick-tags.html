@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="plain" data-sheet="edit">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=390, initial-scale=1">
+  <title>随手拍快捷标签 · 清简</title>
+  <link rel="stylesheet" href="../fonts.css">
+  <link rel="stylesheet" href="../performance.css">
+  <link rel="stylesheet" href="../styles.css">
+  <link rel="stylesheet" href="../themes.css">
+  <link rel="stylesheet" href="../themes-plain.css">
+  <script>
+    document.documentElement.dataset.sheet = new URLSearchParams(location.search).get('sheet') === 'capture' ? 'capture' : 'edit';
+  </script>
+  <style>
+    html, body {
+      width: 390px;
+      height: 844px;
+      margin: 0;
+      overflow: hidden;
+      background: #EAF0F8;
+    }
+    html[data-sheet="edit"] .sheet-capture,
+    html[data-sheet="capture"] .sheet-edit { display: none !important; }
+    /* 预览页停在弹层落定后的样子，避免截到滑入动画的第一帧。 */
+    #modal-layer.modal-layer,
+    #modal-layer.modal-layer.open {
+      opacity: 1 !important;
+      visibility: visible !important;
+      transition: none !important;
+      animation: none !important;
+    }
+    #modal-layer .modal {
+      transform: none !important;
+      transition: none !important;
+      animation: none !important;
+    }
+    /* 编辑表单比一屏略高，预览里收一点空图和图说，好让整排标签留在画面里。 */
+    html[data-theme="plain"][data-sheet="edit"] #snippet-form .snippet-photo-empty { min-height: 88px; }
+    html[data-theme="plain"][data-sheet="edit"] #snippet-form #snippet-photo-caption { min-height: 44px; }
+  </style>
+</head>
+<body class="modal-open">
+  <div class="phone-shell" style="width:390px;height:844px"><div id="app"></div></div>
+  <div id="toast"></div>
+  <div class="modal-layer open" id="modal-layer">
+    <div class="modal snippet-form-modal sheet-edit" role="dialog" aria-modal="true">
+      <form id="snippet-form">
+        <span class="eyebrow">QUICK CAPTURE</span>
+        <h2>编辑随手拍</h2>
+        <label>日期</label>
+        <input name="date" type="date" required value="2026-10-15">
+        <div class="snippet-photo-stage">
+          <div id="snippet-photo-grid" class="snippet-photo-grid">
+            <div class="snippet-photo-empty"><span class="material-symbols-outlined" aria-hidden="true">photo_camera</span><strong>拍下此刻</strong><small>也可以从相册选择，可连续添加</small></div>
+          </div>
+        </div>
+        <label class="snippet-caption-label" for="snippet-photo-caption">图说</label>
+        <textarea id="snippet-photo-caption" name="text" maxlength="300" placeholder="写一句图说">窗边的光</textarea>
+        <div class="snippet-capture-bar" role="toolbar" aria-label="照片与视频">
+          <div class="snippet-photo-actions">
+            <button type="button"><span class="material-symbols-outlined" aria-hidden="true">photo_camera</span>拍照</button>
+            <button type="button"><span class="material-symbols-outlined" aria-hidden="true">photo_library</span>选图</button>
+          </div>
+          <div class="snippet-photo-actions snippet-video-actions">
+            <button type="button"><span class="material-symbols-outlined" aria-hidden="true">videocam</span>拍视频</button>
+            <button type="button"><span class="material-symbols-outlined" aria-hidden="true">video_library</span>导入视频</button>
+          </div>
+        </div>
+        <small class="field-help">一次最多 100 张，每条最多 100 张。</small>
+        <div class="ai-structure-card accepted">
+          <div class="ai-structure-head"><span class="material-symbols-outlined" aria-hidden="true">auto_awesome</span><div><strong>AI 整理已归档</strong><small>标签与摘要已保存，之后可随时编辑。</small></div></div>
+          <div class="ai-structure-tags"><span class="ai-tag-chip read-only">#晚风</span></div>
+          <p class="ai-structure-summary-text">傍晚的风</p>
+        </div>
+        <div class="quick-tag-row" id="snippet-quick-tags" aria-label="选择标签">
+          <button type="button" class="quick-paper-tag active" data-quick-tag="#晚风">#晚风</button>
+          <button type="button" class="quick-paper-tag" data-quick-tag="#海边">#海边</button>
+          <button type="button" class="quick-paper-tag" data-quick-tag="#日常生活">#日常生活</button>
+          <button type="button" class="quick-paper-tag" data-quick-tag="#手冲咖啡">#手冲咖啡</button>
+          <button type="button" class="quick-paper-tag" data-quick-tag="#学习心流">#学习心流</button>
+          <button type="button" class="quick-paper-tag" data-quick-tag="#夏日碎影">#夏日碎影</button>
+          <button type="button" class="quick-paper-tag quick-tag-add" data-quick-tag-add>＋ 自定义</button>
+        </div>
+        <div class="modal-actions"><button type="button" data-close>取消</button><button class="save">保存素材</button></div>
+      </form>
+    </div>
+    <div class="modal quick-modal quick-photo-sheet sheet-capture" role="dialog" aria-modal="true">
+      <div class="quick-modal-card" id="quick-photo-modal">
+        <img class="quick-paper-art" src="../assets/quick-photo-paper-v1.png" alt="" aria-hidden="true">
+        <div class="quick-modal-head"><div class="quick-modal-heading"><span class="quick-modal-title-mark material-symbols-outlined" aria-hidden="true">photo_camera</span><span><small class="quick-modal-kicker">VISUAL MOMENT</small><h2 class="quick-modal-title">随手拍 <em>留住此刻</em></h2></span></div><button type="button" data-close class="quick-modal-close" aria-label="关闭随手拍"><span class="material-symbols-outlined" aria-hidden="true">close</span></button></div>
+        <div class="quick-photo-preview" id="quick-photo-preview" role="button" tabindex="0" aria-label="拍摄或选择照片"><span class="quick-photo-empty-icon material-symbols-outlined" aria-hidden="true">photo_camera</span><strong>把这一刻留在这里</strong><small>轻触拍摄 · 或从相册选择</small></div>
+        <div class="quick-photo-meta">
+          <label class="quick-field-label" for="quick-snap-caption">图说</label>
+          <input class="quick-input-field caveat-caption" id="quick-snap-caption" maxlength="40" placeholder="写一句图说" value="窗边的光">
+          <div class="quick-tag-row" aria-label="选择标签">
+            <button type="button" class="quick-paper-tag active" data-quick-tag="#海边">#海边</button>
+            <button type="button" class="quick-paper-tag" data-quick-tag="#晚风">#晚风</button>
+            <button type="button" class="quick-paper-tag" data-quick-tag="#日常生活">#日常生活</button>
+            <button type="button" class="quick-paper-tag" data-quick-tag="#手冲咖啡">#手冲咖啡</button>
+            <button type="button" class="quick-paper-tag" data-quick-tag="#学习心流">#学习心流</button>
+            <button type="button" class="quick-paper-tag" data-quick-tag="#夏日碎影">#夏日碎影</button>
+            <button type="button" class="quick-paper-tag quick-tag-add" data-quick-tag-add>＋ 自定义</button>
+          </div>
+        </div>
+        <div class="quick-capture-bar" role="toolbar" aria-label="随手拍操作">
+          <div class="quick-photo-actions">
+            <button type="button" id="quick-capture-snap" class="plain-moment-btn"><span class="material-symbols-outlined" aria-hidden="true">photo_camera</span><span>拍照</span></button>
+            <button type="button" id="quick-pick-snap" class="plain-moment-btn"><span class="material-symbols-outlined" aria-hidden="true">photo_library</span><span>选图</span></button>
+          </div>
+          <div class="quick-video-actions">
+            <button type="button" id="quick-pick-video" class="plain-moment-btn"><span class="material-symbols-outlined" aria-hidden="true">video_library</span><span>导入视频</span></button>
+          </div>
+          <button type="button" class="quick-publish-btn snap" id="quick-save-snap" aria-label="收进今日生活相册"><span class="material-symbols-outlined" aria-hidden="true">check</span><span>保存</span></button>
+        </div>
+        <div class="quick-modal-switch"><button type="button" id="quick-switch-memo">或写一条灵感速记 ›</button></div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
