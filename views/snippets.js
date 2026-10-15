@@ -1270,13 +1270,21 @@ export function snippetAfterVideoRemoval(entry, videoIndex) {
   };
 }
 
+/* 和列表上删除整条随手记是同一句：写进日记的内容不动。 */
+const SNIPPET_DELETE_UNAFFECTED = '已经加入日记的内容不会受影响。';
+
 export function snippetVideoDeletePrompt(entry, videoIndex) {
   const plan = snippetAfterVideoRemoval(entry, videoIndex);
-  if (plan.dropped) return '这条随手拍只剩这段视频，继续会整条删除。';
+  if (plan.dropped) return `这条随手拍只剩这段视频，继续会整条删除。${SNIPPET_DELETE_UNAFFECTED}`;
   return '从这条随手拍移除这段视频？';
 }
 
-async function deleteSavedSnippetVideo(sessionItem) {
+let snippetPersistForTest = null;
+export function _setSnippetPersistForTest(fn) {
+  snippetPersistForTest = typeof fn === 'function' ? fn : null;
+}
+
+export async function deleteSavedSnippetVideo(sessionItem) {
   if (!sessionItem || sessionItem.pending) return;
   const entry = state.snippets.find(record => record.id === sessionItem.entryId);
   if (!entry) return;
@@ -1286,6 +1294,8 @@ async function deleteSavedSnippetVideo(sessionItem) {
   const albumOpen = isMomentAlbumOpen() && momentAlbumEntryId === entry.id;
   const photos = entry.photos?.length ? entry.photos : (entry.photo ? [entry.photo] : []);
   const removedAlbumIndex = photos.length + videoIndex;
+  /* 翻牌移除和播放器删除都先改内存再 save()。保存抛错时把整份随手拍放回去，避免这段视频只在内存里丢了。 */
+  const previousSnippets = structuredClone(state.snippets);
   if (plan.dropped) state.snippets = state.snippets.filter(record => record.id !== entry.id);
   else {
     const target = state.snippets.find(record => record.id === entry.id);
@@ -1299,7 +1309,14 @@ async function deleteSavedSnippetVideo(sessionItem) {
   } finally {
     snippetSkipRemember = false;
   }
-  await save();
+  try {
+    await (snippetPersistForTest || save)();
+  } catch (error) {
+    state.snippets = previousSnippets;
+    render();
+    if ($('#toast')) show(error?.message || '删除失败');
+    return;
+  }
   if (albumOpen) {
     if (plan.dropped) closeMomentAlbum();
     else {
@@ -1313,6 +1330,7 @@ async function deleteSavedSnippetVideo(sessionItem) {
     }
   }
   render();
+  if (plan.dropped) callHelper('scheduleAiRefresh');
   show(plan.dropped ? '已整条删除这条随手拍' : '已从这条随手拍移除这段视频');
 }
 
@@ -2162,52 +2180,267 @@ function pickSnippetVideoWithInput(useCamera = false) {
 }
 
 // ---- AI 结构化建议 ----
+/* 编辑表单和随手拍拍摄共用同一排快捷标签。点芯片只改这条记录；长按「删除」才是藏起预设。 */
+let refreshSnippetQuickTags = () => {};
+
+export function _resetSnippetEntryTagsForTest(tags = []) {
+  pendingSnippetStructure = { tags: normalizeSnippetTags(tags), summary: '' };
+}
+
+/* 把标签加到这条记录上，并按拍摄时「选中快捷标签」的路径记入共用池。已在记录上的不重复记。 */
+export function commitSnippetEntryTag(raw) {
+  const tag = normalizeQuickTag(raw);
+  if (!tag) return { ok: false, reason: 'empty', tags: pendingSnippetStructure.tags };
+  if (pendingSnippetStructure.tags.includes(tag)) return { ok: true, added: false, tags: pendingSnippetStructure.tags };
+  const next = normalizeSnippetTags([...pendingSnippetStructure.tags, tag]);
+  if (!next.includes(tag)) return { ok: false, reason: 'limit', tags: pendingSnippetStructure.tags };
+  pendingSnippetStructure.tags = next;
+  state.settings = state.settings || {};
+  state.settings.quickTags = recordQuickTag(state.settings.quickTags, tag);
+  return { ok: true, added: true, tags: next };
+}
+
+/* 从这条记录拿掉标签。按芯片上的原文匹配（超过快捷池 20 字的旧标签也能拿掉）。不改预设，不调用 removeQuickTag。 */
+export function dropSnippetEntryTag(raw) {
+  const tag = String(raw ?? '').trim().replace(/^[#＃]+/, '').trim();
+  if (!tag) return { ok: false, tags: pendingSnippetStructure.tags };
+  const next = pendingSnippetStructure.tags.filter(item => item !== tag);
+  if (next.length === pendingSnippetStructure.tags.length) return { ok: false, tags: pendingSnippetStructure.tags };
+  pendingSnippetStructure.tags = next;
+  return { ok: true, tags: next };
+}
+
+function snippetQuickTagChoices() {
+  const pool = quickTagList(state.settings?.quickTags);
+  const extra = pendingSnippetStructure.tags.filter(tag => tag && !pool.includes(tag));
+  return [...pool, ...extra];
+}
+
 function snippetTagEditorHtml() {
-  return `<div class="snippet-tag-editor" id="snippet-tag-editor"><div class="snippet-tag-head"><div><strong>标签</strong><small>可手动添加或移除，最多 8 个</small></div></div><div class="snippet-tag-chips" id="snippet-tag-chips"></div><div class="snippet-tag-add"><input id="snippet-tag-input" maxlength="24" placeholder="输入标签，不用写 #" autocomplete="off" enterkeyhint="done"><button type="button" id="snippet-tag-add">添加</button></div></div>`;
+  return `<div class="quick-tag-row" id="snippet-quick-tags" aria-label="选择标签"></div>`;
 }
 
 function renderSnippetTagChips() {
-  const host = $('#snippet-tag-chips');
-  if (!host) return;
-  const tags = pendingSnippetStructure.tags;
-  host.innerHTML = tags.length
-    ? tags.map(tag => `<span class="snippet-tag-chip"><span>#${esc(tag)}</span><button type="button" class="snippet-tag-remove" data-remove-snippet-tag="${esc(tag)}" aria-label="移除标签 ${esc(tag)}"><span class="material-symbols-outlined" aria-hidden="true">close</span></button></span>`).join('')
-    : '<span class="snippet-tag-empty">还没有标签</span>';
-  host.querySelectorAll('[data-remove-snippet-tag]').forEach(button => {
-    button.onclick = () => {
-      const target = button.dataset.removeSnippetTag;
-      pendingSnippetStructure.tags = pendingSnippetStructure.tags.filter(tag => tag !== target);
-      renderSnippetTagChips();
-    };
-  });
-  const archived = $('#snippet-form .ai-structure-card.accepted .ai-structure-tags');
-  if (archived) archived.innerHTML = tags.map(tag => `<span class="ai-tag-chip read-only">#${esc(tag)}</span>`).join('');
+  refreshSnippetQuickTags();
+  syncArchivedSnippetTags($('#snippet-form .ai-structure-card.accepted'), pendingSnippetStructure.tags);
 }
 
+/* 已归档卡如果当初没有标签，模板里不会有 .ai-structure-tags。手动加上时补上这个节点，摘要前面立刻能看见。 */
+export function syncArchivedSnippetTags(card, tags) {
+  if (!card || typeof card.querySelector !== 'function') return;
+  const list = Array.isArray(tags) ? tags : [];
+  let archived = card.querySelector('.ai-structure-tags');
+  if (!archived && list.length) {
+    archived = document.createElement('div');
+    archived.className = 'ai-structure-tags';
+    const summary = card.querySelector('.ai-structure-summary-text');
+    if (summary && typeof card.insertBefore === 'function') card.insertBefore(archived, summary);
+    else card.appendChild?.(archived);
+  }
+  if (archived) archived.innerHTML = list.map(tag => `<span class="ai-tag-chip read-only">#${esc(tag)}</span>`).join('');
+}
+
+/**
+ * 拍摄弹窗和编辑表单共用的快捷标签排。
+ * onToggle：点芯片，选中/取消。
+ * onHide：长按后的「删除」，藏起预设（removeQuickTag），和「从这条记录拿掉」分开。
+ * onCreate：自定义标签，走 normalizeQuickTag + 调用方自己的入池。
+ */
+function mountQuickTagRow(row, hooks) {
+  if (!row) return () => {};
+  let isAddingTag = false;
+  let confirmingTag = null;
+  let suppressClickUntil = 0;
+
+  const render = () => {
+    const tags = hooks.tags?.() || [];
+    let html = '';
+    for (const tag of tags) {
+      if (confirmingTag === tag) {
+        html += `<span class="quick-tag-confirm-bar">删除 #${esc(tag)} ？ <button type="button" class="quick-tag-confirm-del" data-del-tag="${esc(tag)}">删除</button> / <button type="button" class="quick-tag-confirm-cancel">取消</button></span>`;
+      } else {
+        const active = hooks.isActive?.(tag) ? ' active' : '';
+        html += `<button type="button" class="quick-paper-tag${active}" data-quick-tag="${esc('#' + tag)}">${esc('#' + tag)}</button>`;
+      }
+    }
+    if (isAddingTag) {
+      html += `<span class="quick-tag-input-wrap"><input class="quick-tag-input" maxlength="20" placeholder="新标签"><button type="button" class="quick-tag-btn-add">添加</button></span>`;
+    } else {
+      html += `<button type="button" class="quick-paper-tag quick-tag-add" data-quick-tag-add>＋ 自定义</button>`;
+    }
+    row.innerHTML = html;
+
+    row.querySelectorAll('button[data-quick-tag]').forEach(chip => {
+      let pressTimer = null;
+      let startX = 0;
+      let startY = 0;
+      let didLongPress = false;
+      const cancelPress = () => {
+        if (pressTimer) {
+          clearTimeout(pressTimer);
+          pressTimer = null;
+        }
+      };
+      const bareTag = () => chip.dataset.quickTag?.replace(/^[#＃]+/, '') || '';
+      const beginHide = () => {
+        didLongPress = true;
+        suppressClickUntil = Date.now() + 450;
+        confirmingTag = bareTag();
+        isAddingTag = false;
+        render();
+      };
+      chip.addEventListener('pointerdown', event => {
+        if (event.button !== 0 && event.pointerType === 'mouse') return;
+        cancelPress();
+        didLongPress = false;
+        startX = event.clientX;
+        startY = event.clientY;
+        pressTimer = setTimeout(() => {
+          pressTimer = null;
+          beginHide();
+        }, 550);
+      });
+      chip.addEventListener('pointermove', event => {
+        if (!pressTimer) return;
+        if (Math.hypot(event.clientX - startX, event.clientY - startY) > 8) cancelPress();
+      });
+      chip.addEventListener('pointerup', cancelPress);
+      chip.addEventListener('pointercancel', cancelPress);
+      chip.addEventListener('contextmenu', event => {
+        event.preventDefault();
+        cancelPress();
+        beginHide();
+      });
+      chip.addEventListener('click', event => {
+        if (didLongPress || Date.now() < suppressClickUntil) {
+          didLongPress = false;
+          event.preventDefault();
+          event.stopPropagation();
+          return;
+        }
+        const pending = hooks.onToggle?.(bareTag());
+        render();
+        Promise.resolve(pending).catch(error => {
+          if (String(error?.message || '').startsWith('保存失败')) return;
+          if ($('#toast')) show(error?.message || '保存失败');
+        });
+      });
+    });
+
+    const delBtn = row.querySelector('.quick-tag-confirm-del');
+    if (delBtn) {
+      delBtn.addEventListener('click', event => {
+        event.preventDefault();
+        event.stopPropagation();
+        const tag = delBtn.dataset.delTag;
+        Promise.resolve(hooks.onHide?.(tag)).catch(error => {
+          if (String(error?.message || '').startsWith('保存失败')) return;
+          if ($('#toast')) show(error?.message || '保存失败');
+        }).finally(() => {
+          confirmingTag = null;
+          render();
+        });
+      });
+    }
+    const cancelBtn = row.querySelector('.quick-tag-confirm-cancel');
+    if (cancelBtn) {
+      cancelBtn.addEventListener('click', event => {
+        event.preventDefault();
+        event.stopPropagation();
+        confirmingTag = null;
+        render();
+      });
+    }
+    const addBtn = row.querySelector('[data-quick-tag-add]');
+    if (addBtn) {
+      addBtn.addEventListener('click', event => {
+        event.preventDefault();
+        confirmingTag = null;
+        isAddingTag = true;
+        render();
+      });
+    }
+    const input = row.querySelector('.quick-tag-input');
+    const submitBtn = row.querySelector('.quick-tag-btn-add');
+    const commitAdd = () => {
+      const norm = normalizeQuickTag(input ? input.value : '');
+      isAddingTag = false;
+      if (!norm) {
+        render();
+        return;
+      }
+      Promise.resolve(hooks.onCreate?.(norm)).catch(error => {
+        if (String(error?.message || '').startsWith('保存失败')) return;
+        if ($('#toast')) show(error?.message || '保存失败');
+      }).finally(() => render());
+    };
+    if (input) {
+      input.focus();
+      input.addEventListener('keydown', event => {
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          commitAdd();
+        } else if (event.key === 'Escape') {
+          event.preventDefault();
+          isAddingTag = false;
+          render();
+        }
+      });
+      input.addEventListener('blur', () => {
+        setTimeout(() => {
+          if (isAddingTag && input && !normalizeQuickTag(input.value)) {
+            isAddingTag = false;
+            render();
+          }
+        }, 120);
+      });
+    }
+    if (submitBtn) {
+      submitBtn.addEventListener('pointerdown', event => event.preventDefault());
+      submitBtn.addEventListener('mousedown', event => event.preventDefault());
+      submitBtn.addEventListener('click', event => {
+        event.preventDefault();
+        commitAdd();
+      });
+    }
+    hooks.afterChange?.();
+  };
+
+  render();
+  return render;
+}
+
+/* 编辑这条随手拍：点芯片加减这条的标签；长按「删除」才藏起共用预设。 */
 function bindSnippetTagEditor() {
   pendingSnippetStructure.tags = normalizeSnippetTags(pendingSnippetStructure.tags);
-  renderSnippetTagChips();
-  const addTag = () => {
-    const input = $('#snippet-tag-input');
-    const raw = input?.value || '';
-    const next = normalizeSnippetTags([...pendingSnippetStructure.tags, raw]);
-    if (String(raw).trim() && next.length === pendingSnippetStructure.tags.length) {
-      const cleaned = String(raw).trim().replace(/^#+/, '').trim().slice(0, 24);
-      if (!cleaned) show('标签不能为空');
-      else if (pendingSnippetStructure.tags.includes(cleaned)) show('这个标签已经有了');
-      else show('最多 8 个标签');
-      return;
-    }
-    pendingSnippetStructure.tags = next;
-    if (input) input.value = '';
-    renderSnippetTagChips();
-  };
-  $('#snippet-tag-add')?.addEventListener('click', addTag);
-  $('#snippet-tag-input')?.addEventListener('keydown', event => {
-    if (event.key !== 'Enter') return;
-    event.preventDefault();
-    addTag();
+  const afterChange = () => syncArchivedSnippetTags($('#snippet-form .ai-structure-card.accepted'), pendingSnippetStructure.tags);
+  refreshSnippetQuickTags = mountQuickTagRow($('#snippet-form .quick-tag-row'), {
+    tags: snippetQuickTagChoices,
+    isActive: tag => pendingSnippetStructure.tags.includes(tag),
+    onToggle(tag) {
+      if (pendingSnippetStructure.tags.includes(tag)) {
+        dropSnippetEntryTag(tag);
+        return;
+      }
+      const result = commitSnippetEntryTag(tag);
+      if (result.reason === 'limit') show('最多 8 个标签');
+      if (result.added) save().catch(() => {});
+    },
+    onHide(tag) {
+      state.settings = state.settings || {};
+      state.settings.quickTags = removeQuickTag(state.settings.quickTags, tag);
+      save().catch(() => {});
+    },
+    onCreate(norm) {
+      state.settings = state.settings || {};
+      state.settings.quickTags = addQuickTag(state.settings.quickTags, norm);
+      const result = commitSnippetEntryTag(norm);
+      if (result.reason === 'limit') show('最多 8 个标签');
+      save().catch(() => {});
+    },
+    afterChange
   });
+  afterChange();
 }
 
 function bindSnippetStructureActions(item) {
@@ -2315,19 +2548,12 @@ async function adoptSnippetStructure(item, { tags = [], todos = [], summary = ''
   }
 }
 
-// ---- 绑定 ----
-
-// ---- 原型弹窗补齐：随手拍发布 / 速记便签 / 照片大图查看器 ----
-// quick-photo-modal：拍照预览（复用现有拍照能力）+ 标签胶囊 + 手写体图说
 function quickPhotoModal() {
   pendingSnippetPhotos = [];
   pendingSnippetLive = [];
   pendingSnippetVideos = [];
   pendingQuickTag = '';
   pendingQuickCaption = '';
-  let isAddingTag = false;
-  let confirmingTag = null;
-  let suppressClickUntil = 0;
 
   modal(`<div class="quick-modal-card" id="quick-photo-modal">
     <img class="quick-paper-art" src="assets/quick-photo-paper-v1.png" alt="" aria-hidden="true">
@@ -2351,190 +2577,26 @@ function quickPhotoModal() {
     <div class="quick-modal-switch"><button type="button" id="quick-switch-memo">或写一条灵感速记 ›</button></div>
   </div>`, 'quick-modal quick-photo-sheet');
 
-  function renderQuickTagRow() {
-    const row = $('#quick-photo-modal .quick-tag-row');
-    if (!row) return;
-
-    state.settings = state.settings || {};
-    const tags = quickTagList(state.settings.quickTags);
-
-    let html = '';
-    for (const tag of tags) {
-      const fullTag = '#' + tag;
-      if (confirmingTag === tag) {
-        html += `<span class="quick-tag-confirm-bar">删除 #${esc(tag)} ？ <button type="button" class="quick-tag-confirm-del" data-del-tag="${esc(tag)}">删除</button> / <button type="button" class="quick-tag-confirm-cancel">取消</button></span>`;
-      } else {
-        html += `<button type="button" class="quick-paper-tag ${pendingQuickTag === fullTag ? 'active' : ''}" data-quick-tag="${esc(fullTag)}">${esc(fullTag)}</button>`;
-      }
+  mountQuickTagRow($('#quick-photo-modal .quick-tag-row'), {
+    tags: () => quickTagList(state.settings?.quickTags),
+    isActive: tag => pendingQuickTag === '#' + tag,
+    onToggle(tag) {
+      const full = '#' + tag;
+      pendingQuickTag = pendingQuickTag === full ? '' : full;
+    },
+    async onHide(tag) {
+      state.settings = state.settings || {};
+      state.settings.quickTags = removeQuickTag(state.settings.quickTags, tag);
+      if (pendingQuickTag === '#' + tag) pendingQuickTag = '';
+      await save();
+    },
+    async onCreate(norm) {
+      state.settings = state.settings || {};
+      state.settings.quickTags = addQuickTag(state.settings.quickTags, norm);
+      pendingQuickTag = '#' + norm;
+      await save();
     }
-
-    if (isAddingTag) {
-      html += `<span class="quick-tag-input-wrap"><input class="quick-tag-input" maxlength="20" placeholder="新标签"><button type="button" class="quick-tag-btn-add">添加</button></span>`;
-    } else {
-      html += `<button type="button" class="quick-paper-tag quick-tag-add" data-quick-tag-add>＋ 自定义</button>`;
-    }
-
-    row.innerHTML = html;
-
-    row.querySelectorAll('button[data-quick-tag]').forEach(chip => {
-      let pressTimer = null;
-      let startX = 0;
-      let startY = 0;
-      let didLongPress = false;
-
-      const cancelPress = () => {
-        if (pressTimer) {
-          clearTimeout(pressTimer);
-          pressTimer = null;
-        }
-      };
-
-      chip.addEventListener('pointerdown', e => {
-        if (e.button !== 0 && e.pointerType === 'mouse') return;
-        cancelPress();
-        didLongPress = false;
-        startX = e.clientX;
-        startY = e.clientY;
-        const tag = chip.dataset.quickTag?.replace(/^[#＃]+/, '');
-        pressTimer = setTimeout(() => {
-          pressTimer = null;
-          didLongPress = true;
-          suppressClickUntil = Date.now() + 450;
-          confirmingTag = tag;
-          isAddingTag = false;
-          renderQuickTagRow();
-        }, 550);
-      });
-
-      chip.addEventListener('pointermove', e => {
-        if (pressTimer) {
-          const dx = e.clientX - startX;
-          const dy = e.clientY - startY;
-          if (Math.hypot(dx, dy) > 8) {
-            cancelPress();
-          }
-        }
-      });
-
-      chip.addEventListener('pointerup', cancelPress);
-      chip.addEventListener('pointercancel', cancelPress);
-
-      chip.addEventListener('contextmenu', e => {
-        e.preventDefault();
-        cancelPress();
-        didLongPress = true;
-        suppressClickUntil = Date.now() + 450;
-        const tag = chip.dataset.quickTag?.replace(/^[#＃]+/, '');
-        confirmingTag = tag;
-        isAddingTag = false;
-        renderQuickTagRow();
-      });
-
-      chip.addEventListener('click', e => {
-        if (didLongPress || Date.now() < suppressClickUntil) {
-          didLongPress = false;
-          e.preventDefault();
-          e.stopPropagation();
-          return;
-        }
-        const tag = chip.dataset.quickTag;
-        pendingQuickTag = pendingQuickTag === tag ? '' : tag;
-        row.querySelectorAll('button[data-quick-tag]').forEach(b => {
-          b.classList.toggle('active', b.dataset.quickTag === pendingQuickTag);
-        });
-      });
-    });
-
-    const delBtn = row.querySelector('.quick-tag-confirm-del');
-    if (delBtn) {
-      delBtn.addEventListener('click', async e => {
-        e.preventDefault();
-        e.stopPropagation();
-        const tag = delBtn.dataset.delTag;
-        state.settings = state.settings || {};
-        state.settings.quickTags = removeQuickTag(state.settings.quickTags, tag);
-        if (pendingQuickTag === '#' + tag) {
-          pendingQuickTag = '';
-        }
-        confirmingTag = null;
-        await save();
-        renderQuickTagRow();
-      });
-    }
-
-    const cancelBtn = row.querySelector('.quick-tag-confirm-cancel');
-    if (cancelBtn) {
-      cancelBtn.addEventListener('click', e => {
-        e.preventDefault();
-        e.stopPropagation();
-        confirmingTag = null;
-        renderQuickTagRow();
-      });
-    }
-
-    const addBtn = row.querySelector('[data-quick-tag-add]');
-    if (addBtn) {
-      addBtn.addEventListener('click', e => {
-        e.preventDefault();
-        confirmingTag = null;
-        isAddingTag = true;
-        renderQuickTagRow();
-      });
-    }
-
-    const input = row.querySelector('.quick-tag-input');
-    const submitBtn = row.querySelector('.quick-tag-btn-add');
-
-    const commitAdd = async () => {
-      const val = input ? input.value : '';
-      const norm = normalizeQuickTag(val);
-      if (norm) {
-        state.settings = state.settings || {};
-        state.settings.quickTags = addQuickTag(state.settings.quickTags, norm);
-        pendingQuickTag = '#' + norm;
-        isAddingTag = false;
-        await save();
-        renderQuickTagRow();
-      } else {
-        isAddingTag = false;
-        renderQuickTagRow();
-      }
-    };
-
-    if (input) {
-      input.focus();
-      input.addEventListener('keydown', e => {
-        if (e.key === 'Enter') {
-          e.preventDefault();
-          commitAdd();
-        } else if (e.key === 'Escape') {
-          e.preventDefault();
-          isAddingTag = false;
-          renderQuickTagRow();
-        }
-      });
-
-      input.addEventListener('blur', () => {
-        setTimeout(() => {
-          if (isAddingTag && input && !normalizeQuickTag(input.value)) {
-            isAddingTag = false;
-            renderQuickTagRow();
-          }
-        }, 120);
-      });
-    }
-
-    if (submitBtn) {
-      submitBtn.addEventListener('pointerdown', e => e.preventDefault());
-      submitBtn.addEventListener('mousedown', e => e.preventDefault());
-      submitBtn.addEventListener('click', e => {
-        e.preventDefault();
-        commitAdd();
-      });
-    }
-  }
-
-  renderQuickTagRow();
+  });
 
   $('#quick-photo-preview')?.addEventListener('click', event => {
     const video = event.target.closest('[data-play-pending-snippet-video]');
@@ -3264,7 +3326,7 @@ function bindSnippets() {
   $('#snippet-album')?.addEventListener('click', () => openSnippetAlbumGrid());
   $$('[data-snippet-type]').forEach(button => button.onclick = () => { snippetType = button.dataset.snippetType; render(); });
   $$('[data-edit-snippet]').forEach(button => button.onclick = () => snippetForm(state.snippets.find(entry => entry.id === button.dataset.editSnippet)));
-  $$('[data-delete-snippet]').forEach(button => button.onclick = () => confirmDelete('删除这条随手记素材？已经加入日记的内容不会受影响。', async () => { state.snippets = state.snippets.filter(entry => entry.id !== button.dataset.deleteSnippet); await save(); render(); callHelper('scheduleAiRefresh'); }));
+  $$('[data-delete-snippet]').forEach(button => button.onclick = () => confirmDelete(`删除这条随手记素材？${SNIPPET_DELETE_UNAFFECTED}`, async () => { state.snippets = state.snippets.filter(entry => entry.id !== button.dataset.deleteSnippet); await save(); render(); callHelper('scheduleAiRefresh'); }));
   $$('[data-view-snippet-photo]').forEach(button => button.onclick = () => {
     // 多图/图+视频先进入相册浏览层；单张仍直接大图。大图本身不做进入 FLIP（2026-10-12）。
     const entry = state.snippets.find(item => item.id === button.dataset.viewSnippetPhoto);
