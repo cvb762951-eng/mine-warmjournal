@@ -5,7 +5,7 @@ import { CATEGORIES, dateKey, makeDefaultState, makeDefaultNavTabs, DEFAULT_NAV_
 import { createDeferredSave } from './deferred-save.js';
 import { externalizeStateMedia, mediaSource, removeUnusedMedia, stateMediaReferences } from './media-store.js';
 import { liquidGlass, isLiquidGlassEnabled } from './liquid-glass.js';
-import { morphFrom, autoStagger, markPressables, prefersReducedMotion } from './motion.js';
+import { morphFrom, autoStagger, markPressables, prefersReducedMotion, motionAllowed } from './motion.js';
 
 // ---- 工具函数 ----
 export const $ = (selector, root = document) => root.querySelector(selector);
@@ -410,9 +410,15 @@ export function render(animated = false, { skipStagger = false } = {}) {
   // 未在原型中的路由仍需要返回栏，条件显示。
   const appHeader = $('#app-header');
   if (appHeader) {
-    appHeader.className = 'app-header';
-    appHeader.innerHTML = header();
-    appHeader.hidden = !['library', 'countdown', 'documents'].includes(state.route);
+    // 顶栏只在三个路由上露面。其余路由每次渲染都重建一遍它的 DOM 是白干的
+    // （实测每次切页都要多花几毫秒），只改显隐即可。
+    if (['library', 'countdown', 'documents'].includes(state.route)) {
+      appHeader.className = 'app-header';
+      appHeader.innerHTML = header();
+      appHeader.hidden = false;
+    } else if (!appHeader.hidden) {
+      appHeader.hidden = true;
+    }
   }
   $('#app').classList.toggle('nav-transition', animated);
   $('#app').innerHTML = resolveView(state.route)();
@@ -425,7 +431,8 @@ export function render(animated = false, { skipStagger = false } = {}) {
   $$('[data-route]').forEach(button => {
     button.classList.toggle('active', button.dataset.route === state.route);
     button.onclick = () => go(button.dataset.route);
-    if (button.classList.contains('active') && button.scrollIntoView) button.scrollIntoView({ inline: 'nearest', block: 'nearest' });
+    // ⚠️ 这里原来有个 scrollIntoView(active)：底栏五个格子是固定宽度、不会滚动，
+    //    它唯一的效果是每次渲染都强制一次布局（切页时白花十几毫秒）。已去掉。
   });
   binders.forEach(bind => bind());
   onRenders.forEach(fn => fn());
@@ -568,24 +575,71 @@ function rememberCurrentNavigation() {
   if (navigationHistory.length > NAVIGATION_HISTORY_LIMIT) navigationHistory.splice(0, navigationHistory.length - NAVIGATION_HISTORY_LIMIT);
 }
 
+/* ── 切页：先把「已经动了」做出来，重建藏在它背后 ─────────────────────────
+ *
+ * 为什么：换页那一下要在手机上重建整页（布局 + 光栅，实测 140~250ms），
+ * 而浏览器在重建完成前**画不出任何一帧** —— 用户看到的就是「点下去先冻住，然后才滑过去」。
+ *
+ * 做法：点下去立刻让整个 #app 开始一段浅淡出（只动 opacity / transform，交给合成器），
+ * 真正的重建放到下一帧做；重建完再把外壳淡回来。这样从第一帧起画面就在动。
+ *
+ * ⚠️ 动的是 #app 自己：换页时它不会被销毁，所以中间那段重活打断不了这段动画
+ *    （动 .view 就不行 —— 那个节点会被新页面替换掉）。
+ * ⚠️ 淡出只淡到 .55、淡入也从 .55 起：中间任何时候都不会掉到一片空白底色
+ *    （整页淡到 0 再淡入，在安卓 WebView 上会透出白底，这是踩过的坑）。
+ * ⚠️ 刻意**不走 nav-transition**：那条路是「新页面自己从 0 淡入」，会露出底色；
+ *    这里整段过渡都在外壳上，所以换页时不再叠那层新页面入场。
+ * ⚠️ 只在「真的换页」+ 允许动效时走。同页重渲染（翻日历、保存后刷新）保持同步渲染，
+ *    在页内切日期不该看到整页淡出。
+ */
+let navSwapToken = 0;
+
 export function go(route, calendarDate = '', options = {}) {
   const targetCalendarDate = route === 'calendar' ? (calendarDate || dateKey()) : '';
-  const changesPage = route !== state.route || (route === 'calendar' && targetCalendarDate !== selected);
+  const routeChanged = route !== state.route;
+  const changesPage = routeChanged || (route === 'calendar' && targetCalendarDate !== selected);
   if (changesPage && !navigatingBack && options.history !== false) rememberCurrentNavigation();
-  state.route = route;
-  if (route === 'calendar') {
-    selected = targetCalendarDate;
-    cursor = calendarDate ? new Date(`${calendarDate}T12:00:00`) : new Date();
-  }
-  routeSave.request();
-  render(true);
-  if (options.resetScroll !== false) {
-    setPageScrollTop(0);
-    requestAnimationFrame(() => {
+
+  const apply = animated => {
+    state.route = route;
+    if (route === 'calendar') {
+      selected = targetCalendarDate;
+      cursor = calendarDate ? new Date(`${calendarDate}T12:00:00`) : new Date();
+    }
+    routeSave.request();
+    render(animated);
+    if (options.resetScroll !== false) {
       setPageScrollTop(0);
-      requestAnimationFrame(() => setPageScrollTop(0));
+      requestAnimationFrame(() => {
+        setPageScrollTop(0);
+        requestAnimationFrame(() => setPageScrollTop(0));
+      });
+    }
+  };
+
+  const app = $('#app');
+  const launcher = routeChanged && app && motionAllowed() ? app : null;
+  if (launcher) {
+    const token = ++navSwapToken;
+    launcher.classList.remove('nav-swap-in');
+    launcher.classList.add('nav-swap-out');
+    requestAnimationFrame(() => {
+      if (token !== navSwapToken) return;   // 连点两个标签：只认最后一次
+      apply(false);
+      launcher.classList.remove('nav-swap-out');
+      launcher.classList.add('nav-swap-in');
+      setTimeout(() => {
+        if (token === navSwapToken) launcher.classList.remove('nav-swap-in');
+      }, 320);
+      callHelper('syncSystemBackConsumption');
     });
+    return;
   }
+  navSwapToken += 1;   // 作废还没跑的那一次换页
+  /* 走到这里只剩两种：① 动效被关掉（减弱动态效果 / none 档）——那就不该有动画；
+     ② 同页重渲染（再点一次当前标签、日历里换一天）——内容大体没变，不该做"整页从 0 淡入"。
+     ⚠️ 后者原来跑的是新页面入场动画（起始透明度 0），切页时会闪一下底色的就是它。 */
+  apply(false);
   callHelper('syncSystemBackConsumption');
 }
 

@@ -127,6 +127,15 @@ body, button, input, textarea, select { font-family: Inter, "Noto Sans SC", sans
 /* 局部数据刷新不重播整页动画；仅页面切换（go）时播放 iOS 式转场 */
 .view { animation: none; }
 #app.nav-transition .view { animation: viewSlideFade var(--dur-med) var(--ease-ios) both; }
+/* 切页：外壳浅淡出 → 重建 → 淡回。只动 opacity / transform，全程在合成器上。
+   ⚠️ 不要淡到 0：中间会露出空白底色（安卓 WebView 会闪白）。两端都停在 .55。 */
+@keyframes navSwapOut { to { opacity: .55; transform: translate3d(0, -4px, 0); } }
+@keyframes navSwapIn { from { opacity: .55; transform: translate3d(0, 6px, 0); } }
+#app.nav-swap-out { animation: navSwapOut 150ms var(--ease-ios) both; }
+#app.nav-swap-in { animation: navSwapIn 220ms var(--ease-ios) both; }
+@media (prefers-reduced-motion: reduce) {
+  #app.nav-swap-out, #app.nav-swap-in { animation: none !important; }
+}
 @keyframes viewSlideFade {
   from { opacity: 0; transform: translateY(10px) scale(.995); }
   to { opacity: 1; transform: translateY(0) scale(1); }
