@@ -9493,6 +9493,66 @@ button.journal-deck-cut.journal-deck-mini-more{border-radius:var(--radius-soft-s
   .today-view .habit-check-dot,
   .today-view .habit-check-dot .material-symbols-outlined { transition: none !important; }
 }
+
+/* ═══ 打卡动效：习惯圆勾 / 待办圆勾共用同一套语言 ═════════════════════
+   一次打卡 = 圆勾「缩 — 弹 — 回」+ 一圈从圆心扩散出去的环。
+   ⚠️ 只动 transform / opacity：都在合成器上跑，不重排、不补间阴影。
+   ⚠️ 环用 currentColor，不写死颜色（经典/清简两端各自生效）。
+   ⚠️ 减弱动态效果、以及清简低端机的 data-pl-motion="none"，整段关掉只留状态。
+   2026-10-15 用户要「打卡习惯或待办那个按钮的打卡动效」：
+   原来只有习惯圆勾有个很小的缩放，待办两处（今日页那排 / 待办弹层里）完全没动效。 */
+@keyframes checkInPop {
+  0% { transform: scale(0.82); }
+  55% { transform: scale(1.12); }
+  100% { transform: scale(1); }
+}
+@keyframes checkInRing {
+  0% { opacity: 0.42; transform: scale(0.62); }
+  100% { opacity: 0; transform: scale(2.3); }
+}
+/* 环：一个空的描边圆，靠 transform 放大 + 透明度淡出（空元素不吃图标字体，安全） */
+.habit-check-dot,
+.hs-tick-dot,
+.bento-item-check,
+.daily-task-check .material-symbols-outlined { position: relative; }
+.habit-check-dot::after,
+.hs-tick-dot::after,
+.bento-item-check::after,
+.daily-task-check .material-symbols-outlined::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border: 1.5px solid currentColor;
+  border-radius: 50%;
+  opacity: 0;
+  pointer-events: none;
+}
+.bento-item-check,
+.daily-task-check .material-symbols-outlined { display: inline-grid; place-items: center; }
+
+:root:not([data-pl-motion="none"]) .today-view .habit-check-btn.is-pop .habit-check-dot::after,
+:root:not([data-pl-motion="none"]) .hs-tick.is-pop .hs-tick-dot::after,
+:root:not([data-pl-motion="none"]) .bento-item-mini.is-pop .bento-item-check::after,
+:root:not([data-pl-motion="none"]) .daily-task-check.is-pop .material-symbols-outlined::after {
+  animation: checkInRing 460ms var(--ease-ios, cubic-bezier(0.32, 0.72, 0, 1)) both;
+}
+/* 待办那两处的圆勾本体也补上「缩弹」（习惯那边原本就有 habitCheckPop） */
+:root:not([data-pl-motion="none"]) .bento-item-mini.is-pop .bento-item-check,
+:root:not([data-pl-motion="none"]) .daily-task-check.is-pop .material-symbols-outlined {
+  animation: checkInPop 320ms var(--ease-spring, cubic-bezier(0.34, 1.56, 0.64, 1)) both;
+}
+/* 已完成的静息态也跟着变一下：让"打上了"这件事看得见 */
+.bento-item-mini.done .bento-item-check,
+.daily-task-check.is-done .material-symbols-outlined { transform: scale(1); }
+
+@media (prefers-reduced-motion: reduce) {
+  .habit-check-dot::after,
+  .hs-tick-dot::after,
+  .bento-item-check::after,
+  .daily-task-check .material-symbols-outlined::after { animation: none !important; }
+  .bento-item-mini.is-pop .bento-item-check,
+  .daily-task-check.is-pop .material-symbols-outlined { animation: none !important; }
+}
 /* 页脚汇总：普通小字，不加粗不上色 */
 .today-view .habits-bento-card .bento-card-footer b { font-weight: 600; color: inherit; font-family: inherit; font-size: inherit; }
 

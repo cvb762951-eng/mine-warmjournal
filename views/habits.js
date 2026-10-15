@@ -7,6 +7,8 @@ import { habitDayStreak, refreshTodayHabitChrome } from './today.js';
 
 // 打卡成功后的轻动效：render 会重建 DOM，先记下 id，绑定后再弹
 let pendingHabitCelebrateId = null;
+// 今日页那排待办点完会整页重渲染 —— 动画得等新节点出来再放，所以先记下 id
+let pendingTodoCelebrateId = null;
 // 一键打卡前的今日值，只存在内存里，按「日期|习惯」记，用于撤销恢复；不写存储。
 const habitOneTapPrior = new Map();
 
@@ -272,6 +274,8 @@ export function todoManager() {
       const glyph = button.querySelector('.material-symbols-outlined');
       if (glyph) glyph.textContent = todo.completed ? 'check_circle' : 'radio_button_unchecked';
       button.setAttribute('aria-label', todo.completed ? '取消完成' : '完成待办');
+      // 这一行是就地更新、弹层不重建 ⇒ 按钮还在，可以直接放打卡动效
+      if (markingDone) celebrateHabitCheck(button);
       render();
       if (markingDone && todo.completed) await offerTodoJournalFootnote(todo.title);
     } catch (error) { Object.assign(todo, previous); show(error.message); }
@@ -516,12 +520,19 @@ function bindHabits() {
     const checkBtn = [...document.querySelectorAll('.habit-check-btn[data-habit]')].find(el => el.dataset.habit === celebrateId);
     if (checkBtn) requestAnimationFrame(() => celebrateHabitCheck(checkBtn));
   }
+  if (pendingTodoCelebrateId) {
+    const celebrateId = pendingTodoCelebrateId;
+    pendingTodoCelebrateId = null;
+    const tickBtn = [...document.querySelectorAll('.bento-item-mini[data-toggle-todo]')].find(el => el.dataset.toggleTodo === celebrateId);
+    if (tickBtn) requestAnimationFrame(() => celebrateHabitCheck(tickBtn));
+  }
   $('#new-todo')?.addEventListener('click', () => todoForm());
   $$('[data-toggle-todo]').forEach(button => button.onclick = async () => {
     const todo = state.todos.find(item => item.id === button.dataset.toggleTodo);
     if (!todo) return;
     const previous = structuredClone(todo);
     const markingDone = !todo.completed;
+    if (markingDone) pendingTodoCelebrateId = todo.id;
     todo.completed = !todo.completed;
     todo.updatedAt = Date.now();
     todo.completedAt = todo.completed ? todo.updatedAt : 0;
