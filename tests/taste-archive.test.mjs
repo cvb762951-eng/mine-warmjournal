@@ -15,6 +15,7 @@ const app = await readFile(new URL('../app.js', import.meta.url), 'utf8');
 const bridge = await readFile(new URL('../ledger-taste-bridge.js', import.meta.url), 'utf8');
 const photoUtils = await readFile(new URL('../photo-utils.js', import.meta.url), 'utf8');
 const snippets = await readFile(new URL('../views/snippets.js', import.meta.url), 'utf8');
+const photoFrame = await readFile(new URL('../photo-frame.js', import.meta.url), 'utf8');
 
 // 断言「界面上不该出现什么」时先剥注释：源码里的历史说明会误伤 doesNotMatch。
 const stripComments = source => source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^[ \t]*\/\/.*$/gm, '');
@@ -94,7 +95,9 @@ test('记录册页：按顿记、不催办、照片走统一相框（480 铺底 
   /* 照片：统一相框 + 两段式（先 480 缩略图、清晰层够大/进视口再升原图），和随手拍同一套。
      ⚠️ 铺底层必须停在 480：两层都吃原图时，竖幅照片在相框里两侧的留边会变成
      "半透明的同一张原图"，看着像重影（2026-10-15 用户报「观感有点差」，就是这么来的）。 */
-  assert.match(viewCode, /photoFrameLayersHtml\(url, \{ alt, thumbRef, progressive: Boolean\(thumbRef\), lazy: true \}\)/);
+  assert.match(viewCode, /photoFrameLayersHtml\(url, \{/, '相框要按「缩略图铺底 + 原图清晰层」的方式给地址');
+  assert.match(viewCode, /thumbRef,/, '要带上 data-thumb-ref');
+  assert.match(viewCode, /progressive: Boolean\(thumbRef\)/, '清晰层要能升到原图');
   assert.match(viewCode, /photo-blur-frame is-edge/);
   assert.match(viewCode, /progressiveSource\(source\)/, '清晰层起始要给缩略图/占位，不能一上来就拉原图');
   assert.match(viewCode, /watchThumbImages\(document\)/, '要接缩略图观察器（铺底层用的就是它）');
@@ -154,4 +157,22 @@ test('吃喝记录：加照片能拍也能选（相机取消不算错误）', ()
   assert.match(photoUtils, /export function isCameraCancellation/);
   assert.doesNotMatch(snippets, /^function isCameraCancellation/m, '随手拍里那份私有实现要删掉，改用共享的');
   assert.match(snippets, /isCameraCancellation,?\s*\}? from '\.\.\/photo-utils\.js'/, '随手拍要从共享模块引');
+});
+
+test('吃喝记录：照片在弹层里也要立刻看得见（弹层是渲染之后才建的）', () => {
+  /* 2026-10-15 用户报「看不到保存了的图片」+ 真机截图：详情里那块照片是一块空白。
+     根因：详情/照片格都是**渲染之后**才建出来的，bindTaste 里那次 watchThumbImages 盖不到，
+     铺底层一直停在 1×1 占位图；清晰层也因为 progressive 在等缩略图。
+     ⇒ ① 这两处自己接上观察器；② 「用户此刻就要看」的那几张（详情大图、刚加的照片）
+        清晰层直接吃原图，不等缩略图。
+     真照片走完整流程验过（.taste-preview-dev/verify-real-photo.mjs）：
+     记一顿的照片格与详情大图，两层都是真图片（463×455），不再是占位。 */
+  assert.match(viewCode, /tastePhotoImage\(entry\.photos\[0\], entry\.name, \{ full: true \}\)/, '详情大图要直接吃原图');
+  assert.match(viewCode, /tastePhotoImage\(photo, `照片 \$\{index \+ 1\}`, \{ full: true \}\)/, '照片格里的新照片也要立刻可见');
+  assert.match(photoFrame, /stillUrl/, '相框要支持"清晰层单独给地址"（全原图那层）');
+  assert.match(photoFrame, /src="\$\{stillUrl \|\| url\}"/, '不传 stillUrl 时输出要和以前完全一致');
+  const wiring = (viewCode.match(/watchThumbImages\(/g) || []).length;
+  assert.ok(wiring >= 3, `接缩略图观察器的地方不够：列表渲染、详情弹层、照片格各一处（现在 ${wiring} 处）`);
+  assert.match(viewCode, /watchThumbImages\(document\)/, '详情弹层建完要接（它不在 bindTaste 那次的作用域里）');
+  assert.match(viewCode, /watchThumbImages\(preview\)/, '照片格重建后也要接');
 });

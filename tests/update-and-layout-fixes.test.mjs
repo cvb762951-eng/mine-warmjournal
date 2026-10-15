@@ -64,8 +64,12 @@ test('② 随手拍的视频封面：统一为横屏高度 + 两侧虚化（方�
   // 断言跟着改成「随手拍调用共用实现 + 共用实现里两层引用同一个 url」——意图不变，写法跟上源码。
   assert.match(snippets, /photoFrameLayersHtml\(url, \{[^}]*padClass: 'snippet-cover-blur'/, '虚化层要用封面自己的地址');
   assert.match(snippets, /photoFrameLayersHtml\(url, \{[^}]*stillClass: 'snippet-cover-main'/, '主图要用同一个地址');
-  const urlsInFrame = photoFrame.match(/src="\$\{url\}"/g) || [];
-  assert.ok(urlsInFrame.length >= 2, '共用实现里两层必须引用同一个地址（浏览器只下载一次）');
+  /* 两层复用同一地址 → 只下载一次，不额外占存储、不用重新处理图片。
+     2026-10-15：加了 `stillUrl` 这个口子 —— 只在「这张图就是用户此刻要看的主角」时用
+     （点开一条的大图区、刚加进来的照片），让清晰层直接吃原图，不必先等缩略图生成
+     （用户报「看不到保存了的图片」就是等出来的）。默认不传时输出仍逐字不变。 */
+  assert.match(photoFrame, /src="\$\{url\}"/, '铺底层用共用地址');
+  assert.match(photoFrame, /src="\$\{stillUrl \|\| url\}"/, '清晰层默认也用同一个地址，stillUrl 是显式口子');
   assert.match(snippets, /snippet-cover-frame is-video-cover/, '列表卡片要渲染虚化封面的方框');
 
   // 最早的固定高度横条规则不能回来

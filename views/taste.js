@@ -59,10 +59,24 @@ const verdictOf = entry => TASTE_VERDICTS[entry?.verdict] || TASTE_VERDICTS.good
    用户要的「原图」给到清晰层；**铺底层永远停在 480 缩略图**（全站约定）。
    ⚠️ 2026-10-15 踩过：两层都传原图，竖幅照片在横幅相框里两侧的留边成了"半透明的同一张原图"，
    看着像重影（用户报「观感有点差」）。 */
-function tastePhotoImage(source, alt = '') {
+/* 照片走全 App 统一的那套相框（photo-blur-frame：同图放大铺底 + 上层 contain 完整显示，
+   不裁切不拉伸，与随手拍 / 今日画页 / 私密空间同一实现）。
+   两段式（和随手拍同一套）：先 480 缩略图，清晰层进视口 / 够大了再换原图 ——
+   用户要的「原图」给到清晰层；**铺底层永远停在 480 缩略图**（全站约定）。
+   ⚠️ 2026-10-15 踩过：两层都传原图，竖幅照片在横幅相框里两侧的留边成了"半透明的同一张原图"，
+   看着像重影（用户报「观感有点差」）。
+   ⚠️ 视频/大图那种"用户此刻就要看的主角"给 full=true：清晰层直接吃原图，
+      不用先等缩略图生成（否则会先显示一段空白占位）。铺底层照旧走缩略图，不会变重影。 */
+function tastePhotoImage(source, alt = '', { full = false } = {}) {
   const thumbRef = thumbKeyFor(source) ? source : '';
   const url = thumbRef ? esc(progressiveSource(source)) : imgSrc(source);
-  return photoFrameLayersHtml(url, { alt, thumbRef, progressive: Boolean(thumbRef), lazy: true });
+  return photoFrameLayersHtml(url, {
+    alt,
+    thumbRef,
+    progressive: Boolean(thumbRef) && !full,
+    stillUrl: full ? imgSrc(source) : '',
+    lazy: !full
+  });
 }
 
 // 新记录默认落在哪个餐次：按"现在几点"给一个**默认值**（界面上可见、可改），
@@ -191,7 +205,9 @@ export function tasteForm(entry = null) {
 }
 
 function tastePhotoPreview(newIndex = -1) {
-  return pendingTastePhotos.length ? pendingTastePhotos.map((photo, index) => `<span class="photo-blur-frame is-edge${index === newIndex ? ' is-new' : ''}" data-photo-key="${esc(photo)}">${tastePhotoImage(photo, `照片 ${index + 1}`)}<button type="button" data-remove-taste-photo="${index}" aria-label="移除第 ${index + 1} 张照片"><span class="material-symbols-outlined">close</span></button></span>`).join('') : '<p><span class="material-symbols-outlined">photo_camera</span><small>最多 6 张照片</small></p>';
+  /* full: true —— 这几张是用户刚加进来、此刻就要看见的，清晰层直接吃原图，
+     不等缩略图生成（否则会先显示一段空白占位；2026-10-15 用户报「看不到保存了的图片」）。 */
+  return pendingTastePhotos.length ? pendingTastePhotos.map((photo, index) => `<span class="photo-blur-frame is-edge${index === newIndex ? ' is-new' : ''}" data-photo-key="${esc(photo)}">${tastePhotoImage(photo, `照片 ${index + 1}`, { full: true })}<button type="button" data-remove-taste-photo="${index}" aria-label="移除第 ${index + 1} 张照片"><span class="material-symbols-outlined">close</span></button></span>`).join('') : '<p><span class="material-symbols-outlined">photo_camera</span><small>最多 6 张照片</small></p>';
 }
 
 /* 删一张照片：被删的那张先缩走，其余几张滑到新位置（FLIP）。
@@ -216,6 +232,11 @@ function refreshTastePhotoPreview(newIndex = -1) {
   const preview = $('#taste-photo-preview');
   if (preview) preview.innerHTML = tastePhotoPreview(newIndex);
   $$('[data-remove-taste-photo]').forEach(button => button.onclick = () => removeTastePhoto(Number(button.dataset.removeTastePhoto)));
+  // 照片格是弹层里的，重建之后同样要接观察器（否则刚加进来的照片一直是占位图）
+  if (preview) {
+    watchThumbImages(preview);
+    watchProgressiveImages(preview);
+  }
 }
 
 function bindTasteForm(existing) {
@@ -304,7 +325,11 @@ async function deleteTasteEntry(id) {
 function tasteDetail(entry) {
   if (!entry) return;
   const verdict = verdictOf(entry), mealLabel = hasMeal(entry) ? tasteMealLabel(entry.meal) : '', time = timeLabel(entry);
-  modal(`<article class="taste-detail"><header><small>${esc([mealLabel, entry.date, time, tasteMoney(entry.price)].filter(Boolean).join(' · '))}</small><h2>${esc(entry.name)}</h2><span class="taste-detail-verdict verdict-${entry.verdict}">${esc(verdict.label)}</span></header>${entry.photos.length ? `<button type="button" class="taste-detail-gallery photo-blur-frame is-edge" id="taste-detail-gallery">${tastePhotoImage(entry.photos[0], entry.name)}<span>${entry.photos.length} 张照片</span></button>` : ''}${entry.notes ? `<p>${esc(entry.notes)}</p>` : ''}<div class="modal-actions"><button type="button" data-close>关闭</button><button type="button" class="save" id="taste-detail-edit">编辑</button></div></article>`, 'taste-detail-modal');
+  modal(`<article class="taste-detail"><header><small>${esc([mealLabel, entry.date, time, tasteMoney(entry.price)].filter(Boolean).join(' · '))}</small><h2>${esc(entry.name)}</h2><span class="taste-detail-verdict verdict-${entry.verdict}">${esc(verdict.label)}</span></header>${entry.photos.length ? `<button type="button" class="taste-detail-gallery photo-blur-frame is-edge" id="taste-detail-gallery">${tastePhotoImage(entry.photos[0], entry.name, { full: true })}<span>${entry.photos.length} 张照片</span></button>` : ''}${entry.notes ? `<p>${esc(entry.notes)}</p>` : ''}<div class="modal-actions"><button type="button" data-close>关闭</button><button type="button" class="save" id="taste-detail-edit">编辑</button></div></article>`, 'taste-detail-modal');
+  /* ⚠️ 弹层是"渲染之后"才建出来的，bindTaste 里那次 watchThumbImages 盖不到它 ——
+     2026-10-15 就是这里漏了：铺底层一直停在占位图，用户看到一块空白灰（「看不到保存了的图片」）。 */
+  watchThumbImages(document);
+  watchProgressiveImages(document);
   $('#taste-detail-gallery')?.addEventListener('click', () => photoViewer(entry.photos, 0));
   $('#taste-detail-edit').onclick = () => tasteForm(entry);
 }
