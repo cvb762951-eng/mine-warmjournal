@@ -2072,6 +2072,13 @@ button.danger) {
   :root[data-theme="plain"] :is(.subpage-header, .ledger-page-header, .cal-screen-head, .halo-card) { animation: none !important; }
 }
 
+/* 随手拍跨天相册网格层（清简主题）：只用主题变量 */
+:root[data-theme="plain"] .snippet-album-grid { background: var(--plain-canvas) !important; color: var(--ink) !important; }
+:root[data-theme="plain"] .snippet-album-grid-header { background: var(--plain-surface) !important; border-bottom: 1px solid var(--line, rgba(85, 96, 108, 0.1)) !important; }
+:root[data-theme="plain"] .snippet-album-grid-cell { background: var(--plain-surface) !important; }
+:root[data-theme="plain"] .snippet-album-grid-count { color: var(--ink-muted, var(--muted)) !important; }
+:root[data-theme="plain"] .snippet-grid-video-placeholder { background: var(--plain-ink-block) !important; color: var(--plain-surface) !important; }
+
 /* moment-spread start */
 :root[data-theme="plain"] .moment-spread {
   position: relative;

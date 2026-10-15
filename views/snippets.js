@@ -419,6 +419,7 @@ export function snippetForm(entry = null, requestedType = 'text', openCamera = f
   pendingSnippetLive = [...(item.livePhotos || [])];
   pendingSnippetVideos = [...(item.videos || [])];
   pendingSnippetStructure = { tags: [...(item.tags || [])], summary: item.summary || '' };
+  snippetEntryOriginalTags = normalizeSnippetTags(item.tags || []);
   snippetSuggestion = null;
   modal(`<form id="snippet-form"><input type="hidden" name="id" value="${entry ? item.id : ''}"><input type="hidden" name="type" value="${item.type}"><span class="eyebrow">QUICK CAPTURE</span><h2>${entry ? '编辑' : '新增'}${item.type === 'photo' ? '随手拍' : '随手记'}</h2><label>日期</label><input name="date" type="date" required value="${item.date}">${item.type === 'photo' ? `<div class="snippet-photo-stage"><div id="snippet-photo-grid" class="snippet-photo-grid">${snippetPhotoGrid()}</div></div><label class="snippet-caption-label" for="snippet-photo-caption">图说</label><textarea id="snippet-photo-caption" name="text" maxlength="300" placeholder="写一句图说">${esc(item.text)}</textarea><div class="snippet-capture-bar" role="toolbar" aria-label="照片与视频"><div class="snippet-photo-actions"><button type="button" id="capture-snippet-photo" ${pendingSnippetPhotos.length >= SNIPPET_PHOTO_LIMIT ? 'disabled' : ''}><span class="material-symbols-outlined">photo_camera</span>${pendingSnippetPhotos.length ? '再拍' : '拍照'}</button><button type="button" id="pick-snippet-photo" ${pendingSnippetPhotos.length >= SNIPPET_PHOTO_LIMIT ? 'disabled' : ''}><span class="material-symbols-outlined">photo_library</span>${pendingSnippetPhotos.length ? '再选' : '选图'}</button></div><div class="snippet-photo-actions snippet-video-actions"><button type="button" id="capture-snippet-video" ${pendingSnippetVideos.length >= SNIPPET_PHOTO_LIMIT ? 'disabled' : ''}><span class="material-symbols-outlined">videocam</span>${pendingSnippetVideos.length ? '再拍视频' : '拍视频'}</button><button type="button" id="pick-snippet-video" ${pendingSnippetVideos.length >= SNIPPET_PHOTO_LIMIT ? 'disabled' : ''}><span class="material-symbols-outlined">video_library</span>导入视频</button></div></div><small class="field-help">一次最多 ${PHOTO_IMPORT_BATCH_LIMIT} 张，每条最多 ${SNIPPET_PHOTO_LIMIT} 张。</small><div class="snippet-video-head"><div><strong>视频</strong><small>已导入的片段</small></div></div><div id="snippet-video-grid" class="snippet-photo-grid">${snippetVideoGrid()}</div>` : `<div class="snippet-write-head"><label>记录内容</label>${micButtonHtml()}</div><textarea name="text" maxlength="2000" required placeholder="记下一句话、一个想法或稍后想写进日记的内容……">${esc(item.text)}</textarea>`}${aiStructureCard(item)}${snippetTagEditorHtml()}<div class="modal-actions"><button type="button" data-close>取消</button><button class="save">保存素材</button></div></form>`, 'snippet-form-modal');
   $('#capture-snippet-photo')?.addEventListener('click', () => pickSnippetPhoto(true).catch(error => show(error.message)));
@@ -1294,9 +1295,11 @@ export async function deleteSavedSnippetVideo(sessionItem) {
   const albumOpen = isMomentAlbumOpen() && momentAlbumEntryId === entry.id;
   const photos = entry.photos?.length ? entry.photos : (entry.photo ? [entry.photo] : []);
   const removedAlbumIndex = photos.length + videoIndex;
-  /* 翻牌移除和播放器删除都先改内存再 save()。保存抛错时把整份随手拍放回去，避免这段视频只在内存里丢了。 */
-  const previousSnippets = structuredClone(state.snippets);
-  if (plan.dropped) state.snippets = state.snippets.filter(record => record.id !== entry.id);
+  /* 翻牌移除和播放器删除都先改内存再 save()。保存抛错时只把这一条放回去，别的随手拍在保存期间的改动留着。 */
+  const entryId = entry.id;
+  const previousIndex = state.snippets.findIndex(record => record.id === entryId);
+  const previousEntry = structuredClone(entry);
+  if (plan.dropped) state.snippets = state.snippets.filter(record => record.id !== entryId);
   else {
     const target = state.snippets.find(record => record.id === entry.id);
     if (target) Object.assign(target, plan.entry);
@@ -1312,7 +1315,9 @@ export async function deleteSavedSnippetVideo(sessionItem) {
   try {
     await (snippetPersistForTest || save)();
   } catch (error) {
-    state.snippets = previousSnippets;
+    const index = state.snippets.findIndex(record => record.id === entryId);
+    if (index >= 0) state.snippets[index] = previousEntry;
+    else state.snippets.splice(Math.max(0, Math.min(previousIndex, state.snippets.length)), 0, previousEntry);
     render();
     if ($('#toast')) show(error?.message || '删除失败');
     return;
@@ -2182,12 +2187,13 @@ function pickSnippetVideoWithInput(useCamera = false) {
 // ---- AI 结构化建议 ----
 /* 编辑表单和随手拍拍摄共用同一排快捷标签。点芯片只改这条记录；长按「删除」才是藏起预设。 */
 let refreshSnippetQuickTags = () => {};
+let snippetEntryOriginalTags = [];
 
 export function _resetSnippetEntryTagsForTest(tags = []) {
   pendingSnippetStructure = { tags: normalizeSnippetTags(tags), summary: '' };
 }
 
-/* 把标签加到这条记录上，并按拍摄时「选中快捷标签」的路径记入共用池。已在记录上的不重复记。 */
+/* 把标签加到这条记录的待保存列表。次数要等表单保存时再记，取消或反复开关都不记。 */
 export function commitSnippetEntryTag(raw) {
   const tag = normalizeQuickTag(raw);
   if (!tag) return { ok: false, reason: 'empty', tags: pendingSnippetStructure.tags };
@@ -2195,9 +2201,18 @@ export function commitSnippetEntryTag(raw) {
   const next = normalizeSnippetTags([...pendingSnippetStructure.tags, tag]);
   if (!next.includes(tag)) return { ok: false, reason: 'limit', tags: pendingSnippetStructure.tags };
   pendingSnippetStructure.tags = next;
-  state.settings = state.settings || {};
-  state.settings.quickTags = recordQuickTag(state.settings.quickTags, tag);
   return { ok: true, added: true, tags: next };
+}
+
+/* 相对打开编辑表单时的标签，这次新留下的各记一次。已有的、拿掉的、取消没保存的都不记。 */
+export function recordAddedSnippetEntryTags(current, original) {
+  const next = normalizeSnippetTags(current);
+  const before = new Set(normalizeSnippetTags(original));
+  const added = next.filter(tag => !before.has(tag));
+  if (!added.length) return added;
+  state.settings = state.settings || {};
+  for (const tag of added) state.settings.quickTags = recordQuickTag(state.settings.quickTags, tag);
+  return added;
 }
 
 /* 从这条记录拿掉标签。按芯片上的原文匹配（超过快捷池 20 字的旧标签也能拿掉）。不改预设，不调用 removeQuickTag。 */
@@ -2424,7 +2439,6 @@ function bindSnippetTagEditor() {
       }
       const result = commitSnippetEntryTag(tag);
       if (result.reason === 'limit') show('最多 8 个标签');
-      if (result.added) save().catch(() => {});
     },
     onHide(tag) {
       state.settings = state.settings || {};
@@ -3353,6 +3367,7 @@ registerSubmitHandler('snippet-form', async data => {
   const existing = state.snippets.find(entry => entry.id === data.get('id'));
   const type = data.get('type');
   if (type === 'photo' && !pendingSnippetPhotos.length && !pendingSnippetVideos.length) throw new Error('请至少选择一张照片或一个视频');
+  recordAddedSnippetEntryTags(pendingSnippetStructure.tags, snippetEntryOriginalTags);
   const next = makeSnippet({ ...existing, id: existing?.id || uid(), type, date: data.get('date'), text: data.get('text'), photos: pendingSnippetPhotos, livePhotos: pendingSnippetLive, videos: pendingSnippetVideos, tags: pendingSnippetStructure.tags, summary: pendingSnippetStructure.summary, createdAt: existing?.createdAt || Date.now(), updatedAt: Date.now() });
   existing ? Object.assign(existing, next) : state.snippets.push(next);
   const justSavedPhoto = type === 'photo' && next.photo ? next.photo : '';

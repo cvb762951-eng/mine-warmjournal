@@ -48,11 +48,13 @@ const {
   _setSnippetPersistForTest,
   _resetSnippetEntryTagsForTest,
   commitSnippetEntryTag,
-  dropSnippetEntryTag
+  dropSnippetEntryTag,
+  recordAddedSnippetEntryTags
 } = await import('../views/snippets.js');
 
 const snippets = await readFile(new URL('../views/snippets.js', import.meta.url), 'utf8');
 const plainLight = await readFile(new URL('../themes-plain-light.css', import.meta.url), 'utf8');
+const plainTheme = await readFile(new URL('../themes-plain.css', import.meta.url), 'utf8');
 
 function between(source, start, end) {
   const from = source.indexOf(start);
@@ -201,7 +203,7 @@ test('移除单段视频只改 entry.videos，空记录整条删除，不直接�
   assert.ok(removal.indexOf('state.snippets') < closeAt, '先从记录里拿掉这段，再关播放器');
 });
 
-test('编辑随手拍和拍摄共用快捷标签池与芯片，加上记一次，拿掉只改这条', () => {
+test('编辑随手拍和拍摄共用快捷标签，次数在保存时按新标签各记一次', () => {
   assert.deepEqual(normalizeSnippetTags([' #旅行 ', '旅行', '###美食', '', '#']), ['旅行', '美食']);
   assert.equal(normalizeSnippetTags(['a'.repeat(40)])[0].length, 24);
   assert.equal(normalizeSnippetTags(Array.from({ length: 12 }, (_, index) => `tag${index}`)).length, 8);
@@ -238,9 +240,14 @@ test('编辑随手拍和拍摄共用快捷标签池与芯片，加上记一次�
   assert.match(snippets, /class="quick-tag-row"/);
   assert.doesNotMatch(snippets, /id="snippet-tag-editor"|snippet-tag-chip/);
 
-  const commit = between(snippets, 'function commitSnippetEntryTag(', '/* 从这条记录拿掉标签');
-  assert.match(commit, /recordQuickTag/);
-  assert.doesNotMatch(commit, /removeQuickTag\(/);
+  const commit = between(snippets, 'function commitSnippetEntryTag(', 'function recordAddedSnippetEntryTags(');
+  assert.doesNotMatch(commit, /recordQuickTag|removeQuickTag\(/);
+  const recordAdded = between(snippets, 'function recordAddedSnippetEntryTags(', '/* 从这条记录拿掉标签');
+  assert.match(recordAdded, /recordQuickTag/);
+  assert.doesNotMatch(recordAdded, /removeQuickTag/);
+  const submit = between(snippets, "registerSubmitHandler('snippet-form'", 'registerSubmitHandler(\'snippet-search-form\'');
+  assert.match(submit, /recordAddedSnippetEntryTags\(pendingSnippetStructure\.tags, snippetEntryOriginalTags\)/);
+  assert.ok(submit.indexOf('recordAddedSnippetEntryTags') < submit.indexOf('await save()'), '先记下新标签，再保存');
   const drop = between(snippets, 'function dropSnippetEntryTag(', 'function snippetQuickTagChoices(');
   assert.doesNotMatch(drop, /removeQuickTag|quickTags|recordQuickTag/);
 
@@ -254,28 +261,41 @@ test('编辑随手拍和拍摄共用快捷标签池与芯片，加上记一次�
   assert.doesNotMatch(css, /var\(--[a-z0-9-]+,\s*#/i);
   assert.match(plainLight, /#quick-photo-modal \.quick-paper-tag,\n:root\[data-theme="plain"\] #snippet-form \.quick-paper-tag \{/);
   assert.match(plainLight, /#snippet-form \.quick-tag-row/);
+  for (const rule of [
+    ':root[data-theme="plain"] .snippet-album-grid { background: var(--plain-canvas) !important; color: var(--ink) !important; }',
+    ':root[data-theme="plain"] .snippet-album-grid-header { background: var(--plain-surface) !important; border-bottom: 1px solid var(--line, rgba(85, 96, 108, 0.1)) !important; }',
+    ':root[data-theme="plain"] .snippet-album-grid-cell { background: var(--plain-surface) !important; }',
+    ':root[data-theme="plain"] .snippet-album-grid-count { color: var(--ink-muted, var(--muted)) !important; }',
+    ':root[data-theme="plain"] .snippet-grid-video-placeholder { background: var(--plain-ink-block) !important; color: var(--plain-surface) !important; }'
+  ]) {
+    assert.ok(plainTheme.includes(rule), rule);
+    assert.ok(plainLight.includes(rule), rule);
+  }
 
   const previous = state.settings.quickTags;
   try {
     state.settings.quickTags = { items: [{ tag: '海边', count: 2, lastUsed: 1 }], hidden: [] };
-    _resetSnippetEntryTagsForTest([]);
-    const added = commitSnippetEntryTag(' #海边 ');
+    _resetSnippetEntryTagsForTest(['海边']);
+    const added = commitSnippetEntryTag(' #晚风 ');
     assert.equal(added.added, true);
-    assert.deepEqual(added.tags, ['海边']);
-    assert.equal(state.settings.quickTags.items.find(item => item.tag === '海边').count, 3);
+    assert.deepEqual(added.tags, ['海边', '晚风']);
+    assert.equal(state.settings.quickTags.items.find(item => item.tag === '海边').count, 2);
+    assert.equal(state.settings.quickTags.items.some(item => item.tag === '晚风'), false);
 
-    const again = commitSnippetEntryTag('海边');
-    assert.equal(again.added, false);
-    assert.equal(state.settings.quickTags.items.find(item => item.tag === '海边').count, 3);
+    dropSnippetEntryTag('晚风');
+    commitSnippetEntryTag('晚风');
+    assert.equal(state.settings.quickTags.items.some(item => item.tag === '晚风'), false);
 
-    const custom = commitSnippetEntryTag('##晚风');
-    assert.deepEqual(custom.tags, ['海边', '晚风']);
+    const recorded = recordAddedSnippetEntryTags(['海边', '晚风'], ['海边']);
+    assert.deepEqual(recorded, ['晚风']);
+    assert.equal(state.settings.quickTags.items.find(item => item.tag === '晚风').count, 1);
+    assert.equal(state.settings.quickTags.items.find(item => item.tag === '海边').count, 2);
+    assert.deepEqual(recordAddedSnippetEntryTags(['海边', '晚风'], ['海边', '晚风']), []);
     assert.equal(state.settings.quickTags.items.find(item => item.tag === '晚风').count, 1);
 
     const dropped = dropSnippetEntryTag('#海边');
     assert.deepEqual(dropped.tags, ['晚风']);
-    assert.equal(state.settings.quickTags.items.find(item => item.tag === '海边').count, 3);
-    assert.equal(state.settings.quickTags.items.some(item => item.tag === '海边'), true);
+    assert.equal(state.settings.quickTags.items.find(item => item.tag === '海边').count, 2);
 
     const long = '长'.repeat(24);
     _resetSnippetEntryTagsForTest([long]);
@@ -332,11 +352,13 @@ function installSnippetDom() {
 
 test('翻牌移除视频时 save 失败会还原快照并重新渲染，不留下未处理的拒绝', async () => {
   const removal = between(snippets, 'export async function deleteSavedSnippetVideo(', 'function openSnippetVideos(');
-  const snap = removal.indexOf('structuredClone(state.snippets)');
+  const snap = removal.indexOf('structuredClone(entry)');
   const mutate = removal.search(/state\.snippets = state\.snippets\.filter|Object\.assign\(target, plan\.entry\)/);
   const caught = removal.indexOf('catch (error)');
-  assert.ok(snap >= 0 && mutate > snap, '改内存之前先快照 entry/state.snippets');
-  assert.match(removal.slice(caught), /state\.snippets = previousSnippets/);
+  assert.ok(snap >= 0 && mutate > snap, '改内存之前先快照这一条');
+  assert.doesNotMatch(removal.slice(caught), /state\.snippets = previousSnippets/);
+  assert.match(removal.slice(caught), /state\.snippets\[index\] = previousEntry/);
+  assert.match(removal.slice(caught), /state\.snippets\.splice\(/);
   assert.match(removal.slice(caught), /render\(\)/);
   assert.match(removal.slice(caught), /if \(\$\('#toast'\)\) show\(error\?\.message \|\| '删除失败'\)/);
   assert.match(removal.slice(caught), /return;/);
@@ -359,6 +381,8 @@ test('翻牌移除视频时 save 失败会还原快照并重新渲染，不留�
   let seenDuringSave = null;
   _setSnippetPersistForTest(async () => {
     seenDuringSave = state.snippets[0].videos.map(item => item.video);
+    const other = state.snippets.find(item => item.id === 'other');
+    if (other) other.text = '保存期间改过';
     throw new Error('磁盘满了');
   });
   try {
@@ -367,19 +391,28 @@ test('翻牌移除视频时 save 失败会还原快照并重新渲染，不留�
     assert.equal(state.snippets.length, 2);
     assert.deepEqual(state.snippets[0].videos.map(item => item.video), ['mine-media://a.mp4', 'mine-media://b.mp4']);
     assert.equal(state.snippets[1].id, 'other');
+    assert.equal(state.snippets[1].text, '保存期间改过');
     assert.equal(dom.toast.textContent, '磁盘满了');
     assert.equal(refreshes, 0);
     assert.match(dom.app.innerHTML, /keep-me/);
 
-    state.snippets = [{ id: 'only', type: 'photo', date: '2026-10-15', text: '一段', photos: [], videos: [{ video: 'mine-media://only.mp4' }], createdAt: 4 }];
+    state.snippets = [
+      { id: 'only', type: 'photo', date: '2026-10-15', text: '一段', photos: [], videos: [{ video: 'mine-media://only.mp4' }], createdAt: 4 },
+      { id: 'stay', type: 'text', date: '2026-10-15', text: '另一条', createdAt: 3 }
+    ];
     _setSnippetPersistForTest(async () => {
       seenDuringSave = state.snippets.map(item => item.id);
+      const stay = state.snippets.find(item => item.id === 'stay');
+      if (stay) stay.text = '并发改过';
+      state.snippets.push({ id: 'arrived', type: 'text', date: '2026-10-15', text: '新来的', createdAt: 1 });
       throw new Error('磁盘满了');
     });
     await deleteSavedSnippetVideo({ entryId: 'only', videoIndex: 0 });
-    assert.deepEqual(seenDuringSave, []);
-    assert.equal(state.snippets[0].id, 'only');
-    assert.equal(state.snippets[0].videos[0].video, 'mine-media://only.mp4');
+    assert.deepEqual(seenDuringSave, ['stay']);
+    const restored = state.snippets.find(item => item.id === 'only');
+    assert.equal(restored.videos[0].video, 'mine-media://only.mp4');
+    assert.equal(state.snippets.find(item => item.id === 'stay').text, '并发改过');
+    assert.equal(state.snippets.some(item => item.id === 'arrived'), true);
     assert.equal(refreshes, 0);
   } finally {
     _setSnippetPersistForTest(null);
