@@ -12,6 +12,9 @@ const mine = await readFile(new URL('../views/mine.js', import.meta.url), 'utf8'
 const calendar = await readFile(new URL('../views/calendar.js', import.meta.url), 'utf8');
 const today = await readFile(new URL('../views/today.js', import.meta.url), 'utf8');
 const app = await readFile(new URL('../app.js', import.meta.url), 'utf8');
+const bridge = await readFile(new URL('../ledger-taste-bridge.js', import.meta.url), 'utf8');
+const photoUtils = await readFile(new URL('../photo-utils.js', import.meta.url), 'utf8');
+const snippets = await readFile(new URL('../views/snippets.js', import.meta.url), 'utf8');
 
 // 断言「界面上不该出现什么」时先剥注释：源码里的历史说明会误伤 doesNotMatch。
 const stripComments = source => source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^[ \t]*\/\/.*$/gm, '');
@@ -124,4 +127,31 @@ test('样式：吃喝记录不再叠纸边，已删除元素的规则一并清�
 test('吃喝记录参与分区备份与媒体外置', () => {
   assert.match(storage, /'tasteEntries'/);
   assert.match(mediaStore, /state\?\.tasteEntries/);
+});
+
+test('吃喝记录：金额是可选的顺带一笔——不填就不提，也不让人填第二遍', () => {
+  // 记一顿：多一格「花了多少」，可选
+  assert.match(viewCode, /name="price" type="number"/, '表单要有金额输入');
+  assert.match(viewCode, /花了多少（可选）/, '文案得说清这是可选的');
+  assert.match(viewCode, /price: data\.get\('price'\)/, '保存要读这一格');
+  // 显示：只在填过的时候出现，且不写账本式的小数
+  assert.match(viewCode, /const tasteMoney = value =>/, '金额显示要有一个统一入口');
+  assert.match(viewCode, /n <= 0\) return ''/, '没填（0）就什么都不显示');
+  assert.match(viewCode, /replace\(\/\\\.00\$\//, '别写成 ¥28.00 这种账本式写法');
+  assert.match(viewCode, /tasteMoney\(entry\.price\)/, '卡片第一行带上金额');
+  assert.match(viewCode, /todayCardTitle\(todayEntries\)/, '今日那张卡要能报今天一共花了多少');
+  // 账本那头：金额从这笔账直接带过来，用户不用填两遍
+  assert.match(bridge, /price: transaction\.amount/, '从账本账建记录时要把金额带过去');
+});
+
+test('吃喝记录：加照片能拍也能选（相机取消不算错误）', () => {
+  assert.match(viewCode, /id="taste-capture-photo"/, '表单要有「拍一张」');
+  assert.match(viewCode, /id="taste-pick-photos"/, '表单要有「从相册选」');
+  assert.match(viewCode, /Camera\.takePhoto\(/, '拍照要走原生相机（和随手拍同一套）');
+  assert.match(viewCode, /Capacitor\.isNativePlatform\(\)/, '非原生平台要回落到文件选择，不能按了没反应');
+  assert.match(viewCode, /isCameraCancellation\(error\)\) return;/, '用户按返回退出相机不算错误、不弹报错');
+  // 共享判断只有一份：photo-utils 导出，随手拍不再自己实现
+  assert.match(photoUtils, /export function isCameraCancellation/);
+  assert.doesNotMatch(snippets, /^function isCameraCancellation/m, '随手拍里那份私有实现要删掉，改用共享的');
+  assert.match(snippets, /isCameraCancellation,?\s*\}? from '\.\.\/photo-utils\.js'/, '随手拍要从共享模块引');
 });

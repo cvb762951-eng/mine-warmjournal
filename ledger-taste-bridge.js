@@ -7,7 +7,7 @@
 // 4. 同一笔账编辑后不重复弹（金额或分类变了才给一次机会）。
 //
 // 2026-10-15 随「味觉档案 → 吃喝记录」升级同步：只问「吃了什么 / 哪一顿 / 什么态度」，
-// 不再问星级、店名和价格（界面上已没有这些）。
+// 不再问星级和店名。金额不问，但**从这笔账直接带过去**（用户不必填两遍）。
 import { $, state, esc, modal, closeModal, show, uid } from './core.js';
 import { makeTasteEntry, TASTE_MEALS, TASTE_VERDICTS } from './model.js';
 
@@ -84,6 +84,9 @@ export function offerTasteArchive(transaction) {
       date: transaction.date,
       notes: transaction.note || '',
       photos: transaction.photo ? [transaction.photo] : [],
+      // 金额直接从这笔账带过来：用户已经在账本里填过一次，不该再让他填第二遍
+      //（记一顿那边也留着「花了多少」，两边指向同一个数）。
+      price: transaction.amount,
       ledgerTransactionId: transaction.id,
       createdAt: Date.now(),
       updatedAt: Date.now()

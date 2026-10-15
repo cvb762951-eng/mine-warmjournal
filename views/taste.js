@@ -11,7 +11,9 @@
 //    数据本身保留在 model.js（见 makeTasteEntry 注释），需要时能恢复展示。
 import { $, $$, esc, state, save, render, modal, closeModal, show, confirmDelete, imgSrc, goBack, registerView, registerBinder, registerSubmitHandler, registerHelper } from '../core.js';
 import { dateKey, makeTasteEntry, tasteDayGroups, tasteMealLabel, TASTE_MEALS, TASTE_VERDICTS } from '../model.js';
-import { compressSnippetPhoto, importPhotoBatch, isSupportedJournalPhoto } from '../photo-utils.js';
+import { Capacitor } from '@capacitor/core';
+import { Camera, CameraDirection, EncodingType } from '@capacitor/camera';
+import { compressSnippetPhoto, importPhotoBatch, isSupportedJournalPhoto, isCameraCancellation } from '../photo-utils.js';
 import { photoViewer } from './common.js';
 import { photoFrameLayersHtml } from '../photo-frame.js';
 import { thumbKeyFor, progressiveSource, watchThumbImages, watchProgressiveImages } from '../photo-thumbs.js';
@@ -39,6 +41,14 @@ const entryKeyOf = card => card.querySelector('[data-open-taste]')?.dataset.open
 const photoKeyOf = span => span.dataset.photoKey || '';
 const CARD_ITEM = '.taste-entry-list > .taste-entry-card';
 const PHOTO_ITEM = '#taste-photo-preview > span';
+
+/* 金额显示：¥28 / ¥28.5 / ¥28.55（不补两位小数——这里是顺带看一眼的小字，不是账本）。
+   只在真的填过（> 0）时才出现。 */
+const tasteMoney = value => {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n <= 0) return '';
+  return '¥' + n.toFixed(2).replace(/\.00$/, '').replace(/(\.\d)0$/, '$1');
+};
 
 const hasMeal = entry => Boolean(TASTE_MEALS[entry?.meal]);
 const verdictOf = entry => TASTE_VERDICTS[entry?.verdict] || TASTE_VERDICTS.good;
@@ -100,7 +110,7 @@ function tasteEntryCard(entry) {
   const photos = entry.photos || [];
   const cover = photos[0] || '';
   return `<article class="taste-entry-card verdict-${entry.verdict}${isJustAdded(entry.id) ? ' is-just-added' : ''}">
-    <div class="taste-entry-head"><span class="taste-entry-meta">${esc([mealLabel, time].filter(Boolean).join(' · ') || '未填')}</span><span class="taste-verdict-tag">${esc(verdict.label)}</span></div>
+    <div class="taste-entry-head"><span class="taste-entry-meta">${esc([mealLabel, time, tasteMoney(entry.price)].filter(Boolean).join(' · ') || '未填')}</span><span class="taste-verdict-tag">${esc(verdict.label)}</span></div>
     <button type="button" class="taste-entry-body" data-open-taste="${entry.id}">
       <strong class="taste-entry-title">${esc(entry.name)}</strong>
       ${entry.notes ? `<p class="taste-entry-notes">${esc(entry.notes)}</p>` : ''}
@@ -108,6 +118,13 @@ function tasteEntryCard(entry) {
     </button>
     ${cover ? `<button type="button" class="taste-entry-cover photo-blur-frame is-edge" data-taste-photo="${entry.id}" aria-label="查看「${esc(entry.name)}」的照片">${tastePhotoImage(cover, entry.name)}${photos.length > 1 ? `<span class="taste-entry-count">共 ${photos.length} 张</span>` : ''}</button>` : ''}
   </article>`;
+}
+
+/* 今日那张卡的标题：记了几顿 + 今天一共花了多少（没填金额就不提钱）。 */
+function todayCardTitle(entries) {
+  if (!entries.length) return '今天吃了什么';
+  const spend = entries.reduce((sum, entry) => sum + (Number(entry.price) > 0 ? Number(entry.price) : 0), 0);
+  return `今天记了 ${entries.length} 顿${spend > 0 ? ` · ${tasteMoney(spend)}` : ''}`;
 }
 
 function filteredEntries() {
@@ -157,7 +174,7 @@ function tasteTodayCard(todayEntries, total) {
   const strip = todayEntries.length
     ? `<div class="taste-today-strip">${todayEntries.map(entry => `<button type="button"${isJustAdded(entry.id) ? ' class="is-just-added"' : ''} data-open-taste="${entry.id}"><span class="taste-today-thumb photo-blur-frame is-edge">${entry.photos?.[0] ? tastePhotoImage(entry.photos[0], entry.name) : `<b>${esc(tasteMealLabel(entry.meal).slice(0, 1))}</b>`}</span><strong>${esc(entry.name)}</strong><small>${esc(hasMeal(entry) ? tasteMealLabel(entry.meal) : (timeLabel(entry) || '记录'))}</small></button>`).join('')}<button type="button" class="taste-today-add" id="taste-today-new" aria-label="再记一顿"><span class="material-symbols-outlined">add</span><small>再记</small></button></div>`
     : `<div class="taste-today-empty"><p>今天还没有记录。想记的时候随手添一笔就行。</p><button type="button" id="taste-today-new"><span class="material-symbols-outlined">add</span>记一顿</button></div>`;
-  return `<section class="taste-today-card"><header><span><small>TODAY</small><h2>${todayEntries.length ? `今天记了 ${todayEntries.length} 顿` : '今天吃了什么'}</h2></span><em>${total} 条</em></header>${strip}</section>`;
+  return `<section class="taste-today-card"><header><span><small>TODAY</small><h2>${todayCardTitle(todayEntries)}</h2></span><em>${total} 条</em></header>${strip}</section>`;
 }
 
 function tasteEmpty(hasRecords, filtering) {
@@ -169,7 +186,7 @@ function tasteEmpty(hasRecords, filtering) {
 export function tasteForm(entry = null) {
   const item = entry || makeTasteEntry({ date: dateKey(), meal: defaultMeal(), verdict: 'good' });
   pendingTastePhotos = [...item.photos];
-  modal(`<form id="taste-form"><input type="hidden" name="id" value="${entry ? item.id : ''}"><div class="modal-head"><div><span class="eyebrow">MEAL NOTE</span><h2>${entry ? '编辑这一条' : '记一顿'}</h2><p>拍张照片，写下吃了什么、你觉得怎么样就够了，其他都能以后再补。</p></div></div><div class="taste-photo-picker"><div id="taste-photo-preview">${tastePhotoPreview()}</div><button type="button" id="taste-pick-photos"><span class="material-symbols-outlined">add_photo_alternate</span>${pendingTastePhotos.length ? '继续添加照片' : '添加照片'}</button></div><label>吃了什么 / 喝了什么</label><input name="name" maxlength="80" required value="${esc(item.name)}" placeholder="例如：番茄炒蛋 + 米饭、冰美式"><label>这是哪一顿</label><div class="taste-meal-picker">${MEAL_KEYS.map(key => `<label><input type="radio" name="meal" value="${key}" ${item.meal === key ? 'checked' : ''}><span>${TASTE_MEALS[key].label}</span></label>`).join('')}</div><label>对它的态度</label><div class="taste-verdict-picker">${VERDICT_KEYS.map(key => `<label><input type="radio" name="verdict" value="${key}" ${item.verdict === key ? 'checked' : ''}><span>${TASTE_VERDICTS[key].label}</span></label>`).join('')}</div><label>想说的话（可选）</label><textarea name="notes" maxlength="300" rows="3" placeholder="好吃在哪里，或者为什么不合口味……">${esc(item.notes)}</textarea><div><label>日期</label><input name="date" type="date" required value="${item.date}"></div><div class="modal-actions">${entry ? '<button type="button" class="danger" id="taste-delete">删除</button>' : ''}<button type="button" data-close>取消</button><button class="save">存进记录册</button></div></form>`, 'taste-form-modal');
+  modal(`<form id="taste-form"><input type="hidden" name="id" value="${entry ? item.id : ''}"><div class="modal-head"><div><span class="eyebrow">MEAL NOTE</span><h2>${entry ? '编辑这一条' : '记一顿'}</h2><p>拍张照片，写下吃了什么、你觉得怎么样就够了，其他都能以后再补。</p></div></div><div class="taste-photo-picker"><div id="taste-photo-preview">${tastePhotoPreview()}</div><div class="taste-photo-actions"><button type="button" id="taste-capture-photo"><span class="material-symbols-outlined">photo_camera</span>拍一张</button><button type="button" id="taste-pick-photos"><span class="material-symbols-outlined">photo_library</span>从相册选</button></div></div><label>吃了什么 / 喝了什么</label><input name="name" maxlength="80" required value="${esc(item.name)}" placeholder="例如：番茄炒蛋 + 米饭、冰美式"><label>这是哪一顿</label><div class="taste-meal-picker">${MEAL_KEYS.map(key => `<label><input type="radio" name="meal" value="${key}" ${item.meal === key ? 'checked' : ''}><span>${TASTE_MEALS[key].label}</span></label>`).join('')}</div><label>对它的态度</label><div class="taste-verdict-picker">${VERDICT_KEYS.map(key => `<label><input type="radio" name="verdict" value="${key}" ${item.verdict === key ? 'checked' : ''}><span>${TASTE_VERDICTS[key].label}</span></label>`).join('')}</div><label>想说的话（可选）</label><textarea name="notes" maxlength="300" rows="3" placeholder="好吃在哪里，或者为什么不合口味……">${esc(item.notes)}</textarea><div><label>花了多少（可选）</label><input name="price" type="number" min="0" step="0.01" inputmode="decimal" value="${Number(item.price) > 0 ? item.price : ''}" placeholder="不填就不记"></div><div><label>日期</label><input name="date" type="date" required value="${item.date}"></div><div class="modal-actions">${entry ? '<button type="button" class="danger" id="taste-delete">删除</button>' : ''}<button type="button" data-close>取消</button><button class="save">存进记录册</button></div></form>`, 'taste-form-modal');
   bindTasteForm(entry);
 }
 
@@ -202,12 +219,44 @@ function refreshTastePhotoPreview(newIndex = -1) {
 }
 
 function bindTasteForm(existing) {
-  $('#taste-pick-photos')?.addEventListener('click', () => pickTastePhotos().catch(error => show(error.message)));
+  $('#taste-pick-photos')?.addEventListener('click', () => pickTastePhotos(false).catch(error => show(error.message)));
+  $('#taste-capture-photo')?.addEventListener('click', () => pickTastePhotos(true).catch(error => show(error.message)));
   refreshTastePhotoPreview();
   $('#taste-delete')?.addEventListener('click', () => confirmDelete(`删除“${existing.name}”这条记录？`, () => deleteTasteEntry(existing.id)));
 }
 
-async function pickTastePhotos() {
+/* 加照片有两个入口：拍一张（原生相机）/ 从相册选。
+   ⚠️ 相机这段和随手拍是同一套（@capacitor/camera）；用户按返回退出相机不算错误。
+   ⚠️ 相机只在原生里用；浏览器预览时自动回落到文件选择（否则网页上按了没反应）。 */
+async function pickTastePhotos(useCamera = false) {
+  if (6 - pendingTastePhotos.length <= 0) throw new Error('每条记录最多保存 6 张照片');
+  if (useCamera && Capacitor.isNativePlatform()) {
+    try {
+      const photo = await Camera.takePhoto({
+        quality: 86,
+        targetWidth: 1600,
+        targetHeight: 1600,
+        correctOrientation: true,
+        encodingType: EncodingType.JPEG,
+        saveToGallery: false,
+        cameraDirection: CameraDirection.Rear,
+        editable: 'no',
+        includeMetadata: true
+      });
+      if (!photo.webPath) throw new Error('相机没有返回照片');
+      const response = await fetch(photo.webPath);
+      if (!response.ok) throw new Error('无法读取刚拍摄的照片');
+      const blob = await response.blob();
+      const file = new File([blob], `meal-${Date.now()}.jpg`, { type: blob.type || 'image/jpeg' });
+      const [compressed] = await importPhotoBatch([file], compressSnippetPhoto, { concurrency: 2 });
+      pendingTastePhotos.push(compressed);
+      refreshTastePhotoPreview(pendingTastePhotos.length - 1);
+      return;
+    } catch (error) {
+      if (isCameraCancellation(error)) return;
+      throw error;
+    }
+  }
   const input = document.createElement('input');
   input.type = 'file'; input.accept = 'image/jpeg,image/png,image/webp'; input.multiple = true;
   const files = await new Promise(resolve => { input.onchange = () => resolve([...input.files || []]); input.oncancel = () => resolve([]); input.click(); });
@@ -224,8 +273,8 @@ async function pickTastePhotos() {
 async function saveTasteForm(data) {
   const id = String(data.get('id') || '');
   const existing = state.tasteEntries.find(entry => entry.id === id);
-  // 只提交界面上的字段；旧版的 rating / price / placeName / brand / location / flavorTags
-  // 通过 {...existing} 原样带过，不会被这次编辑清空。
+  // 只提交界面上的字段；旧版的 rating / placeName / brand / location / flavorTags
+  // 通过 {...existing} 原样带过，不会被这次编辑清空。（price 从 2026-10-15 起回到界面，按输入值写。）
   const next = makeTasteEntry({
     ...existing,
     id: existing?.id || crypto.randomUUID(),
@@ -234,6 +283,7 @@ async function saveTasteForm(data) {
     verdict: data.get('verdict'),
     notes: data.get('notes'),
     date: data.get('date'),
+    price: data.get('price'),
     photos: pendingTastePhotos,
     createdAt: existing?.createdAt,
     updatedAt: Date.now()
@@ -254,7 +304,7 @@ async function deleteTasteEntry(id) {
 function tasteDetail(entry) {
   if (!entry) return;
   const verdict = verdictOf(entry), mealLabel = hasMeal(entry) ? tasteMealLabel(entry.meal) : '', time = timeLabel(entry);
-  modal(`<article class="taste-detail"><header><small>${esc([mealLabel, entry.date, time].filter(Boolean).join(' · '))}</small><h2>${esc(entry.name)}</h2><span class="taste-detail-verdict verdict-${entry.verdict}">${esc(verdict.label)}</span></header>${entry.photos.length ? `<button type="button" class="taste-detail-gallery photo-blur-frame is-edge" id="taste-detail-gallery">${tastePhotoImage(entry.photos[0], entry.name)}<span>${entry.photos.length} 张照片</span></button>` : ''}${entry.notes ? `<p>${esc(entry.notes)}</p>` : ''}<div class="modal-actions"><button type="button" data-close>关闭</button><button type="button" class="save" id="taste-detail-edit">编辑</button></div></article>`, 'taste-detail-modal');
+  modal(`<article class="taste-detail"><header><small>${esc([mealLabel, entry.date, time, tasteMoney(entry.price)].filter(Boolean).join(' · '))}</small><h2>${esc(entry.name)}</h2><span class="taste-detail-verdict verdict-${entry.verdict}">${esc(verdict.label)}</span></header>${entry.photos.length ? `<button type="button" class="taste-detail-gallery photo-blur-frame is-edge" id="taste-detail-gallery">${tastePhotoImage(entry.photos[0], entry.name)}<span>${entry.photos.length} 张照片</span></button>` : ''}${entry.notes ? `<p>${esc(entry.notes)}</p>` : ''}<div class="modal-actions"><button type="button" data-close>关闭</button><button type="button" class="save" id="taste-detail-edit">编辑</button></div></article>`, 'taste-detail-modal');
   $('#taste-detail-gallery')?.addEventListener('click', () => photoViewer(entry.photos, 0));
   $('#taste-detail-edit').onclick = () => tasteForm(entry);
 }

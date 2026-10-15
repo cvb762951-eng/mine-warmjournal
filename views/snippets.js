@@ -5,7 +5,7 @@ import { FilePicker } from '@capawesome/capacitor-file-picker';
 import { $, $$, esc, uid, state, save, render, modal, closeModal, show, confirmDelete, imgSrc, emptyState, go, registerView, registerBinder, registerSubmitHandler, registerHelper, registerOnRender, callHelper, PHOTO_IMPORT_BATCH_LIMIT } from '../core.js';
 import { makeSnippet, makeTodo, snippetEntries, dateKey, WEEK_DAYS, activeStreak, formatShanghaiStamp } from '../model.js';
 import { photoViewer, micButtonHtml, bindVoiceInput } from './common.js';
-import { compressSnippetPhoto, captureVideoFrame, importPhotoBatch, isSupportedJournalPhoto } from '../photo-utils.js';
+import { compressSnippetPhoto, captureVideoFrame, importPhotoBatch, isSupportedJournalPhoto, isCameraCancellation } from '../photo-utils.js';
 import { livePhotoMarkHtml, photosWithLiveMotion } from '../motion-photo.js';
 import { thumbSource, thumbKeyFor, progressiveSource, watchThumbImages, watchProgressiveImages, releaseProgressiveImages, stopProgressiveImages, ensureThumb } from '../photo-thumbs.js';
 import { mediaSource, saveMediaFile, saveNativeMediaSource } from '../media-store.js';
@@ -910,10 +910,6 @@ async function pickSnippetPhoto(useCamera = false) {
     }
   }
   return pickSnippetPhotoWithInput(useCamera);
-}
-
-function isCameraCancellation(error) {
-  return error?.code === 'OS-PLUG-CAMR-0006' || error?.code === 'OS-PLUG-CAMR-0017' || /cancel|取消/i.test(error?.message || '');
 }
 
 function refreshSnippetPhotoGrid() {

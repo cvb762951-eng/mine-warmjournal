@@ -324,6 +324,12 @@ export const captureVideoFrame = (fileOrSource, options = {}) => captureDecodedV
   ...options
 });
 
+/** 相机被用户取消（返回键）不算错误：原生插件的错误码和文案都可能不一样，两种都认。
+    ⚠️ 随手拍和吃喝记录都要用这一个，别再各写一份。 */
+export function isCameraCancellation(error) {
+  return error?.code === 'OS-PLUG-CAMR-0006' || error?.code === 'OS-PLUG-CAMR-0017' || /cancel|取消/i.test(error?.message || '');
+}
+
 export function isSupportedJournalPhoto(file) {
   return file.type ? SUPPORTED_JOURNAL_PHOTO_TYPES.has(file.type) : /\.(jpe?g|png|webp)$/i.test(file.name || '');
 }

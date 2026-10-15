@@ -63,13 +63,16 @@ test('taste bridge only offers for food expenses and refuses to invent data', ()
   assert.match(bridgeSource, /if \(!entry \|\| !entry\.name\) \{/, '必须填了吃了什么才写入');
 });
 
-test('taste bridge 只问吃喝记录界面上的字段，不再问星级、店名和价格', () => {
+test('taste bridge 只问吃了什么/哪一顿/什么态度；金额不问但带过来', () => {
   assert.match(bridgeSource, /class="taste-meal-picker"/, '弹窗里应有餐次选择');
   assert.match(bridgeSource, /class="taste-verdict-picker"/, '弹窗里应有态度选择');
   assert.match(bridgeSource, /MEAL_KEYS\.map/, '餐次来自模型的枚举，不写死');
   assert.match(bridgeSource, /VERDICT_KEYS\.map/, '态度来自模型的枚举，不写死');
   assert.doesNotMatch(bridgeSource, /taste-star|name="rating"/, '星级选择器已随升级移除');
-  assert.doesNotMatch(bridgeSource, /price:\s*transaction\.amount/, '金额交给账本本身，不再复制进吃喝记录');
+  /* 金额：弹窗里**不问**（还是只问吃了什么 / 哪一顿 / 态度），但要从这笔账带过去 ——
+     用户已经在账本里填过一次，不该为了吃喝记录再填一遍（2026-10-15 用户要求记录金额）。 */
+  assert.match(bridgeSource, /price:\s*transaction\.amount/, '金额从账目带进记录');
+  assert.doesNotMatch(bridgeSource, /name="price"/, '弹窗里不额外再问一遍金额');
   assert.doesNotMatch(bridgeSource, /placeName:\s*transaction/, '不再从账目里编店名');
 });
 
