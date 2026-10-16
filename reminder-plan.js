@@ -251,7 +251,13 @@ export function buildRandomAlarms(items, now = new Date(), occupied = []) {
       ...draft,
       channelId: RANDOM_CHANNEL_ID,
       allowWhileIdle: true,
-      extra: { route: 'journal', randomReminder: true }
+      /* 用户 2026-10-16 要求：这条提醒（标题就是「记录生活」）点进去要进**随手拍**，
+         不是日记页 —— 因为它的意思是「去记下此刻」，拍一张比写一篇更轻。
+         ⚠️ 只动这一条随机提醒的路由；每日提醒那条（标题「记录今天」→ 日记）保持不变。 */
+      /* 用户 2026-10-16 要求：这条提醒（标题就是「记录生活」）点进去要进随手拍、不是日记页 ——
+         它的意思是「去记下此刻」，拍一张比写一篇更轻。只动这一条随机提醒的路由，
+         每日提醒那条（标题「记录今天」→ 日记）保持不变。 */
+      extra: { route: 'snippets', randomReminder: true }
     });
   });
   staggerAlarms(alarms, { occupied: [...occupied, ...held.map(item => item.at.getTime())] });
