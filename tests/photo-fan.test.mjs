@@ -125,7 +125,7 @@ test('收尾定稿：只保留「浮动 + 相纸质感」，牌的大小/出框/
   assert.match(motion, /installFanCardLift/, '按住拿起（浮动那一套里的）也要留着');
 
   /* 其余一并回退 —— 谁再把它们加回来，这条会先红 */
-  assert.doesNotMatch(styles, /\.snippet-visual-wrap\.is-moment-fan \.moment-spread \{/, '不许再覆盖扇面几何（牌不放大）');
+  assert.match(styles, /--card-w: min\(168px, calc\(min\(120px, \(100% - 30px\) \/ var\(--n\) \* 1\.1\) \* 1\.46\)\)/, '用户选的大号牌：在原公式上 ×1.46、封顶 168');
   assert.doesNotMatch(styles, /calc\(100% \+ 40px\)/, '不许再让整叠外扩（不出框）');
   assert.doesNotMatch(styles, /height: calc\(var\(--card-w\)/, '框高不要再跟着牌算（回到原来的固定区间）');
   assert.doesNotMatch(snippets, /snippet-fan-copy/, '文字要留在卡片外面，不要再搬进底板');
@@ -133,15 +133,14 @@ test('收尾定稿：只保留「浮动 + 相纸质感」，牌的大小/出框/
 });
 
 test('浮动的光影：两层光的图层，只动 transform / opacity（不许补间 box-shadow）', () => {
-  assert.match(performanceCss, /@keyframes fan-sheen/, '牌面柔光扫过');
-  assert.match(performanceCss, /\.moment-spread-card::after \{[\s\S]{0,400}animation: fan-sheen/, '扫光挂牌的 ::after');
+  assert.doesNotMatch(performanceCss, /fan-sheen/, '扫光已按用户要求去掉');
   assert.match(performanceCss, /@keyframes fan-toplight/, '顶光呼吸');
   /* 顶光必须挂 ::after：::before 排在内容之前，会被照片盖掉 */
   assert.match(performanceCss, /\.moment-spread-frame::after \{[\s\S]{0,400}animation: fan-toplight/, '顶光挂照片层的 ::after');
   assert.doesNotMatch(performanceCss, /\.moment-spread-frame::before \{[\s\S]{0,200}fan-toplight/, '::before 会被照片盖住，别用它');
 
   /* 🔴 红线：常驻动画不许补间 box-shadow（每帧重算阴影太贵），只许 transform / opacity */
-  for (const name of ['fan-sheen', 'fan-toplight', 'snippet-drift']) {
+  for (const name of ['fan-toplight', 'snippet-drift']) {
     const at = performanceCss.indexOf('@keyframes ' + name);
     assert.ok(at > 0, '找不到关键帧 ' + name);
     const body = performanceCss.slice(at, at + 700);
@@ -150,14 +149,13 @@ test('浮动的光影：两层光的图层，只动 transform / opacity（不许
   }
 
   /* 常驻光影只挂 rich 档；相位错开（不然四张牌整排同步） */
-  assert.match(performanceCss, /:root\[data-pl-motion="rich"\] \.snippet-visual-wrap \.moment-spread-card::after/, '扫光只挂 rich');
+  assert.doesNotMatch(performanceCss, /moment-spread-card::after \{[\s\S]{0,400}animation:/, '牌上不再挂常驻光');
   assert.match(performanceCss, /:root\[data-pl-motion="rich"\] \.snippet-visual-wrap \.moment-spread-frame::after/, '顶光只挂 rich');
-  assert.match(performanceCss, /animation-delay: calc\(var\(--i, 0\) \* -2\.7s\)/, '扫光相位错开');
   assert.match(performanceCss, /animation-delay: calc\(var\(--i, 0\) \* -1\.1s\)/, '顶光相位错开');
   /* 浮动本身也加了左右漂移（纯 translate，还是只有 transform） */
   assert.match(performanceCss, /translateX\(1\.2px\) scale\(1\.012\)/, '浮动加了轻微左右漂移');
 
   /* 减弱动态效果：两层光一起收掉，别留一块静止的白斑 */
   const reduce = performanceCss.slice(performanceCss.indexOf('@media (prefers-reduced-motion: reduce) {\n  :root:not([data-pl-motion-explicit="rich"]) .snippet-visual-wrap .moment-spread-card'));
-  assert.match(performanceCss, /prefers-reduced-motion: reduce\) \{[\s\S]{0,260}\.moment-spread-card::after[\s\S]{0,260}opacity: 0 !important/, '减弱动效时扫光要收掉');
+  assert.match(performanceCss, /prefers-reduced-motion: reduce\) \{[\s\S]{0,260}\.moment-spread-frame::after[\s\S]{0,260}opacity: 0 !important/, '减弱动效时这束光要收掉');
 });

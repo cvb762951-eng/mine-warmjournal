@@ -4726,34 +4726,11 @@ img.shared-element-ghost {
   animation-duration: calc(7.6s + var(--i, 0) * 0.62s);
 }
 
-/* ── D3c · 光影（2026-10-16 用户：优化一下浮动效果，带点光影动效）────────────
-   🔴 红线：**不补间 box-shadow**（每帧重算阴影太贵）。
-   所以"光影"不做在阴影上，而是**两层光的图层**，只动 transform / opacity：
-     · 牌面一层柔光扫过（.moment-spread-card::after）—— 一条斜的光带慢慢刷过去；
-       一圈里大半时间是暗的，不做成"一直闪"。
-     · 照片内一层顶光呼吸（.moment-spread-frame::after）—— 纸的顶边一会儿亮一会儿淡。
-   两层的周期都和浮动错开（11.5s / 6.8s vs 7.6s），所以四张牌是"各浮各的、各亮各的"，
-   不会整排同步。⚠️ 只挂 rich 档；减弱动态效果时两层一起收掉（见下面的 reduce 段）。 */
-@keyframes fan-sheen {
-  0%, 46% { transform: translateX(-170%) rotate(9deg); opacity: 0; }
-  58% { opacity: 0.55; }
-  74% { opacity: 0.28; }
-  88%, 100% { transform: translateX(200%) rotate(9deg); opacity: 0; }
-}
-:root[data-pl-motion="rich"] .snippet-visual-wrap .moment-spread-card::after {
-  content: "";
-  position: absolute;
-  top: -25%;
-  bottom: -25%;
-  left: 0;
-  width: 38%;
-  border-radius: 50%;
-  background: linear-gradient(96deg, transparent, rgba(255, 255, 255, 0.62), transparent);
-  pointer-events: none;
-  animation: fan-sheen 11.5s cubic-bezier(0.35, 0, 0.4, 1) infinite;
-  animation-delay: calc(var(--i, 0) * -2.7s);
-}
-
+/* ── D3c · 光影（2026-10-16 用户选定：**只留顶光呼吸，去掉扫光**）────────────
+   一条白光带不停扫过太"抢"，去掉了；只留照片顶边那层光在呼吸。
+   🔴 不做在 box-shadow 上（红线：不补间 box-shadow）⇒ 光是一层独立的伪元素，只动 opacity。
+   🔴 必须挂 ::after：::before 排在内容之前，会被照片盖住（看不出来）。
+   period 6.8s，按 --i 错开相位；只挂 rich 档；reduce 里收掉（不然留一块静止白斑）。 */
 @keyframes fan-toplight {
   0%, 100% { opacity: 0.2; }
   50% { opacity: 0.48; }
@@ -4769,13 +4746,22 @@ img.shared-element-ghost {
   animation-delay: calc(var(--i, 0) * -1.1s);
 }
 
+/* 减弱动态效果 / 关闭档：这束光直接收掉（不然会留一块不动的浅色斑） */
 @media (prefers-reduced-motion: reduce) {
-  :root:not([data-pl-motion-explicit="rich"]) .snippet-visual-wrap .moment-spread-card::after,
   :root:not([data-pl-motion-explicit="rich"]) .snippet-visual-wrap .moment-spread-frame::after {
     animation: none !important;
     opacity: 0 !important;
   }
 }
+
+/* 减弱动态效果 / 关闭档：这束光直接收掉（不然会留一块不动的浅色斑） */
+@media (prefers-reduced-motion: reduce) {
+  :root:not([data-pl-motion-explicit="rich"]) .snippet-visual-wrap .moment-spread-frame::after {
+    animation: none !important;
+    opacity: 0 !important;
+  }
+}
+
 @keyframes snippet-drift {
   0%, 100% {
     transform: rotate(var(--rot, 0deg)) translateY(var(--lift, 0px)) scale(1);
@@ -4789,6 +4775,87 @@ img.shared-element-ghost {
   78% {
     transform: rotate(calc(var(--rot, 0deg) + 0.2deg)) translateY(calc(var(--lift, 0px) - 1.5px)) translateX(0.5px) scale(1.004);
   }
+}
+
+
+@keyframes snippet-drift {
+  0%, 100% {
+    transform: rotate(var(--rot, 0deg)) translateY(var(--lift, 0px)) scale(1);
+  }
+  26% {
+    transform: rotate(calc(var(--rot, 0deg) - 0.5deg)) translateY(calc(var(--lift, 0px) + 1.5px)) translateX(-0.8px) scale(0.998);
+  }
+  54% {
+    transform: rotate(calc(var(--rot, 0deg) + 0.75deg)) translateY(calc(var(--lift, 0px) - 5px)) translateX(1.2px) scale(1.012);
+  }
+  78% {
+    transform: rotate(calc(var(--rot, 0deg) + 0.2deg)) translateY(calc(var(--lift, 0px) - 1.5px)) translateX(0.5px) scale(1.004);
+  }
+}
+
+
+/* ── D3b · 手指停在一张牌上，就把它从叠里「抽出来」（2026-10-16 新增）──────
+   用户原话：「手指停留在某张卡片的时候，那张卡片可以抬起来逐渐置于顶层」。
+   手机上不存在「悬停」，所以触发方式是**按住不动 220ms**（手指一动就判定成滚动/滑动，
+   立刻放弃）。抬起来的过程里做三件事：升到最上层、往上浮一段、把倾斜**转正** ——
+   转正这一步是关键，它让这张牌看着像被从一叠里抽了出来。
+
+   为什么用动画而不是 class + transform：卡片的 transform 归浮动的常驻动画所有
+   （CSS 动画优先级高于普通声明），所以要让位只能换一条**优先级更高的动画**，
+   关键帧里同样带着姿态变量（转正要写死 0deg，这是故意的）。
+
+   松手：先走 .is-releasing（从抬起态回到姿态公式那个终点），
+   JS 同时把这条牌的 animation-delay 归零 —— 浮动的 0% 就是姿态本身，
+   所以浮动重新开始时正好接着姿态起步，**不会跳**。 */
+:root:not([data-pl-motion="none"]) .snippet-visual-wrap .moment-spread-card.is-lifted {
+  animation: fan-card-lift 380ms cubic-bezier(0.22, 1.35, 0.36, 1) both;
+  box-shadow: 0 16px 34px rgba(24, 22, 20, 0.24);
+}
+:root:not([data-pl-motion="none"]) .snippet-visual-wrap .moment-spread-card.is-releasing {
+  animation: fan-card-settle 320ms cubic-bezier(0.3, 1.4, 0.4, 1) both;
+  box-shadow: 0 16px 34px rgba(24, 22, 20, 0.24);
+}
+/* 🔴 上不到最上层的原因：卡片生成时**内联写死了 `z-index:1~4`**，内联样式压过样式表，
+   所以这里写 z-index 是死代码 —— 层级由 JS 直接改那条内联值（见 motion.js
+   installFanCardLift 里的 raiseCard()）。这里只留一句注释，别再被同一件事绊第二次。 */
+/* 关闭档（含真「减弱动态效果」）：不播动画，但「按住 → 抬起来 → 置于顶层」要照做，
+   否则用户会觉得这个功能坏了。这里给一个静态的抬起态，JS 那边照旧升层级。 */
+:root[data-pl-motion="none"] .snippet-visual-wrap .moment-spread-card.is-lifted {
+  transform: rotate(0deg) translateY(calc(var(--lift, 0px) - 14px)) scale(1.085);
+  box-shadow: 0 16px 34px rgba(24, 22, 20, 0.24);
+}
+@keyframes fan-card-lift {
+  0% {
+    transform: rotate(var(--rot, 0deg)) translateY(var(--lift, 0px)) scale(1);
+  }
+  62% {
+    transform: rotate(0deg) translateY(calc(var(--lift, 0px) - 18px)) scale(1.1);
+  }
+  100% {
+    transform: rotate(0deg) translateY(calc(var(--lift, 0px) - 14px)) scale(1.085);
+  }
+}
+@keyframes fan-card-settle {
+  0% {
+    transform: rotate(0deg) translateY(calc(var(--lift, 0px) - 14px)) scale(1.085);
+  }
+  100% {
+    transform: rotate(var(--rot, 0deg)) translateY(var(--lift, 0px)) scale(1);
+  }
+}
+/* 同屏其它牌轻轻退后，抽出来的那张更明确（只在这叠里、只在抬起期间） */
+.snippet-visual-wrap .moment-spread-card {
+  transition: box-shadow 260ms ease, opacity 260ms ease;
+}
+:root:not([data-pl-motion="none"]) .moment-spread.has-lift .moment-spread-card:not(.is-lifted):not(.is-releasing) {
+  opacity: 0.88;
+}
+/* 长按不该弹出系统的「保存图片」菜单，也别选中文字 */
+.snippet-visual-wrap.is-moment-fan .moment-spread-card,
+.snippet-visual-wrap.is-moment-fan .moment-spread-card img {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 /* ── D3b · 手指停在一张牌上，就把它从叠里「抽出来」（2026-10-16 新增）──────
