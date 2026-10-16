@@ -66,41 +66,6 @@ test('扇面的浮动只作用在时间线那一叠，别碰编辑器里正在�
   }
 });
 
-test('第二轮：大牌 + 出框 + 文字搬进底板（用户 2026-10-16 定的方向）', () => {
-  /* ① 大牌：--card-w 同时决定牌宽、横向间距和竖向居中，改这一处全都跟着走 */
-  assert.match(styles, /\.snippet-visual-wrap\.is-moment-fan \.moment-spread \{[\s\S]{0,300}--card-w: min\(168px/,
-    '牌要放大到 1.8 倍（168px 封顶）');
-  /* 🔴 框高必须**跟着牌算**：写死 clamp 会出现「牌没等比放大、框先撑高」，
-     中间空出一大块蓝 —— 2026-10-16 真机反馈「这么大的蓝色留白」就是这么来的。 */
-  assert.match(styles, /height: calc\(var\(--card-w\) \* 4 \/ 3 \+ 30px\)/,
-    '框高要跟着牌算，不能写死高度');
-  /* ② 出框：整叠要比底板宽、还要往上提，最外侧两张才能从两边探出去 */
-  assert.match(styles, /width: calc\(100% \+ 40px\);[\s\S]{0,80}margin: -14px -20px 6px;/,
-    '整叠要外扩 + 上提，牌才冲得出底板');
-  assert.match(plainLight, /\.snippet-visual-wrap\.is-moment-fan \{[\s\S]{0,500}overflow: visible !important/,
-    '🔴 底板必须 overflow:visible —— 否则冲出去的牌会被裁掉（图集那次就是这么栽的）');
-  /* ③ 文字层搬进底板：扇面时在底板内，非扇面时保持在卡片外面（不要两处都渲染） */
-  assert.match(snippets, /const copy = `<div class="snippet-fan-copy">/, '要有底板内的文字层');
-  assert.match(snippets, /\$\{fan \? copy : ''\}<\/div>\$\{segments\}\$\{fan \? '' : meta\}\$\{fan \? '' : body\}/,
-    '文字要么在底板内、要么在底板外，不能同时出现两次');
-  /* ④ 只动时间线那一叠：编辑器里正在导入的那叠尺寸不变 */
-  assert.match(styles, /\.snippets-view \.snippet-visual-wrap\.is-moment-fan \.moment-spread \{/, '要限定在时间线的扇面上');
-});
-
-test('第二轮：清简用「方案 A · 不要底板」（用户 2026-10-16 选定）', () => {
-  assert.match(plainLight, /\.moment-spread-card \{[\s\S]{0,260}border-width: 5px !important/, '白边加厚成相纸');
-  assert.match(plainLight, /0 1px 1px rgba\(46, 52, 59, 0\.10\), 0 10px 22px/, '阴影要两层（近硬影 + 远扩散）');
-  assert.match(plainLight, /\.moment-spread-frame \{[\s\S]{0,120}inset 0 0 0 1px/, '照片内圈要有极淡描边');
-  /* 🔴 用户选了「不要底板」：背景/阴影/圆角/内边距要一起撤，只留 overflow；
-     蓝底是"彩色贴纸 + 白卡片"那种廉价关系的根，撤掉之后蓝白搭配问题从根上消失。 */
-  const block = plainLight.slice(plainLight.indexOf('随手拍扇面 · 2026-10-16 第二轮：大牌 + 出框 + 相纸质感'));
-  assert.ok(block.length > 200, '要能定位到扇面这一段');
-  assert.match(block, /background: none !important/, '底板要撤掉（方案 A）');
-  assert.match(block, /box-shadow: none !important/, '底板不许留阴影');
-  assert.match(block, /border-radius: 0 !important/, '底板不许留圆角');
-  assert.match(block, /overflow: visible !important/, '🔴 底板必须 overflow:visible —— 冲出去的牌不能被裁');
-  assert.doesNotMatch(block, /--pl-blue-tint|--ink-block|#1E2A3A/, '不许再出现蓝底/深底');
-});
 test('减弱动态效果 / 关闭档：扇面的浮动要停住，但姿态不能清掉', () => {
   assert.match(performanceCss, /:root:not\(\[data-pl-motion-explicit="rich"\]\) \.snippet-visual-wrap \.moment-spread-card:not\(\.is-lifted\):not\(\.is-releasing\) \{ animation: none !important/,
     '系统减弱动效时要停掉浮动（但「按住拿起」是直接操作，要放过）');
@@ -148,4 +113,51 @@ test('按住一张牌拿起它：抬起 + 转正 + 置于顶层，松手滑回�
   assert.match(motion, /suppressed\.contains\(event\.target\)/, '要拦掉拿起之后那一次点击');
   /* 普通点一下（没拿起）不能进回落态，否则每点一次卡片都会抖一下 */
   assert.match(motion, /if \(!wasLifted\) return;/, '普通点击不要触发回落动画');
+});
+
+test('收尾定稿：只保留「浮动 + 相纸质感」，牌的大小/出框/文字位置全部回原样', () => {
+  /* 2026-10-16 用户原话：「然后卡牌也变回原来的样式」+「只保留浮动和相纸质感」。
+     这一轮加的东西只许剩两条 —— 相纸（白纸的边 + 两层阴影 + 内圈淡描边）和浮动。 */
+  assert.match(plainLight, /\.moment-spread-card \{[\s\S]{0,300}border-width: 4px !important/, '相纸白边要留着');
+  assert.match(plainLight, /0 1px 1px rgba\(46, 52, 59, 0\.10\), 0 10px 22px/, '两层阴影要留着');
+  assert.match(plainLight, /\.moment-spread-frame \{[\s\S]{0,140}inset 0 0 0 1px/, '照片内圈的淡描边要留着');
+  assert.match(performanceCss, /@keyframes snippet-drift/, '浮动要留着');
+  assert.match(motion, /installFanCardLift/, '按住拿起（浮动那一套里的）也要留着');
+
+  /* 其余一并回退 —— 谁再把它们加回来，这条会先红 */
+  assert.doesNotMatch(styles, /\.snippet-visual-wrap\.is-moment-fan \.moment-spread \{/, '不许再覆盖扇面几何（牌不放大）');
+  assert.doesNotMatch(styles, /calc\(100% \+ 40px\)/, '不许再让整叠外扩（不出框）');
+  assert.doesNotMatch(styles, /height: calc\(var\(--card-w\)/, '框高不要再跟着牌算（回到原来的固定区间）');
+  assert.doesNotMatch(snippets, /snippet-fan-copy/, '文字要留在卡片外面，不要再搬进底板');
+  assert.match(styles, /clamp\(200px, 34vh, 280px\)/, '扇面高度回到原来的区间');
+});
+
+test('浮动的光影：两层光的图层，只动 transform / opacity（不许补间 box-shadow）', () => {
+  assert.match(performanceCss, /@keyframes fan-sheen/, '牌面柔光扫过');
+  assert.match(performanceCss, /\.moment-spread-card::after \{[\s\S]{0,400}animation: fan-sheen/, '扫光挂牌的 ::after');
+  assert.match(performanceCss, /@keyframes fan-toplight/, '顶光呼吸');
+  /* 顶光必须挂 ::after：::before 排在内容之前，会被照片盖掉 */
+  assert.match(performanceCss, /\.moment-spread-frame::after \{[\s\S]{0,400}animation: fan-toplight/, '顶光挂照片层的 ::after');
+  assert.doesNotMatch(performanceCss, /\.moment-spread-frame::before \{[\s\S]{0,200}fan-toplight/, '::before 会被照片盖住，别用它');
+
+  /* 🔴 红线：常驻动画不许补间 box-shadow（每帧重算阴影太贵），只许 transform / opacity */
+  for (const name of ['fan-sheen', 'fan-toplight', 'snippet-drift']) {
+    const at = performanceCss.indexOf('@keyframes ' + name);
+    assert.ok(at > 0, '找不到关键帧 ' + name);
+    const body = performanceCss.slice(at, at + 700);
+    assert.doesNotMatch(body, /box-shadow/, name + ' 不许补间 box-shadow');
+    assert.match(body, /opacity|transform/, name + ' 只许动 transform / opacity');
+  }
+
+  /* 常驻光影只挂 rich 档；相位错开（不然四张牌整排同步） */
+  assert.match(performanceCss, /:root\[data-pl-motion="rich"\] \.snippet-visual-wrap \.moment-spread-card::after/, '扫光只挂 rich');
+  assert.match(performanceCss, /:root\[data-pl-motion="rich"\] \.snippet-visual-wrap \.moment-spread-frame::after/, '顶光只挂 rich');
+  assert.match(performanceCss, /animation-delay: calc\(var\(--i, 0\) \* -2\.7s\)/, '扫光相位错开');
+  assert.match(performanceCss, /animation-delay: calc\(var\(--i, 0\) \* -1\.1s\)/, '顶光相位错开');
+  /* 浮动本身也加了左右漂移（纯 translate，还是只有 transform） */
+  assert.match(performanceCss, /translateX\(1\.2px\) scale\(1\.012\)/, '浮动加了轻微左右漂移');
+
+  /* 减弱动态效果：两层光一起收掉，别留一块静止的白斑 */
+  const reduce = performanceCss.slice(performanceCss.indexOf('@media (prefers-reduced-motion: reduce) {\n  :root:not([data-pl-motion-explicit="rich"]) .snippet-visual-wrap .moment-spread-card'));
+  assert.match(performanceCss, /prefers-reduced-motion: reduce\) \{[\s\S]{0,260}\.moment-spread-card::after[\s\S]{0,260}opacity: 0 !important/, '减弱动效时扫光要收掉');
 });
