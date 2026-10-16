@@ -32,8 +32,8 @@ test('native startup keeps a minimal transparent system transition', () => {
 });
 
 test('visible app name is unified without changing the Android application identity', () => {
-  assert.match(html, /<title>暖色生活志<\/title>/);
-  assert.match(androidStrings, /<string name="app_name">暖色生活志<\/string>/);
-  assert.equal(JSON.parse(capacitor).appName, '暖色生活志');
+  assert.match(html, /<title>Nook<\/title>/);
+  assert.match(androidStrings, /<string name="app_name">Nook<\/string>/);
+  assert.equal(JSON.parse(capacitor).appName, 'Nook');
   assert.equal(JSON.parse(capacitor).appId, 'com.mine.warmjournal');
 });

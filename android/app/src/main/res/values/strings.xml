@@ -1,6 +1,6 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">暖色生活志</string>
+    <string name="app_name">Nook</string>
     <string name="title_activity_main">暖色生活志</string>
     <string name="package_name">com.mine.warmjournal</string>
     <string name="custom_url_scheme">com.mine.warmjournal</string>
