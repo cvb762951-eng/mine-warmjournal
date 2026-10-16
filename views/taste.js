@@ -17,7 +17,7 @@ import { compressSnippetPhoto, importPhotoBatch, isSupportedJournalPhoto, isCame
 import { photoViewer } from './common.js';
 import { photoFrameLayersHtml } from '../photo-frame.js';
 import { thumbKeyFor, progressiveSource, watchThumbImages, watchProgressiveImages } from '../photo-thumbs.js';
-import { withFlip, motionAllowed, mountRailMarker, EASE } from '../motion.js';
+import { withFlip, motionAllowed, mountRailMarker, EASE, withSharedTransition } from '../motion.js';
 
 let tasteFilter = 'all';
 let tasteSearch = '';
@@ -355,7 +355,16 @@ function bindTaste() {
        第二次会把正在滑动的过渡关掉（读 style.transition 会变成 none），滑动就没了。 */
     relayoutTasteList(() => { tasteFilter = next; render(); });
   });
-  $$('[data-open-taste]').forEach(button => button.onclick = () => tasteDetail(state.tasteEntries.find(entry => entry.id === button.dataset.openTaste)));
+  /* H1 · 点卡片进详情：不要「换一页」，而是这张卡自己长大、滑到中间变成详情
+     （共享元素转场，和统计页习惯行 → 习惯档案同一套；不支持的内核自动退回手写 FLIP）。 */
+  $$('[data-open-taste]').forEach(button => button.onclick = () => {
+    const entry = state.tasteEntries.find(item => item.id === button.dataset.openTaste);
+    if (!entry) return;
+    withSharedTransition(button, () => tasteDetail(entry), {
+      targetSelector: '.taste-detail-modal .taste-detail',
+      fallbackTargetSelector: '.taste-detail-modal .taste-detail'
+    });
+  });
   // 点大图直接看大图（不做进入动效，和随手拍/日历/私密空间一致）。
   $$('[data-taste-photo]').forEach(button => button.onclick = () => {
     const entry = state.tasteEntries.find(item => item.id === button.dataset.tastePhoto);

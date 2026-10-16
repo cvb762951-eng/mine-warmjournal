@@ -2,7 +2,7 @@
 import { APP_VERSION_NAME } from './app-updater.js';
 import { Capacitor, registerPlugin } from '@capacitor/core';
 import { $, $$, state, cursor, selected, setState, setCursor, setSelected, defaults, render, go, goBack, save, show, confirmDelete, closeModal, getSubmitHandler, registerBinder, registerHelper, registerOnRender, callHelper, pushBackState, applyTheme, primeThemeFromNativeMirror, notifyPersistedKeySeal } from './core.js';
-import { installPressFeedback, installMagneticDock } from './motion.js';
+import { installPressFeedback, installMagneticDock, installFanCardLift } from './motion.js';
 import { installLayerMotion, applyMotionPreference } from './motion-layers.js';
 import { installSignatureMotion } from './motion-signature.js';
 import { migrateState, dateKey } from './model.js';
@@ -259,6 +259,7 @@ async function boot() {
   // 全局按压物理：一次挂载，之后新渲染出来的按钮自动生效（事件委托）
   installPressFeedback();
   installMagneticDock();
+  installFanCardLift();
   installLayerMotion();
   installSignatureMotion();
   let autoSummaryLaunch = false;

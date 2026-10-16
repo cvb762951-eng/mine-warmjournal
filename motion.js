@@ -1719,7 +1719,8 @@ export function mountJournalDeck(host, entries = [], options = {}) {
 export function celebrateHabitCheck(button) {
   if (!button) return;
   button.classList.add('is-done');
-  button.closest('.habit-card')?.classList.add('is-done');
+  const card = button.closest('.habit-card');
+  card?.classList.add('is-done');
   if (!canAnimate()) return;
   safely(() => {
     button.classList.remove('is-pop');
@@ -1729,6 +1730,170 @@ export function celebrateHabitCheck(button) {
     button.querySelector('.habit-check-dot, .hs-tick-dot')?.addEventListener('animationend', clear, { once: true });
     setTimeout(clear, 480);
   });
+  /* 2026-10-16 加厚（用户要求「炫技」：只是勾一下太单薄）：
+     两圈光环错开扩散 + 卡片边缘一道光扫过 + 卡片心跳一下，
+     同时把同屏其它习惯卡压下去一点 —— 让「刚刚打卡的这张」真的被拎出来。 */
+  if (card) celebrateHabitCard(card);
+}
+
+const HABIT_CELEBRATE_MS = 1000;
+
+function celebrateHabitCard(card) {
+  safely(() => {
+    card.classList.remove('is-celebrating');
+    void card.offsetWidth;
+    card.classList.add('is-celebrating');
+    const sunken = [];
+    document.querySelectorAll('.habit-card').forEach(item => {
+      if (item === card) return;
+      item.classList.add('is-sunken');
+      sunken.push(item);
+    });
+    setTimeout(() => {
+      card.classList.remove('is-celebrating');
+      sunken.forEach(item => item.classList.remove('is-sunken'));
+    }, HABIT_CELEBRATE_MS);
+  });
+}
+
+/**
+ * 手指停在随手拍那一叠的一张牌上 → 把它「抽出来」：抬起 + 转正 + 置于顶层（2026-10-16）。
+ *
+ * 用户原话：「手指停留在某张卡片的时候，那张卡片可以抬起来逐渐置于顶层」。
+ * 手机上不存在「悬停」，所以触发是**按住不动 220ms**；手指一动就判成滚动/滑动，立刻放弃。
+ *
+ * 四条设计约束：
+ *  ① **只在时间线那一叠上生效**（`.snippet-visual-wrap.is-moment-fan`）。
+ *     编辑器 / 导入中的那一叠有自己的飞入与退场动画，别去抢。
+ *  ② 抬起期间这块牌的 transform 归 `.is-lifted` 那条动画所有
+ *     （CSS 动画优先级高于常驻动画，所以浮动**自动让位**，不用手动 pause）。
+ *  ③ 松手先走 `.is-releasing`（从抬起态回到姿态公式的终点），
+ *     同时把这条牌的 `animation-delay` 归零 —— 浮动的 0% 就是姿态本身，
+ *     于是浮动重新开始时正好接着姿态起步，**不会跳**。
+ *  ④ 拿起来过就不算点击：松手不顺手把大图/播放打开（用捕获阶段的 click 拦一次）。
+ *
+ * 「关闭」档完全不装；「精简」也装（这是直接操作，不是装饰）。
+ */
+const FAN_LIFT_HOLD_MS = 220;
+let fanLiftInstalled = false;
+
+export function installFanCardLift() {
+  if (typeof document === 'undefined' || fanLiftInstalled) return;
+  safely(() => {
+    let timer = null;
+    let card = null;
+    let spread = null;
+    let origin = null;
+    let suppressed = null;
+    let raisedZ = null;   // 抬起的那张牌**原来的内联 z-index**，松手要还回去
+
+    /* 🔴 层级只能改内联值：卡片生成时内联写死了 `z-index:1~4`
+       （views/snippets.js 的 momentSpreadCardHtml），内联样式压过样式表 ——
+       在 performance.css 里写 z-index 是死代码，2026-10-16 就是这么栽的：
+       抬起动画照播，牌却一直压在别的牌下面。 */
+    const raiseCard = node => {
+      raisedZ = node.style.zIndex || '';
+      node.style.zIndex = '60';
+    };
+    const dropCardZ = node => {
+      if (raisedZ === null) return;
+      node.style.zIndex = raisedZ;
+      raisedZ = null;
+    };
+
+    const release = () => {
+      if (timer) { clearTimeout(timer); timer = null; }
+      origin = null;
+      if (!card) return;
+      const node = card;
+      const wasLifted = node.classList.contains('is-lifted');
+      const holder = spread;
+      card = null;
+      spread = null;
+      /* ⚠️ 只是普通点一下（没拿起）时**什么都不要做**：
+         要是也给普通点击加上 .is-releasing，卡片会先跳到"抬起态"再滑回来，
+         每点一次都会抖一下。 */
+      if (!wasLifted) return;
+      dropCardZ(node);
+      holder?.classList.remove('has-lift');
+      node.classList.remove('is-lifted');
+      node.classList.add('is-releasing');
+      /* 浮动从姿态起步（它的 0% 就是姿态），否则松手会跳一下 */
+      node.style.animationDelay = '0s';
+      const done = () => {
+        node.classList.remove('is-releasing');
+        node.removeEventListener('animationend', done);
+      };
+      node.addEventListener('animationend', done);
+      setTimeout(done, 700);
+    };
+
+    /* 捕获阶段装：别的模块在 document 上也挂了不少 pointerdown（返回手势、按压反馈、
+       指纹/签名…），走冒泡就总有一天会被谁 stopPropagation 掉。这里只读状态，不拦别人。 */
+    document.addEventListener('pointerdown', event => {
+      suppressed = null;   // 新的一次按下 ⇒ 上一次的「拿起过」标记作废
+      if (event.pointerType === 'mouse' && event.button !== 0) return;
+      const target = event.target?.closest?.('.snippet-visual-wrap.is-moment-fan .moment-spread-card') || null;
+      if (!target) return;
+      origin = { x: event.clientX, y: event.clientY };
+      card = target;
+      spread = target.closest('.moment-spread');
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        timer = null;
+        if (!card) return;
+        raiseCard(card);
+        card.classList.add('is-lifted');
+        spread?.classList.add('has-lift');
+        suppressed = card;
+      }, FAN_LIFT_HOLD_MS);
+    }, { passive: true, capture: true });
+
+    document.addEventListener('pointermove', event => {
+      if (!timer || !origin) return;
+      if (Math.abs(event.clientX - origin.x) < 8 && Math.abs(event.clientY - origin.y) < 8) return;
+      /* 动了 ⇒ 这是在滚动或在滑，不是「停留」，放弃拿起 */
+      clearTimeout(timer);
+      timer = null;
+      card = null;
+      origin = null;
+    }, { passive: true });
+
+    document.addEventListener('pointerup', release, { passive: true });
+    document.addEventListener('pointercancel', release, { passive: true });
+    document.addEventListener('scroll', () => { if (card) release(); }, { passive: true, capture: true });
+
+    /* 拿起过的那一下不触发点击（大图 / 播放）；标记在新的一次按下时清掉（见上面） */
+    document.addEventListener('click', event => {
+      if (!suppressed) return;
+      if (!suppressed.contains(event.target)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      suppressed = null;
+    }, true);
+
+    /* 拿起来的时候别让系统弹出「保存图片 / 在新标签打开」那套菜单
+       （图片的 -webkit-touch-callout 已经在样式里关掉了，这里兜住按钮那一层） */
+    document.addEventListener('contextmenu', event => {
+      if (!suppressed) return;
+      if (!suppressed.contains(event.target)) return;
+      event.preventDefault();
+    }, true);
+
+    fanLiftInstalled = true;
+  });
+}
+
+/**
+ * 卡片「拿起来」的三维姿态（2026-10-16 新增，用户点名要的 H2）。
+ * 只算一个 transform 字符串，手势时序留给调用方（那样才不会和已有的侧滑抢指针）：
+ * 指针位置换算成 −0.5…0.5 的 px / py，绕 X 轴跟着上下转、绕 Y 轴跟着左右转。
+ * ⚠️ 透视要挂在卡片的**上一层**（perspective 只对直接子元素生效），见 performance.css。
+ */
+export function cardLiftTransform(px, py, { lift = 1.03, tiltX = 14, tiltY = 18 } = {}) {
+  const rx = (-py * tiltX).toFixed(2);
+  const ry = (px * tiltY).toFixed(2);
+  return `rotateX(${rx}deg) rotateY(${ry}deg) scale(${lift})`;
 }
 
 /** 统计数字从 0 弹簧滚到 data-roll。减弱动效时保持原文。 */

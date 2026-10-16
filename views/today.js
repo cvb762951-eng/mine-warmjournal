@@ -5,6 +5,7 @@ import { recentActivity, openReleaseNotes } from './common.js';
 import { countdownBanner } from './countdown.js';
 import { isSupportedJournalPhoto } from '../photo-utils.js';
 import { photoFrameLayersHtml } from '../photo-frame.js';
+import { motionAllowed } from '../motion.js';
 
 // ---- 本地状态 ----
 let photoStackIndex = 0;
@@ -49,6 +50,7 @@ function habitCardHtml(habit, day) {
   // 每段不拆行，只在「·」处换行，最多两行
   const meta = streak > 0 ? `<span>${status}</span> · <span>已连续 ${streak} 天</span>` : `<span>${status}</span>`;
   return `<div class="habit-swipe-wrap"><article class="habit-card ${stateClass}" data-habit-card="${habit.id}">
+    <span class="habit-card-sheen" aria-hidden="true"></span>
     <button type="button" class="habit-card-main" data-habit-open="${habit.id}" aria-label="查看${esc(habit.name)}详情">
       <span class="habit-card-copy">
         <strong>${esc(habit.name)}</strong>
@@ -56,6 +58,8 @@ function habitCardHtml(habit, day) {
       </span>
     </button>
     <button type="button" class="habit-check-btn ${done ? 'is-done' : ''}" data-habit="${habit.id}" aria-label="${done ? '已完成' : '打卡'} ${esc(habit.name)}">
+      <span class="habit-card-halo" aria-hidden="true"></span>
+      <span class="habit-card-halo" aria-hidden="true"></span>
       <span class="habit-check-dot" aria-hidden="true"><span class="material-symbols-outlined">check</span></span>
     </button>
   </article></div>`;
@@ -125,6 +129,7 @@ export function todayView() {
     .filter(entry => entry.date === day)
     .sort((a, b) => tasteMealOrder(a.meal) - tasteMealOrder(b.meal) || (Number(a.createdAt) || 0) - (Number(b.createdAt) || 0));
   return `<section class="view today-view">
+    <span class="today-scroll-progress" aria-hidden="true"><i></i></span>
     <div class="today-editorial-cover">
       <span class="editorial-paperclip-corner" aria-hidden="true"></span>
       <span class="editorial-spine" aria-hidden="true">ISSUE ${dayOfYear} · MINE TODAY</span>
@@ -159,7 +164,7 @@ export function todayView() {
       <div class="bento-card todos-bento-card">
         <div>
           <div class="bento-header"><span class="bento-title"><span class="material-symbols-outlined">checklist</span> 待办</span><span class="bento-badge-sm">${doneTodos}/${todos.length} 完成</span><button type="button" class="bento-header-action" id="open-todo-manager" aria-label="查看全部待办"><span class="material-symbols-outlined">list</span></button></div>
-          <div id="todos-bento-list">${todos.length ? todos.map(todo => `<button type="button" class="bento-item-mini ${todo.completed ? 'done' : ''}" data-toggle-todo="${todo.id}"><span class="bento-item-icon material-symbols-outlined">${todo.completed ? 'task_alt' : 'assignment'}</span><span class="bento-item-copy"><strong>${esc(todo.title)}</strong></span><span class="material-symbols-outlined bento-item-check">${todo.completed ? 'check_circle' : 'radio_button_unchecked'}</span></button>`).join('') : `<p class="bento-empty">今天还没有待办</p>`}</div>
+          <div id="todos-bento-list">${todos.length ? todos.map(todo => `<button type="button" class="bento-item-mini ${todo.completed ? 'done' : ''}" data-toggle-todo="${todo.id}"><span class="bento-item-icon material-symbols-outlined">${todo.completed ? 'task_alt' : 'assignment'}</span><span class="bento-item-copy"><strong><i class="todo-strike-text">${esc(todo.title)}</i></strong></span><span class="material-symbols-outlined bento-item-check">${todo.completed ? 'check_circle' : 'radio_button_unchecked'}</span></button>`).join('') : `<p class="bento-empty">今天还没有待办</p>`}</div>
         </div>
         <button type="button" class="bento-card-footer" id="new-todo"><span>新增今日待办</span><span class="material-symbols-outlined">add</span></button>
       </div>
@@ -426,7 +431,63 @@ function todayHabitDetailTarget() {
 }
 
 // ---- 绑定 ----
+/* ── H3 · 刊头分层视差（2026-10-16）────────────────────────────────────────
+   三层速度不同，画面才有纵深：
+     · 刊头（today-editorial-cover）最快：上浮 0.42 倍、轻微缩小、淡出；
+     · 封面大图自己再「镜头推近」一下（盒子缩、图放大）—— 纵深主要来自这一层；
+     · 天气区最慢（0.1 倍），只抬一点点，别跟着一起跑掉。
+   外加顶部一根随滚动生长的细线（当天进度）。
+   纪律：回调里只写内联 transform / opacity，不读布局；动效关了就把内联值清空。 */
+let todayParallaxBound = false;
+
+function paintTodayParallax() {
+  const view = $('.today-view');
+  const cover = view?.querySelector('.today-editorial-cover');
+  if (!view || !cover) return;
+  const hero = view.querySelector('.magazine-hero');
+  const coverArt = cover.querySelector('.editorial-hero-image');
+  const rail = view.querySelector('.today-scroll-progress');
+  const fill = rail?.querySelector('i');
+  if (!motionAllowed()) {
+    cover.style.transform = '';
+    cover.style.opacity = '';
+    if (hero) hero.style.transform = '';
+    if (coverArt) coverArt.style.transform = '';
+    if (rail && fill) { rail.classList.remove('is-live'); fill.style.transform = ''; }
+    return;
+  }
+  const scroller = $('#app') || document.scrollingElement;
+  if (!scroller) return;
+  const y = Math.max(0, scroller.scrollTop || 0);
+  const span = Math.min(1, y / 220);
+  cover.style.transform = `translate3d(0, ${(-y * 0.42).toFixed(1)}px, 0) scale(${(1 - span * 0.06).toFixed(4)})`;
+  cover.style.opacity = String(Math.max(0, 1 - span * 0.92));
+  if (coverArt) coverArt.style.transform = `scale(${(1 + span * 0.14).toFixed(4)})`;
+  if (hero) hero.style.transform = `translate3d(0, ${(-y * 0.1).toFixed(1)}px, 0)`;
+  if (rail && fill) {
+    const room = Math.max(1, (scroller.scrollHeight || 0) - (scroller.clientHeight || 0));
+    rail.classList.toggle('is-live', y > 12);
+    fill.style.transform = `scaleX(${Math.min(1, y / room).toFixed(4)})`;
+  }
+}
+
+function bindTodayParallax() {
+  const scroller = $('#app') || document.scrollingElement;
+  if (!scroller) return;
+  if (!todayParallaxBound) {
+    let ticking = false;
+    scroller.addEventListener('scroll', () => {
+      if (ticking) return;
+      ticking = true;
+      requestAnimationFrame(() => { ticking = false; paintTodayParallax(); });
+    }, { passive: true });
+    todayParallaxBound = true;
+  }
+  requestAnimationFrame(paintTodayParallax);
+}
+
 function bindToday() {
+  bindTodayParallax();
   bindPrivateVaultDateHold();
   /* 「今天吃了什么」那两枚 40px 小图走缩略图管线：进视口就生成 480（便宜），
      够大了才升原图。⚠️ 这两个观察器不接上的话，小图永远停在占位/首字上。 */

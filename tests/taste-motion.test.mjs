@@ -201,7 +201,12 @@ test('吃喝记录交互动效：删掉一张照片，其余的滑过来补位',
   assert.match(tasteView, /out\.finished\.then\(drop, drop\)/, '动画失败也要把数据改掉（动画不能拖垮功能）');
   assert.match(tasteView, /withFlip\(preview \|\| document\.body,[\s\S]{0,120}\{ item: PHOTO_ITEM/,
     '删完要让其余几张滑到新位置');
-  assert.doesNotMatch(tasteView, /withSharedTransition\(|beginSharedElement\(/,
+  /* 2026-10-16 起：卡片本身 → 详情走共享转场（用户点名要的「点小卡长成大卡」），
+     但「点照片直接开大图」这条红线不变 ⇒ 这里只查**照片那一段**，不再查整份文件。 */
+  assert.match(tasteView, /withSharedTransition\(button, \(\) => tasteDetail\(entry\)/, '卡片本身要「长」成详情，不是换一页');
+  const photoOpening = tasteView.slice(tasteView.indexOf("$$('[data-taste-photo]')"));
+  assert.ok(photoOpening.length > 200, '要能定位到照片那一段');
+  assert.doesNotMatch(photoOpening.slice(0, 500), /withSharedTransition\(|beginSharedElement\(/,
     '吃喝记录的照片放大直接开大图，不做进入动效/共享转场');
 });
 
@@ -228,7 +233,12 @@ test('吃喝记录动效：「刚记下」只落位一次，而且点照片依�
   assert.match(tasteView, /justAdded = null;\s*\/\/ 「落位」只播一次/, '渲染完要清掉标记，只播一次');
   assert.match(tasteView, /JUST_ADDED_MS = 10000/, '标记要有个有效期，从今日首页记完绕回来不该再弹');
   // 红线的另一头：点照片放大不做进入动效
-  assert.doesNotMatch(tasteView, /withSharedTransition\(|beginSharedElement\(/,
+  /* 2026-10-16 起：卡片本身 → 详情走共享转场（用户点名要的「点小卡长成大卡」），
+     但「点照片直接开大图」这条红线不变 ⇒ 这里只查**照片那一段**，不再查整份文件。 */
+  assert.match(tasteView, /withSharedTransition\(button, \(\) => tasteDetail\(entry\)/, '卡片本身要「长」成详情，不是换一页');
+  const photoOpening = tasteView.slice(tasteView.indexOf("$$('[data-taste-photo]')"));
+  assert.ok(photoOpening.length > 200, '要能定位到照片那一段');
+  assert.doesNotMatch(photoOpening.slice(0, 500), /withSharedTransition\(|beginSharedElement\(/,
     '吃喝记录的照片放大直接开大图，不做进入动效/共享转场');
   const frames = new Map(keyframesOf(motionBlock(performanceCss)));
   assert.match(frames.get('taste-land') || '', /translate3d\(0, -14px, 0\) scale\(0\.985\)/,

@@ -2,7 +2,7 @@ import { $, $$, esc, uid, state, save, render, modal, closeModal, show, confirmD
 import { makeHabit, makeTodo, habitProgressForDate, habitGoalMet, todosForDate, dateKey, WEEK_DAYS, appendJournalFootnote } from '../model.js';
 import { repeatLabel, linkedHabitMinutes, updateHabitCompletion } from './common.js';
 import { dailyTodoGroups, habitClickValue, habitOneTapValue } from '../daily-workflow.js';
-import { celebrateHabitCheck, autoStagger } from '../motion.js';
+import { celebrateHabitCheck, autoStagger, cardLiftTransform } from '../motion.js';
 import { habitDayStreak, refreshTodayHabitChrome } from './today.js';
 
 // 打卡成功后的轻动效：render 会重建 DOM，先记下 id，绑定后再弹
@@ -11,6 +11,19 @@ let pendingHabitCelebrateId = null;
 let pendingTodoCelebrateId = null;
 // 一键打卡前的今日值，只存在内存里，按「日期|习惯」记，用于撤销恢复；不写存储。
 const habitOneTapPrior = new Map();
+
+/* C3 · 待办划掉的那一笔（2026-10-16）。
+   线本身是背景，靠 .is-striking 触发一次 480ms 的 keyframe 从左画到右；
+   动画结束前不能提前摘类（行首徽章那一下要等到 380ms 才开始）。
+   ⚠️ 整页重渲染的那条路必须在**渲染的同一个任务里**加上这个类，
+   否则第一帧会先把画好的线亮一下（`.done` 已经是 100%）再从头画。 */
+function strikeTodoRow(row) {
+  if (!row) return;
+  row.classList.remove('is-striking');
+  void row.offsetWidth;
+  row.classList.add('is-striking');
+  setTimeout(() => row.classList.remove('is-striking'), 1200);
+}
 
 // ---- 习惯管理 ----
 export function habitManager() {
@@ -141,6 +154,32 @@ function habitRecentWeeks(habit, weeks = 5) {
   return { html: cells.join(''), active };
 }
 
+/* C2 · 最近七天点灯条（2026-10-16）。
+   七格依次亮起、整格抬起再落回、一道淡蓝光带从左扫过；最后一格（今天）轻弹一下。
+   数据全部来自已有的 habitProgressForDate / habitGoalMet / habitSkips，不另算一套。
+   点亮用「淡色实心块从中心弹出 + 描边加重」——清简里三个强调色是同一个蓝的三种透明度，
+   换色区分不出来，分量只能靠形状与时序。 */
+function habitWeekStrip(habit) {
+  const today = dateKey();
+  const rest = state.habitSkips || {};
+  const cells = [];
+  for (let offset = 6; offset >= 0; offset -= 1) {
+    const cursor = new Date(`${today}T12:00:00`);
+    cursor.setDate(cursor.getDate() - offset);
+    const day = dateKey(cursor);
+    const resting = (rest[day] || []).includes(habit.id);
+    cells.push({
+      key: day,
+      weekday: WEEK_DAYS[cursor.getDay()],
+      resting,
+      isToday: day === today,
+      met: !resting && habitGoalMet(habit, habitProgressForDate(state, habit, day))
+    });
+  }
+  const lit = cells.filter(cell => cell.met).length;
+  return `<div class="hs-week-strip" role="img" aria-label="最近七天点亮 ${lit} 天">${cells.map((cell, index) => `<i class="hs-week-cell${cell.met ? ' is-lit' : ''}${cell.resting ? ' is-rest' : ''}${cell.isToday ? ' is-today' : ''}" style="--i:${index}" title="${cell.key}"><b aria-hidden="true"></b><span>${cell.weekday}</span></i>`).join('')}</div>`;
+}
+
 // 习惯详情（点习惯名进入）：纸面、细线、留白；状态与连续天数用灰字，不做大色块。
 export function habitLogForm(habit) {
   const day = dateKey();
@@ -183,6 +222,10 @@ export function habitLogForm(habit) {
       <button class="save hs-commit">记上</button>
     </form>
   </section>
+  <section class="hs-section detail-sheet-row" aria-label="最近七天">
+    <div class="hs-label-row"><h3>最近七天</h3><small>${streak > 0 ? `已连续 ${streak} 天` : '还没有连续记录'}</small></div>
+    ${habitWeekStrip(habit)}
+  </section>
   <section class="hs-section detail-sheet-row" aria-label="最近五周">
     <div class="hs-label-row"><h3>最近五周</h3><small>${recent.active} 天有记录</small></div>
     <div class="hs-heat-week" aria-hidden="true">${WEEK_DAYS.slice(1).concat(WEEK_DAYS[0]).map(name => `<span>${name}</span>`).join('')}</div>
@@ -192,6 +235,8 @@ export function habitLogForm(habit) {
   <div class="modal-actions hs-actions"><button type="button" data-close>关闭</button></div>`, 'habit-log-modal detail-sheet habit-sheet');
   const sheet = $('#modal-layer .habit-sheet');
   autoStagger(sheet);
+  // C2：点灯条在弹层挂上来的下一帧才开始亮（先落定、再依次点亮），不是一打开全亮
+  requestAnimationFrame(() => $('#modal-layer .hs-week-strip')?.classList.add('is-lighting'));
   $('#habit-sheet-tick').onclick = () => oneTapHabit(habit);
   $$('[data-habit-amount]').forEach(button => button.onclick = () => commitHabitProgress(habit.id, todayValue + Number(button.dataset.habitAmount), `${habit.name} +${button.dataset.habitAmount}${habit.unit}`));
   const amountInput = $('#habit-amount-form [name="amount"]');
@@ -248,7 +293,7 @@ export function todoManager() {
     // 弹层里有 `.modal button{font:inherit}`（styles.css），它的优先级高于单个图标类，
     // 会把图标字体刷掉 ⇒ 字形退化成字面文字「radio_button_unchecked」并压到标题上
     // （2026-10-12 真机上就是这么乱码的；#34 当初去掉勾选也是因为这个）。
-    return `<article class="${classes.join(' ')}"><button type="button" class="daily-task-check" data-toggle-todo="${esc(todo.id)}" aria-label="${todo.completed ? '取消完成' : '完成待办'}"><span class="material-symbols-outlined">${todo.completed ? 'check_circle' : 'radio_button_unchecked'}</span></button><button type="button" class="daily-task-copy" data-edit-todo="${esc(todo.id)}"><strong>${esc(todo.title)}</strong>${hint ? `<small>${hint}</small>` : ''}</button></article>`;
+    return `<article class="${classes.join(' ')}"><button type="button" class="daily-task-check" data-toggle-todo="${esc(todo.id)}" aria-label="${todo.completed ? '取消完成' : '完成待办'}"><span class="material-symbols-outlined">${todo.completed ? 'check_circle' : 'radio_button_unchecked'}</span></button><button type="button" class="daily-task-copy" data-edit-todo="${esc(todo.id)}"><strong><i class="todo-strike-text">${esc(todo.title)}</i></strong>${hint ? `<small>${hint}</small>` : ''}</button></article>`;
   };
   const fold = (label, list, options) => `<details class="daily-task-fold"><summary>${label}<span>${list.length}</span></summary>${list.map(todo => row(todo, options)).join('') || '<p class="subtle">这里暂时没有安排。</p>'}</details>`;
   const todayBlock = groups.today.length
@@ -275,7 +320,7 @@ export function todoManager() {
       if (glyph) glyph.textContent = todo.completed ? 'check_circle' : 'radio_button_unchecked';
       button.setAttribute('aria-label', todo.completed ? '取消完成' : '完成待办');
       // 这一行是就地更新、弹层不重建 ⇒ 按钮还在，可以直接放打卡动效
-      if (markingDone) celebrateHabitCheck(button);
+      if (markingDone) { strikeTodoRow(rowEl); celebrateHabitCheck(button); }
       render();
       if (markingDone && todo.completed) await offerTodoJournalFootnote(todo.title);
     } catch (error) { Object.assign(todo, previous); show(error.message); }
@@ -411,11 +456,55 @@ export function todoForm(todo = null) {
 }
 
 // ---- 习惯行侧滑手势：左滑一键打卡（补满今日目标）/ 右滑或点击进详情 ----
+//      + 长按 320ms「把卡片拿起来」（2026-10-16 加的 H2：抬起 + 跟着手指三维倾斜）
 const HABIT_SWIPE_THRESHOLD = 64;
+const HABIT_LIFT_HOLD_MS = 320;
 let habitSwipeButton = null;
 let habitSwipeStartX = 0, habitSwipeStartY = 0;
 let habitSwipeAxis = '';
 let habitSwipeSuppressedClick = null;
+let habitLiftTimer = null;
+let habitLiftEngaged = false;
+let habitLiftCard = null;
+let habitLiftSunken = [];
+
+function endHabitLift() {
+  if (habitLiftTimer) { clearTimeout(habitLiftTimer); habitLiftTimer = null; }
+  habitLiftEngaged = false;
+  if (habitLiftCard) {
+    const card = habitLiftCard;
+    card.classList.remove('is-lifted');
+    const main = card.querySelector('.habit-card-main');
+    if (main) {
+      /* 松手不是直接回正位，而是给一个**会过冲**的缓动（cubic-bezier 的 y > 1）——
+         卡片会先荡过正位一点点再回来，那一下最像实物。 */
+      main.style.transition = 'transform 560ms cubic-bezier(0.22, 1.55, 0.36, 1)';
+      main.style.transform = '';
+      setTimeout(() => { if (main.isConnected) main.style.transition = ''; }, 600);
+    }
+    const sheen = card.querySelector('.habit-card-sheen');
+    if (sheen) sheen.style.transform = '';
+  }
+  habitLiftSunken.forEach(item => item.classList.remove('is-sunken'));
+  habitLiftSunken = [];
+  habitLiftCard = null;
+}
+
+function beginHabitLift(card, main) {
+  habitLiftEngaged = true;
+  habitLiftCard = card;
+  card.classList.add('is-lifted');
+  habitLiftSunken = [];
+  document.querySelectorAll('.habit-card').forEach(item => {
+    if (item === card) return;
+    item.classList.add('is-sunken');
+    habitLiftSunken.push(item);
+  });
+  if (main) {
+    main.style.transition = 'transform 320ms cubic-bezier(0.22, 1.4, 0.36, 1)';
+    main.style.transform = cardLiftTransform(0, 0);
+  }
+}
 
 function bindHabitSwipe(button) {
   // 位移只写在卡面 button（[data-habit-open]）上，打卡钮是兄弟节点，不跟着 translate
@@ -435,14 +524,38 @@ function bindHabitSwipe(button) {
     habitSwipeAxis = '';
     button.classList.add('dragging');
     button.setPointerCapture?.(event.pointerId);
+    // 按住不动 320ms 才「拿起来」：一开始就横向移动的，是侧滑，不要抢
+    const card = wrap?.querySelector('.habit-card');
+    if (!card) return;
+    if (habitLiftTimer) clearTimeout(habitLiftTimer);
+    habitLiftTimer = setTimeout(() => {
+      habitLiftTimer = null;
+      if (habitSwipeButton !== button || habitSwipeAxis) return;
+      beginHabitLift(card, button);
+    }, HABIT_LIFT_HOLD_MS);
   });
   button.addEventListener('pointermove', event => {
     if (habitSwipeButton !== button) return;
     const dx = event.clientX - habitSwipeStartX;
     const dy = event.clientY - habitSwipeStartY;
+    // 已经拿起来了：这一趟只做三维倾斜，不再判侧滑
+    if (habitLiftEngaged) {
+      if (!habitLiftCard) return;
+      const box = habitLiftCard.getBoundingClientRect();
+      if (!box.width || !box.height) return;
+      const px = (event.clientX - box.left) / box.width - 0.5;
+      const py = (event.clientY - box.top) / box.height - 0.5;
+      button.style.transition = 'none';
+      button.style.transform = cardLiftTransform(px, py);
+      // 一层斜向高光跟着指针在卡面上滑 —— 只动 transform，是「像实物」的关键一步
+      const sheen = habitLiftCard.querySelector('.habit-card-sheen');
+      if (sheen) sheen.style.transform = `translate3d(${(px * 26).toFixed(1)}px, ${(py * 18).toFixed(1)}px, 0)`;
+      return;
+    }
     if (!habitSwipeAxis) {
       if (Math.abs(dx) < 6 && Math.abs(dy) < 6) return;
       habitSwipeAxis = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
+      if (habitLiftTimer) { clearTimeout(habitLiftTimer); habitLiftTimer = null; }
     }
     if (habitSwipeAxis !== 'x') return;
     button.style.transform = `translateX(${Math.max(-84, Math.min(84, dx))}px)`;
@@ -452,6 +565,14 @@ function bindHabitSwipe(button) {
   button.addEventListener('pointerup', event => {
     if (habitSwipeButton !== button) return;
     const dx = event.clientX - habitSwipeStartX;
+    if (habitLiftEngaged) {
+      // 拿起来又放下：不动任何数据，也不打开详情 —— 这一下纯粹是「手感」
+      habitSwipeSuppressedClick = button;
+      endHabitLift();
+      resetSwipe();
+      return;
+    }
+    if (habitLiftTimer) { clearTimeout(habitLiftTimer); habitLiftTimer = null; }
     resetSwipe();
     if (habitSwipeAxis !== 'x' || Math.abs(dx) < HABIT_SWIPE_THRESHOLD) return;
     habitSwipeSuppressedClick = button;
@@ -470,7 +591,7 @@ function bindHabitSwipe(button) {
       habitLogForm(habit);
     }
   });
-  button.addEventListener('pointercancel', resetSwipe);
+  button.addEventListener('pointercancel', () => { endHabitLift(); resetSwipe(); });
 }
 
 // ---- 绑定（今日页的习惯/待办交互）----
@@ -524,7 +645,10 @@ function bindHabits() {
     const celebrateId = pendingTodoCelebrateId;
     pendingTodoCelebrateId = null;
     const tickBtn = [...document.querySelectorAll('.bento-item-mini[data-toggle-todo]')].find(el => el.dataset.toggleTodo === celebrateId);
-    if (tickBtn) requestAnimationFrame(() => celebrateHabitCheck(tickBtn));
+    if (tickBtn) {
+      strikeTodoRow(tickBtn);
+      requestAnimationFrame(() => celebrateHabitCheck(tickBtn));
+    }
   }
   $('#new-todo')?.addEventListener('click', () => todoForm());
   $$('[data-toggle-todo]').forEach(button => button.onclick = async () => {

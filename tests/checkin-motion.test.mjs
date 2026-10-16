@@ -42,11 +42,12 @@ test('打卡动效：低端机与"减弱动态效果"要整段关掉', () => {
 
 test('打卡动效：待办两处都要被触发（一个就地更新、一个重渲染后补', () => {
   // 弹层里那排是就地更新、弹层不重建 ⇒ 按钮还在，直接放
-  assert.match(habits, /if \(markingDone\) celebrateHabitCheck\(button\)/, '待办弹层里勾完要放动效');
+  // （2026-10-16 多加了一条：勾完同时把标题「划掉」，所以这一行是两个动作）
+  assert.match(habits, /if \(markingDone\) \{ strikeTodoRow\(rowEl\); celebrateHabitCheck\(button\); \}/, '待办弹层里勾完要放动效');
   // 今日页那排点完会整页重渲染 ⇒ 先记 id，等新节点出来再放（习惯那套也是这么做的）
   assert.match(habits, /let pendingTodoCelebrateId = null/);
   assert.match(habits, /if \(markingDone\) pendingTodoCelebrateId = todo\.id/, '点完先记下是哪一条');
-  assert.match(habits, /querySelectorAll\('\.bento-item-mini\[data-toggle-todo\]'\)[\s\S]{0,220}celebrateHabitCheck\(tickBtn\)/, '重建后找到新节点再放');
+  assert.match(habits, /querySelectorAll\('\.bento-item-mini\[data-toggle-todo\]'\)[\s\S]{0,300}strikeTodoRow\(tickBtn\)[\s\S]{0,200}celebrateHabitCheck\(tickBtn\)/, '重建后找到新节点再放（划掉 + 打卡两下）');
   // 取消完成不该有"打卡"动效
   assert.doesNotMatch(habits, /celebrateHabitCheck\(button\);\s*\} else/, '只在该打上的时候放');
 });

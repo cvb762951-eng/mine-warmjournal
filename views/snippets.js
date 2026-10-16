@@ -331,13 +331,19 @@ function snippetStreamCard(item, lazy = true) {
     const liveStills = (entry.livePhotos || []).length;
     const badge = videos.length ? `<span class="snippet-photo-badge"><span class="material-symbols-outlined">movie</span>${videos.length > 1 ? videos.length + ' 段' : '视频'}</span>` : liveStills ? `<span class="snippet-photo-badge"><span class="material-symbols-outlined">motion_photos_on</span>${liveStills > 1 ? liveStills + ' 张实况' : '实况'}</span>` : photos.length > 1 ? `<span class="snippet-photo-badge"><span class="material-symbols-outlined">photo_camera</span>${photos.length} 张</span>` : '<span class="snippet-photo-badge"><span class="material-symbols-outlined">photo_camera</span>拍立得</span>';
     const videoAlbumAttr = videos.length ? `data-snippet-video-album="${entry.id}"` : '';
-    /* 有视频时和照片走同一套扇面；纯照片列表仍用原来的影集网格。 */
-    const fan = videos.length
+    /* 2026-10-16 用户要求：照片也用和视频封面**同一套扇面**（原来只有带视频的才扇面，
+       纯照片走的是影集网格）。现在一条里无论装的是照片还是视频，列表上都是
+       一叠「摊开的牌」：最多露 4 张、点哪张看哪张，第 5 张起用「+N」看全部。
+       「+N」的落点分两种 —— 有视频时进视频相册，纯照片时直接开大图（从第一张开始）。 */
+    const fanAlbumAttr = videos.length
+      ? videoAlbumAttr
+      : `data-view-snippet-photo="${esc(entry.id)}" data-photo-index="0"`;
+    const fan = (photos.length || videos.length)
       ? momentSpreadHtml(photos, {
           videos,
           lazy,
           progressive: true,
-          albumAttr: videoAlbumAttr,
+          albumAttr: fanAlbumAttr,
           interactive: { mode: 'saved', entryId: entry.id, livePhotos: entry.livePhotos },
         })
       : '';

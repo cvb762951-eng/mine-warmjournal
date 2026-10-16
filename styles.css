@@ -8820,7 +8820,7 @@ body:has(.mine-view) #app{
 .daily-task-copy{min-width:0;padding:4px;text-align:left;border:0;background:none;color:var(--ink)}
 .daily-task-copy strong{display:block;overflow-wrap:anywhere;font:14px/1.5 var(--paper-body-font)}
 .daily-task-copy small{display:block;margin-top:4px;font-size:11px;color:var(--ink-muted)}
-.daily-task-row.done strong{text-decoration:line-through;color:var(--ink-muted)}
+.daily-task-row.done strong{color:var(--ink-muted)}
 .daily-task-fold,.habit-advanced{margin-top:16px}
 .daily-task-fold>summary,.habit-advanced>summary{min-height:48px;padding:12px 4px;color:var(--sage-green-dark);font:14px/1.6 var(--paper-body-font);cursor:pointer}
 .daily-task-fold>summary span{float:right;color:var(--ink-muted)}
