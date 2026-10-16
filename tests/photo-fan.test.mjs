@@ -6,6 +6,8 @@ const snippets = await readFile(new URL('../views/snippets.js', import.meta.url)
 const performanceCss = await readFile(new URL('../performance.css', import.meta.url), 'utf8');
 const motion = await readFile(new URL('../motion.js', import.meta.url), 'utf8');
 const app = await readFile(new URL('../app.js', import.meta.url), 'utf8');
+const styles = await readFile(new URL('../styles.css', import.meta.url), 'utf8');
+const plainLight = await readFile(new URL('../themes-plain-light.css', import.meta.url), 'utf8');
 
 /* 2026-10-16 用户要求：随手拍里的**照片**也改成和视频封面一样的「扇形一叠」，
    并且把原来加在相册网格上的浮动效果挪到这一叠上（而不是相册）。
@@ -64,6 +66,41 @@ test('扇面的浮动只作用在时间线那一叠，别碰编辑器里正在�
   }
 });
 
+test('第二轮：大牌 + 出框 + 文字搬进底板（用户 2026-10-16 定的方向）', () => {
+  /* ① 大牌：--card-w 同时决定牌宽、横向间距和竖向居中，改这一处全都跟着走 */
+  assert.match(styles, /\.snippet-visual-wrap\.is-moment-fan \.moment-spread \{[\s\S]{0,300}--card-w: min\(168px/,
+    '牌要放大到 1.8 倍（168px 封顶）');
+  /* 🔴 框高必须**跟着牌算**：写死 clamp 会出现「牌没等比放大、框先撑高」，
+     中间空出一大块蓝 —— 2026-10-16 真机反馈「这么大的蓝色留白」就是这么来的。 */
+  assert.match(styles, /height: calc\(var\(--card-w\) \* 4 \/ 3 \+ 30px\)/,
+    '框高要跟着牌算，不能写死高度');
+  /* ② 出框：整叠要比底板宽、还要往上提，最外侧两张才能从两边探出去 */
+  assert.match(styles, /width: calc\(100% \+ 40px\);[\s\S]{0,80}margin: -14px -20px 6px;/,
+    '整叠要外扩 + 上提，牌才冲得出底板');
+  assert.match(plainLight, /\.snippet-visual-wrap\.is-moment-fan \{[\s\S]{0,500}overflow: visible !important/,
+    '🔴 底板必须 overflow:visible —— 否则冲出去的牌会被裁掉（图集那次就是这么栽的）');
+  /* ③ 文字层搬进底板：扇面时在底板内，非扇面时保持在卡片外面（不要两处都渲染） */
+  assert.match(snippets, /const copy = `<div class="snippet-fan-copy">/, '要有底板内的文字层');
+  assert.match(snippets, /\$\{fan \? copy : ''\}<\/div>\$\{segments\}\$\{fan \? '' : meta\}\$\{fan \? '' : body\}/,
+    '文字要么在底板内、要么在底板外，不能同时出现两次');
+  /* ④ 只动时间线那一叠：编辑器里正在导入的那叠尺寸不变 */
+  assert.match(styles, /\.snippets-view \.snippet-visual-wrap\.is-moment-fan \.moment-spread \{/, '要限定在时间线的扇面上');
+});
+
+test('第二轮：清简用「方案 A · 不要底板」（用户 2026-10-16 选定）', () => {
+  assert.match(plainLight, /\.moment-spread-card \{[\s\S]{0,260}border-width: 5px !important/, '白边加厚成相纸');
+  assert.match(plainLight, /0 1px 1px rgba\(46, 52, 59, 0\.10\), 0 10px 22px/, '阴影要两层（近硬影 + 远扩散）');
+  assert.match(plainLight, /\.moment-spread-frame \{[\s\S]{0,120}inset 0 0 0 1px/, '照片内圈要有极淡描边');
+  /* 🔴 用户选了「不要底板」：背景/阴影/圆角/内边距要一起撤，只留 overflow；
+     蓝底是"彩色贴纸 + 白卡片"那种廉价关系的根，撤掉之后蓝白搭配问题从根上消失。 */
+  const block = plainLight.slice(plainLight.indexOf('随手拍扇面 · 2026-10-16 第二轮：大牌 + 出框 + 相纸质感'));
+  assert.ok(block.length > 200, '要能定位到扇面这一段');
+  assert.match(block, /background: none !important/, '底板要撤掉（方案 A）');
+  assert.match(block, /box-shadow: none !important/, '底板不许留阴影');
+  assert.match(block, /border-radius: 0 !important/, '底板不许留圆角');
+  assert.match(block, /overflow: visible !important/, '🔴 底板必须 overflow:visible —— 冲出去的牌不能被裁');
+  assert.doesNotMatch(block, /--pl-blue-tint|--ink-block|#1E2A3A/, '不许再出现蓝底/深底');
+});
 test('减弱动态效果 / 关闭档：扇面的浮动要停住，但姿态不能清掉', () => {
   assert.match(performanceCss, /:root:not\(\[data-pl-motion-explicit="rich"\]\) \.snippet-visual-wrap \.moment-spread-card:not\(\.is-lifted\):not\(\.is-releasing\) \{ animation: none !important/,
     '系统减弱动效时要停掉浮动（但「按住拿起」是直接操作，要放过）');

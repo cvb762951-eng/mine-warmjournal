@@ -10656,3 +10656,44 @@ button.moment-spread-hit {
   transition: none !important;
 }
 
+
+/* ══════════════════════════════════════════════════════════════════════════
+   随手拍扇面 · 2026-10-16 第二轮（用户定的方向：01 大牌 + 出框 + 02 的层次手艺）
+   只对**时间线上那一叠**生效（.snippet-visual-wrap），编辑器里正在导入的那叠不动。
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* ① 大牌：--card-w 同时决定牌宽、横向间距和竖向居中，改这一处全都跟着走。
+      120px 封顶 → 168px 封顶（1.45 倍）；高度 200~280 → 250~330（占屏约 42%）。 */
+.snippets-view .snippet-visual-wrap.is-moment-fan .moment-spread {
+  --card-w: min(168px, calc((100% - 30px) / var(--n) * 1.8));
+  /* 🔴 高度**跟着牌走**，不要再写死 clamp：牌没等比放大而框先撑高，
+     中间就会空出一大块蓝（2026-10-16 真机反馈「这么大的蓝色留白」就是这么来的）。
+     +30px 是给旋转留的余量：牌歪 11° 时外接高度会多出约 ±12px。 */
+  height: calc(var(--card-w) * 4 / 3 + 30px);
+  /* 出框：整叠比底板宽 40px、再往上提 14px ⇒ 最外侧两张从两边各探出约 10px，
+     最上面那张的顶边压出底板。底板要配合 overflow: visible（见清简层）。 */
+  width: calc(100% + 40px);
+  margin: -14px -20px 6px;
+}
+
+/* 出框之后，牌的落点也不再按 15px 内缩 —— 只留 4px，让最外侧真的落到边外 */
+.snippets-view .snippet-visual-wrap.is-moment-fan .moment-spread.count-2 .moment-spread-card {
+  left: calc(4px + var(--i, 0) * (100% - 8px - var(--card-w)));
+}
+.snippets-view .snippet-visual-wrap.is-moment-fan .moment-spread.count-3 .moment-spread-card {
+  left: calc(4px + var(--i, 0) * (100% - 8px - var(--card-w)) / 2);
+}
+.snippets-view .snippet-visual-wrap.is-moment-fan .moment-spread.count-4 .moment-spread-card {
+  left: calc(4px + var(--i, 0) * (100% - 8px - var(--card-w)) / 3);
+}
+
+/* ③ 文字层搬进底板内部（原来散在卡片外面）：
+      时间/标签一行细字 → 一条细分隔线 → 大标题。
+      颜色不写死，跟着底板走；底板是浅色就用深字（暗房那版才需要改成浅字）。 */
+.snippet-fan-copy {
+  margin: 2px 3px 0;
+  padding-top: 11px;
+  border-top: 1px solid var(--line);
+}
+.snippet-fan-copy .snippet-item-meta { margin: 0 0 7px; }
+.snippet-fan-copy .snippet-item-text { font-size: 18px; line-height: 1.55; }
