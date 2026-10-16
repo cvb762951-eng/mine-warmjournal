@@ -388,7 +388,18 @@ function selectTheme(theme) {
 /** 动效设置：三个选择，点一下立即生效（和主题一样，不用按保存）。 */
 function motionForm() {
   const current = MOTION_CHOICES.includes(state.settings?.motionPreference) ? state.settings.motionPreference : '';
-  modal(`<form id="motion-form"><span class="eyebrow">MOTION</span><h2>动效</h2><p class="subtle">手机的「减弱动态效果」会把 App 里的动画全部关掉。想让它一直好看，就选「始终完整」。</p><div class="background-fit-control">${MOTION_CHOICES.map(value => `<label class="background-fit-option"><input type="radio" name="motionPreference" value="${value}" ${current === value ? 'checked' : ''}><span><strong>${MOTION_LABELS[value]}</strong><small>${MOTION_HINTS[value]}</small></span></label>`).join('')}</div><p class="subtle" id="motion-state-line" aria-live="polite">${esc(describeMotionState())}</p><div class="modal-actions"><button type="button" data-close>完成</button></div></form>`, 'motion-modal');
+  const saveMotion = ['fold', 'collect', 'fly'].includes(state.settings?.journalSaveMotion) ? state.settings.journalSaveMotion : 'fly';
+  modal(`<form id="motion-form"><span class="eyebrow">MOTION</span><h2>动效</h2><p class="subtle">手机的「减弱动态效果」会把 App 里的动画全部关掉。想让它一直好看，就选「始终完整」。</p><div class="background-fit-control">${MOTION_CHOICES.map(value => `<label class="background-fit-option"><input type="radio" name="motionPreference" value="${value}" ${current === value ? 'checked' : ''}><span><strong>${MOTION_LABELS[value]}</strong><small>${MOTION_HINTS[value]}</small></span></label>`).join('')}</div><p class="subtle" id="motion-state-line" aria-live="polite">${esc(describeMotionState())}</p><p class="subtle" style="margin-top:16px"><strong>日记保存动效</strong>：存完那一下怎么写。三种都能试，试完留一个。</p><div class="background-fit-control">${['fold', 'collect', 'fly'].map(value => `<label class="background-fit-option"><input type="radio" name="journalSaveMotion" value="${value}" ${saveMotion === value ? 'checked' : ''}><span><strong>${{fold: '像收一页纸', collect: '收进牌组', fly: '飞成一张牌'}[value]}</strong><small>${{fold: '上下向中线压扁，一边压一边移到牌组', collect: '整块缩小，落到牌组第一张', fly: '整块飞过去，落定才交棒'}[value]}</small></span></label>`).join('')}</div><div class="modal-actions"><button type="button" data-close>完成</button></div></form>`, 'motion-modal');
+  $$('#motion-form input[name="journalSaveMotion"]').forEach(input => input.addEventListener('change', async () => {
+    state.settings.journalSaveMotion = input.value;
+    try { await save(); } catch (error) { show(error.message); }
+  }));
+
+  $$('#motion-form input[name="journalSaveMotion"]').forEach(input => input.addEventListener('change', async () => {
+    state.settings.journalSaveMotion = input.value;
+    try { await save(); } catch (error) { show(error.message); }
+  }));
+
   $$('#motion-form input[name="motionPreference"]').forEach(input => input.addEventListener('change', async () => {
     state.settings.motionPreference = input.value;
     applyMotionPreference(input.value);
@@ -565,7 +576,7 @@ async function prepareBackgroundImage(file) {
 }
 
 function showSettingsAndData() {
-  modal(`<div class="modal-head"><div><span class="eyebrow">LOCAL DATA HEALTH</span><h2>本机数据状态</h2><p>这里只显示媒体文件、数据库与安全快照的健康情况；具体操作保留在 Mine 的“数据与安全”。</p></div></div><div class="data-health-card" id="data-health-card"><span class="material-symbols-outlined">health_and_safety</span><span><strong>正在检查数据…</strong><small>媒体文件、数据库与安全快照</small></span></div><p class="local-note"><span class="material-symbols-outlined">lock</span>数据默认保存在本机。检查过程不会上传照片、视频、密码或日记内容。</p><div class="modal-actions"><button type="button" data-close>完成</button></div>`, 'mine-data-modal');
+  modal(`<div class="modal-head"><div><span class="eyebrow">LOCAL DATA HEALTH</span><h2>本机数据状态</h2><p>这里只显示媒体文件、数据库与安全快照的健康情况；具体操作保留在 Mine 的“数据与安全”。</p></div></div><div class="data-health-card" id="data-health-card"><span class="material-symbols-outlined">health_and_safety</span><span><strong>正在检查数据…</strong><small>媒体文件、数据库与安全快照</small></span></div><p class="local-note"><span class="material-symbols-outlined">lock</span>数据默认保存在本机。检查过程不会上传照片、视频、密码或日记内容。</p><p class="subtle" style="margin-top:16px"><strong>日记保存动效</strong>：存完那一下怎么写。三种都能试，试完留一个。</p><div class="background-fit-control">${['fold', 'collect', 'fly'].map(value => `<label class="background-fit-option"><input type="radio" name="journalSaveMotion" value="${value}" ${saveMotion === value ? 'checked' : ''}><span><strong>${{fold: '像收一页纸', collect: '收进牌组', fly: '飞成一张牌'}[value]}</strong><small>${{fold: '上下向中线压扁，一边压一边移到牌组', collect: '整块缩小，落到牌组第一张', fly: '整块飞过去，落定才交棒'}[value]}</small></span></label>`).join('')}</div><div class="modal-actions"><button type="button" data-close>完成</button></div>`, 'mine-data-modal');
   Promise.all([storageHealth(state), mediaHealth(state)]).then(([storage, media]) => { const card = $('#data-health-card'); if (!card) return; const size = formatDataSize(storage.serializedBytes); card.classList.toggle('warning', !media.healthy); card.innerHTML = `<span class="material-symbols-outlined">${media.healthy ? 'verified_user' : 'warning'}</span><span><strong>${media.healthy ? '数据状态正常' : '发现媒体文件缺失'}</strong><small>${media.files} 个媒体文件 · ${storage.snapshots}/5 个安全快照${size ? ` · ${size} 本地数据` : ''}</small></span>`; });
 }
 

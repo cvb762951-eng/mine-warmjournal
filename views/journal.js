@@ -1,7 +1,7 @@
 import { $, $$, esc, uid, state, selected, save, render, modal, closeModal, show, confirmDelete, imgSrc, emptyState, go, registerView, registerBinder, registerSubmitHandler, registerHelper, callHelper, setSelected, setCursor, JOURNAL_PHOTO_LIMIT, PHOTO_IMPORT_BATCH_LIMIT, subpageHeader } from '../core.js';
 import { MOODS, WEATHERS, dateKey, snippetEntries, journalEntries, makeTodo, WEEK_DAYS, habitsForDate, habitProgressForDate, habitGoalMet, minutesOnDate } from '../model.js';
 import { journalMeta, photoViewer, micButtonHtml, bindVoiceInput } from './common.js';
-import { mountJournalDeck, releaseDetachedJournalDecks } from '../motion.js';
+import { mountJournalDeck, releaseDetachedJournalDecks, motionAllowed } from '../motion.js';
 import { mediaSource } from '../media-store.js';
 import { compressJournalPhoto, importPhotoBatch, isSupportedJournalPhoto } from '../photo-utils.js';
 import { livePhotoMarkHtml, normalizeLivePhotos, photosWithLiveMotion } from '../motion-photo.js';
@@ -863,10 +863,70 @@ function bindJournalView() {
     clearJournalDraft(state, day);
     setSelected(day); setCursor(new Date(`${day}T12:00:00`));
     render(); show('正式日记已保存');
+    playJournalCollectMotion();
     callHelper('scheduleAiRefresh');
   });
 }
 
+
+/* 保存日记后的那一下（2026-10-16 用户指定；按他的反馈重做过）
+   用户原话：「保存后不应该就让它置于顶层吗，但我看过去保存后就消失了」
+   ⇒ 三种做法都不许「消失」，都必须走到牌组第一张那儿去，到了才交棒。
+   做法（我的 → 外观与偏好 → 动效 里可切换）：
+     fold    像收一页纸 —— 上下向中线压扁，一边压一边移到牌组位置
+     collect 收进牌组   —— 整块按比例缩小，落到牌组位置
+     fly     飞成一张牌 —— 整块缩小直飞过去，落定那一刻才淡掉交棒（默认）
+   页面同时滑到正对牌组（自己补间 —— 系统的 smooth 控不了时长，配不上这一下）。
+   ⚠️ 关闭动效时只对齐、不播收放（对齐是功能，不是动效）。 */
+const JOURNAL_SAVE_MOTIONS = ['fold', 'collect', 'fly'];
+
+function playJournalCollectMotion() {
+  const card = $('.journal-canvas-card');
+  const host = $('#journal-past-deck');
+  if (!host) return;
+  const target = Math.max(0, host.getBoundingClientRect().top + (window.scrollY || 0) - 84);
+  const preset = JOURNAL_SAVE_MOTIONS.includes(state.settings?.journalSaveMotion) ? state.settings.journalSaveMotion : 'fly';
+  if (!motionAllowed()) { window.scrollTo(0, target); return; }
+  const glide = ms => {
+    const from = window.scrollY || 0;
+    const delta = target - from;
+    const t0 = performance.now();
+    const step = now => {
+      const k = Math.min(1, (now - t0) / ms);
+      const e = k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2;
+      window.scrollTo(0, from + delta * e);
+      if (k < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  };
+  const land = () => {
+    if (card) card.classList.remove('is-collecting', 'is-folding');
+    const first = host.querySelector('.journal-deck-face') || host.querySelector('.journal-deck-card') || host.firstElementChild;
+    if (first) {
+      first.classList.add('is-arriving-card');
+      window.setTimeout(() => first.classList.remove('is-arriving-card'), 700);
+    }
+  };
+  glide(640);
+  if (!card) { window.setTimeout(land, 640); return; }
+  /* 一块飞行体从写作区走到牌组第一张：起终点都用实测矩形，落点一定准 */
+  const from = card.getBoundingClientRect();
+  const first = host.querySelector('.journal-deck-face') || host.querySelector('.journal-deck-card');
+  const toRect = first ? first.getBoundingClientRect() : host.getBoundingClientRect();
+  const flyer = document.createElement('div');
+  flyer.className = 'jsave-flyer jsave-' + preset;
+  flyer.style.cssText = 'left:' + from.left + 'px;top:' + from.top + 'px;width:' + from.width + 'px;height:' + from.height + 'px;';
+  document.body.appendChild(flyer);
+  if (preset === 'fold') card.classList.add('is-folding'); else card.classList.add('is-collecting');
+  requestAnimationFrame(() => {
+    const dx = toRect.left + toRect.width / 2 - (from.left + from.width / 2);
+    const dy = toRect.top + toRect.height / 2 - (from.top + from.height / 2);
+    const k = Math.min(1, toRect.height / Math.max(1, from.height));
+    flyer.style.transform = 'translate(' + dx + 'px, ' + dy + 'px) rotate(-2deg) scale(' + k.toFixed(3) + ')';
+    flyer.style.opacity = '0';
+  });
+  window.setTimeout(() => { flyer.remove(); land(); }, 640);
+}
 registerView('journal', journalView);
 registerBinder(bindJournalView);
 registerHelper('setJournalEditingDay', setJournalEditingDay);

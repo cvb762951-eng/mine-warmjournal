@@ -26,8 +26,8 @@ const AppUpdater = registerPlugin('AppUpdater');
    android/app/build.gradle 的 versionName / versionCode、
    index.html 里所有 ?v=、release-notes.js 里当前 versionCode 的条目（name 与 versionName 相同）。
    真正做「有没有新版」判断时改用 currentVersion()，它以系统记录为准。 */
-export const APP_VERSION_NAME = '1.1.55';
-export const APP_VERSION_CODE = 156;
+export const APP_VERSION_NAME = '1.1.56';
+export const APP_VERSION_CODE = 157;
 
 let cachedVersion = null;
 

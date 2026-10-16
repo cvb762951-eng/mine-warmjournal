@@ -5175,3 +5175,27 @@ img.shared-element-ghost {
   :root:not([data-pl-motion-explicit="rich"]) .taste-detail-modal .taste-detail > *,
   :root:not([data-pl-motion-explicit="rich"]) .doc-viewer-modal .doc-detail > * { opacity: 1; transform: none; }
 }
+
+/* ══ 保存日记那一下（2026-10-16 用户指定，已按他的反馈重做）══════════════
+   用户原话：「保存后不应该就让它置于顶层吗，但我看过去保存后就消失了」
+   ⇒ 旧版把写作块 opacity 收到 0（纯淡出）就是问题所在。现在三种做法**都不许消失**：
+      一块「飞行体」从写作区走到牌组第一张（起终点都实测矩形），到了才淡掉交棒。
+   做法：fold 像收一页纸 ／ collect 收进牌组 ／ fly 飞成一张牌（默认）。
+   ⚠️ 关闭档不播收放，但仍然会滚到牌组（对齐是功能）。
+   ⚠️ 减弱动态效果时不播，避免「动完人已经走了」的错位感。 */
+@keyframes journalCollect { 0% { transform: none; opacity: 1; } 100% { transform: scale(0.97); opacity: 0.16; } }
+:root:not([data-pl-motion='none']) .journal-canvas-card.is-collecting { animation: journalCollect 0.62s ease-in forwards; }
+@keyframes journalFold { 0% { transform: none; opacity: 1; } 100% { transform: scaleY(0.88); opacity: 0.16; } }
+:root:not([data-pl-motion='none']) .journal-canvas-card.is-folding { transform-origin: 50% 88%; animation: journalFold 0.62s ease-in forwards; }
+@keyframes journalDeckIn { 0% { transform: translateY(-34px) rotate(-3deg) scale(0.9); opacity: 0; } 100% { transform: none; opacity: 1; } }
+:root:not([data-pl-motion='none']) #journal-past-deck .is-arriving-card { animation: journalDeckIn 0.58s cubic-bezier(0.25, 0, 0.25, 1) both; }
+/* 飞行体：三种做法共用的壳，差别只在 transform 怎么走 */
+.jsave-flyer { position: fixed; z-index: 70; border-radius: 16px; background: rgba(255, 255, 255, 0.94);
+  border: 1px solid rgba(79, 118, 189, 0.22); pointer-events: none; transform-origin: 50% 50%;
+  transition: transform 0.62s cubic-bezier(0.35, 0, 0.25, 1), opacity 0.62s cubic-bezier(0.65, 0, 0.85, 0.4); }
+.jsave-fold { transform-origin: 50% 88%; }
+@media (prefers-reduced-motion: reduce) {
+  :root:not([data-pl-motion-explicit='rich']) .journal-canvas-card.is-collecting,
+  :root:not([data-pl-motion-explicit='rich']) .journal-canvas-card.is-folding,
+  :root:not([data-pl-motion-explicit='rich']) #journal-past-deck .is-arriving-card { animation: none !important; }
+}
