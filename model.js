@@ -639,9 +639,28 @@ export function makeSnippet(input = {}) {
           const displayOrientation = item?.displayOrientation === 'portrait' ? 'portrait' : item?.displayOrientation === 'landscape' ? 'landscape' : '';
           const displayAnalysisVersion = Math.max(0, Math.floor(Number(item?.displayAnalysisVersion) || 0));
           const watchHistory = normalizeSnippetWatchHistory(item?.watchHistory);
+          /* 剪辑（2026-10-18）：只存"播哪一段、框哪一块"，原文件不动。
+             ⚠️ 这两个字段必须在这里显式带出来 —— 归一化是按白名单重建对象的，
+                漏一个就会在**下一次保存时**被静默抹掉（用户表现为"剪了等于没剪"）。 */
+          const trimStart = Math.max(0, Number(item?.trim?.start) || 0);
+          const trimEnd = Math.max(0, Number(item?.trim?.end) || 0);
+          const trim = trimEnd > trimStart + .05
+            ? { start: Math.round(trimStart * 100) / 100, end: Math.round(trimEnd * 100) / 100 }
+            : null;
+          const cropBox = (() => {
+            const c = item?.crop;
+            if (!c) return null;
+            const x = clamp(Number(c.x) || 0, 0, 1), y = clamp(Number(c.y) || 0, 0, 1);
+            const w = clamp(Number(c.w) || 0, 0, 1), h = clamp(Number(c.h) || 0, 0, 1);
+            if (w * h <= 0) return null;
+            if (x <= .001 && y <= .001 && w >= .999 && h >= .999) return null;   // 整幅 = 没裁
+            return { x, y, w, h };
+          })();
           return {
             poster: isLocalImage(item?.poster) ? String(item.poster) : '',
             video,
+            ...(trim ? { trim } : {}),
+            ...(cropBox ? { crop: cropBox } : {}),
             ...(isHls ? { sourceType: 'hls' } : {}),
             ...(label ? { label } : {}),
             ...(position ? { position } : {}),

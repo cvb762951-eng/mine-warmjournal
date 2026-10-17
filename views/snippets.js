@@ -11,6 +11,7 @@ import { thumbSource, thumbKeyFor, progressiveSource, watchThumbImages, watchPro
 import { mediaSource, saveMediaFile, saveNativeMediaSource } from '../media-store.js';
 import { attachVideoSource, formatVideoDuration, isHlsAddress, presentWatchSession, summarizeWatchSession } from '../video-player.js';
 import { openVideoSession, plainVideoCache } from '../video-session.js';
+import { showVideoEditor } from '../video-editor.js';
 import { showVideoFramePicker } from '../video-frame-picker.js';
 import { applyVideoCrop, croppedFrame } from '../video-crop.js';
 import { aiSuggestStructure, applySuggestion } from '../ai.js';
@@ -351,7 +352,7 @@ function snippetStreamCard(item, lazy = true) {
       || (photos.length ? snippetPhotoMosaic(entry, photos, lazy) : (videos.length ? `<div class="snippet-video-stream-placeholder"><span class="material-symbols-outlined">live_tv</span><small>在线视频</small></div>${videoDurationStamp(videos[0])}` : ''));
     const segments = videos.length > 1 ? `<div class="snippet-video-segments" aria-label="这条记录中的视频">${videos.map((item, index) => `<button type="button" class="photo-blur-frame is-edge" data-play-snippet-video="${entry.id}" data-video-index="${index}">${item.poster ? snippetSegmentPoster(item.poster, `第 ${index + 1} 段视频封面`, lazy) : '<span class="material-symbols-outlined">stream</span>'}<small>${index + 1}</small>${videoDurationStamp(item)}</button>`).join('')}</div>` : '';
     const localVideoIndex = videos.findIndex(item => item.sourceType !== 'hls' && !isHlsAddress(item.video));
-    return `<article class="snippet-item-card"><div class="snippet-visual-wrap${fan ? ' is-moment-fan' : ''}">${visual}${badge}</div>${segments}<div class="snippet-item-meta"><span>${time ? `${pad2(time.getHours())}:${pad2(time.getMinutes())} · 随手拍` : '随手拍'}</span>${tag ? `<span style="color:var(--sage-green);font-weight:700">#${esc(tag)}</span>` : ''}</div>${entry.text ? `<p class="snippet-item-text">${esc(entry.text)}</p>` : ''}<div class="snippet-item-actions"><button data-edit-snippet="${entry.id}">编辑</button><button class="danger" data-delete-snippet="${entry.id}">删除</button>${videos.length ? `<button class="view" data-play-snippet-video="${entry.id}" data-video-index="0"><span class="material-symbols-outlined">play_circle</span>播放视频</button>` : ''}${localVideoIndex >= 0 ? `<button class="view" data-refresh-video-poster="${entry.id}" data-video-index="${localVideoIndex}"><span class="material-symbols-outlined">image</span>选择封面</button>` : ''}${photos.length ? `<button class="view" data-view-snippet-photo="${entry.id}" data-photo-index="0">查看照片</button>` : ''}</div></article>`;
+    return `<article class="snippet-item-card"><div class="snippet-visual-wrap${fan ? ' is-moment-fan' : ''}">${visual}${badge}</div>${segments}<div class="snippet-item-meta"><span>${time ? `${pad2(time.getHours())}:${pad2(time.getMinutes())} · 随手拍` : '随手拍'}</span>${tag ? `<span style="color:var(--sage-green);font-weight:700">#${esc(tag)}</span>` : ''}</div>${entry.text ? `<p class="snippet-item-text">${esc(entry.text)}</p>` : ''}<div class="snippet-item-actions"><button data-edit-snippet="${entry.id}">编辑</button><button class="danger" data-delete-snippet="${entry.id}">删除</button>${videos.length ? `<button class="view" data-play-snippet-video="${entry.id}" data-video-index="0"><span class="material-symbols-outlined">play_circle</span>播放视频</button>` : ''}${localVideoIndex >= 0 ? `<button class="view" data-refresh-video-poster="${entry.id}" data-video-index="${localVideoIndex}"><span class="material-symbols-outlined">image</span>选择封面</button><button class="view" data-trim-snippet-video="${entry.id}"><span class="material-symbols-outlined">content_cut</span>剪辑</button>` : ''}${photos.length ? `<button class="view" data-view-snippet-photo="${entry.id}" data-photo-index="0">查看照片</button>` : ''}</div></article>`;
   }
   if (item.kind === 'note') {
     const entry = item.entry;
@@ -1164,8 +1165,18 @@ function snippetVideoGrid() {
   return `<div class="snippet-photo-grid-inner">${pendingSnippetVideos.map((video, index) => { const hls = video.sourceType === 'hls' || isHlsAddress(video.video); const preview = video.poster ? photoFrameLayersHtml(imgSrc(video.poster), { alt: `视频 ${index + 1}`, padClass: 'snippet-cover-blur', stillClass: 'snippet-video-poster-preview', lazy: true }) : `<span class="snippet-video-hls-placeholder"><span class="material-symbols-outlined">${hls ? 'stream' : 'image'}</span><small>${hls ? 'm3u8' : '等待封面'}</small></span>`; return `<div class="snippet-photo-cell snippet-video-cell"><button type="button" class="snippet-photo-thumb photo-blur-frame is-edge" data-play-pending-snippet-video="${index}" aria-label="预览第 ${index + 1} 个${hls ? '在线' : '本地'}视频">${preview}<span class="snippet-video-cell-play"><span class="material-symbols-outlined">play_arrow</span></span><span class="snippet-video-source">${hls ? '在线' : '本地'}</span>${videoDurationStamp(video)}</button>${!hls ? `<div class="snippet-video-poster-actions"><button type="button" data-recapture-video-poster="${index}">视频选帧</button><button type="button" data-change-video-poster="${index}">自选图片</button></div>` : ''}<button type="button" class="snippet-photo-remove" data-remove-pending-snippet-video="${index}" aria-label="删除第 ${index + 1} 个视频"><span class="material-symbols-outlined">close</span></button></div>`; }).join('')}</div>`;
 }
 
+/* 剪辑过之后要显示"还能播多久"，不是原片多长（和私密空间的 vaultPlayableDuration 同一套算法）。
+   没剪辑（或端点异常）就照旧显示原时长。 */
+function snippetPlayableDuration(video) {
+  const full = Math.max(0, Math.floor(Number(video?.duration) || 0));
+  const start = Math.max(0, Number(video?.trim?.start) || 0);
+  const end = Math.max(0, Number(video?.trim?.end) || 0);
+  if (!(end > start + .05)) return full;
+  return Math.max(1, Math.floor(end - start));
+}
+
 function videoDurationStamp(video) {
-  const label = formatVideoDuration(video?.duration, video?.sourceType === 'hls' ? '在线' : '待读取');
+  const label = formatVideoDuration(snippetPlayableDuration(video), video?.sourceType === 'hls' ? '在线' : '待读取');
   return `<span class="video-duration-stamp" aria-label="视频时长 ${label}">${label}</span>`;
 }
 
@@ -1386,6 +1397,65 @@ function openSavedSnippetVideo(entry, index = 0) {
     start = Math.max(0, records.findIndex(item => item.index === index));
   }
   return openSnippetVideos(records, start, snippetScopeLabel());
+}
+
+/* ── 剪辑随手拍里的视频（2026-10-18）────────────────────────────────────
+ * 用户原话：「我随手拍里的视频没办法和私密空间一样剪辑」。
+ * 私密空间走的是 video-editor.js；随手拍一直没接这个入口（数据结构早就支持
+ * trim / crop，播放器也一直按 video.trim 播）。这里只补入口，不另写一套。
+ * ⚠️ 非破坏：只存 trim + crop，原文件一个字节不动，随时能「还原整段」。
+ * ⚠️ 在线视频（m3u8）不接：源不在本机，剪了也没法按秒定位。
+ */
+async function trimSnippetVideo(entry, index = 0) {
+  const video = entry?.videos?.[index];
+  if (!video?.video) return show('这段视频找不到源文件');
+  if (video.sourceType === 'hls' || isHlsAddress(video.video)) return show('在线视频（m3u8）暂时不支持剪辑');
+  const source = await plainVideoCache.resolve({
+    id: `${entry.id}:${index}`,
+    resolveSource: () => video.video
+  });
+  showVideoEditor({
+    source,
+    poster: video.poster || '',
+    duration: Number(video.duration) || 0,
+    width: Number(video.width) || 0,
+    height: Number(video.height) || 0,
+    name: entry.text || '随手拍视频',
+    trim: video.trim || null,
+    crop: video.crop || null,
+    onApply: async ({ trim, crop }) => {
+      video.trim = trim || null;
+      video.crop = crop || null;
+      // 起点被剪掉之后，之前存的播放进度可能落在区间外，夹回区间内。
+      const floor = trim ? Math.floor(trim.start) : 0;
+      if (Number(video.position) < floor) video.position = floor;
+      await save();
+      render(false, { skipStagger: true });
+      show(trim || crop ? '剪辑已保存（原视频没有改动）' : '已还原成完整视频');
+      callHelper('scheduleAiRefresh');
+    }
+  });
+}
+
+function trimSnippetVideoEntry(entry) {
+  if (!entry) return;
+  const locals = (entry.videos || [])
+    .map((video, index) => ({ video, index }))
+    .filter(item => item.video?.video && item.video.sourceType !== 'hls' && !isHlsAddress(item.video.video));
+  if (!locals.length) return show('在线视频（m3u8）暂时不支持剪辑');
+  const go = index => trimSnippetVideo(entry, index).catch(error => show(error?.message || '剪辑打不开'));
+  if (locals.length === 1) return go(locals[0].index);
+  // 一条记录里有多段视频：先问剪哪一段，别擅自挑第一段。
+  modal(`<h2>要剪辑哪一段？</h2><p class="subtle">这条记录里有 ${locals.length} 段视频。</p>
+    <div style="display:grid;gap:8px;margin-top:14px">
+      ${locals.map(item => `<button type="button" class="soft-button" data-trim-segment="${item.index}">第 ${item.index + 1} 段${item.video.duration ? ` · ${clockText(item.video.duration)}` : ''}</button>`).join('')}
+    </div>
+    <div class="modal-actions"><button type="button" data-close>取消</button></div>`);
+  $$('[data-trim-segment]').forEach(button => button.onclick = () => {
+    const index = Number(button.dataset.trimSegment);
+    closeModal();
+    go(index);
+  });
 }
 
 function openPendingSnippetVideo(index = 0) {
@@ -3381,6 +3451,7 @@ function bindSnippets() {
     if (entry?.videos?.[index]) openSavedSnippetVideo(entry, index);
   });
   $$('[data-refresh-video-poster]').forEach(button => button.onclick = () => refreshStoredVideoPoster(button.dataset.refreshVideoPoster, Number(button.dataset.videoIndex) || 0).catch(error => show(error.message)));
+  $$('[data-trim-snippet-video]').forEach(button => button.onclick = () => trimSnippetVideoEntry(state.snippets.find(entry => entry.id === button.dataset.trimSnippetVideo)));
   $$('[data-open-media-detail]').forEach(button => button.onclick = () => { const entry = state.media.find(item => item.id === button.dataset.openMediaDetail); if (entry) openMediaDetail(entry); });
 }
 
