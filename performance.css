@@ -128,13 +128,51 @@ body, button, input, textarea, select { font-family: Inter, "Noto Sans SC", sans
 .view { animation: none; }
 #app.nav-transition .view { animation: viewSlideFade var(--dur-med) var(--ease-ios) both; }
 /* 切页：外壳浅淡出 → 重建 → 淡回。只动 opacity / transform，全程在合成器上。
-   ⚠️ 不要淡到 0：中间会露出空白底色（安卓 WebView 会闪白）。两端都停在 .55。 */
+   ⚠️ 不要淡到 0：中间会露出空白底色（安卓 WebView 会闪白）。两端都停在 .55。
+   ⚠️ 时长和 core.js 的 NAV_SWAP_OUT_MS 是一对，改这里必须改那里（90ms）。
+   2026-10-18：离场从 150ms 收到 90ms —— 因为重建现在挪到离场「之后」，
+   留 150ms 会让每次切页白白多等 150ms；90ms 已经够看清"退了一下"。 */
 @keyframes navSwapOut { to { opacity: .55; transform: translate3d(0, -4px, 0); } }
 @keyframes navSwapIn { from { opacity: .55; transform: translate3d(0, 6px, 0); } }
-#app.nav-swap-out { animation: navSwapOut 150ms var(--ease-ios) both; }
-#app.nav-swap-in { animation: navSwapIn 220ms var(--ease-ios) both; }
+#app.nav-swap-out { animation: navSwapOut 90ms var(--ease-ios) both; }
+#app.nav-swap-in { animation: navSwapIn 180ms var(--ease-ios) both; }
+
+/* 同页换内容（筛选、切类型）：退 → 换 → 进。只动 opacity，不做位移 ——
+   内容换了但位置没变，位移会让人以为整页动了。 */
+@keyframes contentSwapOut { to { opacity: .62; } }
+@keyframes contentSwapIn { from { opacity: .62; } }
+#app.content-swap-out { animation: contentSwapOut 90ms var(--ease-ios) both; }
+#app.content-swap-in { animation: contentSwapIn 140ms var(--ease-ios) both; }
+
+/* 专注页折叠区：内容层从 0fr 推到 1fr（2026-10-18 动效清单第 6 项）
+   ⚠️ 不能直接把 <details> 常开：styles.css 有 :not([open]) 的纸面样式会失效。
+      所以 open 属性照旧切换，只让内容这一层做高度过渡。 */
+.focus-sheet-body {
+  display: grid;
+  grid-template-rows: 1fr;
+  transition: grid-template-rows 160ms var(--ease-ios);
+}
+.focus-sheet-body.is-collapsed { grid-template-rows: 0fr; }
+.focus-sheet-body > .focus-sheet-inner { min-height: 0; overflow: hidden; }
+
+@media (prefers-reduced-motion: reduce) {
+  :root:not([data-pl-motion-explicit="rich"]) .focus-sheet-body { transition: none !important; }
+}
+
+/* 新增一条：从下方 6px 落位，并极淡地亮一次（只亮一次，不复读） */
+.pl-fresh { position: relative; animation: freshArrive 260ms var(--ease-ios) both; }
+.pl-fresh::after {
+  content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  background: color-mix(in srgb, var(--primary) 16%, transparent);
+  opacity: 0; animation: freshGlow 620ms ease-out both;
+}
+@keyframes freshArrive { from { opacity: 0; transform: translate3d(0, 6px, 0); } }
+@keyframes freshGlow { 0% { opacity: .6; } 55% { opacity: .34; } 100% { opacity: 0; } }
+
 @media (prefers-reduced-motion: reduce) {
   :root:not([data-pl-motion-explicit="rich"]) #app.nav-swap-out, :root:not([data-pl-motion-explicit="rich"]) #app.nav-swap-in{ animation: none !important; }
+  :root:not([data-pl-motion-explicit="rich"]) #app.content-swap-out, :root:not([data-pl-motion-explicit="rich"]) #app.content-swap-in{ animation: none !important; }
+  :root:not([data-pl-motion-explicit="rich"]) .pl-fresh, :root:not([data-pl-motion-explicit="rich"]) .pl-fresh::after{ animation: none !important; }
 }
 @keyframes viewSlideFade {
   from { opacity: 0; transform: translateY(10px) scale(.995); }

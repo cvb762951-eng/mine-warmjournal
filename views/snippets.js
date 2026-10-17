@@ -2,7 +2,7 @@ import { photoFrameLayersHtml } from '../photo-frame.js';
 import { Capacitor } from '@capacitor/core';
 import { Camera, CameraDirection, EncodingType } from '@capacitor/camera';
 import { FilePicker } from '@capawesome/capacitor-file-picker';
-import { $, $$, esc, uid, state, save, render, modal, closeModal, show, confirmDelete, imgSrc, emptyState, go, registerView, registerBinder, registerSubmitHandler, registerHelper, registerOnRender, callHelper, PHOTO_IMPORT_BATCH_LIMIT } from '../core.js';
+import { $, $$, esc, uid, state, save, render, modal, closeModal, show, confirmDelete, imgSrc, emptyState, go, registerView, registerBinder, registerSubmitHandler, registerHelper, registerOnRender, callHelper, renderContentSwap, revealFresh, PHOTO_IMPORT_BATCH_LIMIT } from '../core.js';
 import { makeSnippet, makeTodo, snippetEntries, dateKey, WEEK_DAYS, activeStreak, formatShanghaiStamp } from '../model.js';
 import { photoViewer, micButtonHtml, bindVoiceInput } from './common.js';
 import { compressSnippetPhoto, captureVideoFrame, importPhotoBatch, isSupportedJournalPhoto, isCameraCancellation } from '../photo-utils.js';
@@ -14,7 +14,7 @@ import { openVideoSession, plainVideoCache } from '../video-session.js';
 import { showVideoFramePicker } from '../video-frame-picker.js';
 import { applyVideoCrop, croppedFrame } from '../video-crop.js';
 import { aiSuggestStructure, applySuggestion } from '../ai.js';
-import { deckCutDecision, prefersReducedMotion } from '../motion.js';
+import { deckCutDecision, prefersReducedMotion, collapseRow } from '../motion.js';
 import { MOMENTS_MOTION, isMomentsMoving, isMomentsRich } from '../motion-moments.js';
 import { openMediaDetail } from './media.js';
 import { normalizeQuickTag, quickTagList, recordQuickTag, addQuickTag, removeQuickTag } from '../quick-tags.js';
@@ -2708,7 +2708,10 @@ async function saveQuickSnap() {
   pendingSnippetVideos = [];
   pendingQuickTag = '';
   pendingQuickCaption = '';
-  await save(); closeModal(); render(); show('已发布随手拍');
+  await save(); closeModal();
+  render(false, { skipStagger: true });
+  revealFresh(`[data-edit-snippet="${next.id}"]`);   // 新那条要能被看见
+  show('已发布随手拍');
   if (next.photo) callHelper('rememberPhoto', next.photo).catch(() => {});
 }
 
@@ -2780,7 +2783,10 @@ async function saveQuickMemo() {
   quickMemoVoice?.destroy();
   quickMemoVoice = null;
   pendingQuickTag = '';
-  await save(); closeModal(); render(); show('已贴入速记');
+  await save(); closeModal();
+  render(false, { skipStagger: true });
+  revealFresh(`[data-edit-snippet="${next.id}"]`);
+  show('已贴入速记');
   callHelper('scheduleAiRefresh');
 }
 
@@ -3344,9 +3350,19 @@ function photoLightbox(entry, active = 0) {
 function bindSnippets() {
   $('#new-snippet')?.addEventListener('click', () => quickPhotoModal());
   $('#snippet-album')?.addEventListener('click', () => openSnippetAlbumGrid());
-  $$('[data-snippet-type]').forEach(button => button.onclick = () => { snippetType = button.dataset.snippetType; render(); });
+  $$('[data-snippet-type]').forEach(button => button.onclick = () => {
+    if (snippetType === button.dataset.snippetType) return;
+    snippetType = button.dataset.snippetType;
+    renderContentSwap();   // 退 → 换 → 进，不再让整列表逐条飞回来
+  });
   $$('[data-edit-snippet]').forEach(button => button.onclick = () => snippetForm(state.snippets.find(entry => entry.id === button.dataset.editSnippet)));
-  $$('[data-delete-snippet]').forEach(button => button.onclick = () => confirmDelete(`删除这条随手记素材？${SNIPPET_DELETE_UNAFFECTED}`, async () => { state.snippets = state.snippets.filter(entry => entry.id !== button.dataset.deleteSnippet); await save(); render(); callHelper('scheduleAiRefresh'); }));
+  $$('[data-delete-snippet]').forEach(button => button.onclick = () => confirmDelete(`删除这条随手记素材？${SNIPPET_DELETE_UNAFFECTED}`, async () => {
+    await collapseRow(button.closest('.snippet-item-card, .snippet-memo-card, .snippet-media-card'));
+    state.snippets = state.snippets.filter(entry => entry.id !== button.dataset.deleteSnippet);
+    await save();
+    render(false, { skipStagger: true });
+    callHelper('scheduleAiRefresh');
+  }));
   $$('[data-view-snippet-photo]').forEach(button => button.onclick = () => {
     // 多图/图+视频先进入相册浏览层；单张仍直接大图。大图本身不做进入 FLIP（2026-10-12）。
     const entry = state.snippets.find(item => item.id === button.dataset.viewSnippetPhoto);
@@ -3384,7 +3400,10 @@ registerSubmitHandler('snippet-form', async data => {
   pendingSnippetVideos = [];
   await save();
   if (justSavedPhoto) callHelper('rememberPhoto', justSavedPhoto).catch(() => {});
-  closeModal(); render(); show('已保存');
+  closeModal();
+  render(false, { skipStagger: true });
+  if (!existing) revealFresh(`[data-edit-snippet="${next.id}"]`);
+  show('已保存');
   return false;
 });
 

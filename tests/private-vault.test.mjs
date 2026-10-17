@@ -142,7 +142,9 @@ test('each private collection can filter all photos or videos without changing f
   assert.match(view, /const scoped = vaultItemsForBrowseScope\(content\)/);
   assert.match(view, /vaultMediaFilter === 'all' \|\| item\.type === vaultMediaFilter/);
   assert.match(view, /vaultBrowseMode = button\.dataset\.vaultFolderMode; activeFolderId = button\.dataset\.vaultFolderId \|\| ''; vaultMediaFilter = 'all'/);
-  assert.match(view, /vaultMediaFilter = button\.dataset\.vaultMediaFilter; vaultSelectionMode = false/);
+  // 2026-10-18 动效：筛选改成跨行的「退 → 换 → 进」，断言跟着放宽到语义级
+  // （仍然要求：换筛选时退出多选、清空已选、走 renderContentSwap）
+  assert.match(view, /vaultMediaFilter === button\.dataset\.vaultMediaFilter\) return;[\s\S]{0,200}vaultMediaFilter = button\.dataset\.vaultMediaFilter;[\s\S]{0,200}vaultSelectionMode = false;[\s\S]{0,160}vaultSelectedIds\.clear\(\);[\s\S]{0,120}renderContentSwap\(\);/);
   assert.match(css, /\.vault-media-filter\{[^}]*grid-template-columns:repeat\(5/);
 });
 

@@ -2,7 +2,8 @@
 // R4：账本记账（生活费管理）：月汇总/预算进度/按日分组列表/分类筛选/记账表单（含小票照片）/预算设置。
 import { Capacitor } from '@capacitor/core';
 import { Camera, CameraDirection, EncodingType } from '@capacitor/camera';
-import { $, $$, esc, uid, state, save, render, modal, closeModal, show, confirmDelete, emptyState, imgSrc, registerView, registerBinder, registerSubmitHandler, callHelper, openSubpage, subpageHeader } from '../core.js';
+import { $, $$, esc, uid, state, save, render, renderContentSwap, modal, closeModal, show, confirmDelete, emptyState, imgSrc, registerView, registerBinder, registerSubmitHandler, callHelper, openSubpage, subpageHeader, revealFresh } from '../core.js';
+import { collapseRow } from '../motion.js';
 import { makeTransaction, makeLedgerAccount, makeLedgerCategory, LEDGER_CATEGORIES, ledgerCategoryMap, ledgerSummary, archiveLedgerAccount, upsertMerchantCategoryRule, dateKey, WEEK_DAYS } from '../model.js';
 import { photoViewer, micButtonHtml, bindVoiceInput } from './common.js';
 import { compressPhoto, isSupportedJournalPhoto } from '../photo-utils.js';
@@ -636,9 +637,18 @@ function bindLedger() {
   $('#ledger-budget-set')?.addEventListener('click', event => { event.stopPropagation(); ledgerBudgetForm(); });
   $('#ledger-budget-analysis')?.addEventListener('click', event => { event.stopPropagation(); openLedgerAnalysis(); });
   $('.ledger-budget-box')?.addEventListener('click', openLedgerAnalysis);
-  $$('[data-ledger-filter]').forEach(button => button.onclick = () => { ledgerFilter = button.dataset.ledgerFilter; render(); });
+  $$('[data-ledger-filter]').forEach(button => button.onclick = () => {
+    if (ledgerFilter === button.dataset.ledgerFilter) return;
+    ledgerFilter = button.dataset.ledgerFilter;
+    renderContentSwap();   // 退 → 换 → 进，不再整段重播入场
+  });
   $$('[data-edit-transaction]').forEach(button => button.onclick = () => ledgerForm(state.transactions.find(item => item.id === button.dataset.editTransaction)));
-  $$('[data-delete-transaction]').forEach(button => button.onclick = () => confirmDelete('删除这笔账目？', async () => { state.transactions = state.transactions.filter(item => item.id !== button.dataset.deleteTransaction); await save(); render(); }));
+  $$('[data-delete-transaction]').forEach(button => button.onclick = () => confirmDelete('删除这笔账目？', async () => {
+    await collapseRow(button.closest('.ledger-row'));   // 先让这一行收起来，其余行补位
+    state.transactions = state.transactions.filter(item => item.id !== button.dataset.deleteTransaction);
+    await save();
+    render(false, { skipStagger: true });
+  }));
   $$('[data-view-transaction-photo]').forEach(button => button.onclick = () => photoViewer([state.transactions.find(item => item.id === button.dataset.viewTransactionPhoto)?.photo].filter(Boolean), 0));
 }
 
@@ -659,7 +669,10 @@ registerSubmitHandler('full-ledger-modal', async data => {
   ledgerVoice?.destroy();
   ledgerVoice = null;
   pendingTransactionPhoto = '';
-  await save(); closeModal(); render();
+  await save(); closeModal();
+  render(false, { skipStagger: true });
+  // 新建的那一笔要能被看见：落位 + 亮一次 + 滚进视野（编辑旧账不动）
+  if (!existing) revealFresh(`[data-edit-transaction="${next.id}"]`);
   // 新建（非编辑）餐饮支出才询问；编辑旧账不重复打扰，且已有味觉档案会自动跳过。
   if (!existing && pendingLedgerType === 'expense') offerTasteArchive(next);
   else show('已保存');

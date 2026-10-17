@@ -1,5 +1,5 @@
 import { withSharedTransition, rollNumbers } from '../motion.js';
-import { $, $$, esc, state, render, modal, formatMinutes, go, registerView, registerBinder, registerHelper, callHelper } from '../core.js';
+import { $, $$, esc, state, render, renderContentSwap, modal, formatMinutes, go, registerView, registerBinder, registerHelper, callHelper } from '../core.js';
 import { periodSummary, dateKey } from '../model.js';
 import { completeStatsWeekSummary, habitArchiveMetrics, warmWeeklyLifeMetrics, focusInsights } from '../analytics.js';
 
@@ -303,7 +303,11 @@ function achievementSection(metrics) {
 function bindStats() {
   const statsRoot = $('.stats-view');
   if (statsRoot) rollNumbers(statsRoot);
-  $$('[data-period]').forEach(button => button.onclick = () => { period = button.dataset.period; render(); });
+  $$('[data-period]').forEach(button => button.onclick = () => {
+    if (period === button.dataset.period) return;
+    period = button.dataset.period;
+    renderContentSwap();   // 周/月/年：退 → 换 → 进，别让整页数字瞬跳
+  });
   $$('[data-stats-project]').forEach(button => button.onclick = () => callHelper('projectSessionHistory', button.dataset.statsProject));
   $('#report')?.addEventListener('click', reportModal);
   $('#stats-ledger-go')?.addEventListener('click', () => go('ledger'));

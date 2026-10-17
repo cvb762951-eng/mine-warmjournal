@@ -171,6 +171,32 @@ export function notifyPersistedKeySeal(result) {
   setTimeout(() => show(KEY_SEAL_SKIPPED_NOTICE), 0);
 }
 
+/* ── 新增一条的落点（2026-10-18 动效清单第 5 项）────────────────────────
+ * 原来保存完 render()，新条目直接出现在长列表里，根本找不到它在哪。
+ * 这里做两件事：给它一次"落位 + 极淡亮一下"，并把它滚到视野里。
+ * ⚠️ 调用前必须用 render(false, { skipStagger: true })：交错入场也是 animation，
+ *    两个动画抢同一个元素，最后只有一个生效。
+ * ⚠️ 只亮一次，不复读；动效关了也要滚动（滚动是为了"看见"，不是装饰）。 */
+export function revealFresh(target) {
+  const el = typeof target === 'string' ? $(target) : target;
+  if (!el) return;
+  const row = el.closest('.ledger-row, .snippet-item-card, .snippet-memo-card, .snippet-media-card, .journal-entry, .cal-activity-row') || el;
+  if (motionAllowed()) {
+    row.classList.add('pl-fresh');
+    setTimeout(() => row.classList.remove('pl-fresh'), 760);
+  }
+  safelyScrollIntoView(row);
+}
+
+function safelyScrollIntoView(el) {
+  try {
+    const box = el.getBoundingClientRect();
+    const viewport = document.documentElement.clientHeight || window.innerHeight;
+    if (box.top >= 72 && box.bottom <= viewport - 24) return;   // 已经在视野里，别乱滚
+    el.scrollIntoView({ block: 'center', behavior: 'auto' });
+  } catch { /* 滚动失败不影响保存 */ }
+}
+
 export function show(message) {
   $('#toast').textContent = message;
   $('#toast').classList.add('show');
@@ -440,6 +466,32 @@ export function render(animated = false, { skipStagger = false } = {}) {
   decorateMotion($('#app'), { skipStagger });
 }
 
+/* ── 同页换内容：退 → 换 → 进（2026-10-18 动效清单第 1 项）──────────────
+ * 原来筛选/切类型都是 `值 = 新的; render();`：整页重建 + 交错入场重播，
+ * 观感是"列表先全没、再逐条飞回来"，比"瞬换"还吵。
+ * 这里给同一套骨架：内容区先退到 .62（90ms）→ 换 DOM → 再进（140ms），像翻一页。
+ * ⚠️ 必须带 skipStagger：进场交给外壳，列表自己不要再播一遍。
+ * ⚠️ 动效被关掉时不走任何 setTimeout，直接同步换，保证"弱档也立刻有结果"。 */
+let contentSwapToken = 0;
+export function renderContentSwap() {
+  const app = $('#app');
+  if (!app || !motionAllowed()) { render(false, { skipStagger: true }); return; }
+  const token = ++contentSwapToken;
+  app.classList.remove('content-swap-in');
+  app.classList.add('content-swap-out');
+  setTimeout(() => {
+    if (token !== contentSwapToken) return;   // 连点筛选：只认最后一次
+    render(false, { skipStagger: true });
+    requestAnimationFrame(() => {
+      app.classList.remove('content-swap-out');
+      app.classList.add('content-swap-in');
+      setTimeout(() => {
+        if (token === contentSwapToken) app.classList.remove('content-swap-in');
+      }, 180);
+    });
+  }, CONTENT_SWAP_OUT_MS);
+}
+
 /* 主角卡的旋转描边与呼吸背光（2026-10-10）
  *
  * 每个页面挑一张"主角卡"戴上光晕，一页最多一张 —— 到处都是光就等于没有重点。
@@ -593,6 +645,10 @@ function rememberCurrentNavigation() {
  *    在页内切日期不该看到整页淡出。
  */
 let navSwapToken = 0;
+/* 与 performance.css 的 navSwapOut 时长保持一致（90ms）。改一处必须改两处。 */
+const NAV_SWAP_OUT_MS = 90;
+/* 同页换内容的退场时长，对应 contentSwapOut。 */
+const CONTENT_SWAP_OUT_MS = 90;
 
 export function go(route, calendarDate = '', options = {}) {
   const targetCalendarDate = route === 'calendar' ? (calendarDate || dateKey()) : '';
@@ -623,7 +679,15 @@ export function go(route, calendarDate = '', options = {}) {
     const token = ++navSwapToken;
     launcher.classList.remove('nav-swap-in');
     launcher.classList.add('nav-swap-out');
-    requestAnimationFrame(() => {
+    /* 方案 A（2026-10-18）：先让离场真的画出来，再重建。
+       ⚠️ 原来是「加 out 类 → 同一个 rAF 里 render() → 换 in 类」：
+           rAF 回调是同步执行的，render() 在里面跑满 40~90ms，
+           浏览器必须先干完活才能出下一帧 ⇒ 150ms 的离场一帧都没被画出来，
+           用户看到的是「点下去冻住 → 新页以 55% 灰浮上来」。
+       实测（Chrome，空数据）：点击→第一帧 76~90ms，其中布局 40~77ms、脚本仅 3~8ms。
+       现在把重建挪到离场结束之后：起手立刻有反应，那 40~90ms 落在"已经变暗"的画面上。
+       ⚠️ 连点两个标签仍然只认最后一次：token 变了就不再重建。 */
+    setTimeout(() => {
       if (token !== navSwapToken) return;   // 连点两个标签：只认最后一次
       /* 换页这一帧给外壳打一个标记：只有"真的进入这一页"才该播整页入场。
          同页重渲染（点筛选、搜索、删一条）不该再演一遍 —— 入场是从全透明开始的，
@@ -635,9 +699,9 @@ export function go(route, calendarDate = '', options = {}) {
       launcher.classList.add('nav-swap-in');
       setTimeout(() => {
         if (token === navSwapToken) launcher.classList.remove('nav-swap-in');
-      }, 320);
+      }, 240);
       callHelper('syncSystemBackConsumption');
-    });
+    }, NAV_SWAP_OUT_MS);
     return;
   }
   navSwapToken += 1;   // 作废还没跑的那一次换页

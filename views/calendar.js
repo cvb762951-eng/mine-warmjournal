@@ -1,4 +1,5 @@
 import { $, $$, esc, uid, state, cursor, selected, save, render, modal, closeModal, show, confirmDelete, imgSrc, emptyState, go, formatMinutes, setSelected, setCursor, registerView, registerBinder, registerSubmitHandler, registerHelper, callHelper } from '../core.js';
+import { motionAllowed } from '../motion.js';
 import { WEEK_DAYS, dateKey, minutesOnDate, todayCompletion, habitsForDate, habitGoalMet, habitProgressForDate, MOODS, WEATHERS, formatShanghaiClock } from '../model.js';
 import { activityForDate } from '../activity-log.js';
 import { journalForm } from './journal.js';
@@ -197,12 +198,25 @@ function refreshYesterdaySummary() {
   });
 }
 
+/* 翻月方向，交给下一次 render 之后的 bindCalendar 消费（2026-10-18 动效清单第 4 项）。
+   原来整格瞬换，看不出"往哪边翻"；现在整格朝翻页方向挪 8px 并淡，回来时从反方向落位。 */
+let calendarMonthFlip = '';
+
 function shiftCalendarMonth(offset) {
   const currentDay = Number(selected.slice(8, 10)) || 1;
-  cursor.setMonth(cursor.getMonth() + offset);
-  const targetDay = Math.min(currentDay, new Date(cursor.getFullYear(), cursor.getMonth() + 1, 0).getDate());
-  setSelected(dateKey(new Date(cursor.getFullYear(), cursor.getMonth(), targetDay, 12)));
-  render();
+  const commit = () => {
+    cursor.setMonth(cursor.getMonth() + offset);
+    const targetDay = Math.min(currentDay, new Date(cursor.getFullYear(), cursor.getMonth() + 1, 0).getDate());
+    setSelected(dateKey(new Date(cursor.getFullYear(), cursor.getMonth(), targetDay, 12)));
+    calendarMonthFlip = offset > 0 ? 'next' : 'prev';
+    render(false, { skipStagger: true });
+  };
+  const paper = $('.calendar-month-paper');
+  if (!paper || !motionAllowed()) { commit(); return; }
+  paper.style.transition = 'transform 110ms var(--ease-ios), opacity 110ms linear';
+  paper.style.transform = `translateX(${offset > 0 ? 8 : -8}px)`;
+  paper.style.opacity = '.3';
+  setTimeout(commit, 110);
 }
 
 function openJournalForSelectedDay(event) {
@@ -216,6 +230,21 @@ function openJournalForSelectedDay(event) {
 
 function bindCalendar() {
   if (state.route === 'calendar') refreshYesterdaySummary();
+  if (calendarMonthFlip) {
+    const dir = calendarMonthFlip;
+    calendarMonthFlip = '';
+    const paper = $('.calendar-month-paper');
+    if (paper) {
+      paper.style.transition = 'none';
+      paper.style.transform = `translateX(${dir === 'next' ? -8 : 8}px)`;
+      paper.style.opacity = '.3';
+      requestAnimationFrame(() => {
+        paper.style.transition = 'transform 150ms var(--ease-ios), opacity 150ms linear';
+        paper.style.transform = 'translateX(0)';
+        paper.style.opacity = '1';
+      });
+    }
+  }
   $('#prev')?.addEventListener('click', () => shiftCalendarMonth(-1));
   $('#next')?.addEventListener('click', () => shiftCalendarMonth(1));
   $$('[data-day]').forEach(button => button.onclick = () => { setSelected(button.dataset.day); render(); });

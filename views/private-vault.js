@@ -2,9 +2,10 @@ import { photoFrameLayersHtml, revealViewerImageWhenDecoded } from '../photo-fra
 import { Capacitor } from '@capacitor/core';
 import { NativeMediaStore } from '../native-media-store.js';
 import { PasswordVaultNative } from '../password-vault-native.js';
-import { $, $$, esc, state, save, render, modal, closeModal, show, confirmDelete, goBack, registerView, registerBinder, registerOnRender, registerSubmitHandler, callHelper } from '../core.js';
+import { $, $$, esc, state, save, render, renderContentSwap, modal, closeModal, show, confirmDelete, goBack, registerView, registerBinder, registerOnRender, registerSubmitHandler, callHelper } from '../core.js';
 import { compressSnippetPhoto, captureVideoFrame, saveMotionFromMediaRef, clampStillTransform, measureLongStill } from '../photo-utils.js';
 import { livePhotoMarkHtml } from '../motion-photo.js';
+import { collapseRow } from '../motion.js';
 import { privateVaultConfigured, privateVaultUnlocked, privateVaultContent, privateVaultKey, privateVaultKeyBase64, setupPrivateVault, unlockPrivateVault, unlockPrivateVaultWithKey, persistPrivateVault, lockPrivateVault, vaultPlayableDuration, vaultItemEdited, vaultItemOrientation } from '../private-vault.js';
 import { encryptVaultFile, encryptVaultPoster, encryptExistingVaultMedia, encryptExistingVaultPoster, openVaultAsset, deleteVaultAssets, exportVaultItemToGallery, reencodeVaultItem, cancelVaultReencode } from '../vault-media-store.js';
 import { imgSrc } from '../core.js';
@@ -387,9 +388,10 @@ async function restoreVaultVideoToMoments(item) {
   }
 }
 
-function deleteVaultItem(item) {
+function deleteVaultItem(item, rowEl = null) {
   if (!item) return;
   confirmDelete(`永久删除私密文件「${item.name}」？`, async () => {
+    await collapseRow(rowEl);   // 先让这一格收起来，其余格补位
     touchFolder(item.folderId);
     const folder = privateVaultContent().folders.find(entry => entry.coverItemId === item.id);
     if (folder) folder.coverItemId = '';
@@ -397,7 +399,7 @@ function deleteVaultItem(item) {
     await deleteVaultAssets([item.assetRef, item.posterRef]);
     thumbnailUrls.delete(item.id);
     forgetVaultVideo(item.id);
-    await persistPrivateVault(state); await save(); render();
+    await persistPrivateVault(state); await save(); render(false, { skipStagger: true });
   });
 }
 
@@ -1552,7 +1554,13 @@ function bindPrivateVault() {
   });
   $('#vault-folder-sort')?.addEventListener('change', event => { vaultFolderSort = event.target.value; render(); });
   $('#vault-content-sort')?.addEventListener('change', event => { vaultContentSort = event.target.value; render(); });
-  $$('[data-vault-media-filter]').forEach(button => button.onclick = () => { vaultMediaFilter = button.dataset.vaultMediaFilter; vaultSelectionMode = false; vaultSelectedIds.clear(); render(); });
+  $$('[data-vault-media-filter]').forEach(button => button.onclick = () => {
+    if (vaultMediaFilter === button.dataset.vaultMediaFilter) return;
+    vaultMediaFilter = button.dataset.vaultMediaFilter;
+    vaultSelectionMode = false;
+    vaultSelectedIds.clear();
+    renderContentSwap();   // 退 → 换 → 进
+  });
   $('#vault-select-items')?.addEventListener('click', () => { vaultSelectionMode = !vaultSelectionMode; vaultSelectedIds.clear(); render(); });
   $$('[data-select-vault-item]').forEach(button => button.onclick = () => { const id = button.dataset.selectVaultItem; vaultSelectedIds.has(id) ? vaultSelectedIds.delete(id) : vaultSelectedIds.add(id); render(); });
   $('#vault-bulk-move')?.addEventListener('click', bulkMoveForm);
@@ -1569,7 +1577,7 @@ function bindPrivateVault() {
   $$('[data-move-vault-item]').forEach(button => button.onclick = () => moveItemForm(privateVaultContent().items.find(item => item.id === button.dataset.moveVaultItem)));
   $$('[data-vault-video-cover]').forEach(button => button.onclick = () => choosePrivateVideoCover(privateVaultContent().items.find(item => item.id === button.dataset.vaultVideoCover)).catch(error => show(error.message)));
   $$('[data-edit-vault-video]').forEach(button => button.onclick = () => editVaultVideoForm(privateVaultContent().items.find(item => item.id === button.dataset.editVaultVideo)));
-  $$('[data-delete-vault-item]').forEach(button => button.onclick = () => deleteVaultItem(privateVaultContent().items.find(entry => entry.id === button.dataset.deleteVaultItem)));
+  $$('[data-delete-vault-item]').forEach(button => button.onclick = () => deleteVaultItem(privateVaultContent().items.find(entry => entry.id === button.dataset.deleteVaultItem), button.closest('.vault-item')));
   if (state.route === 'private-vault' && !privateVaultUnlocked() && privateVaultConfigured(state)) refreshVaultFingerprint();
   // 文件夹内部也可能有子文件夹（同样带封面），所以两种模式都要跑封面加载。
   loadFolderCovers();

@@ -1738,6 +1738,43 @@ export function celebrateHabitCheck(button) {
 
 const HABIT_CELEBRATE_MS = 1000;
 
+/* ── 删除一行：先收起来，再重建（2026-10-18 动效清单第 2 项）────────────
+ * 原来删除确认后直接 render()：被删的那行**没有离开的过程**，下面的行瞬移补位。
+ * 这里把行高从实测值收到 0，兄弟行自然跟着往上走 —— 只在这一处用布局属性，
+ * 因为它是「一次性、单个元素、160ms」，和常驻动画逐帧重排不是一回事。
+ * 返回 Promise：调用方 await 它再真正删数据 + render，避免动画和数据打架。 */
+export function collapseRow(el, { duration = 160 } = {}) {
+  if (!el || !motionAllowed()) return Promise.resolve();
+  return new Promise(resolve => {
+    safely(() => {
+      const height = el.getBoundingClientRect().height;
+      if (!height) { resolve(); return; }
+      el.style.overflow = 'hidden';
+      el.style.maxHeight = `${height}px`;
+      el.style.transition = [
+        `max-height ${duration}ms ${EASE.fluid}`,
+        `opacity ${Math.round(duration * 0.8)}ms linear`,
+        `transform ${duration}ms ${EASE.fluid}`,
+        `padding-top ${duration}ms ${EASE.fluid}`,
+        `padding-bottom ${duration}ms ${EASE.fluid}`,
+        `margin-top ${duration}ms ${EASE.fluid}`,
+        `margin-bottom ${duration}ms ${EASE.fluid}`,
+      ].join(',');
+      requestAnimationFrame(() => {
+        el.style.maxHeight = '0px';
+        el.style.opacity = '0';
+        el.style.transform = 'translate3d(0,-4px,0)';
+        el.style.paddingTop = '0px';
+        el.style.paddingBottom = '0px';
+        el.style.marginTop = '0px';
+        el.style.marginBottom = '0px';
+      });
+      setTimeout(resolve, duration + 30);
+    });
+    setTimeout(resolve, duration + 90);   // 兜底：永远不卡住调用方
+  });
+}
+
 function celebrateHabitCard(card) {
   safely(() => {
     card.classList.remove('is-celebrating');
