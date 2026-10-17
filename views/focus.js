@@ -2,7 +2,7 @@ import { Capacitor } from '@capacitor/core';
 import { $, $$, esc, uid, state, save, render, modal, closeModal, show, confirmDelete, emptyState, go, formatMinutes, clock, durationText, setTick, registerView, registerBinder, registerOnRender, registerSubmitHandler, registerHelper, callHelper, subpageHeader, PROJECT_ICONS, PROJECT_COLORS } from '../core.js';
 import { dateKey, nextPomodoroStage, pomodoroPhaseSeconds, makeFocusCategory } from '../model.js';
 import { prepareDailyFocus, focusHasProgress } from '../daily-workflow.js';
-import { sessionCard, bindRecordActions, replaceSessionHabitContribution, adjustHabitMinutes } from './common.js';
+import { sessionCard, bindRecordActions, replaceSessionHabitContribution } from './common.js';
 import { setKeepAwake, startFocusNotification, stopFocusNotification, scheduleTimerNotification, cancelTimerNotification, isTimerAlarmRinging } from '../notifications.js';
 import { AMBIENT_SOUNDS, currentAmbient, currentAmbientMix, pauseAmbientMix, resumeAmbientMix, setAmbient, setAmbientMixTrack, setAmbientMixVolume, setAmbientVolume, stopAmbient } from '../ambient.js';
 
@@ -424,6 +424,8 @@ export async function completeTimer(automatic = false) {
     const soundId = currentAmbient();
     // 结算时才解析联动习惯：migrateState 已保证指向的习惯仍然有效，这里再兜一次底。
     const linkedHabitId = (() => {
+      // 2026-10-17 切割：专注不再挂到任何习惯上。
+      return '';
       const id = state.settings?.focusIntent?.habitId || state.settings?.focusLinkedHabitId;
       if (!id) return '';
       const habit = (state.habits || []).find(item => item.id === id);
@@ -455,9 +457,6 @@ export async function completeTimer(automatic = false) {
     session.flowScore = callHelper('calculateFlowScore', session);
     state.sessions.push(session);
     // 真正累加到习惯：放在 push 之后，保证即使联动失败也不会影响这条专注记录本身。
-    if (linkedHabitId && minutes > 0) {
-      adjustHabitMinutes(session.date, linkedHabitId, minutes, Number(session.startedAt) + minutes * 60000);
-    }
     completedSessionId = session.id;
   }
   resetSessionTracking();
@@ -601,9 +600,9 @@ function customDurationForm() {
 
 function timerSettingsForm() {
   // 联动候选：只列「按分钟计量的数量型习惯」，其余类型无法用时长自动累加。
-  const linkableHabits = (state.habits || []).filter(habit => !habit.archived && habit.tracking === 'quantity' && /分钟/.test(habit.unit || ''));
+  const linkableHabits = [];  // 2026-10-17 切割：不再提供专注自动记入习惯
   const habitOptions = `<option value="">不自动记入习惯</option>${linkableHabits.map(habit => `<option value="${habit.id}" ${state.settings.focusLinkedHabitId === habit.id ? 'selected' : ''}>${esc(habit.name)}（每天 ${habit.target} 分钟）</option>`).join('')}`;
-  modal(`<form id="timer-settings-form"><h2>计时与番茄循环</h2><label>自由计时默认时长（分钟）</label><input name="duration" type="number" min="1" max="180" required value="${state.settings.defaultDurationMinutes}"><label>专注结束自动记入习惯</label><select name="focusLinkedHabit">${habitOptions}</select><small class="field-help">选择后，每次专注结束（倒计时 / 正向计时 / 番茄钟专注段）会把实际专注分钟数自动加到该习惯；不足 1 分钟的专注不计入。</small><div class="pomodoro-settings"><h3>番茄循环</h3><div class="form-grid"><div><label>专注（分钟）</label><input name="pomodoroFocus" type="number" min="1" max="180" required value="${state.settings.pomodoroFocusMinutes}"></div><div><label>短休息（分钟）</label><input name="pomodoroShort" type="number" min="1" max="60" required value="${state.settings.pomodoroShortBreakMinutes}"></div><div><label>长休息（分钟）</label><input name="pomodoroLong" type="number" min="1" max="120" required value="${state.settings.pomodoroLongBreakMinutes}"></div><div><label>每组轮数</label><input name="pomodoroRounds" type="number" min="1" max="12" required value="${state.settings.pomodoroRounds}"></div></div></div><fieldset class="orientation-field"><legend>屏幕方向</legend><small class="field-help">进入沉浸计时后按此方向显示，退出自动恢复竖屏。</small><label class="orientation-option"><input type="radio" name="orientation" value="auto" ${(state.settings.timerOrientation || 'auto') === 'auto' ? 'checked' : ''}><span>自动跟随手机姿态</span></label><label class="orientation-option"><input type="radio" name="orientation" value="landscape" ${state.settings.timerOrientation === 'landscape' ? 'checked' : ''}><span>锁定横屏</span></label><label class="orientation-option"><input type="radio" name="orientation" value="portrait" ${state.settings.timerOrientation === 'portrait' ? 'checked' : ''}><span>锁定竖屏</span></label></fieldset><label class="confirm-line"><input name="autoStart" type="checkbox" ${state.settings.pomodoroAutoStart ? 'checked' : ''}> 自动开始下一阶段</label><label class="confirm-line"><input name="focusAlarm" type="checkbox" ${state.settings.focusAlarmSoundEnabled ? 'checked' : ''}> 启用结束闹铃与后台通知</label><p class="subtle">专注或休息结束后会持续播放提示音，直到你在软件或通知栏中手动停止。开启自动开始后，阶段结束会直接进入下一阶段。</p><div class="modal-actions"><button type="button" data-close>取消</button><button class="save">保存</button></div></form>`, 'timer-settings-modal');
+  modal(`<form id="timer-settings-form"><h2>计时与番茄循环</h2><label>自由计时默认时长（分钟）</label><input name="duration" type="number" min="1" max="180" required value="${state.settings.defaultDurationMinutes}"><div class="pomodoro-settings"><h3>番茄循环</h3><div class="form-grid"><div><label>专注（分钟）</label><input name="pomodoroFocus" type="number" min="1" max="180" required value="${state.settings.pomodoroFocusMinutes}"></div><div><label>短休息（分钟）</label><input name="pomodoroShort" type="number" min="1" max="60" required value="${state.settings.pomodoroShortBreakMinutes}"></div><div><label>长休息（分钟）</label><input name="pomodoroLong" type="number" min="1" max="120" required value="${state.settings.pomodoroLongBreakMinutes}"></div><div><label>每组轮数</label><input name="pomodoroRounds" type="number" min="1" max="12" required value="${state.settings.pomodoroRounds}"></div></div></div><fieldset class="orientation-field"><legend>屏幕方向</legend><small class="field-help">进入沉浸计时后按此方向显示，退出自动恢复竖屏。</small><label class="orientation-option"><input type="radio" name="orientation" value="auto" ${(state.settings.timerOrientation || 'auto') === 'auto' ? 'checked' : ''}><span>自动跟随手机姿态</span></label><label class="orientation-option"><input type="radio" name="orientation" value="landscape" ${state.settings.timerOrientation === 'landscape' ? 'checked' : ''}><span>锁定横屏</span></label><label class="orientation-option"><input type="radio" name="orientation" value="portrait" ${state.settings.timerOrientation === 'portrait' ? 'checked' : ''}><span>锁定竖屏</span></label></fieldset><label class="confirm-line"><input name="autoStart" type="checkbox" ${state.settings.pomodoroAutoStart ? 'checked' : ''}> 自动开始下一阶段</label><label class="confirm-line"><input name="focusAlarm" type="checkbox" ${state.settings.focusAlarmSoundEnabled ? 'checked' : ''}> 启用结束闹铃与后台通知</label><p class="subtle">专注或休息结束后会持续播放提示音，直到你在软件或通知栏中手动停止。开启自动开始后，阶段结束会直接进入下一阶段。</p><div class="modal-actions"><button type="button" data-close>取消</button><button class="save">保存</button></div></form>`, 'timer-settings-modal');
 }
 
 function ambientPicker() {

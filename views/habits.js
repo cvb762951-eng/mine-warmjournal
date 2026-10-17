@@ -203,7 +203,7 @@ export function habitLogForm(habit) {
   const quiet = [streak > 0 ? `已连续 ${streak} 天` : '还没有连续记录', weekly ? `今天记了 ${todayValue}${unit}` : '', linked ? `${linked}${unit} 来自专注` : ''].filter(Boolean).join(' · ');
   const recent = habitRecentWeeks(habit);
   const secondary = [
-    /分钟/.test(habit.unit) ? '<button type="button" id="habit-focus-start">专注 10 分钟</button>' : '',
+    '',  // 2026-10-17 切割：习惯页不再挂「专注 10 分钟」入口
     '<button type="button" id="adjust-habit-total">改今日累计</button>',
     resting ? '<button type="button" id="unskip-habit-today">恢复今天</button>' : '<button type="button" id="skip-habit-today">今天休息</button>',
     todayValue ? '<button type="button" id="reset-habit-total">清除今日记录</button>' : '',
@@ -244,8 +244,8 @@ export function habitLogForm(habit) {
     amountInput.value = String(Math.max(1, Math.min(999999, (Number(amountInput.value) || 0) + Number(button.dataset.hsStep))));
   });
   $('#adjust-habit-total').onclick = () => habitTotalForm(habit);
-  $('#habit-focus-start')?.addEventListener('click', () => Promise.resolve(callHelper('startFocusForHabit', habit.id)).catch(error => show(error.message)));
-  $('#reset-habit-total')?.addEventListener('click', () => confirmDelete(`${esc(habit.name)}今天记下的 ${todayValue}${esc(habit.unit)} 会清零，专注同步的部分保留。`, () => commitHabitProgress(habit.id, 0, `${habit.name}今日记录已清空`), { title: '清空今天的记录？', note: '', confirmText: '清空', cancelText: '取消', light: true }));
+
+  $('#reset-habit-total')?.addEventListener('click', () => confirmDelete(`${esc(habit.name)}今天记下的 ${todayValue}${esc(habit.unit)} 会清零。`, () => commitHabitProgress(habit.id, 0, `${habit.name}今日记录已清空`), { title: '清空今天的记录？', note: '', confirmText: '清空', cancelText: '取消', light: true }));
   $('#skip-habit-today')?.addEventListener('click', () => setHabitRestDay(habit.id, true));
   $('#unskip-habit-today')?.addEventListener('click', () => setHabitRestDay(habit.id, false));
   $('#habit-sheet-edit').onclick = () => habitForm(habit);
@@ -262,7 +262,7 @@ export async function setHabitRestDay(habitId, resting) {
 function habitTotalForm(habit) {
   const current = Number(state.checks[dateKey()]?.[habit.id] || 0);
   const linked = linkedHabitMinutes(dateKey(), habit.id);
-  modal(`<form id="habit-total-form"><input type="hidden" name="id" value="${habit.id}"><span class="eyebrow">CORRECT PROGRESS</span><h2>修改${esc(habit.name)}累计</h2><p class="subtle">直接填写今天实际完成的总量；专注计时同步的 ${linked}${esc(habit.unit)} 会保留。</p><label>今日累计</label><div class="habit-total-input"><input name="total" type="number" inputmode="numeric" min="${linked}" max="999999" required value="${current}"><span>${esc(habit.unit)}</span></div><div class="modal-actions"><button type="button" id="habit-log-back">返回</button><button class="save">保存修改</button></div></form>`, 'habit-log-modal');
+  modal(`<form id="habit-total-form"><input type="hidden" name="id" value="${habit.id}"><span class="eyebrow">CORRECT PROGRESS</span><h2>修改${esc(habit.name)}累计</h2><p class="subtle">直接填写今天实际完成的总量。</p><label>今日累计</label><div class="habit-total-input"><input name="total" type="number" inputmode="numeric" min="${linked}" max="999999" required value="${current}"><span>${esc(habit.unit)}</span></div><div class="modal-actions"><button type="button" id="habit-log-back">返回</button><button class="save">保存修改</button></div></form>`, 'habit-log-modal');
   $('#habit-log-back').onclick = () => habitLogForm(habit);
 }
 

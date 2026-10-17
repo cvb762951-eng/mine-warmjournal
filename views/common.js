@@ -404,7 +404,7 @@ export function bindPhotoViewerGestures(photos = [], meta = null, active = 0, op
 // 会话记录的编辑/删除绑定（供专注项目历史、阅读专注历史复用）
 export function bindRecordActions() {
   $$('[data-edit-session]').forEach(button => button.onclick = () => callHelper('sessionForm', state.sessions.find(session => session.id === button.dataset.editSession)));
-  $$('[data-delete-session]').forEach(button => button.onclick = () => confirmDelete('删除这条专注记录？关联习惯中的分钟数也会同步扣除。', async () => { const session = state.sessions.find(item => item.id === button.dataset.deleteSession); if (session) callHelper('replaceSessionHabitContribution', session, null); state.sessions = state.sessions.filter(item => item.id !== button.dataset.deleteSession); await save(); render(); callHelper('scheduleAiRefresh'); }));
+  $$('[data-delete-session]').forEach(button => button.onclick = () => confirmDelete('删除这条专注记录？', async () => { const session = state.sessions.find(item => item.id === button.dataset.deleteSession); if (session) callHelper('replaceSessionHabitContribution', session, null); state.sessions = state.sessions.filter(item => item.id !== button.dataset.deleteSession); await save(); render(); callHelper('scheduleAiRefresh'); }));
 }
 
 // ---- 共享语音输入组件（R5，供日记/随手记/账本/AI 对话等输入框接入）----

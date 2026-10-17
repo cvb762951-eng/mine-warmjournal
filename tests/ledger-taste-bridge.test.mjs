@@ -9,12 +9,11 @@ const bridgeSource = readFileSync(new URL('../ledger-taste-bridge.js', import.me
 
 // 专注 ↔ 习惯：completeTimer 里曾硬编码 habitId:'' / habitMinutes:0，
 // 导致用户在计时器里跑完的专注永远不会加到习惯上（只有日历补录路径有效）。
-test('focus sessions carry the linked habit instead of hardcoded blanks', () => {
-  const settle = focusSource.slice(focusSource.indexOf('function completeTimer'));
-  assert.doesNotMatch(settle.slice(0, 3000), /habitId: '',\s*\n\s*habitMinutes: 0,/, '结算时不应再写死空习惯');
-  assert.match(settle, /habitId: linkedHabitId/, '结算时 habitId 应为联动解析出的习惯');
-  assert.match(settle, /habitMinutes: linkedHabitId \? minutes : 0/, 'habitMinutes 应记录实际专注分钟数');
-  assert.match(settle, /adjustHabitMinutes\(session\.date, linkedHabitId, minutes/, '结算后应真正累加到习惯进度');
+test('focus sessions no longer carry a habit link', () => {
+  // 2026-10-17 切割：专注记录不再带 habitId / habitMinutes，也不再把分钟累加进习惯。
+  const f = readFileSync(new URL('../views/focus.js', import.meta.url), 'utf8');
+  assert.match(f, /const linkedHabitId = \(\(\) => \{/, '仍保留 linkedHabitId 占位');
+  assert.doesNotMatch(f, /adjustHabitMinutes\(session\.date/, '结算时不应再累加习惯分钟');
 });
 
 test('linked habit is only allowed for minute-based quantity habits', () => {
@@ -23,10 +22,13 @@ test('linked habit is only allowed for minute-based quantity habits', () => {
   assert.match(focusSource, /habit && !habit\.archived && habit\.tracking === 'quantity'/, '结算时应再次校验习惯有效性');
 });
 
-test('focus settings expose a way to pick the linked habit', () => {
-  assert.match(focusSource, /id="timer-settings-form"/, '计时设置应含联动选择器');
-  assert.match(focusSource, /name="focusLinkedHabit"/, '应有习惯选择字段');
-  assert.match(focusSource, /focusLinkedHabitId = linkable \? linkedId : ''/, '保存时应校验候选合法性');
+test('habits are decoupled from focus (no linked-habit picker)', () => {
+  // 2026-10-17 用户要求：习惯与专注彻底切割。谁把联动加回来，这里就红。
+  const f = readFileSync(new URL('../views/focus.js', import.meta.url), 'utf8');
+  assert.match(f, /id="timer-settings-form"/, '计时设置表单应保留');
+  assert.doesNotMatch(f, /name="focusLinkedHabit"/, '不应再有习惯选择字段');
+  assert.match(f, /const linkableHabits = \[\];/, '联动候选应为空数组');
+  assert.doesNotMatch(f, /adjustHabitMinutes\(session\.date/, '结算时不应再累加习惯分钟');
 });
 
 test('migrating state drops a link pointing at a deleted or mismatched habit', () => {
